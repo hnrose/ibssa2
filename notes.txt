@@ -1,3 +1,86 @@
+How many copies of the DB do we want?
+
+Wait for the ACM to reissue query...
+
+Request of SSA for data.
+
+
+Is acm DB doing dual DB and swap over.
+
+
+What is the granularity of the Epoch???
+
+Sean was picturing a global 1 value and then an ibacm node would do a full
+update to the latest version.
+
+Eitan was worried about the granularity of the queries.  All to All can not
+afford doing 1 PR at a time.
+
+The querry will be now I have permission to do the update.
+
+Maybe just need 2 on each node?  Just a "new" and the "working".
+
+
+*************
+
+ibacm supplies just the old epoch for update request.
+
+The SSA then provides ALL data for that epoch to current epoch.
+
+*************
+
+
+What about using a vendor MAD?
+------------------------------
+
+NO just do a single SR query and then connect to the "master" SSA and it will
+redirect you.
+
+
+
+What about packaging...
+-----------------------
+
+Just sharing header files.
+
+put headers in libibumad
+
+Sean was just thinking some header files for the message definitions
+
+
+This is non-standard...
+Have to pad out for message size.  Unless you stream messages...
+
+Versions or padding out and grow rarely.  Or do something with streaming where
+the header contains message length???
+
+   ?? rsockets... ??
+
+Base all messages off of existing MAD header...  with some modifications like
+no RMPP and add message length.
+
+Control messages have header but RDMA messages are "raw" data.
+
+Control Header format...  What should that be?
+
+	Seq Num
+	message type
+	message length (? length could be determined by type)
+	epoch (? Or is this message data?)
+	data...
+
+Define SSA connection end point info
+	type (father/mother/grandfather)
+	connection channel (UD QPn)
+	ConnCh PathRecord (list?)
+
+
+
+
+
+
+
+
 
 "Dark" wire up for SSA service
 
