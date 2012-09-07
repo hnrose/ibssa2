@@ -1,11 +1,13 @@
+Results of Meeting 2012-09-06
+-----------------------------
+
 How many copies of the DB do we want?
 
 Wait for the ACM to reissue query...
 
-Request of SSA for data.
+Request all data from SSA.
 
-
-Is acm DB doing dual DB and swap over.
+ibacm is going to have dual DB and swap over.
 
 
 What is the granularity of the Epoch???
@@ -16,7 +18,7 @@ update to the latest version.
 Eitan was worried about the granularity of the queries.  All to All can not
 afford doing 1 PR at a time.
 
-The querry will be now I have permission to do the update.
+The query will be "now I have permission" to do the update.
 
 Maybe just need 2 on each node?  Just a "new" and the "working".
 
@@ -78,8 +80,8 @@ Define SSA connection end point info
 
 
 
-
-
+Meeting 2012-08-30
+------------------
 
 
 "Dark" wire up for SSA service
