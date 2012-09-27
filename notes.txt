@@ -1,3 +1,61 @@
+Results of Meeting 2012-09-27
+-----------------------------
+
+4 types of nodes.
+
+	1) Root node
+	2) "Comm" node
+	3) SSA node
+	4) clients
+
+What do we do with the root data?  Full data or transactional?
+
+
+
+
+
+Results of Meeting 2012-09-13
+-----------------------------
+
+Only some nodes know the topology.  That is fine.
+
+Hello
+=====
+
+How do they know the level in the tree 2 options.
+	1) config file knowing the level to send in "hello"
+	2) ???
+
+
+Do the leaf nodes join the "tree"?  Not sure.
+
+Hello _does_ _not_ get an immediate response.
+
+This is probably better with an "ack" message but the "ack" does not have the
+"parent" info.  Ack could have timeout for the client to expect it's parent
+message.
+
+
+Parent
+======
+
+"Data" response.
+
+
+Hookup
+======
+
+
+
+
+So use VS MAD to do the above messages.  QP1 will not see much traffic.
+
+
+
+
+
+
+
 Results of Meeting 2012-09-06
 -----------------------------
 
