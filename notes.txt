@@ -1,3 +1,26 @@
+Results of Meeting 2012-10-10
+-----------------------------
+
+
+SM plugin server to use umad vendor specific class for hook up.
+
+Ira to start header file to get this going and start getting clients hooked
+up.
+
+
+
+int tot_init(int num_retry, int timeout_ms)
+
+int tot_reg_cb...
+Not doing the call back.
+
+int tot_hello(char *tree, uint32_t QPN, uint16_t level)
+
+int tot_hookup(uint16_t lid, uint32_t QPN)
+
+
+
+
 Results of Meeting 2012-09-27
 -----------------------------
 
