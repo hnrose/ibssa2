@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2012 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation. All rights reserved.
  * Copyright (c) 2012 Lawrence Livermore National Securities.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -55,6 +57,7 @@
  *    VendorGet()
  *    VendorSet()
  *    VendorGetResp()
+ *    VendorSend()
  *
  *    Do we need Trap???
  *
@@ -112,6 +115,9 @@ struct tot_attr_hello {
 	__be32_t          wait_time_us;
 	char              tree[64];
 	uint8_t           padding[164];
+	/* Do we need something here to ID the connecting node?
+	 * LID?  It seems we could get that from the headers
+	 */
 };
 
 /**
@@ -137,7 +143,7 @@ struct tot_attr_hookup {
 	char                tree[64];
 	__be32_t            qpn;
 	__be16_t            lid;
-	uint8_t             padding['rest'];
+	uint8_t             padding[162];
 };
 
 #endif /* __IBSSA_TOT_VS_MAD_H__ */

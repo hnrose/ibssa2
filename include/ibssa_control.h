@@ -33,54 +33,38 @@
  *
  */
 
-#ifndef __IBSSA_TOT_H__
-#define __IBSSA_TOT_H__
 
-#include <infiniband/umad.h>
-#include "tot_vs_mad.h"
+#ifndef __IBSSA_CONTROL_H__
+#define __IBSSA_CONTROL_H__
 
-
-/**
- * NOTES:
- *
- * I started with the standard OFA copyright/license.  I figure this is
- * just an extension of existing OFA software.
- *
- * Then start with Eitan's basic calls.
- *
+/** =========================================================================
+ * For the control channel I wonder if doing straight up SA commands would be best?
  */
 
-/* For those using this interface the tot_ctx is kept opaque for flexibility */
-struct tot_ctx;
-
-union tot_resp {
-	struct ib_mad_hdr      hdr;
-	struct tot_attr_hello  hello;
-	struct tot_attr_parent parent;
-	struct tot_attr_hookup hookup;
+struct ibssa_control_hdr {
+	uint8_t           version;
+	uint8_t           method;
+	uint8_t           msg_id;
+	uint8_t           pad;
+	__be64_t          epoch;
+	/* What else here? */
 };
 
-struct tot_qp_attr {
-	uint16_t  lid;
-	uint32_t  qpn;
+#define MSG_ID_PR_QUERY 0x01
+struct ibssa_pr_req {
+	struct ibssa_control_hdr hdr;
+	union {
+		__be16_t                dlid;
+		union ibv_gid           dgid;
+		struct sockaddr_storage addr;
+		char                    node_desc[64];
+		char                    hostname[128];
+	} addr;
 };
 
 /**
- * Tot does not own umad_fd let the user control that.
+ * What other queries?
  */
-struct tot_ctx *tot_init(int umad_fd);
 
-/**
- * dest will usually be filled in with SM Lid/SL
- * But could be previous known parent or configured to be any node.
- *    (While complicated I think we want to allow for this?)
- */
-int tot_hello(struct tot_ctx *ctx, struct ib_mad_pr *dest, char *tree);
+#endif /* __IBSSA_CONTROL_H__ */
 
-/* Simple Blocking Wait for parent resp */
-int tot_wait_resp(struct tot_ctx *ctx, union tot_resp *resp);
-
-int tot_hookup(struct tot_ctx *ctx, struct ib_mad_pr *dest,
-		struct tot_qp_attr *qp_attr);
-
-#endif /* __IBSSA_TOT_H__ */
