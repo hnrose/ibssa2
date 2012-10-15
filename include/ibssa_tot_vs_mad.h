@@ -38,8 +38,6 @@
 
 #include <linux/types.h>
 
-#include "ibssa_util.h"
-
 /** =========================================================================
  * Issues:
  *    1) What length do we want for our tree "names"?  Is 64 bytes enough?
