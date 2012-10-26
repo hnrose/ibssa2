@@ -41,7 +41,7 @@
  * For the control channel I wonder if doing straight up SA commands would be best?
  */
 
-struct ibssa_control_hdr {
+struct ib_ssa_control_hdr {
 	uint8_t           version;
 	uint8_t           method;
 	uint8_t           msg_id;
@@ -51,8 +51,8 @@ struct ibssa_control_hdr {
 };
 
 #define MSG_ID_PR_QUERY 0x01
-struct ibssa_pr_req {
-	struct ibssa_control_hdr hdr;
+struct ib_ssa_pr_req {
+	struct ib_ssa_control_hdr hdr;
 	union {
 		__be16_t                dlid;
 		union ibv_gid           dgid;

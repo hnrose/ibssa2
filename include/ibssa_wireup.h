@@ -33,11 +33,11 @@
  *
  */
 
-#ifndef __IBSSA_TOT_H__
-#define __IBSSA_TOT_H__
+#ifndef __IBSSA_WIREUP_H__
+#define __IBSSA_WIREUP_H__
 
 #include <infiniband/umad.h>
-#include "tot_vs_mad.h"
+#include "ibssa_mad.h"
 
 
 /**
@@ -51,16 +51,16 @@
  */
 
 /* For those using this interface the tot_ctx is kept opaque for flexibility */
-struct tot_ctx;
+struct ib_ssa_ctx;
 
-union tot_resp {
-	struct ib_mad_hdr      hdr;
-	struct tot_attr_hello  hello;
-	struct tot_attr_parent parent;
-	struct tot_attr_hookup hookup;
+union ib_ssa_resp {
+	struct ib_mad_hdr         hdr;
+	struct ib_ssa_attr_hello  hello;
+	struct ib_ssa_attr_parent parent;
+	struct ib_ssa_attr_hookup hookup;
 };
 
-struct tot_qp_attr {
+struct ib_ssa_qp_attr {
 	uint16_t  lid;
 	uint32_t  qpn;
 };
@@ -68,19 +68,19 @@ struct tot_qp_attr {
 /**
  * Tot does not own umad_fd let the user control that.
  */
-struct tot_ctx *tot_init(int umad_fd);
+struct ib_ssa_ctx *ib_ssa_init(int umad_fd);
 
 /**
  * dest will usually be filled in with SM Lid/SL
  * But could be previous known parent or configured to be any node.
  *    (While complicated I think we want to allow for this?)
  */
-int tot_hello(struct tot_ctx *ctx, struct ib_mad_pr *dest, char *tree);
+int ib_ssa_hello(struct ib_ssa_ctx *ctx, struct ib_mad_pr *dest, char *tree);
 
 /* Simple Blocking Wait for parent resp */
-int tot_wait_resp(struct tot_ctx *ctx, union tot_resp *resp);
+int ib_ssa_wait_resp(struct ib_ssa_ctx *ctx, union ib_ssa_resp *resp);
 
-int tot_hookup(struct tot_ctx *ctx, struct ib_mad_pr *dest,
-		struct tot_qp_attr *qp_attr);
+int ib_ssa_hookup(struct ib_ssa_ctx *ctx, struct ib_mad_pr *dest,
+		struct ib_ssa_qp_attr *qp_attr);
 
-#endif /* __IBSSA_TOT_H__ */
+#endif /* __IBSSA_WIREUP_H__ */
