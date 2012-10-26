@@ -38,23 +38,7 @@
 
 #include <linux/types.h>
 #include <linux/infiniband/sa.h>
-
-/* I believe we should still use the standard MAD header.
- * If we can get this header accepted to umad that would be best but for
- * completeness just define it here.
- */
-struct ib_mad_hdr {
-	uint8_t	  base_version;
-	uint8_t	  mgmt_class;
-	uint8_t	  class_version;
-	uint8_t	  method;
-	__be16_t  status;
-	__be16_t  cs_reserved;
-	__be64_t  tid;
-	__be16_t  attr_id;
-	__be16_t  resv;
-	__be32_t  attr_mod;
-};
+#include "ibssa_umad.h"
 
 /* From Sean's email for reference */
 struct ib_ssa_mad {
