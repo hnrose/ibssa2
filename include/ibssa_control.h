@@ -37,18 +37,56 @@
 #ifndef __IBSSA_CONTROL_H__
 #define __IBSSA_CONTROL_H__
 
+#include "ibssa_umad.h"
+
 /** =========================================================================
- * For the control channel I wonder if doing straight up SA commands would be best?
+ * The folowing is mostly copied directly out of Sean's email.
+ * I have added a couple of things with comments since we did not get a chance
+ * to discuss this further than item 16
  */
 
-struct ib_ssa_control_hdr {
-	uint8_t           version;
-	uint8_t           method;
-	uint8_t           msg_id;
-	uint8_t           pad;
-	__be64_t          epoch;
-	/* What else here? */
+struct ssa_msg_hdr {
+	struct ib_mad_hdr hdr;
+	uint32_t          data_len; /* I think we need this here */
+
+	/* RDMA response buffer */
 };
+
+
+/**
+ * I am torn between doing straight up SA queries and specialized messages below.
+ *
+ * At first I thought specialized messages but if we follow the standard SA
+ * queries it might be more straight forward for others to follow.
+ *
+ * So what about defining both?  We just need to define queries below as an
+ * extension of the standard.
+ *
+ * Also following on my thoughts on service ID's do we want each of the queries
+ * in this file to be a separate service id?
+ */
+
+union ssa_ep_info {
+	uint8_t                 addr[SSA_MAX_ADDRESS];
+	uint8_t                 name[SSA_MAX_ADDRESS];
+	struct ibv_path_record  path;
+};
+
+#define SSA_EP_FLAG_SOURCE      (1<<0)
+#define SSA_EP_FLAG_DEST        (1<<1)
+
+struct ssa_ep_addr_data {
+	uint32_t                flags;
+	uint16_t                type;
+	uint16_t                reserved;
+	union ssa_ep_info       info;
+};
+
+struct ssa_resolve_msg {
+	struct ssa_msg_hdr      hdr;
+	struct ssa_ep_addr_data data[0];
+};
+
 
 #define MSG_ID_PR_QUERY 0x01
 struct ib_ssa_pr_req {
@@ -61,10 +99,6 @@ struct ib_ssa_pr_req {
 		char                    hostname[128];
 	} addr;
 };
-
-/**
- * What other queries?
- */
 
 #endif /* __IBSSA_CONTROL_H__ */
 
