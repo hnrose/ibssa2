@@ -37,33 +37,12 @@
 #define __IBSSA_MAD_H__
 
 #include <linux/types.h>
+#include <linux/infiniband/sa.h>
 
-/** =========================================================================
- * Issues:
- *    1) What length do we want for our tree "names"?  Is 64 bytes enough?
+/* I believe we should still use the standard MAD header.
+ * If we can get this header accepted to umad that would be best but for
+ * completeness just define it here.
  */
-
-/**
- * What class value is available?
- * I don't see a need for RMPP so use one from 0x09-0xf
- */
-#define IB_SSA_CLASS 0x09
-
-/**
- * Methods supported
- *    VendorGet()
- *    VendorSet()
- *    VendorGetResp()
- *    VendorSend()
- *
- *    Do we need Trap???
- *
- * Attributes 
- *    Hello
- *    Parent
- *    Hookup
- */
-
 struct ib_mad_hdr {
 	uint8_t	  base_version;
 	uint8_t	  mgmt_class;
@@ -77,45 +56,106 @@ struct ib_mad_hdr {
 	__be32_t  attr_mod;
 };
 
-/**
- * Hello is like "take a number" when you walk in a store.  It will return the
- * expected wait time.  The client can use that wait time to time out and send
- * another hello if it has not received "service" for the parent info yet.
- */
-#define IB_SSA_ATTR_HELLO 0x0010
-struct ib_ssa_attr_hello {
+/* From Sean's email for reference */
+struct ib_ssa_mad {
 	struct ib_mad_hdr hdr;
-	__be32_t          wait_time_us;
-	char              tree[64];
-	uint8_t           padding[164];
-	/* Do we need something here to ID the connecting node?
-	 * LID?  It seems we could get that from the headers
-	 */
+
+	/* other potential fields - but we need the space
+	uint64_t ssa_key;
+	uint16_t attr_offset;
+	uint16_t reserved3;
+	uint32_t reserved4;
+	uint64_t comp_mask;
+	*/
+
+	uint8_t  data[232];
 };
 
 /**
- * Parent message sent some time after hello is received
- * client can chose to connect to one or both
+ * Sean is right, it is more appropriate to use an Application Class MAD.
+ *
+ * For now we can borrow the ACM "class" because I don't know if there is a
+ * reason we would want this different from control messages.  I don't think it
+ * matters but perhaps it does.
  */
-#define IB_SSA_ATTR_PARENT 0x0011
-struct ib_ssa_attr_parent {
-	struct ib_mad_hdr       hdr;
-	char                    tree[64];
-	struct ibv_path_record  primary_pr;
-	struct ibv_path_record  secondary_pr; // May be blank
-	uint8_t                 padding[76];
-};
+#define IB_SSA_CLASS 0x2C
 
 /**
- * Hookup message sent to parent when requesting to be connected.
+ * Methods supported
  */
-#define IB_SSA_ATTR_HOOKUP 0x0012
-struct ib_ssa_attr_hookup {
-	struct ib_mad_hdr   hdr;
-	char                tree[64];
-	__be32_t            qpn;
-	__be16_t            lid;
-	uint8_t             padding[162];
+#define IB_SSA_METHOD_GET         0x01
+#define IB_SSA_METHOD_SET         0x02
+#define IB_SSA_METHOD_GETRESP     0x81
+#define IB_SSA_METHOD_DELETE      0x15
+#define IB_SSA_METHOD_DELETERESP  0x95
+
+/**
+ * Attributes
+ */
+#define IB_SSA_ATTR_SSAMemberRecord  0x1000
+#define IB_SSA_ATTR_SSAInfoRecord    0x1001
+
+/**
+ *
+ * An AppSet(SSAMemberRecord) request indicates that port/service/pkey wishes
+ * to join 1 or more SSA groups.
+ *
+ * An AppDelete(SSAMemberRecord) request indicates that a port/service/pkey
+ * wishes to leave 1 or more SSA groups.
+ *
+ * The master SSA will respond to a successful Set/Delete request by returning
+ * a GetResp/DeleteResp with the current membership indicated in a returned
+ * SSAMemberRecord.  (This matches what the SA does for MCMemberRecords)
+ *
+ */
+struct ib_ssa_member_record {
+	/* gid or guid? */
+	uint64_t port_gid;			/* RID = GID + SID + PKey */
+	uint64_t service_id;
+	uint16_t pkey;
+	uint8_t  reserved[6];
+	uint64_t service_mask;		/* set service bit to 1 to indicate join/leave */
+};
+
+/* Service mask values */
+#define SSA_SERVICE_MASTER                   (1 << 0)
+#define SSA_SERVICE_PATH_RECORD_DISTRIBUTION (1 << 1)
+#define SSA_SERVICE_PATH_RECORD_CACHING      (1 << 2)
+#define SSA_SERVICE_ADDRESS_DISTRIBUTION     (1 << 3)
+#define SSA_SERVICE_ADDRESS_CACHING          (1 << 4)
+
+
+/**
+ * SSAInfoRecord is used to inform registered services of the location of other
+ * registered services - basically to setup the communication tree among SSA
+ * services which have joined a specific group.
+ *
+ * Master SSA uses Set method with an SSAInfoRecord attribute to configure
+ * joined SSA services.  The clients respond with a GetResp, echoing back the
+ * TID.
+ *
+ * The master may issue a second SSAInfoRecord with the secondary (backup)
+ * parent information if available.
+ *
+ * Once a node receives an SSAInfoRecord, it can connect to the parent service
+ * using the PR information contained within the record.
+ */
+struct ib_ssa_info_record {
+	uint64_t service_mask;
+	uint8_t  priority;     /* indicates primary/alternate parent/path */
+	uint8_t  reserved[7];
+	struct ibv_path_data path_data[3];
+};
+
+/* An alternate version where the flags from ibv_path_data are put in the
+ * header and condensed to 8 bits */
+struct ib_ssa_info_record {
+	uint64_t service_mask;
+	uint8_t  priority;     /* indicates primary/alternate parent/path */
+	uint8_t  path_flags[3];  /* Flags from libibverbs/include/sa.h for each of the 3 paths provided */
+	uint8_t  reserved[4];
+	struct ibv_path_record path_data[3];
+	uint8_t  pad[24];
 };
 
 #endif /* __IBSSA_MAD_H__ */
