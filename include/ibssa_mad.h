@@ -61,11 +61,11 @@ struct ib_ssa_mad {
 	struct ib_mad_hdr hdr;
 
 	/* other potential fields - but we need the space
-	uint64_t ssa_key;
-	uint16_t attr_offset;
-	uint16_t reserved3;
+	__be64_t ssa_key;
+	__be16_t attr_offset;
+	__be16_t reserved3;
 	uint32_t reserved4;
-	uint64_t comp_mask;
+	__be64_t comp_mask;
 	*/
 
 	uint8_t  data[232];
@@ -110,11 +110,11 @@ struct ib_ssa_mad {
  */
 struct ib_ssa_member_record {
 	/* gid or guid? */
-	uint64_t port_gid;			/* RID = GID + SID + PKey */
-	uint64_t service_id;
-	uint16_t pkey;
+	__be64_t port_gid;			/* RID = GID + SID + PKey */
+	__be64_t service_id;
+	__be16_t pkey;
 	uint8_t  reserved[6];
-	uint64_t service_mask;		/* set service bit to 1 to indicate join/leave */
+	__be64_t service_mask;		/* set service bit to 1 to indicate join/leave */
 };
 
 /* Service mask values */
@@ -141,7 +141,7 @@ struct ib_ssa_member_record {
  * using the PR information contained within the record.
  */
 struct ib_ssa_info_record {
-	uint64_t service_mask;
+	__be64_t service_mask;
 	uint8_t  priority;     /* indicates primary/alternate parent/path */
 	uint8_t  reserved[7];
 	struct ibv_path_data path_data[3];
@@ -150,7 +150,7 @@ struct ib_ssa_info_record {
 /* An alternate version where the flags from ibv_path_data are put in the
  * header and condensed to 8 bits */
 struct ib_ssa_info_record {
-	uint64_t service_mask;
+	__be64_t service_mask;
 	uint8_t  priority;     /* indicates primary/alternate parent/path */
 	uint8_t  path_flags[3];  /* Flags from libibverbs/include/sa.h for each of the 3 paths provided */
 	uint8_t  reserved[4];
