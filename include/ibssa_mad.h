@@ -95,15 +95,14 @@ struct ib_ssa_attr_hello {
 
 /**
  * Parent message sent some time after hello is received
- * Father is primary parent, Mother is secondary
  * client can chose to connect to one or both
  */
 #define IB_SSA_ATTR_PARENT 0x0011
 struct ib_ssa_attr_parent {
 	struct ib_mad_hdr       hdr;
 	char                    tree[64];
-	struct ibv_path_record  father_pr;
-	struct ibv_path_record  mother_pr; // May be blank
+	struct ibv_path_record  primary_pr;
+	struct ibv_path_record  secondary_pr; // May be blank
 	uint8_t                 padding[76];
 };
 
