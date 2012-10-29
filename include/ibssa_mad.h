@@ -37,8 +37,8 @@
 #define __IBSSA_MAD_H__
 
 #include <linux/types.h>
-#include <linux/infiniband/umad.h>
-#include <linux/infiniband/sa.h>
+#include <infiniband/umad.h>
+#include <infiniband/sa.h>
 #include <infiniband/verbs.h>
 #include "ibssa_umad.h"
 

@@ -36,7 +36,7 @@
 #ifndef __IBSSA_UMAD_H__
 #define __IBSSA_UMAD_H__
 
-#include <linux/infiniband/umad.h>
+#include <infiniband/umad.h>
 
 /*
  * If we can these defines accepted to umad that would be best but for
