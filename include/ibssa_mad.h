@@ -64,22 +64,28 @@ struct ib_ssa_mad {
  * reason we would want this different from control messages.  I don't think it
  * matters but perhaps it does.
  */
-#define IB_SSA_CLASS 0x2C
+enum {
+	IB_SSA_CLASS = 0x2C
+};
 
 /**
  * Methods supported
  */
-#define IB_SSA_METHOD_GET         0x01
-#define IB_SSA_METHOD_SET         0x02
-#define IB_SSA_METHOD_GETRESP     0x81
-#define IB_SSA_METHOD_DELETE      0x15
-#define IB_SSA_METHOD_DELETERESP  0x95
+enum {
+	IB_SSA_METHOD_GET        = 0x01,
+	IB_SSA_METHOD_SET        = 0x02,
+	IB_SSA_METHOD_GETRESP    = 0x81,
+	IB_SSA_METHOD_DELETE     = 0x15,
+	IB_SSA_METHOD_DELETERESP = 0x95
+};
 
 /**
  * Attributes
  */
-#define IB_SSA_ATTR_SSAMemberRecord  0x1000
-#define IB_SSA_ATTR_SSAInfoRecord    0x1001
+enum {
+	IB_SSA_ATTR_SSAMemberRecord = 0x1000,
+	IB_SSA_ATTR_SSAInfoRecord   = 0x1001
+};
 
 /**
  *
@@ -103,11 +109,13 @@ struct ib_ssa_member_record {
 };
 
 /* Service mask values */
-#define SSA_SERVICE_MASTER                   (1 << 0)
-#define SSA_SERVICE_PATH_RECORD_DISTRIBUTION (1 << 1)
-#define SSA_SERVICE_PATH_RECORD_CACHING      (1 << 2)
-#define SSA_SERVICE_ADDRESS_DISTRIBUTION     (1 << 3)
-#define SSA_SERVICE_ADDRESS_CACHING          (1 << 4)
+enum {
+	SSA_SERVICE_MASTER                   = 1 << 0,
+	SSA_SERVICE_PATH_RECORD_DISTRIBUTION = 1 << 1,
+	SSA_SERVICE_PATH_RECORD_CACHING      = 1 << 2,
+	SSA_SERVICE_ADDRESS_DISTRIBUTION     = 1 << 3,
+	SSA_SERVICE_ADDRESS_CACHING          = 1 << 4
+};
 
 
 /**

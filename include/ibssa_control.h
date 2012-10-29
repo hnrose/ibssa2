@@ -72,8 +72,10 @@ union ssa_ep_info {
 	struct ibv_path_record  path;
 };
 
-#define SSA_EP_FLAG_SOURCE      (1<<0)
-#define SSA_EP_FLAG_DEST        (1<<1)
+enum {
+	SSA_EP_FLAG_SOURCE = 1<<0,
+	SSA_EP_FLAG_DEST   = 1<<1
+};
 
 struct ssa_ep_addr_data {
 	uint32_t                flags;
