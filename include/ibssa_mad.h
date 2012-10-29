@@ -39,6 +39,7 @@
 #include <linux/types.h>
 #include <linux/infiniband/umad.h>
 #include <linux/infiniband/sa.h>
+#include <infiniband/verbs.h>
 #include "ibssa_umad.h"
 
 /* From Sean's email for reference */
@@ -94,8 +95,7 @@ struct ib_ssa_mad {
  *
  */
 struct ib_ssa_member_record {
-	/* gid or guid? */
-	be64_t port_gid;			/* RID = GID + SID + PKey */
+	union ibv_gid port_gid;			/* RID = GID + SID + PKey */
 	be64_t service_id;
 	be16_t pkey;
 	uint8_t  reserved[6];
