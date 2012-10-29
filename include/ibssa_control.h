@@ -92,7 +92,7 @@ struct ssa_resolve_msg {
 struct ib_ssa_pr_req {
 	struct ib_ssa_control_hdr hdr;
 	union {
-		__be16_t                dlid;
+		be16_t                dlid;
 		union ibv_gid           dgid;
 		struct sockaddr_storage addr;
 		char                    node_desc[64];

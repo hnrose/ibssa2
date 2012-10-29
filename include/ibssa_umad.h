@@ -36,6 +36,8 @@
 #ifndef __IBSSA_UMAD_H__
 #define __IBSSA_UMAD_H__
 
+#include <linux/infiniband/umad.h>
+
 /*
  * If we can these defines accepted to umad that would be best but for
  * completeness just define them here.
@@ -45,12 +47,12 @@ struct ib_mad_hdr {
 	uint8_t	  mgmt_class;
 	uint8_t	  class_version;
 	uint8_t	  method;
-	__be16_t  status;
-	__be16_t  cs_reserved;
-	__be64_t  tid;
-	__be16_t  attr_id;
-	__be16_t  resv;
-	__be32_t  attr_mod;
+	be16_t  status;
+	be16_t  cs_reserved;
+	be64_t  tid;
+	be16_t  attr_id;
+	be16_t  resv;
+	be32_t  attr_mod;
 };
 
 #endif /* __IBSSA_UMAD_H__ */
