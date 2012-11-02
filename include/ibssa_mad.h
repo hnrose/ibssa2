@@ -101,20 +101,25 @@ enum {
  *
  */
 struct ib_ssa_member_record {
-	union ibv_gid port_gid;			/* RID = GID + SID + PKey */
-	be64_t service_id;
-	be16_t pkey;
-	uint8_t  reserved[6];
-	be64_t service_mask;		/* set service bit to 1 to indicate join/leave */
+	union ibv_gid port_gid;		/* RID = GID + SID + PKey */
+	be64_t        service_id;
+	be16_t        pkey;
+	uint8_t       reserved[5];
+	uint8_t       node_type;
+	be64_t        service_mask;	/* set service bit to 1 to indicate join/leave */
+};
+
+/* Node type values */
+enum {
+	SSA_NODE_SERVER = 1 << 0,
+	SSA_NODE_CLIENT = 1 << 1
 };
 
 /* Service mask values */
 enum {
-	SSA_SERVICE_MASTER                   = 1 << 0,
-	SSA_SERVICE_PATH_RECORD_DISTRIBUTION = 1 << 1,
-	SSA_SERVICE_PATH_RECORD_CACHING      = 1 << 2,
-	SSA_SERVICE_ADDRESS_DISTRIBUTION     = 1 << 3,
-	SSA_SERVICE_ADDRESS_CACHING          = 1 << 4
+	SSA_SERVICE_META_DATA   = 1 << 0,
+	SSA_SERVICE_ADDRESS     = 1 << 1,
+	SSA_SERVICE_PATH_RECORD = 1 << 2
 };
 
 
