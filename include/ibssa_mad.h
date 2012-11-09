@@ -46,7 +46,8 @@
 struct ib_ssa_mad {
 	struct ib_mad_hdr hdr;
 
-	uint8_t ssa_key[32];
+	uint64_t ssa_key;
+	uint8_t reserved[24];
 	/* other potential fields - but we need the space
 	be16_t attr_offset;
 	be16_t reserved3;
