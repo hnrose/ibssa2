@@ -38,6 +38,7 @@
 #define __IBSSA_CONTROL_H__
 
 #include "ibssa_umad.h"
+#include "ibssa_db.h"
 
 /** =========================================================================
  * The folowing is mostly copied directly out of Sean's email.
@@ -45,18 +46,26 @@
  * to discuss this further than item 16
  */
 
+enum msg_id {
+	/* single request messages */
+	IBSSA_MSG_ID_RESOLVE,
+
+	/* bulk request messages */
+	IBSSA_MSG_ID_QUERY_TABLE_GUIDS = 0xFFFF, /* reserve first 1/2 */
+	IBSSA_MSG_ID_QUERY_TABLE_DEF,
+	IBSSA_MSG_ID_QUERY_TABLE_DATA,
+	IBSSA_MSG_ID_PUBLISH_EPOCH_BUF,
+	IBSSA_MSG_ID_QUERY_TRANS_LOG,
+	IBSSA_MSG_ID_QUERY_RECORD
+};
+
 struct ib_ssa_msg_hdr {
 	struct ib_mad_hdr hdr;
-	uint32_t          msg_id;
-	uint32_t          msg_len;
+	be32_t            msg_id;
+	be32_t            msg_len;
 	/* RDMA response buffer */
 };
 
-enum msg_id {
-	IBSSA_MSG_ID_PR_QUERY,
-};
-
-/* do we need this extra hdr?  Or should eth just be in the standard msg_hdr? */
 struct ib_ssa_rdma_hdr {
 	struct ib_ssa_msg_hdr  hdr;
 	struct eth {
@@ -84,6 +93,7 @@ struct ib_ssa_rdma_hdr {
  * in this file to be a separate service id?
  */
 
+/* I think this data may need to go in another .h file */
 union ib_ssa_ep_info {
 	uint8_t                 addr[SSA_MAX_ADDRESS];
 	uint8_t                 name[SSA_MAX_ADDRESS];
@@ -96,44 +106,39 @@ enum {
 };
 
 struct ib_ssa_ep_addr_data {
-	uint32_t                flags;
-	uint16_t                type;
-	uint16_t                reserved;
+	be32_t                  flags;
+	be16_t                  type;
+	be16_t                  reserved;
 	union ib_ssa_ep_info    info;
 };
 
+/* This is the message we want to define in this .h */
 struct ib_ssa_resolve_msg {
 	struct ib_ssa_msg_hdr      hdr;
 	struct ib_ssa_ep_addr_data data[0];
 };
 
-struct ib_ssa_pr_req {
-	struct ib_ssa_msg_hdr  hdr;
-	union {
-		be16_t                  dlid;
-		union ibv_gid           dgid;
-		struct sockaddr_storage addr;
-		char                    node_desc[64];
-		char                    hostname[128];
-	} addr;
-	struct ibv_path_record pr;
-};
-
 
 /** =========================================================================
  * Bulk request messages
+ *
+ * Bulk messages all begin with an ib_ssa_rdma_hdr which defines the
+ * information for the response to be written to.
  */
 
 /*
  * Query table guids
- * input: none
- * output: Array of available table guids
+ * input: <none>
+ * output: struct ib_ssa_query_table_guids_data
  * Use: determine what data parent can provide
  */
-struct ib_ssa_query_table_guids {
+struct ib_ssa_query_table_guids_data {
+	be32_t  table_cnt;
+	be32_t  table_guids[0];
+};
+
+struct ib_ssa_query_table_guids_msg {
 	struct ib_ssa_rdma_hdr hdr;
-	uint32_t               table_cnt;
-	uint32_t               table_guids[0];
 };
 
 /*
@@ -144,20 +149,30 @@ struct ib_ssa_query_table_guids {
  * Note: The table_def fields are included if responding using a data stream or
  *       if the RDMA write buffer is large enough, otherwise only sizeof(struct
  *       table_def) worth of data is returned.
+ *       If we added a field_cnt for each table in query_table_guids then we
+ *       would not need this NOTE
  */
-
-/* Query basic table data
- * input: table guid, epoch
- * output: table guid, epoch, record_cnt, table_size
- * Use: Check if data is current, determine size of parent's table
- */
+struct ib_ssa_query_table_def_msg {
+	struct ib_ssa_rdma_hdr hdr;
+	be32_t                 guid;
+};
 
 /*
- * Query all table data
+ * Query table data
  * input: table guid
- * output: struct table + all data
+ * output: struct table (+ all data if HEADER_ONLY not specified)
  * Use: retrieve an entire copy of all available data
+ *      or with header only specified;
+ *      Check if data is current, determine size of parent's table
  */
+enum ib_ssa_query_table_data_flags {
+	IB_SSA_HEADER_ONLY 1<<0,
+};
+struct ib_ssa_query_table_data_msg {
+	struct ib_ssa_rdma_hdr hdr;
+	be32_t                 guid;
+	be32_t                 flags;
+};
 
 /*
  * Publish epoch buffer
@@ -165,9 +180,46 @@ struct ib_ssa_query_table_guids {
  * output: write current epoch
  * Use: Exposes epoch buffer to parent.  Parent can update using RDMA writes when changes occur.
  */
+struct ib_ssa_publish_epoch_buf_msg {
+	struct ib_ssa_rdma_hdr hdr;
+};
 
 /*
  * Query transaction log
+ * input: start epoch, optional table_guid
+ * output: array of transaction logs, latest_epoch for final entry
+ * Use: obtain incremental updates potentially for only a single table.
+ */
+struct ib_ssa_query_trans_log_data {
+	be64_t                        latest_epoch;
+	be64_t                        trans_cnt;
+	struct ib_ssa_trans_log_entry trans[0];
+};
+struct ib_ssa_query_trans_log_msg {
+	struct ib_ssa_rdma_hdr hdr;
+	be64_t                 start_epoch;
+	be32_t                 table_guid;
+};
+
+/*
+ * Update record
+ * input: table_guid, record_size, record_id
+ * output: single record within table
+ * Use: get data for incremental update specified in transaction log
+ */
+struct ib_ssa_query_record_msg {
+	struct ib_ssa_rdma_hdr hdr;
+	be32_t                 table_guid;
+	be32_t                 record_size;
+	be64_t                 record_id;
+};
+
+/*
+ * Other ideas I think should _not_ be done:
+ * Publish table buffer
+ * Reason: publishing this means the client is unable to know when the data is
+ *         consistent.
+ *
  * Publish transaction log
  * Use: Obtain incremental updates.
  */

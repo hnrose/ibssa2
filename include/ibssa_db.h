@@ -56,44 +56,56 @@ enum field_type {
 
 /* All fields defs belonging to the same table are assigned a unique identifier */
 struct field_def {
-	char name[IBSSA_DB_NAME_LEN];
-	uint32_t type;
-	uint32_t guid;
+	char     name[IBSSA_DB_NAME_LEN];
+	be32_t   type;
+	be32_t   guid;
 };
 
-/* Primary key is always a uint64_t stored in fields[0] */
+/* Primary key is always a be64_t   stored in fields[0] */
 /* All tables are assigned a unique identifier */
 /* If we change a table definition, we assign it a new guid */
 struct table_def {
 	char             name[IBSSA_DB_NAME_LEN];
-	uint32_t         guid;
-	uint32_t         field_cnt;
-	uint32_t         record_size;
+	be32_t           guid;
+	be32_t           field_cnt;
+	be32_t           record_size;
+	be32_t           reserved;
 	struct field_def fields[0];
 };
 
 struct table {
+	be64_t           epoch;
+	be64_t           table_size;
+	be64_t           record_cnt;
 	struct table_def def;
-	uint64_t         epoch;
-	uint64_t         record_cnt;
-	uint64_t         table_size;
 	uint8_t          data[0];
 };
 
-/* We only have to log data updates */
-/* Includes change from our call on 11/8 */
-struct transaction_log_entry {
-	uint64_t epoch;
-	uint64_t record_id;
-	uint32_t table_guid;
-	uint32_t record_size;
-	uint8_t  operation;
+/**
+ * Transaction logs provide information to query incrimental updates
+ */
+enum ib_ssa_trans_op {
+	IB_SSA_OP_INSERT,
+	IB_SSA_OP_DELETE,
+	IB_SSA_OP_UPDATE,
+	IB_SSA_OP_RELOAD,
+};
+struct ib_ssa_trans_log_entry {
+	be64_t   epoch;
+	be64_t   record_id;
+	be32_t   table_guid;
+	be32_t   record_size;
+	uint8_t  operation; /* enum ib_ssa_trans_op */
 	uint8_t  reserved[15];
 	uint8_t  data[0];   /* stores both old and new value */
 };
 
+
+/**
+ * Specific table definitions
+ */
 struct ib_ssa_path_record {
-	uint64_t path_id;
+	be64_t   path_id;
 	struct ibv_path_record path;
 };
 
