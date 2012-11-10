@@ -202,7 +202,7 @@ struct ib_ssa_query_trans_log_msg {
 };
 
 /*
- * Update record
+ * Query record
  * input: table_guid, record_size, record_id
  * output: single record within table
  * Use: get data for incremental update specified in transaction log
