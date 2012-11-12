@@ -89,6 +89,8 @@ enum ib_ssa_trans_op {
 	IB_SSA_OP_DELETE,
 	IB_SSA_OP_UPDATE,
 	IB_SSA_OP_RELOAD,
+	IB_SSA_OP_START,
+	IB_SSA_OP_END,
 };
 struct ib_ssa_trans_log_entry {
 	be64_t   epoch;
