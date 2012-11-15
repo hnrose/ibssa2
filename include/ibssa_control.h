@@ -207,6 +207,7 @@ struct ib_ssa_query_trans_log_msg {
  * output: single record within table
  * Use: get data for incremental update specified in transaction log
  */
+/* What about using some sort of scatter/gather here? */
 struct ib_ssa_query_record_msg {
 	struct ib_ssa_rdma_hdr hdr;
 	be32_t                 table_guid;
