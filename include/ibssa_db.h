@@ -39,38 +39,13 @@
 
 #define IBSSA_DB_NAME_LEN 64
 
-/*
- * Definitions to allow for generic processing of any data
- * E.g. useful for dumping table data to a log
- */
-enum field_type {
-	field_uint8,
-	field_uint16,
-	field_uint32,
-	field_uint64,
-	field_guid = field_uint64
-	field_uint128,
-	field_gid = field_uint128
-	/* ... */
-};
-
-/* All fields defs belonging to the same table are assigned a unique identifier */
-struct field_def {
-	char     name[IBSSA_DB_NAME_LEN];
-	be32_t   type;
-	be32_t   guid;
-};
-
-/* Primary key is always a be64_t   stored in fields[0] */
+/* Primary key is always a be64_t stored at the start of the record */
 /* All tables are assigned a unique identifier */
 /* If we change a table definition, we assign it a new guid */
 struct table_def {
 	char             name[IBSSA_DB_NAME_LEN];
 	be32_t           guid;
-	be32_t           field_cnt;
 	be32_t           record_size;
-	be32_t           reserved;
-	struct field_def fields[0];
 };
 
 struct table {
