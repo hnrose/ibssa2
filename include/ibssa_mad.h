@@ -105,23 +105,28 @@ struct ib_ssa_member_record {
 	union ibv_gid port_gid;		/* RID = GID + SID + PKey */
 	be64_t        service_id;
 	be16_t        pkey;
-	uint8_t       reserved[4];
 	uint8_t       node_type;
-	uint8_t       node_level;
-	be64_t        service_mask;	/* set service bit to 1 to indicate join/leave */
+	uint8_t       ssa_version; /* client/server version */
+	uint8_t       reserved[4];
+	be64_t        service_guid; /* this allows versions of services */
+	uint8_t       pad[168];
 };
 
 /* Node type values */
 enum {
-	SSA_NODE_SERVER = 1 << 0,
-	SSA_NODE_CLIENT = 1 << 1
+	SSA_NODE_MASTER       = 1 << 0,
+	SSA_NODE_DISTRIBUTION = 1 << 1,
+	SSA_NODE_CALCULATION  = 1 << 2,
+	SSA_NODE_CONSUMER     = 1 << 3
 };
 
-/* Service mask values */
+/* Service guid values */
 enum {
-	SSA_SERVICE_META_DATA   = 1 << 0,
-	SSA_SERVICE_ADDRESS     = 1 << 1,
-	SSA_SERVICE_PATH_RECORD = 1 << 2
+	SSA_SERVICE_ADDRESS     = 1ULL,
+	SSA_SERVICE_PATH_RECORD = 2ULL
+	/* new versions of service would be new guid
+	 * eg.  SSA_SERVICE_PATH_RECORD_V2 = 3ULL
+	 */
 };
 
 
@@ -130,7 +135,7 @@ enum {
  * registered services - basically to setup the communication tree among SSA
  * services which have joined a specific group.
  *
- * Master SSA uses Set method with an SSAInfoRecord attribute to configure
+ * Master SSA uses Set(SSAInfoRecord) attribute to configure
  * joined SSA services.  The clients respond with a GetResp, echoing back the
  * TID.
  *
@@ -144,7 +149,7 @@ enum {
  * using the PR information contained within the record.
  */
 struct ib_ssa_info_record {
-	be64_t               service_mask;
+	be64_t               service_guid;
 	uint8_t              priority;     /* indicates primary/alternate parent/path */
 	uint8_t              reserved[3];
 	struct ibv_path_data path_data;
