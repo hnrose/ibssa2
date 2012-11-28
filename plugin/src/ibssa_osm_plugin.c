@@ -38,24 +38,43 @@
 #include <opensm/osm_opensm.h>
 #include <opensm/osm_log.h>
 
+#include <complib/cl_thread.h>
+#include <complib/cl_event.h>
+
 #include "ibssa_osm_plugin.h"
 
-void thread_main(IN void *context)
+void ibssa_main(IN void * context)
 {
+	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
+	while (pi->th_run) {
+		/* initially just wait for requests and connect them */
 
+		/* eventually we will want to start our DB management */
+	}
 }
 
 /** =========================================================================
  */
 static void *construct(osm_opensm_t *osm)
 {
+	cl_status_t st = CL_SUCCESS;
 	struct ibssa_plugin *pi = calloc(1, sizeof(*pi));
 	if (!pi)
 		return (NULL);
 
-	/* Set up a thread to process */
-
 	pi->osm = osm;
+
+	/* Set up our thread */
+	pi->th_run = 1;
+	cl_thread_construct(&pi->thread);
+	st = cl_thread_init(&pi->thread, ibssa_main, (void *)pi, "ibssa thread");
+	if (st != CL_SUCCESS) {
+		free(pi);
+		pi = NULL;
+		goto except;
+	}
+
+except:
 	return (pi);
 }
 
@@ -63,7 +82,10 @@ static void *construct(osm_opensm_t *osm)
  */
 static void destroy(void *plugin)
 {
-	free(plugin);
+	struct ibssa_plugin *pi = (struct ibssa_plugin *)plugin;
+	pi->th_run = 0;
+	cl_thread_destroy(&pi->thread);
+	free(pi);
 }
 
 #if OSM_EVENT_PLUGIN_INTERFACE_VER != 2

@@ -1,0 +1,6 @@
+A simple test client which connects, issues IBSSA queries and then exits.
+
+Thoughts are this could be used to dump tables from running IBSSA nodes.
+Perhaps a debug interface to be able to request connections to specific IBSSA
+nodes could be included in the mad protocol???
+
