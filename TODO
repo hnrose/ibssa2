@@ -1,0 +1,15 @@
+Issues, ToDo's thoughts etc
+===========================
+
+	1) Figure out what protocol (notifications, messages, etc) happens when
+	nodes go away (both with AppDelete and without).
+
+		Zookeeper, add messages to the control path notifying of these
+		types of events.
+
+	2) Figure out the locking/data xfer between OpenSM internals and the plugin.
+
+		Do we use the internal data structures or make others?
+
+	3) Use Zookeeper as the distributed DB?
+
