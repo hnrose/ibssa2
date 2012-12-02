@@ -39,17 +39,98 @@
 #include <opensm/osm_log.h>
 
 #include <complib/cl_thread.h>
-#include <complib/cl_event.h>
 
 #include "ibssa_osm_plugin.h"
+#include "ibssa_osm_pi_mad.h"
 
-void ibssa_main(IN void * context)
+static void ibssa_main(IN void * context)
 {
 	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
-	while (pi->th_run) {
-		/* initially just wait for requests and connect them */
+	/* Note this thread can't do anything until the SM has reported SUBNET
+	 * up.  This is because the plugins are loaded before the SM port has
+	 * been chosen.  So we wait for SUBNET up so that we know that a port
+	 * guid has been chosen.  Then we can bind and start our services.
+	 * Connections arriving before we are bound will just fail...  :-(  It
+	 * seems that the port could have been chosen before the plugins are
+	 * loaded but that is an OpenSM bug...
+	 */
 
-		/* eventually we will want to start our DB management */
+	while (pi->th_run) {
+		/* wait for signals from OpenSM to collect data */
+		cl_event_wait_on(&pi->wake_up, EVENT_NO_TIMEOUT, TRUE);
+		if (!pi->th_run)
+			break;
+	}
+}
+
+static void set_up_service_trees(struct ibssa_plugin *pi)
+{
+#if 0
+	/* Set up our service tress for the service guids we support. */
+	foreach sg in sgs: {
+		struct ibssa_tree *tree = calloc(1, sizeof(*tree));
+		if (!tree) {
+			PI_LOG(pi, PI_LOG_ERROR,
+				"Failed to allocate tree for service guid 0x"PRIx64"\n",
+				sg);
+			continue;
+		}
+
+		cl_qlist_init(&tree->conn_req);
+
+		/* set up our "self" for tree head */
+		tree->self.primary = NULL;
+		tree->self.secondary = NULL;
+		cl_qlist_init(&tree->self.children);
+		tree->self.port_gid.global.subnet_prefix = cl_ntohll(pi->osm->subn.opt.subnet_prefix);
+		tree->self.port_gid.global.interface_id = cl_ntohll(pi->osm->subn.opt.port_guid);
+		/* FIXME we need to get a service id from the ibcm */
+		tree->self.service_id = 0;
+		/* FIXME need to get a pkey set up */
+		/* FIXME worse yet do we need multiple trees for each partition ? */
+		tree->self.pkey = 0x0000;
+		tree->self.node_type = SSA_NODE_MASTER;
+		tree->self.ssa_version = IBSSA_VERSION;
+		tree->self.node_state = IBSSA_STATE_PARENTED;
+
+		cl_qmap_insert(&pi.service_trees, sg, (cl_map_item_t *)tree);
+	}
+#endif
+}
+
+static ib_api_status_t ibssa_plugin_bind(struct ibssa_plugin *pi)
+{
+	ib_api_status_t rc = ibssa_plugin_mad_bind(pi);
+	if (rc == IB_SUCCESS) {
+		set_up_service_trees(pi); /* FIXME what happens if this fails */
+	} else {
+		PI_LOG(pi, PI_LOG_ERROR, "ERR IBSSA: Could not "
+			"bind; NOW what?!?!?!?\n");
+		/* FIXME
+		 * We don't want to wait for the next SUBNET up
+		 * event...  Probably need to start a timer or something.
+		 * OpenSM is such a pain...  :-(
+		 * Anyway for now we will just wait for the next SUBNET_UP
+		 * event and will try to bind again...
+		 */
+	}
+	return (rc);
+}
+
+/** =========================================================================
+ */
+static void report(void *plugin_data, osm_epi_event_id_t event_id, void *event_data)
+{
+	struct ibssa_plugin *pi = (struct ibssa_plugin *)plugin_data;
+
+	/* Wait for SUBNET up to bind and start our services. */
+	if (event_id == OSM_EVENT_ID_SUBNET_UP) {
+		if (pi->qp1_handle == OSM_BIND_INVALID_HANDLE) {
+			if (ibssa_plugin_bind(pi) != IB_SUCCESS)
+				return;
+		}
+		/* Wake up worker thread */
+		cl_event_signal(&pi->wake_up);
 	}
 }
 
@@ -64,9 +145,13 @@ static void *construct(osm_opensm_t *osm)
 
 	pi->osm = osm;
 
-	/* Set up our thread */
+	/* Set up our thread, we could delay this but we should do everything
+	 * we can here so that we can fail the load if something goes wrong.
+	 * It would be nice if we could bind to the port as well but...
+	 */
 	pi->th_run = 1;
 	cl_thread_construct(&pi->thread);
+	cl_event_init(&pi->wake_up, FALSE);
 	st = cl_thread_init(&pi->thread, ibssa_main, (void *)pi, "ibssa thread");
 	if (st != CL_SUCCESS) {
 		free(pi);
@@ -84,7 +169,8 @@ static void destroy(void *plugin)
 {
 	struct ibssa_plugin *pi = (struct ibssa_plugin *)plugin;
 	pi->th_run = 0;
-	cl_thread_destroy(&pi->thread);
+	cl_event_signal(&pi->wake_up);
+	cl_thread_destroy(&pi->thread); /* join */
 	free(pi);
 }
 
@@ -94,6 +180,7 @@ static void destroy(void *plugin)
 osm_event_plugin_t osm_event_plugin = {
       osm_version:OSM_VERSION,
       create:construct,
-      delete:destroy
+      delete:destroy,
+      report:report
 };
 

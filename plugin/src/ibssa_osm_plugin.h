@@ -39,14 +39,21 @@
 #include <infiniband/verbs.h>
 
 /** =========================================================================
- * a node which is connected in the tree
+ * information about a node which we are managing and is connected in the tree
  */
+enum node_state {
+	IBSSA_STATE_CONN_REQ,
+	IBSSA_STATE_CONNECTED,
+	IBSSA_STATE_PARENTED,
+	IBSSA_STATE_DISCONNECT_REQ,
+};
+
 struct ibssa_node {
-	cl_list_item_t      list; /* for children */
+	cl_list_item_t      list; /* for children or conn_req list */
 
 	/* parent/child relations */
 	struct ibssa_node * primary;
-	struct ibssa_node * alternate;
+	struct ibssa_node * secondary;
 	cl_qlist_t          children;
 
 	/* node information */
@@ -55,31 +62,51 @@ struct ibssa_node {
 	uint16_t            pkey;
 	uint8_t             node_type; /* from ibssa_mad.h */
 	uint8_t             ssa_version;
+
+	/* Node state information */
+	enum node_state     node_state; /* from ibssa_mad.h */
 };
 
 /** =========================================================================
  * Data about the tree (balance information what not...)
  */
 struct ibssa_tree {
-	cl_map_item_t       map;
+	cl_map_item_t       map; /* for storage in service_trees */
 	struct ibssa_node   self; /* ourselves we are the root of the tree */
-	cl_qlist_t          reqested; /* stores nodes which have requested
-					* "hookup" to this service tree but
-					* have not been placed
-					* in the tree yet */
+	cl_qlist_t          conn_req; /* stores nodes which are in CONN_REQ state */
 };
 
 /** =========================================================================
  * Main plugin object
  */
 struct ibssa_plugin {
-	osm_bind_handle_t   qp1_handle; /* for IB_SSA_CLASS MADs */
+	/* OSM mad layer stuff */
+	/* for IB_SSA_CLASS MADs */
+	osm_bind_handle_t   qp1_handle;
+
 	cl_qmap_t           service_trees; /* this is a map key'ed by service guid
 						of ibssa_tree's */
 	cl_thread_t         thread;
 	int                 th_run; /* flag to stop running */
+	cl_event_t          wake_up;
 	osm_opensm_t      * osm; /* pointer to guts of opensm */
 };
+
+/* Wrap the OSM_LOG with generics for our purposes */
+#define PI_LOG_NONE	OSM_LOG_NONE
+#define PI_LOG_ERROR	OSM_LOG_ERROR
+#define PI_LOG_INFO	OSM_LOG_INFO
+#define PI_LOG_VERBOSE	OSM_LOG_VERBOSE
+#define PI_LOG_DEBUG	OSM_LOG_DEBUG
+#define PI_LOG_FUNCS	OSM_LOG_FUNCS
+#define PI_LOG_FRAMES	OSM_LOG_FRAMES
+#define PI_LOG_ROUTING	OSM_LOG_ROUTING
+#define PI_LOG_ALL	OSM_LOG_ALL
+#define PI_LOG_SYS	OSM_LOG_SYS
+
+#define PI_LOG(pi, level, fmt, ...) OSM_LOG(pi->osm->sm.p_log, level, fmt, ## __VA_ARGS__)
+#define PI_LOG_ENTER(pi) OSM_LOG_ENTER(pi->osm->sm.p_log)
+#define PI_LOG_EXIT(pi) OSM_LOG_EXIT(pi->osm->sm.p_log)
 
 #endif /* __IBSSA_OSM_PLUGIN__ */
 

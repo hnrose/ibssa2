@@ -33,49 +33,13 @@
  *
  */
 
-#ifndef __IBSSA_UMAD_H__
-#define __IBSSA_UMAD_H__
+#ifndef __IBSSA_OSM_PI_MAD__
+#define __IBSSA_OSM_PI_MAD__
 
-#include <infiniband/umad.h>
+#include <opensm/osm_opensm.h>
 
-/*
- * These defines should be in umad
- * Once we get them accepted there we can remove this file.
- */
+#include "ibssa_osm_plugin.h"
 
-typedef uint16_t be16_t;
-typedef uint32_t be32_t;
-typedef uint64_t be64_t;
+ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi);
 
-struct ib_mad_hdr {
-	uint8_t	  base_version;
-	uint8_t	  mgmt_class;
-	uint8_t	  class_version;
-	uint8_t	  method;
-	be16_t  status;
-	be16_t  cs_reserved;
-	be64_t  tid;
-	be16_t  attr_id;
-	be16_t  resv;
-	be32_t  attr_mod;
-};
-
-#ifndef ntohll
-  #if __BYTE_ORDER == __LITTLE_ENDIAN
-    static inline uint64_t ntohll(uint64_t x)
-    {
-        return bswap_64(x);
-    }
-  #elif __BYTE_ORDER == __BIG_ENDIAN
-    static inline uint64_t ntohll(uint64_t x)
-    {
-        return x;
-    }
-  #endif
-#endif
-#ifndef htonll
-  #define htonll ntohll
-#endif
-
-#endif /* __IBSSA_UMAD_H__ */
-
+#endif /* __IBSSA_OSM_PI_MAD__ */

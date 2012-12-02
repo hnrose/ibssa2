@@ -1,5 +1,5 @@
 
-INCLUDES =
+INCLUDES = -I$(srcdir)/../include
 
 lib_LTLIBRARIES = src/libopensmssa.la
 
@@ -13,7 +13,8 @@ else
     libopensmssa_version_script =
 endif
 
-src_libopensmssa_la_SOURCES = src/ibssa_osm_plugin.c
+src_libopensmssa_la_SOURCES = src/ibssa_osm_plugin.c \
+				src/ibssa_osm_pi_mad.c
 src_libopensmssa_la_LDFLAGS = -version-info $(libopensmssa_api_version) \
 	-export-dynamic $(libopensmssa_version_script)
 src_libopensmssa_la_LIBADD = -L$(libdir) -losmcomp

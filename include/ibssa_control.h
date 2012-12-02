@@ -47,8 +47,11 @@
  */
 
 enum msg_id {
+	/* tree housekeeping information */
+	IBSSA_MSG_ID_CTRL_NODE_STATE,
+
 	/* single request messages */
-	IBSSA_MSG_ID_RESOLVE,
+	IBSSA_MSG_ID_RESOLVE = 0x000000FF,
 
 	/* bulk request messages */
 	IBSSA_MSG_ID_QUERY_TABLE_GUIDS = 0xFFFF, /* reserve first 1/2 */
@@ -116,6 +119,18 @@ struct ib_ssa_ep_addr_data {
 struct ib_ssa_resolve_msg {
 	struct ib_ssa_msg_hdr      hdr;
 	struct ib_ssa_ep_addr_data data[0];
+};
+
+enum {
+	IBSSA_NODE_ACTIVE       = 0,
+	IBSSA_NODE_UNRESPONSIVE = 1
+};
+struct ib_ssa_ctrl_node_state {
+	/* information about the node we are reporting on */
+	union ibv_gid port_gid;		/* RID = GID + SID + PKey */
+	be64_t        service_id;
+	be16_t        pkey;
+	uint8_t       node_state;
 };
 
 

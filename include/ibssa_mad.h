@@ -91,16 +91,17 @@ enum {
 /**
  *
  * An AppSet(SSAMemberRecord) request indicates that port/service/pkey wishes
- * to join 1 or more SSA groups.
+ * to join the specified service_guid tree.
  *
  * An AppDelete(SSAMemberRecord) request indicates that a port/service/pkey
- * wishes to leave 1 or more SSA groups.
+ * wishes to leave the specified service_guid tree.
  *
  * The master SSA will respond to a successful Set/Delete request by returning
  * a GetResp/DeleteResp with the current membership indicated in a returned
  * SSAMemberRecord.  (This matches what the SA does for MCMemberRecords)
  *
  */
+#define IBSSA_VERSION 1
 struct ib_ssa_member_record {
 	union ibv_gid port_gid;		/* RID = GID + SID + PKey */
 	be64_t        service_id;
@@ -140,7 +141,7 @@ enum {
  * TID.
  *
  * If multiple paths are available Primary/Alternate/GMP those paths are sent
- * individually.
+ * separately.
  *
  * Furthermore, the master may issue a second set of SSAInfoRecord with the
  * secondary (backup) parent information if available.
