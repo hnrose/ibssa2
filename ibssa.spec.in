@@ -1,17 +1,18 @@
-Name: libopensmssa
-Version: @VERSION@
+Name: ibssa
+Version: 0.0.1
 Release: %rel%{?dist}
 
-Summary: OpenSM SSA plugin
+Summary: OpenSM IBSSA
 License: GPL/BSD
 Group: System Environment/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root--%(%{__id_u} -n)
-Source: @TARBALL@.tar.gz
+Source: ibssa-%{version}.tar.gz
 Requires: opensm
 BuildRequires: opensm-devel pkgconfig
 
 %description
-libopensmssa provides a plugin which provides the SSA functionality to OpenSM
+ibssa provides a distributed SA for InfiniBand fabrics.  It includes a plugin
+to OpenSM and SSA distribution and generation node deamons.
 
 %prep
 %setup -q

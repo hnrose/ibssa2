@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 
 # We change dir since the later utilities assume to work in the project dir
 cd ${0%*/*}

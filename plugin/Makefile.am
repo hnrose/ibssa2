@@ -1,5 +1,5 @@
 
-INCLUDES = -I$(includedir)/infiniband
+INCLUDES =
 
 lib_LTLIBRARIES = src/libopensmssa.la
 
@@ -20,11 +20,6 @@ src_libopensmssa_la_LIBADD = -L$(libdir) -losmcomp
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map
 
 # headers are distributed as part of the include dir
-EXTRA_DIST = $(srcdir)/libopensmssa.spec.in \
-				 $(srcdir)/libopensmssa.map \
-				 $(srcdir)/src/*.h \
-				 $(srcdir)/config
-
-dist-hook: libopensmssa.spec
-	cp libopensmssa.spec $(distdir)
+EXTRA_DIST = $(srcdir)/libopensmssa.map \
+		 $(srcdir)/src/*.h
 
