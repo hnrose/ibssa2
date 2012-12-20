@@ -1,3 +1,27 @@
+Results of meeting 2012-12-20
+-----------------------------
+
+Need to compare epoch's as clients may be ahead of parents.
+
+Need to add connecting state back into diagram emailed out.
+
+Secondary path is promoted to primary when primary is lost or not available.
+
+If master then "AppSet's" the current connection as primary the client stays
+connected.  ie this AppSet is a no-op.
+
+Look at APM state machine to allow the migration of Alternate paths within the
+"primary/secondary" parents connected state.  I.e. the alternate path is not
+a separate state for the client.
+
+Parents will always be ready for clients before joining the tree.  That way
+they should never fail a connection without actual errors.
+
+Should probably support a message for the master to request current parent
+information.
+
+
+
 Results of Meeting 2012-10-10
 -----------------------------
 
