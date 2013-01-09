@@ -34,14 +34,17 @@
  */
 
 
-#include <opensm/osm_version.h>
-#include <opensm/osm_opensm.h>
-#include <opensm/osm_log.h>
-
-#include <complib/cl_thread.h>
+#include "osm_headers.h"
 
 #include "ibssa_osm_plugin.h"
 #include "ibssa_osm_pi_mad.h"
+#include "ibssa_pi_config.h"
+
+static void update_config(struct ibssa_plugin *pi)
+{
+	pi->conf = read_config();
+	osm_log_set_level(&pi->log, pi->conf->log_level);
+}
 
 static void ibssa_main(IN void * context)
 {
@@ -52,14 +55,16 @@ static void ibssa_main(IN void * context)
 	 * guid has been chosen.  Then we can bind and start our services.
 	 * Connections arriving before we are bound will just fail...  :-(  It
 	 * seems that the port could have been chosen before the plugins are
-	 * loaded but that is an OpenSM bug...
+	 * loaded but that is an OpenSM issue...
 	 */
+	PI_LOG(pi, PI_LOG_INFO, "thread started\n");
 
 	while (pi->th_run) {
 		/* wait for signals from OpenSM to collect data */
 		cl_event_wait_on(&pi->wake_up, EVENT_NO_TIMEOUT, TRUE);
 		if (!pi->th_run)
 			break;
+		update_config(pi);
 	}
 }
 
@@ -105,7 +110,7 @@ static ib_api_status_t ibssa_plugin_bind(struct ibssa_plugin *pi)
 		set_up_service_trees(pi); /* FIXME what happens if this fails */
 	} else {
 		PI_LOG(pi, PI_LOG_ERROR, "ERR IBSSA: Could not "
-			"bind; NOW what?!?!?!?\n");
+			"bind; Waiting for next SUBNET UP event?!?!?!?\n");
 		/* FIXME
 		 * We don't want to wait for the next SUBNET up
 		 * event...  Probably need to start a timer or something.
@@ -145,6 +150,14 @@ static void *construct(osm_opensm_t *osm)
 
 	pi->osm = osm;
 
+	/* make sure we have our config */
+	pi->conf = read_config();
+
+	/* create our own log file to support our own log parameters (ie level) */
+	osm_log_construct(&(pi->log));
+	osm_log_init(&(pi->log), DEF_FLUSH, pi->conf->log_level,
+			pi->conf->log_file, DEF_APPEND);
+
 	/* Set up our thread, we could delay this but we should do everything
 	 * we can here so that we can fail the load if something goes wrong.
 	 * It would be nice if we could bind to the port as well but...
@@ -159,6 +172,7 @@ static void *construct(osm_opensm_t *osm)
 		goto except;
 	}
 
+	PI_LOG(pi, PI_LOG_INFO, "plugin loaded\n");
 except:
 	return (pi);
 }

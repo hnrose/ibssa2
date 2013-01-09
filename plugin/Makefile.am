@@ -3,7 +3,11 @@ INCLUDES = -I$(srcdir)/../include
 
 lib_LTLIBRARIES = src/libopensmssa.la
 
+if DEBUG
+DBGFLAGS = -ggdb -D_DEBUG_
+else
 DBGFLAGS = -g
+endif
 
 src_libopensmssa_la_CFLAGS = -Wall $(DBGFLAGS) -D_XOPEN_SOURCE=600 -D_BSD_SOURCE=1 -Wno-deprecated-declarations
 
@@ -14,7 +18,8 @@ else
 endif
 
 src_libopensmssa_la_SOURCES = src/ibssa_osm_plugin.c \
-				src/ibssa_osm_pi_mad.c
+				src/ibssa_osm_pi_mad.c \
+				src/ibssa_pi_config.c
 src_libopensmssa_la_LDFLAGS = -version-info $(libopensmssa_api_version) \
 	-export-dynamic $(libopensmssa_version_script)
 src_libopensmssa_la_LIBADD = -L$(libdir) -losmcomp

@@ -33,12 +33,18 @@
  *
  */
 
-#ifndef __IBSSA_OSM_PI_MAD__
-#define __IBSSA_OSM_PI_MAD__
+/**
+ * All opensm headers should be declared here
+ * and all source which needs opensm headers should use this file.
+ * This is due to the osm_config.h hack for plugins
+ */
 
-#include "osm_headers.h"
-#include "ibssa_osm_plugin.h"
+/* This must be first!!! */
+#include <opensm/osm_config.h>
 
-ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi);
+#include <opensm/osm_opensm.h>
+#include <opensm/osm_version.h>
+#include <opensm/osm_log.h>
 
-#endif /* __IBSSA_OSM_PI_MAD__ */
+#include <complib/cl_thread.h>
+

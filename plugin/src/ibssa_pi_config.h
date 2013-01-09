@@ -33,12 +33,34 @@
  *
  */
 
-#ifndef __IBSSA_OSM_PI_MAD__
-#define __IBSSA_OSM_PI_MAD__
 
-#include "osm_headers.h"
-#include "ibssa_osm_plugin.h"
+#ifndef __IBSSA_PLUGIN_CONFIG__
+#define __IBSSA_PLUGIN_CONFIG__
 
-ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi);
 
-#endif /* __IBSSA_OSM_PI_MAD__ */
+#include "config.h"
+
+#include "ibssa_pi_log.h"
+
+#define DEF_FLUSH 1
+#define DEF_APPEND 1
+#define DEF_LOG_LEVEL (PI_LOG_ERROR | PI_LOG_INFO | PI_LOG_SYS)
+#define DEF_LOG_FILE IBSSA_LOG_PATH "/ibssa-osm-pi.log"
+#define DEF_CONFIG_FILE IBSSA_CONFIG_PATH "/ibssa.conf"
+
+struct ibssa_config {
+	time_t timestamp;
+	char * log_file;
+	int    log_level;
+};
+
+/**
+ * singleton object
+ * update will check config file for changes
+ * get will simply return the pointer.
+ */
+struct ibssa_config * read_config(void);
+struct ibssa_config * get_config(void);
+
+#endif /* __IBSSA_PLUGIN_CONFIG__ */
+

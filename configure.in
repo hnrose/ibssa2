@@ -36,5 +36,34 @@ AC_CHECK_HEADER([opensm/osm_event_plugin.h], ,
 
 dnl END PLUGIN
 
+dnl configuration and log directory
+
+IBSSA_CONFIG_PATH_TMP1="`eval echo ${sysconfdir}`"
+IBSSA_CONFIG_PATH_TMP2="`echo $IBSSA_CONFIG_PATH_TMP1 | sed 's/^NONE/$ac_default_prefix/'`"
+IBSSA_CONFIG_PATH="`eval echo $IBSSA_CONFIG_PATH_TMP2`/ibssa"
+AC_SUBST(IBSSA_CONFIG_PATH)
+AC_DEFINE_UNQUOTED([IBSSA_CONFIG_PATH], "$IBSSA_CONFIG_PATH", [Define the path to configuration directory])
+
+IBSSA_LOG_PATH_TMP1="`eval echo ${localstatedir}`"
+IBSSA_LOG_PATH_TMP2="`echo $IBSSA_LOG_PATH_TMP1 | sed 's/^NONE/$ac_default_prefix/'`"
+IBSSA_LOG_PATH="`eval echo $IBSSA_LOG_PATH_TMP2`/log"
+AC_SUBST(IBSSA_LOG_PATH)
+AC_DEFINE_UNQUOTED([IBSSA_LOG_PATH], "$IBSSA_LOG_PATH", [Define the path to log file directory])
+
+dnl END configuration and log directory
+
+dnl Define an input config option to control debug compile
+AC_ARG_ENABLE(debug,    [  --enable-debug          Turn on debugging],
+[case "${enableval}" in
+	yes) debug=true ;;
+	no)  debug=false ;;
+	*) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
+esac],debug=false)
+if test x$debug = xtrue ; then
+	AC_DEFINE(IBSSA_DEBUG, 1, [ define 1 if build is in a debug mode ])
+fi
+AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
+
+
 AC_CONFIG_FILES([Makefile plugin/Makefile ibssa.spec])
 AC_OUTPUT

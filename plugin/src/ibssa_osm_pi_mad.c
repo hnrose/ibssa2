@@ -33,9 +33,7 @@
  *
  */
 
-#include <opensm/osm_version.h>
-#include <opensm/osm_opensm.h>
-#include <opensm/osm_log.h>
+#include "osm_headers.h"
 
 #include "ibssa_mad.h"
 #include "ibssa_osm_plugin.h"
@@ -163,7 +161,7 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 	bind_info.retries = opt->transaction_retries;
 
 	PI_LOG(pi, PI_LOG_VERBOSE,
-		"IBSSA Binding to port GUID 0x%" PRIx64 "\n", cl_ntoh64(opt->guid));
+		"Binding to port GUID 0x%" PRIx64 "\n", cl_ntoh64(opt->guid));
 
 	pi->qp1_handle = osm_vendor_bind(pi->osm->p_vendor, &bind_info,
 					&pi->osm->mad_pool,
@@ -179,6 +177,9 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 			ib_get_err_str(status), cl_ntoh64(opt->guid));
 		goto Exit;
 	}
+
+	PI_LOG(pi, PI_LOG_INFO,
+		"bound to port GUID 0x%" PRIx64 "\n", cl_ntoh64(opt->guid));
 
 Exit:
 	PI_LOG_EXIT(pi);

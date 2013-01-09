@@ -37,17 +37,12 @@
 #define __IBSSA_OSM_PLUGIN__
 
 #include <infiniband/verbs.h>
+#include "ibssa_pi_log.h"
+#include "ibssa_pi_config.h"
 
 /** =========================================================================
  * information about a node which we are managing and is connected in the tree
  */
-enum node_state {
-	IBSSA_STATE_CONN_REQ,
-	IBSSA_STATE_CONNECTED,
-	IBSSA_STATE_PARENTED,
-	IBSSA_STATE_DISCONNECT_REQ,
-};
-
 struct ibssa_node {
 	cl_list_item_t      list; /* for children or conn_req list */
 
@@ -64,7 +59,7 @@ struct ibssa_node {
 	uint8_t             ssa_version;
 
 	/* Node state information */
-	enum node_state     node_state; /* from ibssa_mad.h */
+	//enum node_state     node_state; /* from ibssa_mad.h */
 };
 
 /** =========================================================================
@@ -86,27 +81,17 @@ struct ibssa_plugin {
 
 	cl_qmap_t           service_trees; /* this is a map key'ed by service guid
 						of ibssa_tree's */
+
+	/* Thread variables */
 	cl_thread_t         thread;
 	int                 th_run; /* flag to stop running */
 	cl_event_t          wake_up;
-	osm_opensm_t      * osm; /* pointer to guts of opensm */
+
+	/* house keeping */
+	struct ibssa_config * conf;
+	osm_log_t             log; /* our log */
+	osm_opensm_t        * osm; /* pointer to guts of opensm */
 };
-
-/* Wrap the OSM_LOG with generics for our purposes */
-#define PI_LOG_NONE	OSM_LOG_NONE
-#define PI_LOG_ERROR	OSM_LOG_ERROR
-#define PI_LOG_INFO	OSM_LOG_INFO
-#define PI_LOG_VERBOSE	OSM_LOG_VERBOSE
-#define PI_LOG_DEBUG	OSM_LOG_DEBUG
-#define PI_LOG_FUNCS	OSM_LOG_FUNCS
-#define PI_LOG_FRAMES	OSM_LOG_FRAMES
-#define PI_LOG_ROUTING	OSM_LOG_ROUTING
-#define PI_LOG_ALL	OSM_LOG_ALL
-#define PI_LOG_SYS	OSM_LOG_SYS
-
-#define PI_LOG(pi, level, fmt, ...) OSM_LOG(pi->osm->sm.p_log, level, fmt, ## __VA_ARGS__)
-#define PI_LOG_ENTER(pi) OSM_LOG_ENTER(pi->osm->sm.p_log)
-#define PI_LOG_EXIT(pi) OSM_LOG_EXIT(pi->osm->sm.p_log)
 
 #endif /* __IBSSA_OSM_PLUGIN__ */
 
