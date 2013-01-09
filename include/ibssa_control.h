@@ -40,6 +40,19 @@
 #include "ibssa_umad.h"
 #include "ibssa_db.h"
 
+enum node_state {
+	IBSSA_STATE_IDLE,
+	IBSSA_STATE_JOINING,
+	IBSSA_STATE_FATAL_ERROR,
+	IBSSA_STATE_ORPHAN,
+	IBSSA_STATE_HAVE_PARENT,
+	IBSSA_STATE_CONNECTING,
+	IBSSA_STATE_CONNECTED,
+	IBSSA_STATE_NO_BACKUP,
+	IBSSA_STATE_HAVE_BACKUP
+};
+
+
 /** =========================================================================
  * The folowing is mostly copied directly out of Sean's email.
  * I have added a couple of things with comments since we did not get a chance
