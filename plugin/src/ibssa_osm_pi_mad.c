@@ -136,9 +136,10 @@ static void pi_mad_send_err_callback(IN void *context, IN osm_madw_t * p_madw)
  */
 ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 {
-	osm_bind_info_t bind_info;
-	ib_api_status_t status = IB_SUCCESS;
-	osm_subn_opt_t *opt = &pi->osm->subn.opt;
+	osm_bind_info_t  bind_info;
+	ib_api_status_t  status = IB_SUCCESS;
+	osm_subn_opt_t * opt = &pi->osm->subn.opt;
+	ib_net64_t       sm_port_guid = pi->osm->subn.sm_port_guid;
 
 	PI_LOG_ENTER(pi);
 
@@ -154,14 +155,14 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 	bind_info.is_report_processor = FALSE;
 	bind_info.is_trap_processor = FALSE;
 	bind_info.mad_class = IB_SSA_CLASS;
-	bind_info.port_guid = opt->guid;
+	bind_info.port_guid = sm_port_guid;
 	bind_info.recv_q_size = OSM_SM_DEFAULT_QP1_RCV_SIZE;
 	bind_info.send_q_size = OSM_SM_DEFAULT_QP1_SEND_SIZE;
 	bind_info.timeout = opt->transaction_timeout;
 	bind_info.retries = opt->transaction_retries;
 
 	PI_LOG(pi, PI_LOG_VERBOSE,
-		"Binding to port GUID 0x%" PRIx64 "\n", cl_ntoh64(opt->guid));
+		"Binding to port GUID 0x%" PRIx64 "\n", cl_ntoh64(sm_port_guid));
 
 	pi->qp1_handle = osm_vendor_bind(pi->osm->p_vendor, &bind_info,
 					&pi->osm->mad_pool,
@@ -174,12 +175,12 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 		PI_LOG(pi, PI_LOG_ERROR, "ERR IBSSA: "
 			"Vendor specific bind failed (%s) on port GUID "
 			"0x%"PRIx64"\n",
-			ib_get_err_str(status), cl_ntoh64(opt->guid));
+			ib_get_err_str(status), cl_ntoh64(sm_port_guid));
 		goto Exit;
 	}
 
 	PI_LOG(pi, PI_LOG_INFO,
-		"bound to port GUID 0x%" PRIx64 "\n", cl_ntoh64(opt->guid));
+		"bound to port GUID 0x%" PRIx64 "\n", cl_ntoh64(sm_port_guid));
 
 Exit:
 	PI_LOG_EXIT(pi);
