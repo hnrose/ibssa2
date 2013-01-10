@@ -39,6 +39,10 @@
  * This is due to the osm_config.h hack for plugins
  */
 
+
+#ifndef __OSM_HEADERS_H__
+#define __OSM_HEADERS_H__
+
 /* This must be first!!! */
 #include <opensm/osm_config.h>
 
@@ -48,3 +52,4 @@
 
 #include <complib/cl_thread.h>
 
+#endif /* __OSM_HEADERS_H__ */

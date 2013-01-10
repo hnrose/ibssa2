@@ -33,76 +33,32 @@
  *
  */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
 
-#include "ibssa_pi_config.h"
+#ifndef __OSM_PLUGIN_CONFIG__
+#define __OSM_PLUGIN_CONFIG__
 
-/**
- * return 1 if config updated
- */
-static int load_config(const char * conf_file, struct ibssa_config * conf)
-{
-	char buf[1024];
-	FILE *config_fd = NULL;
-	char *p_prefix, *p_last;
-	char *name;
-	char *val_str;
-	struct stat statbuf;
+#include "config.h"
 
-	/* silently ignore missing config or old config file */
-	if (stat(conf_file, &statbuf))
-		return 0;
-	if (conf->timestamp && conf->timestamp >= statbuf.st_mtime)
-		return 0;
+#include "osm_pi_log.h"
 
-	config_fd = fopen(conf_file, "r");
-	if (!config_fd)
-		return 0;
+#define DEF_FLUSH 1
+#define DEF_APPEND 1
+#define DEF_LOG_LEVEL (PI_LOG_ERROR | PI_LOG_INFO | PI_LOG_SYS)
+#define DEF_LOG_FILE IBSSA_LOG_PATH "/opensm-ibssa.log"
+#define DEF_CONFIG_FILE IBSSA_CONFIG_PATH "/opensm-ibssa.conf"
 
-	while (fgets(buf, sizeof buf, config_fd) != NULL) {
-		p_prefix = strtok_r(buf, "\n", &p_last);
-		if (!p_prefix)
-			continue; /* ignore blank lines */
-
-		if (*p_prefix == '#')
-			continue; /* ignore comment lines */
-
-		name = strtok_r(p_prefix, "=", &p_last);
-		val_str = strtok_r(NULL, "\n", &p_last);
-
-		if (strncmp(name, "log_file", strlen("log_file")) == 0) {
-			free(conf->log_file);
-			conf->log_file = strdup(val_str);
-		} else if (strncmp(name, "log_level", strlen("log_level")) == 0) {
-			conf->log_level = (int)strtoul(val_str, NULL, 0);
-		}
-	}
-
-	conf->timestamp = time(NULL);
-
-	fclose(config_fd);
-	return 1;
-}
-
-static struct ibssa_config config = {
-	timestamp : 0,
-	log_file : DEF_LOG_FILE,
-	log_level : DEF_LOG_LEVEL,
+struct ibssa_config {
+	time_t timestamp;
+	char * log_file;
+	int    log_level;
 };
 
-struct ibssa_config * read_config(void)
-{
-	load_config(DEF_CONFIG_FILE, &config);
-	return (&config);
-}
+/**
+ * singleton object
+ * update will check config file for changes
+ * get will simply return the pointer.
+ */
+struct ibssa_config * read_config(void);
+struct ibssa_config * get_config(void);
 
-struct ibssa_config * get_config(void)
-{
-	return (&config);
-}
-
+#endif /* __OSM_PLUGIN_CONFIG__ */

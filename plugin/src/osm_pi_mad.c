@@ -36,7 +36,7 @@
 #include "osm_headers.h"
 
 #include "ibssa_mad.h"
-#include "ibssa_osm_plugin.h"
+#include "osm_pi_main.h"
 
 static void pi_handle_set_member_rec(IN osm_madw_t * p_madw, IN void *context,
 				     IN osm_madw_t * p_req_madw)

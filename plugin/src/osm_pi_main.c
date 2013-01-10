@@ -36,9 +36,9 @@
 
 #include "osm_headers.h"
 
-#include "ibssa_osm_plugin.h"
-#include "ibssa_osm_pi_mad.h"
-#include "ibssa_pi_config.h"
+#include "osm_pi_main.h"
+#include "osm_pi_mad.h"
+#include "osm_pi_config.h"
 
 static void update_config(struct ibssa_plugin *pi)
 {

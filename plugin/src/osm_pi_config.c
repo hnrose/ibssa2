@@ -33,12 +33,76 @@
  *
  */
 
-#ifndef __IBSSA_OSM_PI_MAD__
-#define __IBSSA_OSM_PI_MAD__
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
 
-#include "osm_headers.h"
-#include "ibssa_osm_plugin.h"
+#include "osm_pi_config.h"
 
-ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi);
+/**
+ * return 1 if config updated
+ */
+static int load_config(const char * conf_file, struct ibssa_config * conf)
+{
+	char buf[1024];
+	FILE *config_fd = NULL;
+	char *p_prefix, *p_last;
+	char *name;
+	char *val_str;
+	struct stat statbuf;
 
-#endif /* __IBSSA_OSM_PI_MAD__ */
+	/* silently ignore missing config or old config file */
+	if (stat(conf_file, &statbuf))
+		return 0;
+	if (conf->timestamp && conf->timestamp >= statbuf.st_mtime)
+		return 0;
+
+	config_fd = fopen(conf_file, "r");
+	if (!config_fd)
+		return 0;
+
+	while (fgets(buf, sizeof buf, config_fd) != NULL) {
+		p_prefix = strtok_r(buf, "\n", &p_last);
+		if (!p_prefix)
+			continue; /* ignore blank lines */
+
+		if (*p_prefix == '#')
+			continue; /* ignore comment lines */
+
+		name = strtok_r(p_prefix, "=", &p_last);
+		val_str = strtok_r(NULL, "\n", &p_last);
+
+		if (strncmp(name, "log_file", strlen("log_file")) == 0) {
+			free(conf->log_file);
+			conf->log_file = strdup(val_str);
+		} else if (strncmp(name, "log_level", strlen("log_level")) == 0) {
+			conf->log_level = (int)strtoul(val_str, NULL, 0);
+		}
+	}
+
+	conf->timestamp = time(NULL);
+
+	fclose(config_fd);
+	return 1;
+}
+
+static struct ibssa_config config = {
+	timestamp : 0,
+	log_file : DEF_LOG_FILE,
+	log_level : DEF_LOG_LEVEL,
+};
+
+struct ibssa_config * read_config(void)
+{
+	load_config(DEF_CONFIG_FILE, &config);
+	return (&config);
+}
+
+struct ibssa_config * get_config(void)
+{
+	return (&config);
+}
+

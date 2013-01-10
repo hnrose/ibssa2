@@ -14,7 +14,8 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following *        disclaimer.
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
  *        copyright notice, this list of conditions and the following
@@ -32,25 +33,12 @@
  *
  */
 
+#ifndef __OSM_PLUGIN_MAD_H__
+#define __OSM_PLUGIN_MAD_H__
+
 #include "osm_headers.h"
+#include "osm_pi_main.h"
 
-/* Wrap the OSM_LOG with generics for our purposes */
-#define PI_LOG_NONE	OSM_LOG_NONE
-#define PI_LOG_ERROR	OSM_LOG_ERROR
-#define PI_LOG_INFO	OSM_LOG_INFO
-#define PI_LOG_VERBOSE	OSM_LOG_VERBOSE
-#define PI_LOG_DEBUG	OSM_LOG_DEBUG
-#define PI_LOG_FUNCS	OSM_LOG_FUNCS
-#define PI_LOG_FRAMES	OSM_LOG_FRAMES
-#define PI_LOG_ROUTING	OSM_LOG_ROUTING
-#define PI_LOG_ALL	OSM_LOG_ALL
-#define PI_LOG_SYS	OSM_LOG_SYS
+ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi);
 
-#define PI_LOG(pi, level, fmt, ...) \
-	do { \
-		osm_log(&(pi->log), level, fmt, ## __VA_ARGS__); \
-		osm_log(&pi->osm->log, level, "ibssa: " fmt, ## __VA_ARGS__); \
-	} while (0)
-#define PI_LOG_ENTER(pi) PI_LOG(pi, PI_LOG_FUNCS, "%s: [\n", __func__)
-#define PI_LOG_EXIT(pi) PI_LOG(pi, PI_LOG_FUNCS, "%s: ]\n", __func__)
-
+#endif /* __OSM_PLUGIN_MAD_H__ */

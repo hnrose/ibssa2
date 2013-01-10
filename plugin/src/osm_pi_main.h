@@ -33,12 +33,12 @@
  *
  */
 
-#ifndef __IBSSA_OSM_PLUGIN__
-#define __IBSSA_OSM_PLUGIN__
+#ifndef __OSM_PLUGIN_MAIN_H__
+#define __OSM_PLUGIN_MAIN_H__
 
 #include <infiniband/verbs.h>
-#include "ibssa_pi_log.h"
-#include "ibssa_pi_config.h"
+#include "osm_pi_log.h"
+#include "osm_pi_config.h"
 
 /** =========================================================================
  * information about a node which we are managing and is connected in the tree
@@ -93,5 +93,4 @@ struct ibssa_plugin {
 	osm_opensm_t        * osm; /* pointer to guts of opensm */
 };
 
-#endif /* __IBSSA_OSM_PLUGIN__ */
-
+#endif /* __OSM_PLUGIN_MAIN_H__ */
