@@ -52,6 +52,16 @@ enum node_state {
 	IBSSA_STATE_HAVE_BACKUP
 };
 
+/**
+ * What about Endianess of the record data?
+ * Should we define some flag in these headers to indicate endianess to
+ * optimize byte swapping.
+ * This could be a config option for the prevalent order to use.
+ *
+ * "Flush" is there a time when some change is so big that there needs to be a
+ * system wide re-read of all the data from the root?
+ *    Should this be admin controllable, etc?
+ */
 
 /** =========================================================================
  * The folowing is mostly copied directly out of Sean's email.
