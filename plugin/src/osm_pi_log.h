@@ -52,7 +52,7 @@
 #define PI_LOG(pi, level, fmt, ...) \
 	do { \
 		osm_log(&(pi->log), level, fmt, ## __VA_ARGS__); \
-		osm_log(&pi->osm->log, level, "ibssa: " fmt, ## __VA_ARGS__); \
+		osm_log(&pi->osm->log, level, "opensmssa: " fmt, ## __VA_ARGS__); \
 	} while (0)
 #define PI_LOG_ENTER(pi) PI_LOG(pi, PI_LOG_FUNCS, "%s: [\n", __func__)
 #define PI_LOG_EXIT(pi) PI_LOG(pi, PI_LOG_FUNCS, "%s: ]\n", __func__)

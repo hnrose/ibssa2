@@ -39,69 +39,99 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
+#include <glib.h>
 #include "osm_pi_config.h"
+
+/**
+ * Wrap g_key_file_get_* to provide static defaults if not configured
+ */
+
+
+static void pi_key_file_get_string(GKeyFile * key_file,
+				const gchar * group_name,
+				const gchar *key,
+				const char * const def_value,
+				char ** value)
+{
+	char * tmp_char = g_key_file_get_string(key_file, group_name, key, NULL);
+	if (!tmp_char) {
+		tmp_char = def_value;
+	}
+
+	if (*value != def_value)
+		free(*value);
+	*value = tmp_char;
+}
+
+static void pi_key_file_get_integer(GKeyFile * key_file,
+				const gchar * group_name,
+				const gchar *key,
+				const int def_value,
+				int * value)
+{
+	/* note g_key_file_get_integer does not support specifying hex etc
+	 * do strtol here
+	 */
+	char * tmp = g_key_file_get_string(key_file, group_name, key, NULL);
+	if (!tmp) {
+		*value = def_value;
+	} else {
+		errno = 0;
+		*value = (int)strtol(tmp, NULL, 0);
+		if (errno)
+			*value = def_value;
+	}
+}
 
 /**
  * return 1 if config updated
  */
-static int load_config(const char * conf_file, struct ibssa_config * conf)
+static int load_config(const char * conf_file, struct opensmssa_config * conf)
 {
-	char buf[1024];
-	FILE *config_fd = NULL;
-	char *p_prefix, *p_last;
-	char *name;
-	char *val_str;
+	GKeyFile * key_file = NULL;
 	struct stat statbuf;
 
-	/* silently ignore missing config or old config file */
+	/* silently ignore missing or old config file */
 	if (stat(conf_file, &statbuf))
 		return 0;
 	if (conf->timestamp && conf->timestamp >= statbuf.st_mtime)
 		return 0;
 
-	config_fd = fopen(conf_file, "r");
-	if (!config_fd)
+	key_file = g_key_file_new();
+
+	if (g_key_file_load_from_file(key_file, conf_file,
+				G_KEY_FILE_NONE, NULL) != TRUE)
+		/* FIXME: ignore malformed config file as well */
 		return 0;
 
-	while (fgets(buf, sizeof buf, config_fd) != NULL) {
-		p_prefix = strtok_r(buf, "\n", &p_last);
-		if (!p_prefix)
-			continue; /* ignore blank lines */
+	/* "Logging" group */
+	pi_key_file_get_string(key_file, "Logging", "log_file",
+				DEF_LOG_FILE, &conf->log_file);
+	pi_key_file_get_integer(key_file, "Logging", "log_level",
+				DEF_LOG_LEVEL, &conf->log_level);
 
-		if (*p_prefix == '#')
-			continue; /* ignore comment lines */
-
-		name = strtok_r(p_prefix, "=", &p_last);
-		val_str = strtok_r(NULL, "\n", &p_last);
-
-		if (strncmp(name, "log_file", strlen("log_file")) == 0) {
-			free(conf->log_file);
-			conf->log_file = strdup(val_str);
-		} else if (strncmp(name, "log_level", strlen("log_level")) == 0) {
-			conf->log_level = (int)strtoul(val_str, NULL, 0);
-		}
-	}
+	g_key_file_free(key_file);
 
 	conf->timestamp = time(NULL);
 
-	fclose(config_fd);
 	return 1;
 }
 
-static struct ibssa_config config = {
+static struct opensmssa_config config = {
 	timestamp : 0,
 	log_file : DEF_LOG_FILE,
 	log_level : DEF_LOG_LEVEL,
 };
 
-struct ibssa_config * read_config(void)
+struct opensmssa_config * read_config(void)
 {
 	load_config(DEF_CONFIG_FILE, &config);
 	return (&config);
 }
 
-struct ibssa_config * get_config(void)
+struct opensmssa_config * get_config(void)
 {
 	return (&config);
 }

@@ -65,5 +65,14 @@ fi
 AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
 
 
-AC_CONFIG_FILES([Makefile plugin/Makefile ibssa.spec])
+dnl check for glib
+PKG_CHECK_MODULES([GLIB], [glib-2.0], ac_glib=yes, ac_glib=no)
+AM_CONDITIONAL([HAVE_GLIB], test "$ac_glib" = "yes")
+if test "$ac_glib" = "yes"; then
+   AC_DEFINE([HAVE_GLIB], 1, [Define to 1 to indicate GLIB support])
+else
+   AC_ERROR(ibssa requires glib 2.0)
+fi
+
+AC_CONFIG_FILES([Makefile plugin/Makefile ibssa.spec plugin/etc/opensmssa.conf])
 AC_OUTPUT

@@ -155,8 +155,14 @@ static void *construct(osm_opensm_t *osm)
 
 	/* create our own log file to support our own log parameters (ie level) */
 	osm_log_construct(&(pi->log));
-	osm_log_init(&(pi->log), DEF_FLUSH, pi->conf->log_level,
-			pi->conf->log_file, DEF_APPEND);
+	if (osm_log_init(&(pi->log), DEF_FLUSH, pi->conf->log_level,
+			pi->conf->log_file, DEF_APPEND) != IB_SUCCESS)
+	{
+		osm_log(&pi->osm->log, OSM_LOG_ERROR,
+			"opensmssa Exiting: Failed to initialize log file: %s\n",
+			pi->conf->log_file);
+		return (NULL);
+	}
 
 	/* Set up our thread, we could delay this but we should do everything
 	 * we can here so that we can fail the load if something goes wrong.

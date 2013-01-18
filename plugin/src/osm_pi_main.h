@@ -88,9 +88,9 @@ struct ibssa_plugin {
 	cl_event_t          wake_up;
 
 	/* house keeping */
-	struct ibssa_config * conf;
-	osm_log_t             log; /* our log */
-	osm_opensm_t        * osm; /* pointer to guts of opensm */
+	struct opensmssa_config * conf;
+	osm_log_t                 log; /* our log */
+	osm_opensm_t            * osm; /* pointer to guts of opensm */
 };
 
 #endif /* __OSM_PLUGIN_MAIN_H__ */

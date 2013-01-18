@@ -9,8 +9,6 @@ else
 DBGFLAGS = -g
 endif
 
-src_libopensmssa_la_CFLAGS = -Wall $(DBGFLAGS) -D_XOPEN_SOURCE=600 -D_BSD_SOURCE=1 -Wno-deprecated-declarations
-
 if HAVE_LD_VERSION_SCRIPT
     libopensmssa_version_script = -Wl,--version-script=$(srcdir)/libopensmssa.map
 else
@@ -20,8 +18,9 @@ endif
 src_libopensmssa_la_SOURCES = src/osm_pi_main.c \
 				src/osm_pi_mad.c \
 				src/osm_pi_config.c
+src_libopensmssa_la_CFLAGS = -Wall $(DBGFLAGS) -D_XOPEN_SOURCE=600 -D_BSD_SOURCE=1 -Wno-deprecated-declarations $(GLIB_CFLAGS)
 src_libopensmssa_la_LDFLAGS = -version-info $(libopensmssa_api_version) \
-	-export-dynamic $(libopensmssa_version_script)
+	-export-dynamic $(libopensmssa_version_script) $(GLIB_LIBS)
 src_libopensmssa_la_LIBADD = -L$(libdir) -losmcomp
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map
 
