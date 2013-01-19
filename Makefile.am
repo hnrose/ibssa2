@@ -1,4 +1,4 @@
-SUBDIRS = plugin
+SUBDIRS = plugin ibssautil
 
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/ibssa.spec.in \

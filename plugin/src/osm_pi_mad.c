@@ -33,16 +33,24 @@
  *
  */
 
+#include <arpa/inet.h>
 #include "osm_headers.h"
 
 #include "ibssa_mad.h"
 #include "osm_pi_main.h"
 
-static void pi_handle_set_member_rec(IN osm_madw_t * p_madw, IN void *context,
-				     IN osm_madw_t * p_req_madw)
+static void pi_handle_set_member_rec(IN osm_madw_t * p_madw,
+				     IN struct ibssa_plugin * pi,
+				     struct ib_ssa_mad * ssa_mad)
 {
+	struct ib_ssa_member_record * mr =
+			(struct ib_ssa_member_record *)ssa_mad->data;
+	char buf[256];
+
 	/* add node to proper service_guid tree and signal thread to process
 	 * the request */
+	PI_LOG(pi, PI_LOG_DEBUG, "AppSet(SSAMemberRecord) from %s\n",
+		inet_ntop(AF_INET6, mr->port_gid.raw, buf, 256));
 }
 static void pi_handle_getresp_info_record(IN osm_madw_t * p_madw, IN void *context,
 				     IN osm_madw_t * p_req_madw)
@@ -67,6 +75,9 @@ static void pi_handle_invalid_rcv(IN osm_madw_t * p_madw, IN void *context,
 static void pi_mad_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
 				     IN osm_madw_t * p_req_madw)
 {
+	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
+	PI_LOG_ENTER(pi);
+
 	/* 2 types of MAD's incomming
 	 * 1) ib_ssa_member_records (initial requests)
 	 * 2) ib_ssa_info_record (echo's upon our set)
@@ -84,7 +95,7 @@ static void pi_mad_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
 	switch ((mad->hdr.method << 16) | cl_ntoh16(mad->hdr.attr_id))
 	{
 		case ((IB_SSA_METHOD_SET << 16) | IB_SSA_ATTR_SSAMemberRecord):
-			pi_handle_set_member_rec(p_madw, context, p_req_madw);
+			pi_handle_set_member_rec(p_madw, pi, mad);
 			break;
 		case ((IB_SSA_METHOD_GETRESP << 16) | IB_SSA_ATTR_SSAInfoRecord):
 			pi_handle_getresp_info_record(p_madw, context, p_req_madw);
@@ -97,6 +108,7 @@ static void pi_mad_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
 			pi_handle_invalid_rcv(p_madw, context, p_req_madw);
 			break;
 	}
+	PI_LOG_EXIT(pi);
 }
 
 static void pi_mad_send_err_callback(IN void *context, IN osm_madw_t * p_madw)
@@ -150,7 +162,7 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 		goto Exit;
 	}
 
-	bind_info.class_version = 1;
+	bind_info.class_version = IB_SSA_CLASS_VERSION;
 	bind_info.is_responder = TRUE;
 	bind_info.is_report_processor = FALSE;
 	bind_info.is_trap_processor = FALSE;
@@ -160,9 +172,6 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 	bind_info.send_q_size = OSM_SM_DEFAULT_QP1_SEND_SIZE;
 	bind_info.timeout = opt->transaction_timeout;
 	bind_info.retries = opt->transaction_retries;
-
-	PI_LOG(pi, PI_LOG_VERBOSE,
-		"Binding to port GUID 0x%" PRIx64 "\n", cl_ntoh64(sm_port_guid));
 
 	pi->qp1_handle = osm_vendor_bind(pi->osm->p_vendor, &bind_info,
 					&pi->osm->mad_pool,

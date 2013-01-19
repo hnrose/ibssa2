@@ -42,6 +42,18 @@
 #include <infiniband/verbs.h>
 #include "ibssa_umad.h"
 
+enum service_state {
+	IBSSA_STATE_IDLE,
+	IBSSA_STATE_JOINING,
+	IBSSA_STATE_FATAL_ERROR,
+	IBSSA_STATE_ORPHAN,
+	IBSSA_STATE_HAVE_PARENT,
+	IBSSA_STATE_CONNECTING,
+	IBSSA_STATE_CONNECTED,
+	IBSSA_STATE_NO_BACKUP,
+	IBSSA_STATE_HAVE_BACKUP
+};
+
 /* From Sean's email for reference */
 struct ib_ssa_mad {
 	struct ib_mad_hdr hdr;
@@ -57,6 +69,8 @@ struct ib_ssa_mad {
 
 	uint8_t  data[200];
 };
+#define IB_SSA_MAD_SIZE (sizeof(struct ib_ssa_mad))
+#define UMAD_ALLOC_SIZE (umad_size() + IB_SSA_MAD_SIZE)
 
 /**
  * Sean is right, it is more appropriate to use an Application Class MAD.
@@ -66,7 +80,8 @@ struct ib_ssa_mad {
  * matters but perhaps it does.
  */
 enum {
-	IB_SSA_CLASS = 0x2C
+	IB_SSA_CLASS_VERSION = 1,
+	IB_SSA_CLASS         = 0x2C,
 };
 
 /**
@@ -101,7 +116,9 @@ enum {
  * SSAMemberRecord.  (This matches what the SA does for MCMemberRecords)
  *
  */
-#define IBSSA_VERSION 1
+enum {
+	IB_SSA_VERSION = 1,
+};
 struct ib_ssa_member_record {
 	union ibv_gid port_gid;		/* RID = GID + SID + PKey */
 	be64_t        service_id;
@@ -122,9 +139,10 @@ enum {
 };
 
 /* Service guid values */
-enum {
-	SSA_SERVICE_ADDRESS     = 1ULL,
-	SSA_SERVICE_PATH_RECORD = 2ULL
+enum service_guid {
+	SSA_SERVICE_DATABASE    = 1ULL,
+	SSA_SERVICE_ADDRESS     = 2ULL,
+	SSA_SERVICE_PATH_RECORD = 3ULL
 	/* new versions of service would be new guid
 	 * eg.  SSA_SERVICE_PATH_RECORD_V2 = 3ULL
 	 */

@@ -6,4 +6,5 @@
 
 [Logging]
 log_file = @IBSSA_LOG_PATH@/opensmssa.log
-log_level = 0x83 # Levels are the same as OpenSM
+#log_level = 0x83 # Levels are the same as OpenSM
+log_level = 0xFF # For full debugging to start out with

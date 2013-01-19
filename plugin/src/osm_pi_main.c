@@ -64,8 +64,10 @@ static void ibssa_main(IN void * context)
 		cl_event_wait_on(&pi->wake_up, EVENT_NO_TIMEOUT, TRUE);
 		if (!pi->th_run)
 			break;
+		PI_LOG(pi, PI_LOG_DEBUG, "thread awake\n");
 		update_config(pi);
 	}
+	PI_LOG(pi, PI_LOG_INFO, "thread stopping\n");
 }
 
 static void set_up_service_trees(struct ibssa_plugin *pi)

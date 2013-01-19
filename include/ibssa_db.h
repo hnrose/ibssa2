@@ -37,6 +37,8 @@
 #ifndef __IBSSA_DB_H__
 #define __IBSSA_DB_H__
 
+#include <infiniband/sa.h>
+
 #define IBSSA_DB_NAME_LEN 64
 
 /* Primary key is always a be64_t stored at the start of the record */
@@ -86,10 +88,12 @@ struct ib_ssa_path_record {
 	struct ibv_path_record path;
 };
 
+#if 0
+/* Thoughts from previous meetings which do not yet compile */
 struct table_def ib_ssa_pr_table_def;
 ib_ssa_pr_table_def.table_guid = SSA_PATH_RECORD_GUID;
 ib_ssa_pr_table_def.field_cnt = 1 + however many combined fields are in a path record;
 ib_ssa_pr_table_def.record_size = sizeof(struct ib_ssa_path_record);
+#endif
 
 #endif /* __IBSSA_DB_H__ */
-

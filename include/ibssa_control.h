@@ -40,18 +40,6 @@
 #include "ibssa_umad.h"
 #include "ibssa_db.h"
 
-enum node_state {
-	IBSSA_STATE_IDLE,
-	IBSSA_STATE_JOINING,
-	IBSSA_STATE_FATAL_ERROR,
-	IBSSA_STATE_ORPHAN,
-	IBSSA_STATE_HAVE_PARENT,
-	IBSSA_STATE_CONNECTING,
-	IBSSA_STATE_CONNECTED,
-	IBSSA_STATE_NO_BACKUP,
-	IBSSA_STATE_HAVE_BACKUP
-};
-
 /**
  * What about Endianess of the record data?
  * Should we define some flag in these headers to indicate endianess to
@@ -94,11 +82,9 @@ struct ib_ssa_msg_hdr {
 
 struct ib_ssa_rdma_hdr {
 	struct ib_ssa_msg_hdr  hdr;
-	struct eth {
-		be64_t                 addr;
-		be32_t                 rkey;
-		be32_t                 length;
-	};
+	be64_t                 addr;
+	be32_t                 rkey;
+	be32_t                 length;
 };
 
 
@@ -120,6 +106,7 @@ struct ib_ssa_rdma_hdr {
  */
 
 /* I think this data may need to go in another .h file */
+#define SSA_MAX_ADDRESS 64
 union ib_ssa_ep_info {
 	uint8_t                 addr[SSA_MAX_ADDRESS];
 	uint8_t                 name[SSA_MAX_ADDRESS];
@@ -204,7 +191,7 @@ struct ib_ssa_query_table_def_msg {
  *      Check if data is current, determine size of parent's table
  */
 enum ib_ssa_query_table_data_flags {
-	IB_SSA_HEADER_ONLY 1<<0,
+	IB_SSA_HEADER_ONLY = 1 << 0,
 };
 struct ib_ssa_query_table_data_msg {
 	struct ib_ssa_rdma_hdr hdr;
