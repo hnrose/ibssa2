@@ -37,26 +37,140 @@
 #include "osm_headers.h"
 
 #include "ibssa_mad.h"
+#include "ibssa_helper.h"
 #include "osm_pi_main.h"
+
+static inline osm_madw_t *pi_get_mad(struct ibssa_plugin *pi,
+					IN osm_madw_t *p_madw)
+{
+	return (osm_mad_pool_get(&pi->osm->mad_pool,
+				       pi->qp1_handle, MAD_BLOCK_SIZE,
+				       &p_madw->mad_addr));
+}
+
+
+static void pi_send_resp(IN osm_madw_t *p_madw,
+			IN osm_madw_t *p_resp_madw,
+			IN struct ibssa_plugin *pi,
+			uint16_t status)
+{
+	ib_api_status_t api_status;
+
+	struct ib_ssa_mad * mad, * resp_mad;
+
+	if (!p_resp_madw) {
+		p_resp_madw = pi_get_mad(pi, p_madw);
+		if (!p_resp_madw) {
+			PI_LOG(pi, OSM_LOG_ERROR,
+				"osm_vendor_send failed could not get mad from mad pool\n");
+			return;
+		}
+	}
+
+	mad = (struct ib_ssa_mad *)p_madw->p_mad;
+	resp_mad = (struct ib_ssa_mad *)p_resp_madw->p_mad;
+
+	resp_mad->hdr.base_version = 1;
+	resp_mad->hdr.mgmt_class = IB_SSA_CLASS;
+	resp_mad->hdr.class_version = IB_SSA_CLASS_VERSION;
+	resp_mad->hdr.method = IB_SSA_METHOD_GETRESP;
+	resp_mad->hdr.status = cl_hton16(status);
+	resp_mad->hdr.tid = mad->hdr.tid;
+	resp_mad->hdr.attr_id = mad->hdr.attr_id;
+	resp_mad->hdr.attr_mod = mad->hdr.attr_mod;
+
+	api_status = osm_vendor_send(pi->qp1_handle, p_resp_madw, FALSE);
+	if (api_status != IB_SUCCESS) {
+		PI_LOG(pi, OSM_LOG_ERROR,
+			"osm_vendor_send failed, status = %s\n",
+			ib_get_err_str(api_status));
+	}
+}
+
+static void pi_send_member_rec_getresp(IN osm_madw_t * p_madw,
+				     IN struct ibssa_plugin * pi,
+				     enum ssa_class_status st)
+{
+	uint16_t status = 0;
+	struct ib_ssa_mad * ssa_mad, * resp_ssa_mad;
+
+	osm_madw_t *p_resp_madw = pi_get_mad(pi, p_madw);
+	if (!p_resp_madw) {
+		PI_LOG(pi, OSM_LOG_ERROR,
+			"osm_vendor_send failed could not get mad from mad pool\n");
+		return;
+	}
+
+	ssa_mad = (struct ib_ssa_mad *)p_madw->p_mad;
+	resp_ssa_mad = (struct ib_ssa_mad *)p_resp_madw->p_mad;
+	memcpy(resp_ssa_mad->data, ssa_mad->data, sizeof(resp_ssa_mad->data));
+
+	status |= (st << 8);
+
+	pi_send_resp(p_madw, p_resp_madw, pi, status);
+
+	PI_LOG(pi, PI_LOG_DEBUG, "AppGetResp(SSAMemberRecord) status %s\n",
+			ib_ssa_status_str(st));
+}
 
 static void pi_handle_set_member_rec(IN osm_madw_t * p_madw,
 				     IN struct ibssa_plugin * pi,
 				     struct ib_ssa_mad * ssa_mad)
 {
+	uint64_t service_guid;
+	struct ibssa_tree *tree;
+	struct ibssa_node *new_node;
 	struct ib_ssa_member_record * mr =
 			(struct ib_ssa_member_record *)ssa_mad->data;
 	char buf[256];
 
-	/* add node to proper service_guid tree and signal thread to process
-	 * the request */
-	PI_LOG(pi, PI_LOG_DEBUG, "AppSet(SSAMemberRecord) from %s\n",
-		inet_ntop(AF_INET6, mr->port_gid.raw, buf, 256));
+	PI_LOG(pi, PI_LOG_DEBUG, "AppSet(SSAMemberRecord) from %s : 0x%x\n",
+		net_gid_2_str(&mr->port_gid, buf, 256),
+		cl_ntoh16(osm_madw_get_mad_addr_ptr(p_madw)->dest_lid));
+
+	service_guid = cl_ntoh64(mr->service_guid);
+	tree = (struct ibssa_tree *)cl_qmap_get(&pi->service_trees, service_guid);
+	if (!tree) {
+		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_GUID_NOT_SUP);
+		return;
+	}
+	if (tree->self.ssa_version != mr->ssa_version) {
+		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_VERSION);
+		return;
+	}
+	if (tree->self.pkey != cl_ntoh16(mr->pkey)) {
+		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_UNSUP_PKEY);
+		return;
+	}
+
+	new_node = calloc(1, sizeof(*new_node));
+	if (!new_node) {
+		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_INTERNAL_ERR);
+	}
+
+	cl_qlist_init(&new_node->children);
+	new_node->port_gid.global.subnet_prefix
+			= cl_ntoh64(mr->port_gid.global.subnet_prefix);
+	new_node->port_gid.global.interface_id
+			= cl_ntoh64(mr->port_gid.global.interface_id);
+	new_node->service_id = cl_ntoh64(mr->service_id);
+	new_node->pkey = cl_ntoh16(mr->pkey);
+	new_node->node_type = mr->node_type;
+	new_node->ssa_version = mr->ssa_version;
+
+	cl_qlist_insert_tail(&tree->conn_req, &new_node->list);
+
+	pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_OK);
+
+	cl_event_signal(&pi->wake_up);
 }
+
 static void pi_handle_getresp_info_record(IN osm_madw_t * p_madw, IN void *context,
 				     IN osm_madw_t * p_req_madw)
 {
-	/* verify the tid and retire mad */
+	/* move node from conn_req into the service tree */
 }
+
 static void pi_handle_delete_member_rec(IN osm_madw_t * p_madw, IN void *context,
 				     IN osm_madw_t * p_req_madw)
 {
@@ -64,12 +178,6 @@ static void pi_handle_delete_member_rec(IN osm_madw_t * p_madw, IN void *context
 
 	/* send new parent messages to all it's children */
 	/* after we have reparented all the children, remove node from tree */
-}
-
-static void pi_handle_invalid_rcv(IN osm_madw_t * p_madw, IN void *context,
-				     IN osm_madw_t * p_req_madw)
-{
-	/* retire MAD, optional send invalid query response. */
 }
 
 static void pi_mad_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
@@ -105,14 +213,21 @@ static void pi_mad_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
 			break;
 		case IB_SSA_METHOD_GET:
 		case IB_SSA_METHOD_DELETERESP:
-			pi_handle_invalid_rcv(p_madw, context, p_req_madw);
+		default:
+			pi_send_resp(p_madw, NULL, pi, UMAD_STATUS_METHOD_NOT_SUPPORTED
+						| UMAD_STATUS_ATTR_NOT_SUPPORTED);
 			break;
 	}
+
+	osm_mad_pool_put(&pi->osm->mad_pool, p_madw);
+
 	PI_LOG_EXIT(pi);
 }
 
 static void pi_mad_send_err_callback(IN void *context, IN osm_madw_t * p_madw)
 {
+	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
+
 	/* we need to be careful on send errors.
 	 *
 	 * Nodes connecting are specified to just spin forever after they issue
@@ -139,6 +254,10 @@ static void pi_mad_send_err_callback(IN void *context, IN osm_madw_t * p_madw)
 		case ((IB_SSA_METHOD_SET << 16) | IB_SSA_ATTR_SSAInfoRecord):
 			break;
 		case ((IB_SSA_METHOD_DELETERESP << 16) | IB_SSA_ATTR_SSAMemberRecord):
+			break;
+		default:
+			PI_LOG(pi, PI_LOG_ERROR,
+				"ERR IBSSA: invalid method/attribute on send???");
 			break;
 	}
 }
@@ -191,7 +310,19 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 	PI_LOG(pi, PI_LOG_INFO,
 		"bound to port GUID 0x%" PRIx64 "\n", cl_ntoh64(sm_port_guid));
 
+	pi->sm_port_guid = sm_port_guid;
+
 Exit:
 	PI_LOG_EXIT(pi);
 	return status;
+}
+
+void ibssa_mad_send_primary(struct ibssa_plugin *pi,
+			struct ibssa_node * node,
+			struct ibssa_node * primary)
+{
+	char str[256], str2[256];
+	PI_LOG(pi, PI_LOG_VERBOSE, "Setting parent : node (%s) -> primary parent (%s)\n",
+			gid_2_str(&node->port_gid, str, 256),
+			gid_2_str(&primary->port_gid, str2, 256));
 }

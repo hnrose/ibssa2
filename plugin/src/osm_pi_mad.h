@@ -40,5 +40,8 @@
 #include "osm_pi_main.h"
 
 ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi);
+void ibssa_mad_send_primary(struct ibssa_plugin *pi,
+			struct ibssa_node * node,
+			struct ibssa_node * primary);
 
 #endif /* __OSM_PLUGIN_MAD_H__ */

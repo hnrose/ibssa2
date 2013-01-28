@@ -33,78 +33,28 @@
  *
  */
 
-#ifndef __IBSSA_UMAD_H__
-#define __IBSSA_UMAD_H__
 
-#include <byteswap.h>
+#ifndef __IBSSA_HELPER_H__
+#define __IBSSA_HELPER_H__
 
-#include <infiniband/umad.h>
+#include <infiniband/verbs.h>
+#include <arpa/inet.h>
+#include "ibssa_umad.h"
 
-/*
- * These defines should be in umad
- * Once we get them accepted there we can remove this file.
- */
+inline static const char *gid_2_str(union ibv_gid *gid, char *buf, size_t s)
+{
+	union ibv_gid g;
+	g.global.subnet_prefix = gid->global.subnet_prefix;
+	g.global.interface_id = gid->global.interface_id;
+	return (inet_ntop(AF_INET6, g.raw, buf, s));
+}
 
-typedef uint16_t be16_t;
-typedef uint32_t be32_t;
-typedef uint64_t be64_t;
+inline static const char *net_gid_2_str(union ibv_gid *net_gid, char *buf, size_t s)
+{
+	union ibv_gid g;
+	g.global.subnet_prefix = ntohll(net_gid->global.subnet_prefix);
+	g.global.interface_id = ntohll(net_gid->global.interface_id);
+	return (inet_ntop(AF_INET6, g.raw, buf, s));
+}
 
-enum {
-	UMAD_METHOD_GET          = 0x01,
-	UMAD_METHOD_GET_RESP	 = 0x81,
-	UMAD_METHOD_SET          = 0x02,
-	UMAD_METHOD_SEND         = 0x03,
-	UMAD_METHOD_TRAP         = 0x05,
-	UMAD_METHOD_REPORT       = 0x06,
-	UMAD_METHOD_REPORT_RESP	 = 0x86,
-	UMAD_METHOD_TRAP_REPRESS = 0x07,
-	UMAD_METHOD_RESP         = 0x80
-
-};
-
-enum {
-        UMAD_STATUS_SUCCESS  = 0x0000,
-        UMAD_STATUS_BUSY     = 0x0001,
-        UMAD_STATUS_REDIRECT = 0x0002,
-
-        /* Invalid fields, bits 2-4 */
-        UMAD_STATUS_BAD_VERSION          = (1 << 2),
-        UMAD_STATUS_METHOD_NOT_SUPPORTED = (2 << 2),
-        UMAD_STATUS_ATTR_NOT_SUPPORTED   = (3 << 2),
-        UMAD_STATUS_INVALID_ATTR_VALUE   = (7 << 2),
-
-        UMAD_STATUS_CLASS_MASK = 0xFF00
-};
-
-struct ib_mad_hdr {
-	uint8_t	  base_version;
-	uint8_t	  mgmt_class;
-	uint8_t	  class_version;
-	uint8_t	  method;
-	be16_t  status;
-	be16_t  cs_reserved;
-	be64_t  tid;
-	be16_t  attr_id;
-	be16_t  resv;
-	be32_t  attr_mod;
-};
-
-#ifndef ntohll
-  #if __BYTE_ORDER == __LITTLE_ENDIAN
-    static inline uint64_t ntohll(uint64_t x)
-    {
-        return bswap_64(x);
-    }
-  #elif __BYTE_ORDER == __BIG_ENDIAN
-    static inline uint64_t ntohll(uint64_t x)
-    {
-        return x;
-    }
-  #endif
-#endif
-#ifndef htonll
-  #define htonll ntohll
-#endif
-
-#endif /* __IBSSA_UMAD_H__ */
-
+#endif /* __IBSSA_HELPER_H__ */

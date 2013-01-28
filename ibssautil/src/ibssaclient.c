@@ -38,11 +38,13 @@
 #include <infiniband/umad.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #include <glib.h>
+#include <assert.h>
 
+#include "ibssa_helper.h"
 #include "ibssa_mad.h"
-
 #include "ibssaclient.h"
 
 #define DEF_CLIENT_TIMEOUT 100
@@ -64,6 +66,7 @@ struct ibssaclient
 	int               timeout_ms;
 	int               retries;
 	int               umaddebug;
+	uint32_t          tid;
 };
 
 guint hash_uint64(gconstpointer key)
@@ -100,6 +103,7 @@ struct ibssaclient * ibssa_alloc_client(umad_port_t *umad_port)
 	client->retries = DEF_CLIENT_RETRY;
 	client->services = g_hash_table_new_full(hash_uint64, hash_equal,
 					free, free_ibssaservice);
+	client->tid = 1;
 
 	return (client);
 }
@@ -163,6 +167,16 @@ static void init_ssa_mad_hdr(struct ibssaclient *client, struct ib_mad_hdr *hdr)
 	hdr->class_version = IB_SSA_CLASS_VERSION;
 }
 
+static uint32_t get_tid(struct ibssaclient *client)
+{
+	uint32_t rc = client->tid;
+	client->tid++;
+	if (!client->tid) {
+		client->tid = 1;
+	}
+	return (rc);
+}
+
 int ibssa_join_client_service(struct ibssaclient *client, struct service *service)
 {
 	int rc = 0;
@@ -185,11 +199,12 @@ int ibssa_join_client_service(struct ibssaclient *client, struct service *servic
 	memset(umad, 0, UMAD_ALLOC_SIZE);
 
 	init_ssa_mad_hdr(client, &mad->hdr);
-	mad->hdr.method = UMAD_METHOD_SET;
+	mad->hdr.method = IB_SSA_METHOD_SET;
 	mad->hdr.attr_id = htons(IB_SSA_ATTR_SSAMemberRecord);
+	mad->hdr.tid = htonll(get_tid(client));
 
-	mr->port_gid.global.subnet_prefix = client->umad_port.gid_prefix;
-	mr->port_gid.global.interface_id = client->umad_port.port_guid;
+	mr->port_gid.global.subnet_prefix = htonll(client->umad_port.gid_prefix);
+	mr->port_gid.global.interface_id = htonll(client->umad_port.port_guid);
 	mr->service_id = htonll(service->local_service_id);
 	mr->pkey = htons(service->pkey);
 
@@ -205,7 +220,7 @@ int ibssa_join_client_service(struct ibssaclient *client, struct service *servic
 		uint64_t *hid = calloc(1, sizeof(*hid));
 		*hid = service->service_guid;
 		fprintf(stderr, "Join sent from %s to %d\n",
-			inet_ntop(AF_INET6, mr->port_gid.raw, strbuf, 256),
+			net_gid_2_str(&mr->port_gid, strbuf, 256),
 			client->umad_port.sm_lid);
 		new_service->guid = service->service_guid;
 		new_service->state = IBSSA_STATE_JOINING;
@@ -218,14 +233,71 @@ int ibssa_join_client_service(struct ibssaclient *client, struct service *servic
 	return (rc);
 }
 
-int ibssa_process_client(struct ibssaclient *client)
+static int handle_getresp_member_rec(struct ibssaclient *client,
+		struct ib_ssa_mad *mad)
 {
 	int rc = 0;
+	if (mad->hdr.status == 0) {
+		uint64_t hid;
+		struct ibssaservice * ser;
+		struct ib_ssa_member_record * mr = (struct ib_ssa_member_record *)mad->data;
 
-	/* FIXME Read umad layer and process state machine as needed */
+		fprintf(stderr, "Join succeeded\n");
+		hid = ntohll(mr->service_guid);
+		ser = g_hash_table_lookup(client->services, &hid);
+		if (!ser) {
+			fprintf(stderr, "Service not found???  0x%"PRIx64"\n", hid);
+			rc = -1;
+		} else {
+			ser->state = IBSSA_STATE_ORPHAN;
+		}
+	} else {
+		rc = -1;
+	}
 	return (rc);
 }
 
+static int handle_set_info_rec(struct ibssaclient * client, struct ib_ssa_mad * mad)
+{
+	fprintf(stderr, "Parent info\n");
+}
+
+static int ibssa_process_mad(struct ibssaclient *client, struct ib_ssa_mad *mad)
+{
+	int rc = 0;
+	switch ((mad->hdr.method << 16) | ntohs(mad->hdr.attr_id))
+	{
+		case ((IB_SSA_METHOD_SET << 16) | IB_SSA_ATTR_SSAInfoRecord):
+			rc = handle_set_info_rec(client, mad);
+			break;
+		case ((IB_SSA_METHOD_GETRESP << 16) | IB_SSA_ATTR_SSAMemberRecord):
+			rc = handle_getresp_member_rec(client, mad);
+			break;
+		case ((IB_SSA_METHOD_DELETE << 16) | IB_SSA_ATTR_SSAMemberRecord):
+			break;
+		case IB_SSA_METHOD_GET:
+		case IB_SSA_METHOD_DELETERESP:
+		default:
+			break;
+	}
+	return (rc);
+}
+
+int ibssa_process_client(struct ibssaclient *client)
+{
+	int rc = 0;
+	char buf[UMAD_ALLOC_SIZE];
+	int len = IB_SSA_MAD_SIZE;
+
+	rc = umad_recv(client->mad_fd, buf, &len, 0);
+	if (rc >= 0) {
+		assert(rc == client->agent_id);
+		rc = ibssa_process_mad(client, umad_get_mad(buf));
+	} else if (rc == -EWOULDBLOCK) {
+		rc = 0;
+	}
+	return (rc);
+}
 
 
 
