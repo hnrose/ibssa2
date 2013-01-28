@@ -262,4 +262,3 @@ struct ib_ssa_db_msg {
 };
 
 #endif /* __IBSSA_DB_H__ */
-

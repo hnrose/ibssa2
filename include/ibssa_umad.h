@@ -36,6 +36,8 @@
 #ifndef __IBSSA_UMAD_H__
 #define __IBSSA_UMAD_H__
 
+#include <byteswap.h>
+
 #include <infiniband/umad.h>
 
 /*
@@ -46,6 +48,19 @@
 typedef uint16_t be16_t;
 typedef uint32_t be32_t;
 typedef uint64_t be64_t;
+
+enum {
+	UMAD_METHOD_GET          = 0x01,
+	UMAD_METHOD_GET_RESP	 = 0x81,
+	UMAD_METHOD_SET          = 0x02,
+	UMAD_METHOD_SEND         = 0x03,
+	UMAD_METHOD_TRAP         = 0x05,
+	UMAD_METHOD_REPORT       = 0x06,
+	UMAD_METHOD_REPORT_RESP	 = 0x86,
+	UMAD_METHOD_TRAP_REPRESS = 0x07,
+	UMAD_METHOD_RESP         = 0x80
+
+};
 
 struct ib_mad_hdr {
 	uint8_t	  base_version;

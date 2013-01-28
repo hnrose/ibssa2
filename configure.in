@@ -74,5 +74,9 @@ else
    AC_ERROR(ibssa requires glib 2.0)
 fi
 
-AC_CONFIG_FILES([Makefile plugin/Makefile ibssa.spec plugin/etc/opensmssa.conf])
+AC_CONFIG_FILES([ ibssa.spec
+		Makefile
+		ibssautil/Makefile
+		plugin/Makefile
+		plugin/etc/opensmssa.conf])
 AC_OUTPUT

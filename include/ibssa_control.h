@@ -40,18 +40,6 @@
 #include "ibssa_umad.h"
 
 
-enum node_state {
-	IBSSA_STATE_IDLE,
-	IBSSA_STATE_JOINING,
-	IBSSA_STATE_FATAL_ERROR,
-	IBSSA_STATE_ORPHAN,
-	IBSSA_STATE_HAVE_PARENT,
-	IBSSA_STATE_CONNECTING,
-	IBSSA_STATE_CONNECTED,
-	IBSSA_STATE_NO_BACKUP,
-	IBSSA_STATE_HAVE_BACKUP
-};
-
 /**
  * "Flush" is there a time when some change is so big that there needs to be a
  * system wide re-read of all the data from the root?
@@ -97,6 +85,7 @@ struct ib_ssa_msg_hdr {
  */
 
 /* I think this data may need to go in another .h file */
+#define SSA_MAX_ADDRESS 64
 union ib_ssa_ep_info {
 	uint8_t                 addr[SSA_MAX_ADDRESS];
 	uint8_t                 name[SSA_MAX_ADDRESS];
@@ -133,6 +122,4 @@ struct ib_ssa_ctrl_node_state {
 	uint8_t       node_state;
 };
 
-
 #endif /* __IBSSA_CONTROL_H__ */
-
