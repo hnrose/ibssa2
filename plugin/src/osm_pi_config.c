@@ -57,7 +57,7 @@ static void pi_key_file_get_string(GKeyFile * key_file,
 {
 	char * tmp_char = g_key_file_get_string(key_file, group_name, key, NULL);
 	if (!tmp_char) {
-		tmp_char = def_value;
+		tmp_char = (char *)def_value;
 	}
 
 	if (*value != def_value)

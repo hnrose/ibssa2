@@ -103,6 +103,27 @@ enum {
 	IB_SSA_ATTR_SSAInfoRecord   = 0x1001
 };
 
+enum ssa_class_status
+{
+	SSA_SERVICE_OK           = 0x00,
+	SSA_SERVICE_INTERNAL_ERR = 0x01,
+	SSA_SERVICE_GUID_NOT_SUP = 0x02,
+	SSA_SERVICE_VERSION      = 0x03,
+	SSA_SERVICE_UNSUP_PKEY   = 0x04,
+};
+inline static char *ib_ssa_status_str(enum ssa_class_status st)
+{
+	switch (st)
+	{
+		case SSA_SERVICE_OK:           return ("OK");
+		case SSA_SERVICE_INTERNAL_ERR: return ("INTERNAL ERROR");
+		case SSA_SERVICE_GUID_NOT_SUP: return ("GUID NOT SUPPORTED");
+		case SSA_SERVICE_VERSION:      return ("VERSION MISMATCH");
+		case SSA_SERVICE_UNSUP_PKEY:   return ("UNSUPPORTED PKEY");
+		default:                       return ("UNKNOWN STATUS");
+	}
+}
+
 /**
  *
  * An AppSet(SSAMemberRecord) request indicates that port/service/pkey wishes

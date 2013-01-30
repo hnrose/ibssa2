@@ -268,13 +268,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	//do {
-		if (ibssa_process_client(client) > 0) {
+	do {
+		if (ibssa_process_client(client) < 0) {
 			fprintf(stderr, "Client failed to process client\n");
 			rc = -1;
-			//break;
+			break;
 		}
-	//} while(1);
+	} while(1);
 	sleep(1);
 
 CloseClient:

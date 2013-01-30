@@ -51,5 +51,6 @@
 #include <opensm/osm_log.h>
 
 #include <complib/cl_thread.h>
+#include <complib/cl_byteswap.h>
 
 #endif /* __OSM_HEADERS_H__ */

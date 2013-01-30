@@ -46,6 +46,28 @@ static void update_config(struct ibssa_plugin *pi)
 	osm_log_set_level(&pi->log, pi->conf->log_level);
 }
 
+static void process_service_tree(IN cl_map_item_t * item, void * context)
+{
+	struct ibssa_tree * tree = (struct ibssa_tree *)item;
+	struct ibssa_plugin * pi = (struct ibssa_plugin *)context;
+	cl_list_item_t *cur;
+
+	/* find parents for all new nodes */
+	for (cur = cl_qlist_remove_head(&tree->conn_req);
+			cur != cl_qlist_end(&tree->conn_req);
+			cur = cl_qlist_remove_head(&tree->conn_req)) {
+		/* FIXME
+		 * run balance tree algorithm
+		 * for now all nodes are a child of ourselves
+		 */
+		struct ibssa_node * child = (struct ibssa_node *)cur;
+		cl_qlist_insert_tail(&tree->self.children, &child->list);
+		ibssa_mad_send_primary(pi, child, &tree->self);
+	}
+
+	/* FIXME run some rebalance algorithm */
+}
+
 static void ibssa_main(IN void * context)
 {
 	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
@@ -66,19 +88,22 @@ static void ibssa_main(IN void * context)
 			break;
 		PI_LOG(pi, PI_LOG_DEBUG, "thread awake\n");
 		update_config(pi);
+		/* process all the services trees */
+		cl_qmap_apply_func(&pi->service_trees, process_service_tree, pi);
 	}
 	PI_LOG(pi, PI_LOG_INFO, "thread stopping\n");
 }
 
+/* Set up our service tress for the service guids we support. */
 static void set_up_service_trees(struct ibssa_plugin *pi)
 {
-#if 0
-	/* Set up our service tress for the service guids we support. */
-	foreach sg in sgs: {
+	uint64_t sg = 0;
+
+	for (sg = SSA_SERVICE_DATABASE; sg <= SSA_SERVICE_PATH_RECORD; sg++) {
 		struct ibssa_tree *tree = calloc(1, sizeof(*tree));
 		if (!tree) {
 			PI_LOG(pi, PI_LOG_ERROR,
-				"Failed to allocate tree for service guid 0x"PRIx64"\n",
+				"Failed to allocate tree for service guid 0x%"PRIx64"\n",
 				sg);
 			continue;
 		}
@@ -89,20 +114,17 @@ static void set_up_service_trees(struct ibssa_plugin *pi)
 		tree->self.primary = NULL;
 		tree->self.secondary = NULL;
 		cl_qlist_init(&tree->self.children);
-		tree->self.port_gid.global.subnet_prefix = cl_ntohll(pi->osm->subn.opt.subnet_prefix);
-		tree->self.port_gid.global.interface_id = cl_ntohll(pi->osm->subn.opt.port_guid);
+		tree->self.port_gid.global.subnet_prefix = pi->osm->subn.opt.subnet_prefix;
+		tree->self.port_gid.global.interface_id = pi->sm_port_guid;
 		/* FIXME we need to get a service id from the ibcm */
 		tree->self.service_id = 0;
-		/* FIXME need to get a pkey set up */
-		/* FIXME worse yet do we need multiple trees for each partition ? */
-		tree->self.pkey = 0x0000;
+		tree->self.pkey = 0xFFFF;
 		tree->self.node_type = SSA_NODE_MASTER;
-		tree->self.ssa_version = IBSSA_VERSION;
-		tree->self.node_state = IBSSA_STATE_PARENTED;
+		tree->self.ssa_version = IB_SSA_VERSION;
+		tree->self.service_state = IBSSA_STATE_HAVE_PARENT;
 
-		cl_qmap_insert(&pi.service_trees, sg, (cl_map_item_t *)tree);
+		cl_qmap_insert(&pi->service_trees, sg, (cl_map_item_t *)tree);
 	}
-#endif
 }
 
 static ib_api_status_t ibssa_plugin_bind(struct ibssa_plugin *pi)
@@ -165,6 +187,8 @@ static void *construct(osm_opensm_t *osm)
 			pi->conf->log_file);
 		return (NULL);
 	}
+
+	cl_qmap_init(&pi->service_trees);
 
 	/* Set up our thread, we could delay this but we should do everything
 	 * we can here so that we can fail the load if something goes wrong.

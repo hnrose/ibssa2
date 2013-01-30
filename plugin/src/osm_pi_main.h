@@ -37,6 +37,7 @@
 #define __OSM_PLUGIN_MAIN_H__
 
 #include <infiniband/verbs.h>
+#include <ibssa_mad.h>
 #include "osm_pi_log.h"
 #include "osm_pi_config.h"
 
@@ -59,7 +60,7 @@ struct ibssa_node {
 	uint8_t             ssa_version;
 
 	/* Node state information */
-	//enum node_state     node_state; /* from ibssa_mad.h */
+	enum service_state  service_state; /* from ibssa_mad.h */
 };
 
 /** =========================================================================
@@ -68,7 +69,9 @@ struct ibssa_node {
 struct ibssa_tree {
 	cl_map_item_t       map; /* for storage in service_trees */
 	struct ibssa_node   self; /* ourselves we are the root of the tree */
-	cl_qlist_t          conn_req; /* stores nodes which are in CONN_REQ state */
+	cl_qlist_t          conn_req; /* stores nodes which are in JOINING/ORPHAN state */
+	/* FIXME we need a lock here */
+	/* OR use rcu */
 };
 
 /** =========================================================================
@@ -78,7 +81,10 @@ struct ibssa_plugin {
 	/* OSM mad layer stuff */
 	/* for IB_SSA_CLASS MADs */
 	osm_bind_handle_t   qp1_handle;
+	ib_net64_t          sm_port_guid; /* cache this when binding */
+	uint32_t            tid;
 
+	/* FIXME we may need multiple trees for each partition as well. */
 	cl_qmap_t           service_trees; /* this is a map key'ed by service guid
 						of ibssa_tree's */
 
