@@ -1,0 +1,3 @@
+The distribution layer is responsible for quickly and
+efficiently exchanging data up and down the SSA
+network of nodes.

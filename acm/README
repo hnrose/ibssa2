@@ -1,0 +1,4 @@
+This is the client code that connects into the SSA
+tree to extract the data necessary to establish
+communication with other clients.
+
