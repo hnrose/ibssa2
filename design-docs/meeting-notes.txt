@@ -1,3 +1,78 @@
+2013-01-31
+----------
+
+
+Threading
+
+deamon
+deamon /port or 1 for the system?
+
+1 deamon / node 
+
+but still work on both subnets
+
+address file which indicates which hcas/ports to run on.
+
+daemon would be connected to multiple distribution trees based on port.  Even
+if multiple ports on the same subnet.
+
+   join/port and multiple joins for each pkey.
+   May NOT need the pkey in MemberRecord since the master knows the pkey's
+   available on the port.
+
+Main control thread sending/recv umad
+
+Use socket pairs within process to communicate among threads.
+
+for example a reparent would need to tell the parent communication thread to
+   cease - disconnect - and reconnect and redo.
+
+	However, We can defer state changes to where convenient.
+
+We should make all communications client initiated (always request/response)
+with the exception of the epoch which is a push (small push).
+
+Parents notice a connection is dropped they would notify the master that they
+lost their children.
+
+digress into talking about failure modes...
+
+
+
+Overall the threads would be:
+	1 control (handles listen for connects and umad processing)
+	1 up parent (or more?; get data from parent)
+	N group down to children
+		(thread pool processing requests from the children)
+		do the requests have to be serialized?
+
+		Group the children into a single thread?
+		   That makes internal data structures easier.
+		   However, if requests are not balanced you may end up with
+		   less threads doing all the work.
+
+
+Database keys vs record ids:
+
+	Any record is id'ed based on the offset within the table.
+	all records have an index (offset)
+
+	meta data would define the guid to offset mapping
+
+
+Tables with variable sized records would have 2 tables
+
+	Fixed sized records have offsets into the variable sized table.
+
+
+Keys may not always be a guid.
+
+	each table has it's own key size.
+
+
+
+
+
 Results of meeting 2013-01-16
 -----------------------------
 
