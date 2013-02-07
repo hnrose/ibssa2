@@ -59,7 +59,7 @@ static atomic_t tid;
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
-//PER_THREAD char log_data[SSA_MAX_ADDRESS];
+//__thread char log_data[SSA_MAX_ADDRESS];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
 int log_level = SSA_LOG_DEFAULT;

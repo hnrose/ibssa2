@@ -201,7 +201,7 @@ static struct acm_client client[FD_SETSIZE - 1];
 
 static FILE *flog;
 static pthread_mutex_t log_lock;
-PER_THREAD char log_data[ACM_MAX_ADDRESS];
+__thread char log_data[ACM_MAX_ADDRESS];
 static atomic_t counter[ACM_MAX_COUNTER];
 
 /*
