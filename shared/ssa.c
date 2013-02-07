@@ -156,14 +156,14 @@ struct ssa_dest * ssa_acquire_sa_dest(struct ssa_port *port)
 {
 	struct ssa_dest *dest;
 
-	lock_acquire(&port->lock);
+	pthread_mutex_lock(&port->lock);
 	if (port->state == IBV_PORT_ACTIVE) {
 		dest = &port->sa_dest;
 		atomic_inc(&port->sa_dest.refcnt);
 	} else {
 		dest = NULL;
 	}
-	lock_release(&port->lock);
+	pthread_mutex_unlock(&port->lock);
 	return dest;
 }
 
@@ -209,7 +209,7 @@ static void ssa_process_join_resp(struct ssa_ep *ep, struct ib_user_mad *umad)
 	}
 
 	mc_rec = (struct ib_mc_member_rec *) mad->data;
-	lock_acquire(&ep->lock);
+	pthread_mutex_lock(&ep->lock);
 	index = ssa_mc_index(ep, &mc_rec->mgid);
 	if (index < 0) {
 		//ssa_log(0, "ERROR - MGID in join response not found\n");
@@ -238,7 +238,7 @@ static void ssa_process_join_resp(struct ssa_ep *ep, struct ib_user_mad *umad)
 	dest->state = SSA_READY;
 	//ssa_log(1, "join successful\n");
 out:
-	lock_release(&ep->lock);
+	pthread_mutex_unlock(&ep->lock);
 }
 */
 
@@ -378,7 +378,7 @@ void ssa_init_server(void)
 	int i;
 
 	for (i = 0; i < FD_SETSIZE - 1; i++) {
-		lock_init(&client[i].lock);
+		pthread_mutex_init(&client[i].lock, NULL);
 		client[i].index = i;
 		client[i].sock = -1;
 		atomic_init(&client[i].refcnt);
@@ -426,11 +426,11 @@ int ssa_listen(void)
 
 void ssa_disconnect_client(struct ssa_client *client)
 {
-	lock_acquire(&client->lock);
+	pthread_mutex_lock(&client->lock);
 	shutdown(client->sock, SHUT_RDWR);
 	close(client->sock);
 	client->sock = -1;
-	lock_release(&client->lock);
+	pthread_mutex_unlock(&client->lock);
 	(void) atomic_dec(&client->refcnt);
 }
 
@@ -728,7 +728,7 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 	//ssa_log(1, "%s %d\n", dev->verbs->device->name, port_num);
 	port->dev = dev;
 	port->port_num = port_num;
-	lock_init(&port->lock);
+	pthread_mutex_init(&port->lock, NULL);
 	DListInit(&port->ep_list);
 //	ssa_init_dest(&port->sa_dest, SSA_ADDRESS_LID, NULL, 0);
 

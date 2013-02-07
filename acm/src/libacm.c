@@ -54,7 +54,7 @@ struct acm_device {
 	struct acm_port    *ports;
 };
 
-extern lock_t lock;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 static int sock = -1;
 static short server_port = 6125;
 
@@ -226,7 +226,7 @@ static int acm_resolve(uint8_t *src, uint8_t *dest, uint8_t type,
 	struct acm_msg msg;
 	int ret, cnt = 0;
 
-	lock_acquire(&lock);
+	pthread_mutex_lock(&lock);
 	memset(&msg, 0, sizeof msg);
 	msg.hdr.version = ACM_VERSION;
 	msg.hdr.opcode = ACM_OP_RESOLVE;
@@ -260,7 +260,7 @@ static int acm_resolve(uint8_t *src, uint8_t *dest, uint8_t type,
 
 	ret = acm_format_resp(&msg, paths, count);
 out:
-	lock_release(&lock);
+	pthread_mutex_unlock(&lock);
 	return ret;
 }
 
@@ -289,7 +289,7 @@ int ib_acm_resolve_path(struct ibv_path_record *path, uint32_t flags)
 	struct acm_ep_addr_data *data;
 	int ret;
 
-	lock_acquire(&lock);
+	pthread_mutex_lock(&lock);
 	memset(&msg, 0, sizeof msg);
 	msg.hdr.version = ACM_VERSION;
 	msg.hdr.opcode = ACM_OP_RESOLVE;
@@ -313,7 +313,7 @@ int ib_acm_resolve_path(struct ibv_path_record *path, uint32_t flags)
 		*path = data->info.path;
 
 out:
-	lock_release(&lock);
+	pthread_mutex_unlock(&lock);
 	return ret;
 }
 
@@ -322,7 +322,7 @@ int ib_acm_query_perf(uint64_t **counters, int *count)
 	struct acm_msg msg;
 	int ret, i;
 
-	lock_acquire(&lock);
+	pthread_mutex_lock(&lock);
 	memset(&msg, 0, sizeof msg);
 	msg.hdr.version = ACM_VERSION;
 	msg.hdr.opcode = ACM_OP_PERF_QUERY;
@@ -354,7 +354,7 @@ int ib_acm_query_perf(uint64_t **counters, int *count)
 		(*counters)[i] = ntohll(msg.perf_data[i]);
 	ret = 0;
 out:
-	lock_release(&lock);
+	pthread_mutex_unlock(&lock);
 	return ret;
 }
 
