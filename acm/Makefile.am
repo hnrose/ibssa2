@@ -1,4 +1,4 @@
-INCLUDES = -I$(srcdir)/include -I$(srcdir)/linux
+INCLUDES = -I$(srcdir)/include
 
 AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DSYSCONFDIR=\"$(sysconfdir)\" -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\"
 
@@ -19,7 +19,7 @@ man_MANS = \
 	man/ibacm.7
 
 EXTRA_DIST = src/acm_mad.h src/libacm.h ibacm.init.in \
-	     linux/osd.h linux/dlist.h ibacm.spec.in $(man_MANS) ibacm_opts.cfg \
+	     include/osd.h include/dlist.h ibacm.spec.in $(man_MANS) ibacm_opts.cfg \
 	     ibacm_addr.cfg
 
 install-exec-hook:
