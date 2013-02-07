@@ -3232,9 +3232,6 @@ int CDECL_FUNC main(int argc, char **argv)
 	if (daemon)
 		daemonize();
 
-	if (osd_init())
-		return -1;
-
 	acm_set_options();
 	if (acm_open_lock_file())
 		return -1;
