@@ -747,7 +747,7 @@ char *opt_arg(int argc, char **argv)
 	return NULL;
 }
 
-int CDECL_FUNC main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int op, ret = 0;
 	int make_addr = 0;

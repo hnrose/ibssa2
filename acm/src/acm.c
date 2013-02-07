@@ -1407,7 +1407,7 @@ static void acm_process_comp(struct acm_ep *ep, struct ibv_wc *wc)
 		acm_complete_send((struct acm_send_msg *) (uintptr_t) wc->wr_id);
 }
 
-static void CDECL_FUNC acm_comp_handler(void *context)
+static void acm_comp_handler(void *context)
 {
 	struct acm_device *dev = (struct acm_device *) context;
 	struct acm_ep *ep;
@@ -1625,7 +1625,7 @@ static void acm_process_wait_queue(struct acm_ep *ep, uint64_t *next_expire)
 	}
 }
 
-static void CDECL_FUNC acm_retry_handler(void *context)
+static void acm_retry_handler(void *context)
 {
 	struct acm_device *dev;
 	struct acm_port *port;
@@ -2900,7 +2900,7 @@ static void acm_port_down(struct acm_port *port)
  * those must synchronize against changes accordingly, but this thread only
  * needs to lock when making modifications.
  */
-static void CDECL_FUNC acm_event_handler(void *context)
+static void acm_event_handler(void *context)
 {
 	struct acm_device *dev = (struct acm_device *) context;
 	struct ibv_async_event event;
@@ -3203,7 +3203,7 @@ static void show_usage(char *program)
 	printf("                      (default %s/%s\n", ACM_CONF_DIR, ACM_OPTS_FILE);
 }
 
-int CDECL_FUNC main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int i, op, daemon = 1;
 

@@ -58,9 +58,6 @@
 #define ACM_ADDR_FILE "ibacm_addr.cfg"
 #define ACM_OPTS_FILE "ibacm_opts.cfg"
 
-#define LIB_DESTRUCTOR __attribute__((destructor))
-#define CDECL_FUNC
-
 #define container_of(ptr, type, field) \
 	((type *) ((void *) ptr - offsetof(type, field)))
 
