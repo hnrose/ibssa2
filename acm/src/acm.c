@@ -783,7 +783,7 @@ static int acm_addr_index(struct acm_ep *ep, uint8_t *addr, uint8_t addr_type)
 			continue;
 
 		if ((addr_type == ACM_ADDRESS_NAME &&
-			!strnicmp((char *) ep->addr[i].name,
+			!strncasecmp((char *) ep->addr[i].name,
 				(char *) addr, ACM_MAX_ADDRESS)) ||
 			!memcmp(ep->addr[i].addr, addr, ACM_MAX_ADDRESS))
 			return i;
@@ -2416,7 +2416,7 @@ static void acm_server(void)
 
 static enum acm_addr_prot acm_convert_addr_prot(char *param)
 {
-	if (!stricmp("acm", param))
+	if (!strcasecmp("acm", param))
 		return ACM_ADDR_PROT_ACM;
 
 	return addr_prot;
@@ -2424,9 +2424,9 @@ static enum acm_addr_prot acm_convert_addr_prot(char *param)
 
 static enum acm_route_prot acm_convert_route_prot(char *param)
 {
-	if (!stricmp("acm", param))
+	if (!strcasecmp("acm", param))
 		return ACM_ROUTE_PROT_ACM;
-	else if (!stricmp("sa", param))
+	else if (!strcasecmp("sa", param))
 		return ACM_ROUTE_PROT_SA;
 
 	return route_prot;
@@ -2434,9 +2434,9 @@ static enum acm_route_prot acm_convert_route_prot(char *param)
 
 static enum acm_loopback_prot acm_convert_loopback_prot(char *param)
 {
-	if (!stricmp("none", param))
+	if (!strcasecmp("none", param))
 		return ACM_LOOPBACK_PROT_NONE;
-	else if (!stricmp("local", param))
+	else if (!strcasecmp("local", param))
 		return ACM_LOOPBACK_PROT_LOCAL;
 
 	return loopback_prot;
@@ -2586,7 +2586,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		else
 			type = ACM_ADDRESS_NAME;
 
-		if (stricmp(pkey_str, "default")) {
+		if (strcasecmp(pkey_str, "default")) {
 			if (sscanf(pkey_str, "%hx", &pkey) != 1) {
 				acm_log(0, "ERROR - bad pkey format %s\n", pkey_str);
 				continue;
@@ -2595,7 +2595,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 			pkey = 0xFFFF;
 		}
 
-		if (!stricmp(dev_name, dev) && (ep->port->port_num == (uint8_t) port) &&
+		if (!strcasecmp(dev_name, dev) && (ep->port->port_num == (uint8_t) port) &&
 			(ep->pkey == pkey)) {
 
 			ep->addr_type[index] = type;
@@ -3078,39 +3078,39 @@ static void acm_set_options(void)
 		if (sscanf(s, "%32s%32s", opt, value) != 2)
 			continue;
 
-		if (!stricmp("log_file", opt))
+		if (!strcasecmp("log_file", opt))
 			strcpy(log_file, value);
-		else if (!stricmp("log_level", opt))
+		else if (!strcasecmp("log_level", opt))
 			log_level = atoi(value);
-		else if (!stricmp("lock_file", opt))
+		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
-		else if (!stricmp("addr_prot", opt))
+		else if (!strcasecmp("addr_prot", opt))
 			addr_prot = acm_convert_addr_prot(value);
-		else if (!stricmp("addr_timeout", opt))
+		else if (!strcasecmp("addr_timeout", opt))
 			addr_timeout = atoi(value);
-		else if (!stricmp("route_prot", opt))
+		else if (!strcasecmp("route_prot", opt))
 			route_prot = acm_convert_route_prot(value);
 		else if (!strcmp("route_timeout", opt))
 			route_timeout = atoi(value);
-		else if (!stricmp("loopback_prot", opt))
+		else if (!strcasecmp("loopback_prot", opt))
 			loopback_prot = acm_convert_loopback_prot(value);
-		else if (!stricmp("server_port", opt))
+		else if (!strcasecmp("server_port", opt))
 			server_port = (short) atoi(value);
-		else if (!stricmp("timeout", opt))
+		else if (!strcasecmp("timeout", opt))
 			timeout = atoi(value);
-		else if (!stricmp("retries", opt))
+		else if (!strcasecmp("retries", opt))
 			retries = atoi(value);
-		else if (!stricmp("resolve_depth", opt))
+		else if (!strcasecmp("resolve_depth", opt))
 			resolve_depth = atoi(value);
-		else if (!stricmp("sa_depth", opt))
+		else if (!strcasecmp("sa_depth", opt))
 			sa_depth = atoi(value);
-		else if (!stricmp("send_depth", opt))
+		else if (!strcasecmp("send_depth", opt))
 			send_depth = atoi(value);
-		else if (!stricmp("recv_depth", opt))
+		else if (!strcasecmp("recv_depth", opt))
 			recv_depth = atoi(value);
-		else if (!stricmp("min_mtu", opt))
+		else if (!strcasecmp("min_mtu", opt))
 			min_mtu = acm_convert_mtu(atoi(value));
-		else if (!stricmp("min_rate", opt))
+		else if (!strcasecmp("min_rate", opt))
 			min_rate = acm_convert_rate(atoi(value));
 	}
 
@@ -3141,10 +3141,10 @@ static FILE *acm_open_log(void)
 {
 	FILE *f;
 
-	if (!stricmp(log_file, "stdout"))
+	if (!strcasecmp(log_file, "stdout"))
 		return stdout;
 
-	if (!stricmp(log_file, "stderr"))
+	if (!strcasecmp(log_file, "stderr"))
 		return stderr;
 
 	if (!(f = fopen(log_file, "w")))

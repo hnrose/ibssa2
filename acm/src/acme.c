@@ -787,7 +787,7 @@ int CDECL_FUNC main(int argc, char **argv)
 			dest_dir = optarg;
 			break;
 		case 'P':
-			if (opt_arg(argc, argv) && !strnicmp("col", opt_arg(argc, argv), 3))
+			if (opt_arg(argc, argv) && !strncasecmp("col", opt_arg(argc, argv), 3))
 				perf_query = PERF_QUERY_COL;
 			else
 				perf_query = PERF_QUERY_ROW;

@@ -68,12 +68,12 @@ char lock_file[128];
 
 int ssa_open_log(char *log_file)
 {
-	if (!stricmp(log_file, "stdout")) {
+	if (!strcasecmp(log_file, "stdout")) {
 		flog = stdout;
 		return 0;
 	}
 
-	if (!stricmp(log_file, "stderr")) {
+	if (!strcasecmp(log_file, "stderr")) {
 		flog = stderr;
 		return 0;
 	}
