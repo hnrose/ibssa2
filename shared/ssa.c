@@ -56,33 +56,58 @@ DLIST_ENTRY dev_list;
 
 static atomic_t tid;
 
-FILE *flog;
-//static lock_t log_lock;
+static FILE *flog;
+static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
+
 //PER_THREAD char log_data[SSA_MAX_ADDRESS];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
-char log_file[128]
-int log_level;
+int log_level = SSA_LOG_DEFAULT;
 char lock_file[128];
 //static short server_port = 6125;
 
-void ssa_write(int level, const char *format, ...)
+int ssa_open_log(char *log_file)
+{
+	if (!stricmp(log_file, "stdout")) {
+		flog = stdout;
+		return 0;
+	}
+
+	if (!stricmp(log_file, "stderr")) {
+		flog = stderr;
+		return 0;
+	}
+
+	if ((flog = fopen(log_file, "w")))
+		return 0;
+
+	f = stderr;
+	return -1;
+}
+
+void ssa_close_log()
+{
+	fclose(flog);
+}
+
+void ssa_write_log(int level, const char *format, ...)
 {
 	va_list args;
 	struct timeval tv;
 
-	if (level > log_level)
+	if (!(level & log_level))
 		return;
 
 	gettimeofday(&tv, NULL);
 	va_start(args, format);
-	lock_acquire(&log_lock);
+	pthread_mutex_lock(&log_lock);
 	fprintf(flog, "%u.%03u: ", (unsigned) tv.tv_sec, (unsigned) (tv.tv_usec / 1000));
 	vfprintf(flog, format, args);
 	fflush(flog);
-	lock_release(&log_lock);
+	pthread_mutex_unlock(&log_lock);
 	va_end(args);
 }
+
 
 /*
 static void
@@ -808,22 +833,6 @@ int ssa_open_devices(void)
 	}
 
 	return 0;
-}
-
-FILE *ssa_open_log(char *log_file)
-{
-	FILE *f;
-
-	if (!stricmp(log_file, "stdout"))
-		return stdout;
-
-	if (!stricmp(log_file, "stderr"))
-		return stderr;
-
-	if (!(f = fopen(log_file, "w")))
-		f = stdout;
-
-	return f;
 }
 
 int ssa_open_lock_file(char *lock_file)
