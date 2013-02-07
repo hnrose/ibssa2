@@ -54,7 +54,7 @@
 #ifndef RDMADIR
 #define RDMADIR "rdma"
 #endif
-#define ACM_CONF_DIR  SYSCONFDIR "/" RDMADIR
+#define RDMA_CONF_DIR  SYSCONFDIR "/" RDMADIR
 #define ACM_ADDR_FILE "ibacm_addr.cfg"
 #define ACM_OPTS_FILE "ibacm_opts.cfg"
 

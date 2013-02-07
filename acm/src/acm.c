@@ -208,8 +208,8 @@ static atomic_t counter[ACM_MAX_COUNTER];
  * Service options - may be set through acm_opts file.
  */
 static char *acme = BINDIR "/ib_acme -A";
-static char *opts_file = ACM_CONF_DIR "/" ACM_OPTS_FILE;
-static char *addr_file = ACM_CONF_DIR "/" ACM_ADDR_FILE;
+static char *opts_file = RDMA_CONF_DIR "/" ACM_OPTS_FILE;
+static char *addr_file = RDMA_CONF_DIR "/" ACM_ADDR_FILE;
 static char log_file[128] = "/var/log/ibacm.log";
 static int log_level = 0;
 static char lock_file[128] = "/var/run/ibacm.pid";
@@ -3198,9 +3198,9 @@ static void show_usage(char *program)
 	printf("   [-D]             - run as a daemon (default)\n");
 	printf("   [-P]             - run as a standard process\n");
 	printf("   [-A addr_file]   - address configuration file\n");
-	printf("                      (default %s/%s\n", ACM_CONF_DIR, ACM_ADDR_FILE);
+	printf("                      (default %s/%s\n", RDMA_CONF_DIR, ACM_ADDR_FILE);
 	printf("   [-O option_file] - option configuration file\n");
-	printf("                      (default %s/%s\n", ACM_CONF_DIR, ACM_OPTS_FILE);
+	printf("                      (default %s/%s\n", RDMA_CONF_DIR, ACM_OPTS_FILE);
 }
 
 int main(int argc, char **argv)

@@ -43,7 +43,7 @@
 #include <infiniband/acm.h>
 #include "libacm.h"
 
-static char *dest_dir = ACM_CONF_DIR;
+static char *dest_dir = RDMA_CONF_DIR;
 static char *addr_file = ACM_ADDR_FILE;
 static char *opts_file = ACM_OPTS_FILE;
 
@@ -91,7 +91,7 @@ static void show_usage(char *program)
 	printf("   -O [opt_file]    - generate local ibacm_opts.cfg options file\n");
 	printf("                      (default is %s)\n", ACM_OPTS_FILE);
 	printf("   -D dest_dir      - specify destination directory for output files\n");
-	printf("                      (default is %s)\n", ACM_CONF_DIR);
+	printf("                      (default is %s)\n", RDMA_CONF_DIR);
 	printf("   -V               - enable verbose output\n");
 }
 
