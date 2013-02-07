@@ -138,12 +138,6 @@ static inline int event_wait(event_t *e, int timeout)
 #define lock_acquire pthread_mutex_lock
 #define lock_release pthread_mutex_unlock
 
-#define SOCKET         int
-#define SOCKET_ERROR   -1
-#define INVALID_SOCKET -1
-#define socket_errno() errno
-#define closesocket    close
-
 static inline uint64_t time_stamp_us(void)
 {
 	struct timeval curtime;

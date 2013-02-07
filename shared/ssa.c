@@ -380,7 +380,7 @@ void ssa_init_server(void)
 	for (i = 0; i < FD_SETSIZE - 1; i++) {
 		lock_init(&client[i].lock);
 		client[i].index = i;
-		client[i].sock = INVALID_SOCKET;
+		client[i].sock = -1;
 		atomic_init(&client[i].refcnt);
 	}
 
@@ -400,24 +400,24 @@ int ssa_listen(void)
 
 	//ssa_log(2, "\n");
 	listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (listen_socket == INVALID_SOCKET) {
+	if (listen_socket == -1) {
 		//ssa_log(0, "ERROR - unable to allocate listen socket\n");
-		return socket_errno();
+		return errno;
 	}
 
 	memset(&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(server_port);
 	ret = bind(listen_socket, (struct sockaddr *) &addr, sizeof addr);
-	if (ret == SOCKET_ERROR) {
+	if (ret == -1) {
 		//ssa_log(0, "ERROR - unable to bind listen socket\n");
-		return socket_errno();
+		return errno;
 	}
 	
 	ret = listen(listen_socket, 0);
-	if (ret == SOCKET_ERROR) {
+	if (ret == -1) {
 		//ssa_log(0, "ERROR - unable to start listen\n");
-		return socket_errno();
+		return errno;
 	}
 
 	//ssa_log(2, "listen active\n");
@@ -429,19 +429,18 @@ void ssa_disconnect_client(struct ssa_client *client)
 	lock_acquire(&client->lock);
 	shutdown(client->sock, SHUT_RDWR);
 	close(client->sock);
-	client->sock = INVALID_SOCKET;
+	client->sock = -1;
 	lock_release(&client->lock);
 	(void) atomic_dec(&client->refcnt);
 }
 
 static void ssa_svr_accept(void)
 {
-	SOCKET s;
-	int i;
+	int s, i;
 
 	//ssa_log(2, "\n");
 	s = accept(listen_socket, NULL, NULL);
-	if (s == INVALID_SOCKET) {
+	if (s == -1) {
 		//ssa_log(0, "ERROR - failed to accept connection\n");
 		return;
 	}
@@ -453,7 +452,7 @@ static void ssa_svr_accept(void)
 
 	if (i == FD_SETSIZE - 1) {
 		//ssa_log(0, "ERROR - all connections busy - rejecting\n");
-		closesocket(s);
+		close(s);
 		return;
 	}
 
@@ -558,14 +557,14 @@ static void ssa_server(void)
 		FD_SET(listen_socket, &readfds);
 
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
-			if (client[i].sock != INVALID_SOCKET) {
+			if (client[i].sock != -1) {
 				FD_SET(client[i].sock, &readfds);
 				n = max(n, (int) client[i].sock);
 			}
 		}
 
 		ret = select(n + 1, &readfds, NULL, NULL, NULL);
-		if (ret == SOCKET_ERROR) {
+		if (ret == -1) {
 			//ssa_log(0, "ERROR - server select error\n");
 			continue;
 		}
@@ -574,7 +573,7 @@ static void ssa_server(void)
 			ssa_svr_accept();
 
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
-			if (client[i].sock != INVALID_SOCKET &&
+			if (client[i].sock != -1 &&
 				FD_ISSET(client[i].sock, &readfds)) {
 				//ssa_log(2, "receiving from client %d\n", i);
 				ssa_svr_receive(&client[i]);

@@ -55,7 +55,7 @@ struct acm_device {
 };
 
 extern lock_t lock;
-static SOCKET sock = INVALID_SOCKET;
+static int sock = -1;
 static short server_port = 6125;
 
 static void acm_set_server_port(void)
@@ -82,8 +82,8 @@ int ib_acm_connect(char *dest)
 		return ret;
 
 	sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (sock == INVALID_SOCKET) {
-		ret = socket_errno();
+	if (sock == -1) {
+		ret = errno;
 		goto err1;
 	}
 
@@ -96,8 +96,8 @@ int ib_acm_connect(char *dest)
 	return 0;
 
 err2:
-	closesocket(sock);
-	sock = INVALID_SOCKET;
+	close(sock);
+	sock = -1;
 err1:
 	freeaddrinfo(res);
 	return ret;
@@ -105,10 +105,10 @@ err1:
 
 void ib_acm_disconnect(void)
 {
-	if (sock != INVALID_SOCKET) {
+	if (sock != -1) {
 		shutdown(sock, SHUT_RDWR);
-		closesocket(sock);
-		sock = INVALID_SOCKET;
+		close(sock);
+		sock = -1;
 	}
 }
 

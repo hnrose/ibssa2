@@ -172,7 +172,7 @@ struct acm_send_msg {
 
 struct acm_client {
 	lock_t   lock;   /* acquire ep lock first */
-	SOCKET   sock;
+	int      sock;
 	int      index;
 	atomic_t refcnt;
 };
@@ -196,7 +196,7 @@ static DLIST_ENTRY timeout_list;
 static event_t timeout_event;
 static atomic_t wait_cnt;
 
-static SOCKET listen_socket;
+static int listen_socket;
 static struct acm_client client[FD_SETSIZE - 1];
 
 static FILE *flog;
@@ -1032,7 +1032,7 @@ acm_client_resolve_resp(struct acm_client *client, struct acm_msg *req_msg,
 		atomic_inc(&counter[ACM_CNTR_ERROR]);
 
 	lock_acquire(&client->lock);
-	if (client->sock == INVALID_SOCKET) {
+	if (client->sock == -1) {
 		acm_log(0, "ERROR - connection lost\n");
 		ret = ACM_STATUS_ENOTCONN;
 		goto release;
@@ -1306,7 +1306,7 @@ acm_client_query_resp(struct acm_client *client,
 
 	acm_log(2, "status 0x%x\n", status);
 	lock_acquire(&client->lock);
-	if (client->sock == INVALID_SOCKET) {
+	if (client->sock == -1) {
 		acm_log(0, "ERROR - connection lost\n");
 		ret = ACM_STATUS_ENOTCONN;
 		goto release;
@@ -1676,7 +1676,7 @@ static void acm_init_server(void)
 	for (i = 0; i < FD_SETSIZE - 1; i++) {
 		lock_init(&client[i].lock);
 		client[i].index = i;
-		client[i].sock = INVALID_SOCKET;
+		client[i].sock = -1;
 		atomic_init(&client[i].refcnt);
 	}
 
@@ -1695,24 +1695,24 @@ static int acm_listen(void)
 
 	acm_log(2, "\n");
 	listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (listen_socket == INVALID_SOCKET) {
+	if (listen_socket == -1) {
 		acm_log(0, "ERROR - unable to allocate listen socket\n");
-		return socket_errno();
+		return errno;
 	}
 
 	memset(&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(server_port);
 	ret = bind(listen_socket, (struct sockaddr *) &addr, sizeof addr);
-	if (ret == SOCKET_ERROR) {
+	if (ret == -1) {
 		acm_log(0, "ERROR - unable to bind listen socket\n");
-		return socket_errno();
+		return errno;
 	}
 	
 	ret = listen(listen_socket, 0);
-	if (ret == SOCKET_ERROR) {
+	if (ret == -1) {
 		acm_log(0, "ERROR - unable to start listen\n");
-		return socket_errno();
+		return errno;
 	}
 
 	acm_log(2, "listen active\n");
@@ -1723,20 +1723,19 @@ static void acm_disconnect_client(struct acm_client *client)
 {
 	lock_acquire(&client->lock);
 	shutdown(client->sock, SHUT_RDWR);
-	closesocket(client->sock);
-	client->sock = INVALID_SOCKET;
+	close(client->sock);
+	client->sock = -1;
 	lock_release(&client->lock);
 	(void) atomic_dec(&client->refcnt);
 }
 
 static void acm_svr_accept(void)
 {
-	SOCKET s;
-	int i;
+	int s, i;
 
 	acm_log(2, "\n");
 	s = accept(listen_socket, NULL, NULL);
-	if (s == INVALID_SOCKET) {
+	if (s == -1) {
 		acm_log(0, "ERROR - failed to accept connection\n");
 		return;
 	}
@@ -1748,7 +1747,7 @@ static void acm_svr_accept(void)
 
 	if (i == FD_SETSIZE - 1) {
 		acm_log(0, "ERROR - all connections busy - rejecting\n");
-		closesocket(s);
+		close(s);
 		return;
 	}
 
@@ -1959,8 +1958,7 @@ static int acm_svr_select_src(struct acm_ep_addr_data *src, struct acm_ep_addr_d
 {
 	union socket_addr addr;
 	socklen_t len;
-	int ret;
-	SOCKET s;
+	int ret, s;
 
 	if (src->type)
 		return 0;
@@ -1984,22 +1982,22 @@ static int acm_svr_select_src(struct acm_ep_addr_data *src, struct acm_ep_addr_d
 	}
 
 	s = socket(addr.sa.sa_family, SOCK_DGRAM, IPPROTO_UDP);
-	if (s == INVALID_SOCKET) {
+	if (s == -1) {
 		acm_log(0, "ERROR - unable to allocate socket\n");
-		return socket_errno();
+		return errno;
 	}
 
 	ret = connect(s, &addr.sa, len);
 	if (ret) {
 		acm_log(0, "ERROR - unable to connect socket\n");
-		ret = socket_errno();
+		ret = errno;
 		goto out;
 	}
 
 	ret = getsockname(s, &addr.sa, &len);
 	if (ret) {
 		acm_log(0, "ERROR - failed to get socket address\n");
-		ret = socket_errno();
+		ret = errno;
 		goto out;
 	}
 
@@ -2391,14 +2389,14 @@ static void acm_server(void)
 		FD_SET(listen_socket, &readfds);
 
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
-			if (client[i].sock != INVALID_SOCKET) {
+			if (client[i].sock != -1) {
 				FD_SET(client[i].sock, &readfds);
 				n = max(n, (int) client[i].sock);
 			}
 		}
 
 		ret = select(n + 1, &readfds, NULL, NULL, NULL);
-		if (ret == SOCKET_ERROR) {
+		if (ret == -1) {
 			acm_log(0, "ERROR - server select error\n");
 			continue;
 		}
@@ -2407,7 +2405,7 @@ static void acm_server(void)
 			acm_svr_accept();
 
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
-			if (client[i].sock != INVALID_SOCKET &&
+			if (client[i].sock != -1 &&
 				FD_ISSET(client[i].sock, &readfds)) {
 				acm_log(2, "receiving from client %d\n", i);
 				acm_svr_receive(&client[i]);
