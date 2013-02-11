@@ -52,16 +52,18 @@
 //#include <dlist.h>
 #include <search.h>
 #include <common.h>
+#include <syslog.h>
 
 #if 0
 DLIST_ENTRY dev_list;
 
 static atomic_t tid;
+#endif
 
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
-//__thread char log_data[SSA_MAX_ADDRESS];
+__thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
 int log_level = SSA_LOG_DEFAULT;
@@ -82,7 +84,8 @@ int ssa_open_log(char *log_file)
 	if ((flog = fopen(log_file, "w")))
 		return 0;
 
-	f = stderr;
+	syslog(LOG_WARNING, "Failed to open log file %s\n", log_file);
+	flog = stderr;
 	return -1;
 }
 
@@ -109,48 +112,45 @@ void ssa_write_log(int level, const char *format, ...)
 	va_end(args);
 }
 
-
-/*
-static void
-ssa_format_name(int level, char *name, size_t name_size,
-		uint8_t addr_type, uint8_t *addr, size_t addr_size)
+void ssa_sprint_addr(int level, char *str, size_t str_size,
+		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size)
 {
 	struct ibv_path_record *path;
 
-	if (level > log_level)
+	if (!(level & log_level))
 		return;
 
 	switch (addr_type) {
-	case SSA_EP_INFO_NAME:
-		memcpy(name, addr, addr_size);
+	case SSA_ADDR_NAME:
+		memcpy(str, addr, addr_size);
 		break;
-	case SSA_EP_INFO_ADDRESS_IP:
-		inet_ntop(AF_INET, addr, name, name_size);
+	case SSA_ADDR_IP:
+		inet_ntop(AF_INET, addr, str, str_size);
 		break;
-	case SSA_EP_INFO_ADDRESS_IP6:
-	case SSA_ADDRESS_GID:
-		inet_ntop(AF_INET6, addr, name, name_size);
+	case SSA_ADDR_IP6:
+	case SSA_ADDR_GID:
+		inet_ntop(AF_INET6, addr, str, str_size);
 		break;
-	case SSA_EP_INFO_PATH:
+	case SSA_ADDR_PATH:
 		path = (struct ibv_path_record *) addr;
 		if (path->dlid) {
-			snprintf(name, name_size, "SLID(%u) DLID(%u)",
+			snprintf(str, str_size, "SLID(%u) DLID(%u)",
 				ntohs(path->slid), ntohs(path->dlid));
 		} else {
-			ssa_format_name(level, name, name_size, SSA_ADDRESS_GID,
+			ssa_sprint_addr(level, str, str_size, SSA_ADDR_GID,
 					path->dgid.raw, sizeof path->dgid);
 		}
 		break;
-	case SSA_ADDRESS_LID:
-		snprintf(name, name_size, "LID(%u)", ntohs(*((uint16_t *) addr)));
+	case SSA_ADDR_LID:
+		snprintf(str, str_size, "LID(%u)", ntohs(*((uint16_t *) addr)));
 		break;
 	default:
-		strcpy(name, "Unknown");
+		strcpy(str, "Unknown");
 		break;
 	}
 }
-*/
 
+#if 0
 /*
  * Not sure we need to reference count the SA dest or if the AH is needed
 struct ssa_dest * ssa_acquire_sa_dest(struct ssa_port *port)

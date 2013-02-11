@@ -200,9 +200,6 @@ static atomic_t wait_cnt;
 static int listen_socket;
 static struct acm_client client[FD_SETSIZE - 1];
 
-static FILE *flog;
-static pthread_mutex_t log_lock;
-__thread char log_data[ACM_MAX_ADDRESS];
 static atomic_t counter[ACM_MAX_COUNTER];
 
 /*
@@ -212,7 +209,6 @@ static char *acme = BINDIR "/ib_acme -A";
 static char *opts_file = RDMA_CONF_DIR "/" ACM_OPTS_FILE;
 static char *addr_file = RDMA_CONF_DIR "/" ACM_ADDR_FILE;
 static char log_file[128] = "/var/log/ibacm.log";
-static int log_level = 0;
 static char lock_file[128] = "/var/run/ibacm.pid";
 static enum acm_addr_prot addr_prot = ACM_ADDR_PROT_ACM;
 static int addr_timeout = 1440;
@@ -229,64 +225,37 @@ static int recv_depth = 1024;
 static uint8_t min_mtu = IBV_MTU_2048;
 static uint8_t min_rate = IBV_RATE_10_GBPS;
 
-#define acm_log(level, format, ...) \
-	acm_write(level, "%s: "format, __func__, ## __VA_ARGS__)
-
-static void acm_write(int level, const char *format, ...)
-{
-	va_list args;
-	struct timeval tv;
-
-	if (level > log_level)
-		return;
-
-	gettimeofday(&tv, NULL);
-	va_start(args, format);
-	pthread_mutex_lock(&log_lock);
-	fprintf(flog, "%u.%03u: ", (unsigned) tv.tv_sec, (unsigned) (tv.tv_usec / 1000));
-	vfprintf(flog, format, args);
-	fflush(flog);
-	pthread_mutex_unlock(&log_lock);
-	va_end(args);
-}
-
 static void
 acm_format_name(int level, char *name, size_t name_size,
 		uint8_t addr_type, uint8_t *addr, size_t addr_size)
 {
-	struct ibv_path_record *path;
-
-	if (level > log_level)
-		return;
+	enum ssa_addr_type at;
 
 	switch (addr_type) {
 	case ACM_EP_INFO_NAME:
-		memcpy(name, addr, addr_size);
+		at = SSA_ADDR_NAME;
 		break;
 	case ACM_EP_INFO_ADDRESS_IP:
-		inet_ntop(AF_INET, addr, name, name_size);
+		at = SSA_ADDR_IP;
 		break;
 	case ACM_EP_INFO_ADDRESS_IP6:
+		at = SSA_ADDR_IP6;
+		break;
 	case ACM_ADDRESS_GID:
-		inet_ntop(AF_INET6, addr, name, name_size);
+		at = SSA_ADDR_GID;
 		break;
 	case ACM_EP_INFO_PATH:
-		path = (struct ibv_path_record *) addr;
-		if (path->dlid) {
-			snprintf(name, name_size, "SLID(%u) DLID(%u)",
-				ntohs(path->slid), ntohs(path->dlid));
-		} else {
-			acm_format_name(level, name, name_size, ACM_ADDRESS_GID,
-					path->dgid.raw, sizeof path->dgid);
-		}
+		at = SSA_ADDR_PATH;
 		break;
 	case ACM_ADDRESS_LID:
-		snprintf(name, name_size, "LID(%u)", ntohs(*((uint16_t *) addr)));
+		at = SSA_ADDR_LID;
 		break;
 	default:
-		strcpy(name, "Unknown");
+		at = 0;
 		break;
 	}
+
+	ssa_sprint_addr(level, name, name_size, at, addr, addr_size);
 }
 
 static int ib_any_gid(union ibv_gid *gid)
@@ -304,7 +273,7 @@ acm_set_dest_addr(struct acm_dest *dest, uint8_t addr_type, uint8_t *addr, size_
 {
 	memcpy(dest->address, addr, size);
 	dest->addr_type = addr_type;
-	acm_format_name(0, dest->name, sizeof dest->name, addr_type, addr, size);
+	acm_format_name(SSA_LOG_DEFAULT, dest->name, sizeof dest->name, addr_type, addr, size);
 }
 
 static void
@@ -325,12 +294,12 @@ acm_alloc_dest(uint8_t addr_type, uint8_t *addr)
 
 	dest = calloc(1, sizeof *dest);
 	if (!dest) {
-		acm_log(0, "ERROR - unable to allocate dest\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate dest\n");
 		return NULL;
 	}
 
 	acm_init_dest(dest, addr_type, addr, ACM_MAX_ADDRESS);
-	acm_log(1, "%s\n", dest->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	return dest;
 }
 
@@ -344,12 +313,12 @@ acm_get_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 	if (tdest) {
 		dest = *tdest;
 		(void) atomic_inc(&dest->refcnt);
-		acm_log(2, "%s\n", dest->name);
+		ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	} else {
 		dest = NULL;
-		acm_format_name(2, log_data, sizeof log_data,
+		acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 				addr_type, addr, ACM_MAX_ADDRESS);
-		acm_log(2, "%s not found\n", log_data);
+		ssa_log(SSA_LOG_VERBOSE, "%s not found\n", log_data);
 	}
 	return dest;
 }
@@ -357,7 +326,7 @@ acm_get_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 static void
 acm_put_dest(struct acm_dest *dest)
 {
-	acm_log(2, "%s\n", dest->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	if (atomic_dec(&dest->refcnt) == 0) {
 		free(dest);
 	}
@@ -368,9 +337,9 @@ acm_acquire_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 {
 	struct acm_dest *dest;
 
-	acm_format_name(2, log_data, sizeof log_data,
+	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			addr_type, addr, ACM_MAX_ADDRESS);
-	acm_log(2, "%s\n", log_data);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", log_data);
 	pthread_mutex_lock(&ep->lock);
 	dest = acm_get_dest(ep, addr_type, addr);
 	if (!dest) {
@@ -409,7 +378,7 @@ static void acm_release_sa_dest(struct acm_dest *dest)
 //static void
 //acm_remove_dest(struct acm_ep *ep, struct acm_dest *dest)
 //{
-//	acm_log(2, "%s\n", dest->name);
+//	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 //	tdelete(dest->address, &ep->dest_map[dest->addr_type - 1], acm_compare_dest);
 //	acm_put_dest(dest);
 //}
@@ -421,21 +390,21 @@ acm_alloc_req(struct acm_client *client, struct acm_msg *msg)
 
 	req = calloc(1, sizeof *req);
 	if (!req) {
-		acm_log(0, "ERROR - unable to alloc client request\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to alloc client request\n");
 		return NULL;
 	}
 
 	(void) atomic_inc(&client->refcnt);
 	req->client = client;
 	memcpy(&req->msg, msg, sizeof(req->msg));
-	acm_log(2, "client %d, req %p\n", client->index, req);
+	ssa_log(SSA_LOG_VERBOSE, "client %d, req %p\n", client->index, req);
 	return req;
 }
 
 static void
 acm_free_req(struct acm_request *req)
 {
-	acm_log(2, "%p\n", req);
+	ssa_log(SSA_LOG_VERBOSE, "%p\n", req);
 	(void) atomic_dec(&client->refcnt);
 	free(req);
 }
@@ -447,21 +416,21 @@ acm_alloc_send(struct acm_ep *ep, struct acm_dest *dest, size_t size)
 
 	msg = (struct acm_send_msg *) calloc(1, sizeof *msg);
 	if (!msg) {
-		acm_log(0, "ERROR - unable to allocate send buffer\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate send buffer\n");
 		return NULL;
 	}
 
 	msg->ep = ep;
 	msg->mr = ibv_reg_mr(ep->port->dev->pd, msg->data, size, 0);
 	if (!msg->mr) {
-		acm_log(0, "ERROR - failed to register send buffer\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to register send buffer\n");
 		goto err1;
 	}
 
 	if (!dest->ah) {
 		msg->ah = ibv_create_ah(ep->port->dev->pd, &dest->av);
 		if (!msg->ah) {
-			acm_log(0, "ERROR - unable to create ah\n");
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create ah\n");
 			goto err2;
 		}
 		msg->wr.wr.ud.ah = msg->ah;
@@ -469,7 +438,7 @@ acm_alloc_send(struct acm_ep *ep, struct acm_dest *dest, size_t size)
 		msg->wr.wr.ud.ah = dest->ah;
 	}
 
-	acm_log(2, "get dest %s\n", dest->name);
+	ssa_log(SSA_LOG_VERBOSE, "get dest %s\n", dest->name);
 	(void) atomic_inc(&dest->refcnt);
 	msg->dest = dest;
 
@@ -485,7 +454,7 @@ acm_alloc_send(struct acm_ep *ep, struct acm_dest *dest, size_t size)
 	msg->sge.length = size;
 	msg->sge.lkey = msg->mr->lkey;
 	msg->sge.addr = (uintptr_t) msg->data;
-	acm_log(2, "%p\n", msg);
+	ssa_log(SSA_LOG_VERBOSE, "%p\n", msg);
 	return msg;
 
 err2:
@@ -500,7 +469,7 @@ acm_init_send_req(struct acm_send_msg *msg, void *context,
 	void (*resp_handler)(struct acm_send_msg *req,
 		struct ibv_wc *wc, struct acm_mad *resp))
 {
-	acm_log(2, "%p\n", msg);
+	ssa_log(SSA_LOG_VERBOSE, "%p\n", msg);
 	msg->tries = retries + 1;
 	msg->context = context;
 	msg->resp_handler = resp_handler;
@@ -508,7 +477,7 @@ acm_init_send_req(struct acm_send_msg *msg, void *context,
 
 static void acm_free_send(struct acm_send_msg *msg)
 {
-	acm_log(2, "%p\n", msg);
+	ssa_log(SSA_LOG_VERBOSE, "%p\n", msg);
 	if (msg->ah)
 		ibv_destroy_ah(msg->ah);
 	ibv_dereg_mr(msg->mr);
@@ -524,12 +493,12 @@ static void acm_post_send(struct acm_send_queue *queue, struct acm_send_msg *msg
 	msg->req_queue = queue;
 	pthread_mutex_lock(&ep->lock);
 	if (queue->credits) {
-		acm_log(2, "posting send to QP\n");
+		ssa_log(SSA_LOG_VERBOSE, "posting send to QP\n");
 		queue->credits--;
 		DListInsertTail(&msg->entry, &ep->active_queue);
 		ibv_post_send(ep->qp, &msg->wr, &bad_wr);
 	} else {
-		acm_log(2, "no sends available, queuing message\n");
+		ssa_log(SSA_LOG_VERBOSE, "no sends available, queuing message\n");
 		DListInsertTail(&msg->entry, &queue->pending);
 	}
 	pthread_mutex_unlock(&ep->lock);
@@ -562,7 +531,7 @@ static void acm_send_available(struct acm_ep *ep, struct acm_send_queue *queue)
 	if (DListEmpty(&queue->pending)) {
 		queue->credits++;
 	} else {
-		acm_log(2, "posting queued send message\n");
+		ssa_log(SSA_LOG_VERBOSE, "posting queued send message\n");
 		entry = queue->pending.Next;
 		DListRemove(entry);
 		msg = container_of(entry, struct acm_send_msg, entry);
@@ -578,13 +547,13 @@ static void acm_complete_send(struct acm_send_msg *msg)
 	pthread_mutex_lock(&ep->lock);
 	DListRemove(&msg->entry);
 	if (msg->tries) {
-		acm_log(2, "waiting for response\n");
+		ssa_log(SSA_LOG_VERBOSE, "waiting for response\n");
 		msg->expires = time_stamp_ms() + ep->port->subnet_timeout + timeout;
 		DListInsertTail(&msg->entry, &ep->wait_queue);
 		if (atomic_inc(&wait_cnt) == 1)
 			event_signal(&timeout_event);
 	} else {
-		acm_log(2, "freeing\n");
+		ssa_log(SSA_LOG_VERBOSE, "freeing\n");
 		acm_send_available(ep, msg->req_queue);
 		acm_free_send(msg);
 	}
@@ -597,14 +566,14 @@ static struct acm_send_msg *acm_get_request(struct acm_ep *ep, uint64_t tid, int
 	struct acm_mad *mad;
 	DLIST_ENTRY *entry, *next;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	pthread_mutex_lock(&ep->lock);
 	for (entry = ep->wait_queue.Next; entry != &ep->wait_queue; entry = next) {
 		next = entry->Next;
 		msg = container_of(entry, struct acm_send_msg, entry);
 		mad = (struct acm_mad *) msg->data;
 		if (mad->tid == tid) {
-			acm_log(2, "match found in wait queue\n");
+			ssa_log(SSA_LOG_VERBOSE, "match found in wait queue\n");
 			req = msg;
 			DListRemove(entry);
 			(void) atomic_dec(&wait_cnt);
@@ -618,7 +587,7 @@ static struct acm_send_msg *acm_get_request(struct acm_ep *ep, uint64_t tid, int
 		msg = container_of(entry, struct acm_send_msg, entry);
 		mad = (struct acm_mad *) msg->data;
 		if (mad->tid == tid && msg->tries) {
-			acm_log(2, "match found in active queue\n");
+			ssa_log(SSA_LOG_VERBOSE, "match found in active queue\n");
 			req = msg;
 			req->tries = 0;
 			*free = 0;
@@ -731,14 +700,14 @@ static void acm_process_join_resp(struct acm_ep *ep, struct ib_user_mad *umad)
 	int index, ret;
 
 	mad = (struct ib_sa_mad *) umad->data;
-	acm_log(1, "response status: 0x%x, mad status: 0x%x\n",
+	ssa_log(SSA_LOG_VERBOSE, "response status: 0x%x, mad status: 0x%x\n",
 		umad->status, mad->status);
 	if (umad->status) {
-		acm_log(0, "ERROR - send join failed 0x%x\n", umad->status);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - send join failed 0x%x\n", umad->status);
 		return;
 	}
 	if (mad->status) {
-		acm_log(0, "ERROR - join response status 0x%x\n", mad->status);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - join response status 0x%x\n", mad->status);
 		return;
 	}
 
@@ -746,7 +715,7 @@ static void acm_process_join_resp(struct acm_ep *ep, struct ib_user_mad *umad)
 	pthread_mutex_lock(&ep->lock);
 	index = acm_mc_index(ep, &mc_rec->mgid);
 	if (index < 0) {
-		acm_log(0, "ERROR - MGID in join response not found\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - MGID in join response not found\n");
 		goto out;
 	}
 
@@ -758,19 +727,19 @@ static void acm_process_join_resp(struct acm_ep *ep, struct ib_user_mad *umad)
 	if (index == 0) {
 		dest->ah = ibv_create_ah(ep->port->dev->pd, &dest->av);
 		if (!dest->ah) {
-			acm_log(0, "ERROR - unable to create ah\n");
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create ah\n");
 			goto out;
 		}
 		ret = ibv_attach_mcast(ep->qp, &mc_rec->mgid, mc_rec->mlid);
 		if (ret) {
-			acm_log(0, "ERROR - unable to attach QP to multicast group\n");
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to attach QP to multicast group\n");
 			goto out;
 		}
 	}
 
 	atomic_set(&dest->refcnt, 1);
 	dest->state = ACM_READY;
-	acm_log(1, "join successful\n");
+	ssa_log(SSA_LOG_VERBOSE, "join successful\n");
 out:
 	pthread_mutex_unlock(&ep->lock);
 }
@@ -797,13 +766,13 @@ acm_record_acm_route(struct acm_ep *ep, struct acm_dest *dest)
 {
 	int i;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	for (i = 0; i < MAX_EP_MC; i++) {
 		if (!memcmp(&dest->mgid, &ep->mc_dest[i].mgid, sizeof dest->mgid))
 			break;
 	}
 	if (i == MAX_EP_MC) {
-		acm_log(0, "ERROR - cannot match mgid\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot match mgid\n");
 		return ACM_STATUS_EINVAL;
 	}
 
@@ -818,7 +787,7 @@ acm_record_acm_route(struct acm_ep *ep, struct acm_dest *dest)
 
 static void acm_init_path_query(struct ib_sa_mad *mad)
 {
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	mad->base_version = 1;
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
 	mad->class_version = 2;
@@ -833,7 +802,7 @@ static uint64_t acm_path_comp_mask(struct ibv_path_record *path)
 	uint16_t qos_sl;
 	uint64_t comp_mask = 0;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	if (path->service_id)
 		comp_mask |= IB_COMP_MASK_PR_SERVICE_ID;
 	if (!ib_any_gid(&path->dgid))
@@ -889,9 +858,9 @@ static uint8_t acm_resolve_path(struct acm_ep *ep, struct acm_dest *dest,
 	struct ib_sa_mad *mad;
 	uint8_t ret;
 
-	acm_log(2, "%s\n", dest->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	if (!acm_acquire_sa_dest(ep->port)) {
-		acm_log(1, "cannot acquire SA destination\n");
+		ssa_log(SSA_LOG_VERBOSE, "cannot acquire SA destination\n");
 		ret = ACM_STATUS_EINVAL;
 		goto err;
 	}
@@ -899,7 +868,7 @@ static uint8_t acm_resolve_path(struct acm_ep *ep, struct acm_dest *dest,
 	msg = acm_alloc_send(ep, &ep->port->sa_dest, sizeof(*mad));
 	acm_release_sa_dest(&ep->port->sa_dest);
 	if (!msg) {
-		acm_log(0, "ERROR - cannot allocate send msg\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot allocate send msg\n");
 		ret = ACM_STATUS_ENOMEM;
 		goto err;
 	}
@@ -927,15 +896,15 @@ acm_record_acm_addr(struct acm_ep *ep, struct acm_dest *dest, struct ibv_wc *wc,
 {
 	int index;
 
-	acm_log(2, "%s\n", dest->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	index = acm_best_mc_index(ep, rec);
 	if (index < 0) {
-		acm_log(0, "ERROR - no shared multicast groups\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - no shared multicast groups\n");
 		dest->state = ACM_INIT;
 		return ACM_STATUS_ENODATA;
 	}
 
-	acm_log(2, "selecting MC group at index %d\n", index);
+	ssa_log(SSA_LOG_VERBOSE, "selecting MC group at index %d\n", index);
 	dest->av = ep->mc_dest[index].av;
 	dest->av.dlid = wc->slid;
 	dest->av.src_path_bits = wc->dlid_path_bits;
@@ -956,7 +925,7 @@ static void
 acm_record_path_addr(struct acm_ep *ep, struct acm_dest *dest,
 	struct ibv_path_record *path)
 {
-	acm_log(2, "%s\n", dest->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	dest->path.pkey = htons(ep->pkey);
 	dest->path.dgid = path->dgid;
 	if (path->slid || !ib_any_gid(&path->sgid)) {
@@ -974,13 +943,13 @@ static uint8_t acm_validate_addr_req(struct acm_mad *mad)
 	struct acm_resolve_rec *rec;
 
 	if (mad->method != IB_METHOD_GET) {
-		acm_log(0, "ERROR - invalid method 0x%x\n", mad->method);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid method 0x%x\n", mad->method);
 		return ACM_STATUS_EINVAL;
 	}
 
 	rec = (struct acm_resolve_rec *) mad->data;
 	if (!rec->src_type || rec->src_type >= ACM_ADDRESS_RESERVED) {
-		acm_log(0, "ERROR - unknown src type 0x%x\n", rec->src_type);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unknown src type 0x%x\n", rec->src_type);
 		return ACM_STATUS_EINVAL;
 	}
 
@@ -994,10 +963,10 @@ acm_send_addr_resp(struct acm_ep *ep, struct acm_dest *dest)
 	struct acm_send_msg *msg;
 	struct acm_mad *mad;
 
-	acm_log(2, "%s\n", dest->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	msg = acm_alloc_send(ep, dest, sizeof (*mad));
 	if (!msg) {
-		acm_log(0, "ERROR - failed to allocate message\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to allocate message\n");
 		return;
 	}
 
@@ -1024,7 +993,7 @@ acm_client_resolve_resp(struct acm_client *client, struct acm_msg *req_msg,
 	struct acm_msg msg;
 	int ret;
 
-	acm_log(2, "client %d, status 0x%x\n", client->index, status);
+	ssa_log(SSA_LOG_VERBOSE, "client %d, status 0x%x\n", client->index, status);
 	memset(&msg, 0, sizeof msg);
 
 	if (status == ACM_STATUS_ENODATA)
@@ -1034,7 +1003,7 @@ acm_client_resolve_resp(struct acm_client *client, struct acm_msg *req_msg,
 
 	pthread_mutex_lock(&client->lock);
 	if (client->sock == -1) {
-		acm_log(0, "ERROR - connection lost\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - connection lost\n");
 		ret = ACM_STATUS_ENOTCONN;
 		goto release;
 	}
@@ -1062,7 +1031,7 @@ acm_client_resolve_resp(struct acm_client *client, struct acm_msg *req_msg,
 
 	ret = send(client->sock, (char *) &msg, msg.hdr.length, 0);
 	if (ret != msg.hdr.length)
-		acm_log(0, "ERROR - failed to send response\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send response\n");
 	else
 		ret = 0;
 
@@ -1077,7 +1046,7 @@ acm_complete_queued_req(struct acm_dest *dest, uint8_t status)
 	struct acm_request *req;
 	DLIST_ENTRY *entry;
 
-	acm_log(2, "status %d\n", status);
+	ssa_log(SSA_LOG_VERBOSE, "status %d\n", status);
 	pthread_mutex_lock(&dest->lock);
 	while (!DListEmpty(&dest->req_queue)) {
 		entry = dest->req_queue.Next;
@@ -1085,7 +1054,7 @@ acm_complete_queued_req(struct acm_dest *dest, uint8_t status)
 		req = container_of(entry, struct acm_request, entry);
 		pthread_mutex_unlock(&dest->lock);
 
-		acm_log(2, "completing request, client %d\n", req->client->index);
+		ssa_log(SSA_LOG_VERBOSE, "completing request, client %d\n", req->client->index);
 		acm_client_resolve_resp(req->client, &req->msg, dest, status);
 		acm_free_req(req);
 
@@ -1106,11 +1075,11 @@ acm_dest_sa_resp(struct acm_send_msg *msg, struct ibv_wc *wc, struct acm_mad *ma
 	} else {
 		status = ACM_STATUS_ETIMEDOUT;
 	}
-	acm_log(2, "%s status=0x%x\n", dest->name, status);
+	ssa_log(SSA_LOG_VERBOSE, "%s status=0x%x\n", dest->name, status);
 
 	pthread_mutex_lock(&dest->lock);
 	if (dest->state != ACM_QUERY_ROUTE) {
-		acm_log(1, "notice - discarding SA response\n");
+		ssa_log(SSA_LOG_VERBOSE, "notice - discarding SA response\n");
 		pthread_mutex_unlock(&dest->lock);
 		return;
 	}
@@ -1120,7 +1089,7 @@ acm_dest_sa_resp(struct acm_send_msg *msg, struct ibv_wc *wc, struct acm_mad *ma
 		acm_init_path_av(msg->ep->port, dest);
 		dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
 		dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
-		acm_log(2, "timeout addr %llu route %llu\n", dest->addr_timeout, dest->route_timeout);
+		ssa_log(SSA_LOG_VERBOSE, "timeout addr %llu route %llu\n", dest->addr_timeout, dest->route_timeout);
 		dest->state = ACM_READY;
 	} else {
 		dest->state = ACM_INIT;
@@ -1136,7 +1105,7 @@ acm_resolve_sa_resp(struct acm_send_msg *msg, struct ibv_wc *wc, struct acm_mad 
 	struct acm_dest *dest = (struct acm_dest *) msg->context;
 	int send_resp;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	acm_dest_sa_resp(msg, wc, mad);
 
 	pthread_mutex_lock(&dest->lock);
@@ -1155,16 +1124,16 @@ acm_process_addr_req(struct acm_ep *ep, struct ibv_wc *wc, struct acm_mad *mad)
 	uint8_t status;
 	int addr_index;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	if ((status = acm_validate_addr_req(mad))) {
-		acm_log(0, "ERROR - invalid request\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid request\n");
 		return;
 	}
 
 	rec = (struct acm_resolve_rec *) mad->data;
 	dest = acm_acquire_dest(ep, rec->src_type, rec->src);
 	if (!dest) {
-		acm_log(0, "ERROR - unable to add source\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to add source\n");
 		return;
 	}
 	
@@ -1173,13 +1142,13 @@ acm_process_addr_req(struct acm_ep *ep, struct ibv_wc *wc, struct acm_mad *mad)
 		dest->req_id = mad->tid;
 
 	pthread_mutex_lock(&dest->lock);
-	acm_log(2, "dest state %d\n", dest->state);
+	ssa_log(SSA_LOG_VERBOSE, "dest state %d\n", dest->state);
 	switch (dest->state) {
 	case ACM_READY:
 		if (dest->remote_qpn == wc->src_qp)
 			break;
 
-		acm_log(2, "src service has new qp, resetting\n");
+		ssa_log(SSA_LOG_VERBOSE, "src service has new qp, resetting\n");
 		/* fall through */
 	case ACM_INIT:
 	case ACM_QUERY_ADDR:
@@ -1226,7 +1195,7 @@ acm_process_addr_resp(struct acm_send_msg *msg, struct ibv_wc *wc, struct acm_ma
 		status = ACM_STATUS_ETIMEDOUT;
 		resp_rec = NULL;
 	}
-	acm_log(2, "resp status 0x%x\n", status);
+	ssa_log(SSA_LOG_VERBOSE, "resp status 0x%x\n", status);
 
 	pthread_mutex_lock(&dest->lock);
 	if (dest->state != ACM_QUERY_ADDR) {
@@ -1263,38 +1232,38 @@ static void acm_process_acm_recv(struct acm_ep *ep, struct ibv_wc *wc, struct ac
 	struct acm_resolve_rec *rec;
 	int free;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	if (mad->base_version != 1 || mad->class_version != 1) {
-		acm_log(0, "ERROR - invalid version %d %d\n",
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid version %d %d\n",
 			mad->base_version, mad->class_version);
 		return;
 	}
 	
 	if (mad->control != ACM_CTRL_RESOLVE) {
-		acm_log(0, "ERROR - invalid control 0x%x\n", mad->control);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid control 0x%x\n", mad->control);
 		return;
 	}
 
 	rec = (struct acm_resolve_rec *) mad->data;
-	acm_format_name(2, log_data, sizeof log_data,
+	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			rec->src_type, rec->src, sizeof rec->src);
-	acm_log(2, "src  %s\n", log_data);
-	acm_format_name(2, log_data, sizeof log_data,
+	ssa_log(SSA_LOG_VERBOSE, "src  %s\n", log_data);
+	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			rec->dest_type, rec->dest, sizeof rec->dest);
-	acm_log(2, "dest %s\n", log_data);
+	ssa_log(SSA_LOG_VERBOSE, "dest %s\n", log_data);
 	if (mad->method & IB_METHOD_RESP) {
-		acm_log(2, "received response\n");
+		ssa_log(SSA_LOG_VERBOSE, "received response\n");
 		req = acm_get_request(ep, mad->tid, &free);
 		if (!req) {
-			acm_log(1, "notice - response did not match active request\n");
+			ssa_log(SSA_LOG_VERBOSE, "notice - response did not match active request\n");
 			return;
 		}
-		acm_log(2, "found matching request\n");
+		ssa_log(SSA_LOG_VERBOSE, "found matching request\n");
 		req->resp_handler(req, wc, mad);
 		if (free)
 			acm_free_send(req);
 	} else {
-		acm_log(2, "unsolicited request\n");
+		ssa_log(SSA_LOG_VERBOSE, "unsolicited request\n");
 		acm_process_addr_req(ep, wc, mad);
 	}
 }
@@ -1305,10 +1274,10 @@ acm_client_query_resp(struct acm_client *client,
 {
 	int ret;
 
-	acm_log(2, "status 0x%x\n", status);
+	ssa_log(SSA_LOG_VERBOSE, "status 0x%x\n", status);
 	pthread_mutex_lock(&client->lock);
 	if (client->sock == -1) {
-		acm_log(0, "ERROR - connection lost\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - connection lost\n");
 		ret = ACM_STATUS_ENOTCONN;
 		goto release;
 	}
@@ -1318,7 +1287,7 @@ acm_client_query_resp(struct acm_client *client,
 
 	ret = send(client->sock, (char *) msg, msg->hdr.length, 0);
 	if (ret != msg->hdr.length)
-		acm_log(0, "ERROR - failed to send response\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send response\n");
 	else
 		ret = 0;
 
@@ -1341,7 +1310,7 @@ acm_client_sa_resp(struct acm_send_msg *msg, struct ibv_wc *wc, struct acm_mad *
 	} else {
 		status = ACM_STATUS_ETIMEDOUT;
 	}
-	acm_log(2, "status 0x%x\n", status);
+	ssa_log(SSA_LOG_VERBOSE, "status 0x%x\n", status);
 
 	acm_client_query_resp(req->client, &req->msg, status);
 	acm_free_req(req);
@@ -1353,20 +1322,20 @@ static void acm_process_sa_recv(struct acm_ep *ep, struct ibv_wc *wc, struct acm
 	struct acm_send_msg *req;
 	int free;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	if (mad->base_version != 1 || mad->class_version != 2 ||
 	    !(mad->method & IB_METHOD_RESP) || sa_mad->attr_id != IB_SA_ATTR_PATH_REC) {
-		acm_log(0, "ERROR - unexpected SA MAD %d %d\n",
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unexpected SA MAD %d %d\n",
 			mad->base_version, mad->class_version);
 		return;
 	}
 	
 	req = acm_get_request(ep, mad->tid, &free);
 	if (!req) {
-		acm_log(1, "notice - response did not match active request\n");
+		ssa_log(SSA_LOG_VERBOSE, "notice - response did not match active request\n");
 		return;
 	}
-	acm_log(2, "found matching request\n");
+	ssa_log(SSA_LOG_VERBOSE, "found matching request\n");
 	req->resp_handler(req, wc, mad);
 	if (free)
 		acm_free_send(req);
@@ -1376,7 +1345,7 @@ static void acm_process_recv(struct acm_ep *ep, struct ibv_wc *wc)
 {
 	struct acm_mad *mad;
 
-	acm_log(2, "base endpoint name %s\n", ep->name[0]);
+	ssa_log(SSA_LOG_VERBOSE, "base endpoint name %s\n", ep->name[0]);
 	mad = (struct acm_mad *) (uintptr_t) (wc->wr_id + sizeof(struct ibv_grh));
 	switch (mad->mgmt_class) {
 	case IB_MGMT_CLASS_SA:
@@ -1386,7 +1355,7 @@ static void acm_process_recv(struct acm_ep *ep, struct ibv_wc *wc)
 		acm_process_acm_recv(ep, wc, mad);
 		break;
 	default:
-		acm_log(0, "ERROR - invalid mgmt class 0x%x\n", mad->mgmt_class);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid mgmt class 0x%x\n", mad->mgmt_class);
 		break;
 	}
 
@@ -1396,7 +1365,7 @@ static void acm_process_recv(struct acm_ep *ep, struct ibv_wc *wc)
 static void acm_process_comp(struct acm_ep *ep, struct ibv_wc *wc)
 {
 	if (wc->status) {
-		acm_log(0, "ERROR - work completion error\n"
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - work completion error\n"
 			"\topcode %d, completion status %d\n",
 			wc->opcode, wc->status);
 		return;
@@ -1416,7 +1385,7 @@ static void acm_comp_handler(void *context)
 	struct ibv_wc wc;
 	int cnt;
 
-	acm_log(1, "started\n");
+	ssa_log(SSA_LOG_VERBOSE, "started\n");
 	while (1) {
 		ibv_get_cq_event(dev->channel, &cq, (void *) &ep);
 
@@ -1462,7 +1431,7 @@ static void acm_init_join(struct ib_sa_mad *mad, union ibv_gid *port_gid,
 {
 	struct ib_mc_member_rec *mc_rec;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	mad->base_version = 1;
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
 	mad->class_version = 2;
@@ -1497,11 +1466,11 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 	struct ib_mc_member_rec *mc_rec;
 	int ret, len;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	len = sizeof(*umad) + sizeof(*mad);
 	umad = (struct ib_user_mad *) calloc(1, len);
 	if (!umad) {
-		acm_log(0, "ERROR - unable to allocate MAD for join\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate MAD for join\n");
 		return;
 	}
 
@@ -1513,7 +1482,7 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 	umad->addr.sl = port->sa_dest.av.sl;
 	umad->addr.path_bits = port->sa_dest.av.src_path_bits;
 
-	acm_log(0, "%s %d pkey 0x%x, sl 0x%x, rate 0x%x, mtu 0x%x\n",
+	ssa_log(SSA_LOG_DEFAULT, "%s %d pkey 0x%x, sl 0x%x, rate 0x%x, mtu 0x%x\n",
 		ep->port->dev->verbs->device->name, ep->port->port_num,
 		ep->pkey, sl, rate, mtu);
 	mad = (struct ib_sa_mad *) umad->data;
@@ -1525,14 +1494,14 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 	ret = umad_send(port->mad_portid, port->mad_agentid, (void *) umad,
 		sizeof(*mad), timeout, retries);
 	if (ret) {
-		acm_log(0, "ERROR - failed to send multicast join request %d\n", ret);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send multicast join request %d\n", ret);
 		goto out;
 	}
 
-	acm_log(1, "waiting for response from SA to join request\n");
+	ssa_log(SSA_LOG_VERBOSE, "waiting for response from SA to join request\n");
 	ret = umad_recv(port->mad_portid, (void *) umad, &len, -1);
 	if (ret < 0) {
-		acm_log(0, "ERROR - recv error for multicast join response %d\n", ret);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - recv error for multicast join response %d\n", ret);
 		goto out;
 	}
 
@@ -1550,12 +1519,12 @@ static void acm_port_join(struct acm_port *port)
 	int ret;
 
 	dev = port->dev;
-	acm_log(1, "device %s port %d\n", dev->verbs->device->name,
+	ssa_log(SSA_LOG_VERBOSE, "device %s port %d\n", dev->verbs->device->name,
 		port->port_num);
 
 	ret = ibv_query_gid(dev->verbs, port->port_num, 0, &port_gid);
 	if (ret) {
-		acm_log(0, "ERROR - ibv_query_gid %d device %s port %d\n",
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - ibv_query_gid %d device %s port %d\n",
 			ret, dev->verbs->device->name, port->port_num);
 		return;
 	}
@@ -1574,7 +1543,7 @@ static void acm_port_join(struct acm_port *port)
 		    (port->rate != min_rate || port->mtu != min_mtu))
 			acm_join_group(ep, &port_gid, 0, 0, 0, port->rate, port->mtu);
 	}
-	acm_log(1, "joins for device %s port %d complete\n", dev->verbs->device->name,
+	ssa_log(SSA_LOG_VERBOSE, "joins for device %s port %d complete\n", dev->verbs->device->name,
 		port->port_num);
 }
 
@@ -1591,9 +1560,9 @@ static void acm_process_timeouts(void)
 		msg = container_of(entry, struct acm_send_msg, entry);
 		rec = (struct acm_resolve_rec *) ((struct acm_mad *) msg->data)->data;
 
-		acm_format_name(0, log_data, sizeof log_data,
+		acm_format_name(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				rec->dest_type, rec->dest, sizeof rec->dest);
-		acm_log(0, "notice - dest %s\n", log_data);
+		ssa_log(SSA_LOG_DEFAULT, "notice - dest %s\n", log_data);
 		msg->resp_handler(msg, NULL, NULL);
 	}
 }
@@ -1611,11 +1580,11 @@ static void acm_process_wait_queue(struct acm_ep *ep, uint64_t *next_expire)
 			DListRemove(entry);
 			(void) atomic_dec(&wait_cnt);
 			if (--msg->tries) {
-				acm_log(1, "notice - retrying request\n");
+				ssa_log(SSA_LOG_VERBOSE, "notice - retrying request\n");
 				DListInsertTail(&msg->entry, &ep->active_queue);
 				ibv_post_send(ep->qp, &msg->wr, &bad_wr);
 			} else {
-				acm_log(0, "notice - failing request\n");
+				ssa_log(SSA_LOG_DEFAULT, "notice - failing request\n");
 				acm_send_available(ep, msg->req_queue);
 				DListInsertTail(&msg->entry, &timeout_list);
 			}
@@ -1635,7 +1604,7 @@ static void acm_retry_handler(void *context)
 	uint64_t next_expire;
 	int i, wait;
 
-	acm_log(0, "started\n");
+	ssa_log(SSA_LOG_DEFAULT, "started\n");
 	while (1) {
 		while (!atomic_get(&wait_cnt))
 			event_wait(&timeout_event, -1);
@@ -1682,7 +1651,7 @@ static void acm_init_server(void)
 	}
 
 	if (!(f = fopen("/var/run/ibacm.port", "w"))) {
-		acm_log(0, "notice - cannot publish ibacm port number\n");
+		ssa_log(SSA_LOG_DEFAULT, "notice - cannot publish ibacm port number\n");
 		return;
 	}
 	fprintf(f, "%hu\n", server_port);
@@ -1694,10 +1663,10 @@ static int acm_listen(void)
 	struct sockaddr_in addr;
 	int ret;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (listen_socket == -1) {
-		acm_log(0, "ERROR - unable to allocate listen socket\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate listen socket\n");
 		return errno;
 	}
 
@@ -1706,17 +1675,17 @@ static int acm_listen(void)
 	addr.sin_port = htons(server_port);
 	ret = bind(listen_socket, (struct sockaddr *) &addr, sizeof addr);
 	if (ret == -1) {
-		acm_log(0, "ERROR - unable to bind listen socket\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to bind listen socket\n");
 		return errno;
 	}
 	
 	ret = listen(listen_socket, 0);
 	if (ret == -1) {
-		acm_log(0, "ERROR - unable to start listen\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to start listen\n");
 		return errno;
 	}
 
-	acm_log(2, "listen active\n");
+	ssa_log(SSA_LOG_VERBOSE, "listen active\n");
 	return 0;
 }
 
@@ -1734,10 +1703,10 @@ static void acm_svr_accept(void)
 {
 	int s, i;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	s = accept(listen_socket, NULL, NULL);
 	if (s == -1) {
-		acm_log(0, "ERROR - failed to accept connection\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to accept connection\n");
 		return;
 	}
 
@@ -1747,14 +1716,14 @@ static void acm_svr_accept(void)
 	}
 
 	if (i == FD_SETSIZE - 1) {
-		acm_log(0, "ERROR - all connections busy - rejecting\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - all connections busy - rejecting\n");
 		close(s);
 		return;
 	}
 
 	client[i].sock = s;
 	atomic_set(&client[i].refcnt, 1);
-	acm_log(2, "assigned client %d\n", i);
+	ssa_log(SSA_LOG_VERBOSE, "assigned client %d\n", i);
 }
 
 static int
@@ -1828,9 +1797,9 @@ acm_get_ep(struct acm_ep_addr_data *data)
 	DLIST_ENTRY *dev_entry;
 	int i;
 
-	acm_format_name(2, log_data, sizeof log_data,
+	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			data->type, data->info.addr, sizeof data->info.addr);
-	acm_log(2, "%s\n", log_data);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", log_data);
 	for (dev_entry = dev_list.Next; dev_entry != &dev_list;
 		 dev_entry = dev_entry->Next) {
 
@@ -1844,9 +1813,9 @@ acm_get_ep(struct acm_ep_addr_data *data)
 		}
 	}
 
-	acm_format_name(0, log_data, sizeof log_data,
+	acm_format_name(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 			data->type, data->info.addr, sizeof data->info.addr);
-	acm_log(1, "notice - could not find %s\n", log_data);
+	ssa_log(SSA_LOG_VERBOSE, "notice - could not find %s\n", log_data);
 	return NULL;
 }
 
@@ -1859,16 +1828,16 @@ acm_svr_query_path(struct acm_client *client, struct acm_msg *msg)
 	struct acm_ep *ep;
 	uint8_t status;
 
-	acm_log(2, "client %d\n", client->index);
+	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	if (msg->hdr.length != ACM_MSG_HDR_LENGTH + ACM_MSG_EP_LENGTH) {
-		acm_log(0, "ERROR - invalid length: 0x%x\n", msg->hdr.length);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid length: 0x%x\n", msg->hdr.length);
 		status = ACM_STATUS_EINVAL;
 		goto resp;
 	}
 
 	ep = acm_get_ep(&msg->resolve_data[0]);
 	if (!ep) {
-		acm_log(1, "notice - could not find local end point\n");
+		ssa_log(SSA_LOG_VERBOSE, "notice - could not find local end point\n");
 		status = ACM_STATUS_ESRCADDR;
 		goto resp;
 	}
@@ -1880,7 +1849,7 @@ acm_svr_query_path(struct acm_client *client, struct acm_msg *msg)
 	}
 
 	if (!acm_acquire_sa_dest(ep->port)) {
-		acm_log(1, "cannot acquire SA destination\n");
+		ssa_log(SSA_LOG_VERBOSE, "cannot acquire SA destination\n");
 		status = ACM_STATUS_EINVAL;
 		goto free;
 	}
@@ -1888,7 +1857,7 @@ acm_svr_query_path(struct acm_client *client, struct acm_msg *msg)
 	sa_msg = acm_alloc_send(ep, &ep->port->sa_dest, sizeof(*mad));
 	acm_release_sa_dest(&ep->port->sa_dest);
 	if (!sa_msg) {
-		acm_log(0, "ERROR - cannot allocate send msg\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot allocate send msg\n");
 		status = ACM_STATUS_ENOMEM;
 		goto free;
 	}
@@ -1920,10 +1889,10 @@ acm_send_resolve(struct acm_ep *ep, struct acm_dest *dest,
 	struct acm_resolve_rec *rec;
 	int i;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	msg = acm_alloc_send(ep, &ep->mc_dest[0], sizeof(*mad));
 	if (!msg) {
-		acm_log(0, "ERROR - cannot allocate send msg\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot allocate send msg\n");
 		return ACM_STATUS_ENOMEM;
 	}
 
@@ -1964,7 +1933,7 @@ static int acm_svr_select_src(struct acm_ep_addr_data *src, struct acm_ep_addr_d
 	if (src->type)
 		return 0;
 
-	acm_log(2, "selecting source address\n");
+	ssa_log(SSA_LOG_VERBOSE, "selecting source address\n");
 	memset(&addr, 0, sizeof addr);
 	switch (dst->type) {
 	case ACM_EP_INFO_ADDRESS_IP:
@@ -1978,26 +1947,26 @@ static int acm_svr_select_src(struct acm_ep_addr_data *src, struct acm_ep_addr_d
 		len = sizeof(struct sockaddr_in6);
 		break;
 	default:
-		acm_log(1, "notice - bad destination type, cannot lookup source\n");
+		ssa_log(SSA_LOG_VERBOSE, "notice - bad destination type, cannot lookup source\n");
 		return ACM_STATUS_EDESTTYPE;
 	}
 
 	s = socket(addr.sa.sa_family, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
-		acm_log(0, "ERROR - unable to allocate socket\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate socket\n");
 		return errno;
 	}
 
 	ret = connect(s, &addr.sa, len);
 	if (ret) {
-		acm_log(0, "ERROR - unable to connect socket\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to connect socket\n");
 		ret = errno;
 		goto out;
 	}
 
 	ret = getsockname(s, &addr.sa, &len);
 	if (ret) {
-		acm_log(0, "ERROR - failed to get socket address\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to get socket address\n");
 		ret = errno;
 		goto out;
 	}
@@ -2029,7 +1998,7 @@ acm_svr_verify_resolve(struct acm_msg *msg,
 	int i, cnt;
 
 	if (msg->hdr.length < ACM_MSG_HDR_LENGTH) {
-		acm_log(0, "ERROR - invalid msg hdr length %d\n", msg->hdr.length);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid msg hdr length %d\n", msg->hdr.length);
 		return ACM_STATUS_EINVAL;
 	}
 
@@ -2037,24 +2006,24 @@ acm_svr_verify_resolve(struct acm_msg *msg,
 	for (i = 0; i < cnt; i++) {
 		if (msg->resolve_data[i].flags & ACM_EP_FLAG_SOURCE) {
 			if (src) {
-				acm_log(0, "ERROR - multiple sources specified\n");
+				ssa_log(SSA_LOG_DEFAULT, "ERROR - multiple sources specified\n");
 				return ACM_STATUS_ESRCADDR;
 			}
 			if (!msg->resolve_data[i].type ||
 			    (msg->resolve_data[i].type >= ACM_ADDRESS_RESERVED)) {
-				acm_log(0, "ERROR - unsupported source address type\n");
+				ssa_log(SSA_LOG_DEFAULT, "ERROR - unsupported source address type\n");
 				return ACM_STATUS_ESRCTYPE;
 			}
 			src = &msg->resolve_data[i];
 		}
 		if (msg->resolve_data[i].flags & ACM_EP_FLAG_DEST) {
 			if (dst) {
-				acm_log(0, "ERROR - multiple destinations specified\n");
+				ssa_log(SSA_LOG_DEFAULT, "ERROR - multiple destinations specified\n");
 				return ACM_STATUS_EDESTADDR;
 			}
 			if (!msg->resolve_data[i].type ||
 			    (msg->resolve_data[i].type >= ACM_ADDRESS_RESERVED)) {
-				acm_log(0, "ERROR - unsupported destination address type\n");
+				ssa_log(SSA_LOG_DEFAULT, "ERROR - unsupported destination address type\n");
 				return ACM_STATUS_EDESTTYPE;
 			}
 			dst = &msg->resolve_data[i];
@@ -2062,7 +2031,7 @@ acm_svr_verify_resolve(struct acm_msg *msg,
 	}
 
 	if (!dst) {
-		acm_log(0, "ERROR - destination address required\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - destination address required\n");
 		return ACM_STATUS_EDESTTYPE;
 	}
 
@@ -2083,7 +2052,7 @@ acm_svr_queue_req(struct acm_dest *dest, struct acm_client *client,
 {
 	struct acm_request *req;
 
-	acm_log(2, "client %d\n", client->index);
+	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	req = acm_alloc_req(client, msg);
 	if (!req) {
 		return ACM_STATUS_ENOMEM;
@@ -2098,11 +2067,11 @@ static int acm_dest_timeout(struct acm_dest *dest)
 	uint64_t timestamp = time_stamp_min();
 
 	if (timestamp > dest->addr_timeout) {
-		acm_log(2, "%s address timed out\n", dest->name);
+		ssa_log(SSA_LOG_VERBOSE, "%s address timed out\n", dest->name);
 		dest->state = ACM_INIT;
 		return 1;
 	} else if (timestamp > dest->route_timeout) {
-		acm_log(2, "%s route timed out\n", dest->name);
+		ssa_log(SSA_LOG_VERBOSE, "%s route timed out\n", dest->name);
 		dest->state = ACM_ADDR_RESOLVED;
 		return 1;
 	}
@@ -2118,35 +2087,35 @@ acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 	uint8_t status;
 	int ret;
 
-	acm_log(2, "client %d\n", client->index);
+	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	status = acm_svr_verify_resolve(msg, &saddr, &daddr);
 	if (status) {
-		acm_log(0, "notice - misformatted or unsupported request\n");
+		ssa_log(SSA_LOG_DEFAULT, "notice - misformatted or unsupported request\n");
 		return acm_client_resolve_resp(client, msg, NULL, status);
 	}
 
 	status = acm_svr_select_src(saddr, daddr);
 	if (status) {
-		acm_log(0, "notice - unable to select suitable source address\n");
+		ssa_log(SSA_LOG_DEFAULT, "notice - unable to select suitable source address\n");
 		return acm_client_resolve_resp(client, msg, NULL, status);
 	}
 
-	acm_format_name(2, log_data, sizeof log_data,
+	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			saddr->type, saddr->info.addr, sizeof saddr->info.addr);
-	acm_log(2, "src  %s\n", log_data);
+	ssa_log(SSA_LOG_VERBOSE, "src  %s\n", log_data);
 	ep = acm_get_ep(saddr);
 	if (!ep) {
-		acm_log(0, "notice - unknown local end point\n");
+		ssa_log(SSA_LOG_DEFAULT, "notice - unknown local end point\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ESRCADDR);
 	}
 
-	acm_format_name(2, log_data, sizeof log_data,
+	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			daddr->type, daddr->info.addr, sizeof daddr->info.addr);
-	acm_log(2, "dest %s\n", log_data);
+	ssa_log(SSA_LOG_VERBOSE, "dest %s\n", log_data);
 
 	dest = acm_acquire_dest(ep, daddr->type, daddr->info.addr);
 	if (!dest) {
-		acm_log(0, "ERROR - unable to allocate destination in client request\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate destination in client request\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
 	}
 
@@ -2156,12 +2125,12 @@ test:
 	case ACM_READY:
 		if (acm_dest_timeout(dest))
 			goto test;
-		acm_log(2, "request satisfied from local cache\n");
+		ssa_log(SSA_LOG_VERBOSE, "request satisfied from local cache\n");
 		atomic_inc(&counter[ACM_CNTR_ROUTE_CACHE]);
 		status = ACM_STATUS_SUCCESS;
 		break;
 	case ACM_ADDR_RESOLVED:
-		acm_log(2, "have address, resolving route\n");
+		ssa_log(SSA_LOG_VERBOSE, "have address, resolving route\n");
 		atomic_inc(&counter[ACM_CNTR_ADDR_CACHE]);
 		status = acm_resolve_path(ep, dest, acm_dest_sa_resp);
 		if (status) {
@@ -2169,7 +2138,7 @@ test:
 		}
 		goto queue;
 	case ACM_INIT:
-		acm_log(2, "sending resolve msg to dest\n");
+		ssa_log(SSA_LOG_VERBOSE, "sending resolve msg to dest\n");
 		status = acm_send_resolve(ep, dest, saddr);
 		if (status) {
 			break;
@@ -2179,7 +2148,7 @@ test:
 	default:
 queue:
 		if (daddr->flags & ACM_FLAGS_NODELAY) {
-			acm_log(2, "lookup initiated, but client wants no delay\n");
+			ssa_log(SSA_LOG_VERBOSE, "lookup initiated, but client wants no delay\n");
 			status = ACM_STATUS_ENODATA;
 			break;
 		}
@@ -2213,24 +2182,24 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 	uint8_t status;
 	int ret;
 
-	acm_log(2, "client %d\n", client->index);
+	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	if (msg->hdr.length < (ACM_MSG_HDR_LENGTH + ACM_MSG_EP_LENGTH)) {
-		acm_log(0, "notice - invalid msg hdr length %d\n", msg->hdr.length);
+		ssa_log(SSA_LOG_DEFAULT, "notice - invalid msg hdr length %d\n", msg->hdr.length);
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_EINVAL);
 	}
 
 	path = &msg->resolve_data[0].info.path;
 	if (!path->dlid && ib_any_gid(&path->dgid)) {
-		acm_log(0, "notice - no destination specified\n");
+		ssa_log(SSA_LOG_DEFAULT, "notice - no destination specified\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_EDESTADDR);
 	}
 
-	acm_format_name(2, log_data, sizeof log_data, ACM_EP_INFO_PATH,
+	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data, ACM_EP_INFO_PATH,
 		msg->resolve_data[0].info.addr, sizeof *path);
-	acm_log(2, "path %s\n", log_data);
+	ssa_log(SSA_LOG_VERBOSE, "path %s\n", log_data);
 	ep = acm_get_ep(&msg->resolve_data[0]);
 	if (!ep) {
-		acm_log(0, "notice - unknown local end point\n");
+		ssa_log(SSA_LOG_DEFAULT, "notice - unknown local end point\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ESRCADDR);
 	}
 
@@ -2244,7 +2213,7 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 		dest = acm_acquire_dest(ep, ACM_ADDRESS_GID, addr);
 	}
 	if (!dest) {
-		acm_log(0, "ERROR - unable to allocate destination in client request\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate destination in client request\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
 	}
 
@@ -2254,16 +2223,16 @@ test:
 	case ACM_READY:
 		if (acm_dest_timeout(dest))
 			goto test;
-		acm_log(2, "request satisfied from local cache\n");
+		ssa_log(SSA_LOG_VERBOSE, "request satisfied from local cache\n");
 		atomic_inc(&counter[ACM_CNTR_ROUTE_CACHE]);
 		status = ACM_STATUS_SUCCESS;
 		break;
 	case ACM_INIT:
-		acm_log(2, "have path, bypassing address resolution\n");
+		ssa_log(SSA_LOG_VERBOSE, "have path, bypassing address resolution\n");
 		acm_record_path_addr(ep, dest, path);
 		/* fall through */
 	case ACM_ADDR_RESOLVED:
-		acm_log(2, "have address, resolving route\n");
+		ssa_log(SSA_LOG_VERBOSE, "have address, resolving route\n");
 		status = acm_resolve_path(ep, dest, acm_dest_sa_resp);
 		if (status) {
 			break;
@@ -2271,7 +2240,7 @@ test:
 		/* fall through */
 	default:
 		if (msg->resolve_data[0].flags & ACM_FLAGS_NODELAY) {
-			acm_log(2, "lookup initiated, but client wants no delay\n");
+			ssa_log(SSA_LOG_VERBOSE, "lookup initiated, but client wants no delay\n");
 			status = ACM_STATUS_ENODATA;
 			break;
 		}
@@ -2308,7 +2277,7 @@ static int acm_svr_perf_query(struct acm_client *client, struct acm_msg *msg)
 	int ret, i;
 	uint16_t len;
 
-	acm_log(2, "client %d\n", client->index);
+	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	msg->hdr.opcode |= ACM_OP_ACK;
 	msg->hdr.status = ACM_STATUS_SUCCESS;
 	msg->hdr.data[0] = ACM_MAX_COUNTER;
@@ -2322,7 +2291,7 @@ static int acm_svr_perf_query(struct acm_client *client, struct acm_msg *msg)
 
 	ret = send(client->sock, (char *) msg, len, 0);
 	if (ret != len)
-		acm_log(0, "ERROR - failed to send response\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send response\n");
 	else
 		ret = 0;
 
@@ -2340,16 +2309,16 @@ static void acm_svr_receive(struct acm_client *client)
 	struct acm_msg msg;
 	int ret;
 
-	acm_log(2, "client %d\n", client->index);
+	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	ret = recv(client->sock, (char *) &msg, sizeof msg, 0);
 	if (ret <= 0 || ret != acm_msg_length(&msg)) {
-		acm_log(2, "client disconnected\n");
+		ssa_log(SSA_LOG_VERBOSE, "client disconnected\n");
 		ret = ACM_STATUS_ENOTCONN;
 		goto out;
 	}
 
 	if (msg.hdr.version != ACM_VERSION) {
-		acm_log(0, "ERROR - unsupported version %d\n", msg.hdr.version);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unsupported version %d\n", msg.hdr.version);
 		goto out;
 	}
 
@@ -2362,7 +2331,7 @@ static void acm_svr_receive(struct acm_client *client)
 		ret = acm_svr_perf_query(client, &msg);
 		break;
 	default:
-		acm_log(0, "ERROR - unknown opcode 0x%x\n", msg.hdr.opcode);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unknown opcode 0x%x\n", msg.hdr.opcode);
 		break;
 	}
 
@@ -2376,11 +2345,11 @@ static void acm_server(void)
 	fd_set readfds;
 	int i, n, ret;
 
-	acm_log(0, "started\n");
+	ssa_log(SSA_LOG_DEFAULT, "started\n");
 	acm_init_server();
 	ret = acm_listen();
 	if (ret) {
-		acm_log(0, "ERROR - server listen failed\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - server listen failed\n");
 		return;
 	}
 
@@ -2398,7 +2367,7 @@ static void acm_server(void)
 
 		ret = select(n + 1, &readfds, NULL, NULL, NULL);
 		if (ret == -1) {
-			acm_log(0, "ERROR - server select error\n");
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - server select error\n");
 			continue;
 		}
 
@@ -2408,7 +2377,7 @@ static void acm_server(void)
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
 			if (client[i].sock != -1 &&
 				FD_ISSET(client[i].sock, &readfds)) {
-				acm_log(2, "receiving from client %d\n", i);
+				ssa_log(SSA_LOG_VERBOSE, "receiving from client %d\n", i);
 				acm_svr_receive(&client[i]);
 			}
 		}
@@ -2475,7 +2444,7 @@ static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		default: return IBV_RATE_MAX;
 		}
 	default:
-		acm_log(0, "ERROR - unknown link width 0x%x\n", width);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unknown link width 0x%x\n", width);
 		return IBV_RATE_MAX;
 	}
 }
@@ -2515,14 +2484,14 @@ static int acm_post_recvs(struct acm_ep *ep)
 	size = recv_depth * ACM_RECV_SIZE;
 	ep->recv_bufs = malloc(size);
 	if (!ep->recv_bufs) {
-		acm_log(0, "ERROR - unable to allocate receive buffer\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate receive buffer\n");
 		return ACM_STATUS_ENOMEM;
 	}
 
 	ep->mr = ibv_reg_mr(ep->port->dev->pd, ep->recv_bufs, size,
 		IBV_ACCESS_LOCAL_WRITE);
 	if (!ep->mr) {
-		acm_log(0, "ERROR - unable to register receive buffer\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to register receive buffer\n");
 		goto err;
 	}
 
@@ -2543,9 +2512,9 @@ static FILE *acm_open_addr_file(void)
 	if ((f = fopen(addr_file, "r")))
 		return f;
 
-	acm_log(0, "notice - generating %s file\n", addr_file);
+	ssa_log(SSA_LOG_DEFAULT, "notice - generating %s file\n", addr_file);
 	if (!(f = popen(acme, "r"))) {
-		acm_log(0, "ERROR - cannot generate %s\n", addr_file);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot generate %s\n", addr_file);
 		return NULL;
 	}
 	pclose(f);
@@ -2564,11 +2533,11 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 	struct in6_addr ip_addr;
 
 	dev_name = ep->port->dev->verbs->device->name;
-	acm_log(1, "device %s, port %d, pkey 0x%x\n",
+	ssa_log(SSA_LOG_VERBOSE, "device %s, port %d, pkey 0x%x\n",
 		dev_name, ep->port->port_num, ep->pkey);
 
 	if (!(faddr = acm_open_addr_file())) {
-		acm_log(0, "ERROR - address file not found\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - address file not found\n");
 		return -1;
 	}
 
@@ -2579,7 +2548,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		if (sscanf(s, "%32s%32s%d%8s", addr, dev, &port, pkey_str) != 4)
 			continue;
 
-		acm_log(2, "%s", s);
+		ssa_log(SSA_LOG_VERBOSE, "%s", s);
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0)
 			type = ACM_ADDRESS_IP;
 		else if (inet_pton(AF_INET6, addr, &ip_addr) > 0)
@@ -2589,7 +2558,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 
 		if (strcasecmp(pkey_str, "default")) {
 			if (sscanf(pkey_str, "%hx", &pkey) != 1) {
-				acm_log(0, "ERROR - bad pkey format %s\n", pkey_str);
+				ssa_log(SSA_LOG_DEFAULT, "ERROR - bad pkey format %s\n", pkey_str);
 				continue;
 			}
 		} else {
@@ -2600,7 +2569,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 			(ep->pkey == pkey)) {
 
 			ep->addr_type[index] = type;
-			acm_log(1, "assigning %s\n", addr);
+			ssa_log(SSA_LOG_VERBOSE, "assigning %s\n", addr);
 			strncpy(ep->name[index], addr, ACM_MAX_ADDRESS);
 			if (type == ACM_ADDRESS_IP)
 				memcpy(ep->addr[index].addr, &ip_addr, 4);
@@ -2610,7 +2579,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 				strncpy((char *) ep->addr[index].addr, addr, ACM_MAX_ADDRESS);
 
 			if (++index == MAX_EP_ADDR) {
-				acm_log(1, "maximum number of names assigned to EP\n");
+				ssa_log(SSA_LOG_VERBOSE, "maximum number of names assigned to EP\n");
 				break;
 			}
 		}
@@ -2625,17 +2594,17 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 	struct acm_dest *dest;
 	int i;
 
-	acm_log(2, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	if (loopback_prot != ACM_LOOPBACK_PROT_LOCAL)
 		return 0;
 
 	for (i = 0; i < MAX_EP_ADDR && ep->addr_type[i]; i++) {
 		dest = acm_acquire_dest(ep, ep->addr_type[i], ep->addr[i].addr);
 		if (!dest) {
-			acm_format_name(0, log_data, sizeof log_data,
+			acm_format_name(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 					ep->addr_type[i], ep->addr[i].addr,
 					sizeof ep->addr[i].addr);
-			acm_log(0, "ERROR - unable to create loopback dest %s\n", log_data);
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create loopback dest %s\n", log_data);
 			return -1;
 		}
 
@@ -2654,7 +2623,7 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 		dest->route_timeout = (uint64_t) ~0ULL;
 		dest->state = ACM_READY;
 		acm_put_dest(dest);
-		acm_log(1, "added loopback dest %s\n", dest->name);
+		ssa_log(SSA_LOG_VERBOSE, "added loopback dest %s\n", dest->name);
 	}
 	return 0;
 }
@@ -2664,7 +2633,7 @@ static struct acm_ep *acm_find_ep(struct acm_port *port, uint16_t pkey)
 	struct acm_ep *ep, *res = NULL;
 	DLIST_ENTRY *entry;
 
-	acm_log(2, "pkey 0x%x\n", pkey);
+	ssa_log(SSA_LOG_VERBOSE, "pkey 0x%x\n", pkey);
 
 	pthread_mutex_lock(&port->lock);
 	for (entry = port->ep_list.Next; entry != &port->ep_list; entry = entry->Next) {
@@ -2683,7 +2652,7 @@ acm_alloc_ep(struct acm_port *port, uint16_t pkey, uint16_t pkey_index)
 {
 	struct acm_ep *ep;
 
-	acm_log(1, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	ep = calloc(1, sizeof *ep);
 	if (!ep)
 		return NULL;
@@ -2712,24 +2681,24 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	int ret, sq_size;
 	uint16_t pkey;
 
-	acm_log(1, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	ret = ibv_query_pkey(port->dev->verbs, port->port_num, pkey_index, &pkey);
 	if (ret)
 		return;
 
 	if (acm_find_ep(port, pkey)) {
-		acm_log(2, "endpoint for pkey 0x%x already exists\n", pkey);
+		ssa_log(SSA_LOG_VERBOSE, "endpoint for pkey 0x%x already exists\n", pkey);
 		return;
 	}
 
-	acm_log(2, "creating endpoint for pkey 0x%x\n", pkey);
+	ssa_log(SSA_LOG_VERBOSE, "creating endpoint for pkey 0x%x\n", pkey);
 	ep = acm_alloc_ep(port, pkey, pkey_index);
 	if (!ep)
 		return;
 
 	ret = acm_assign_ep_names(ep);
 	if (ret) {
-		acm_log(0, "ERROR - unable to assign EP name\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to assign EP name\n");
 		goto err0;
 	}
 
@@ -2737,13 +2706,13 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	ep->cq = ibv_create_cq(port->dev->verbs, sq_size + recv_depth,
 		ep, port->dev->channel, 0);
 	if (!ep->cq) {
-		acm_log(0, "ERROR - failed to create CQ\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to create CQ\n");
 		goto err0;
 	}
 
 	ret = ibv_req_notify_cq(ep->cq, 0);
 	if (ret) {
-		acm_log(0, "ERROR - failed to arm CQ\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to arm CQ\n");
 		goto err1;
 	}
 
@@ -2759,7 +2728,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	init_attr.recv_cq = ep->cq;
 	ep->qp = ibv_create_qp(ep->port->dev->pd, &init_attr);
 	if (!ep->qp) {
-		acm_log(0, "ERROR - failed to create QP\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to create QP\n");
 		goto err1;
 	}
 
@@ -2770,14 +2739,14 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	ret = ibv_modify_qp(ep->qp, &attr, IBV_QP_STATE | IBV_QP_PKEY_INDEX |
 		IBV_QP_PORT | IBV_QP_QKEY);
 	if (ret) {
-		acm_log(0, "ERROR - failed to modify QP to init\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to modify QP to init\n");
 		goto err2;
 	}
 
 	attr.qp_state = IBV_QPS_RTR;
 	ret = ibv_modify_qp(ep->qp, &attr, IBV_QP_STATE);
 	if (ret) {
-		acm_log(0, "ERROR - failed to modify QP to rtr\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to modify QP to rtr\n");
 		goto err2;
 	}
 
@@ -2785,7 +2754,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	attr.sq_psn = 0;
 	ret = ibv_modify_qp(ep->qp, &attr, IBV_QP_STATE | IBV_QP_SQ_PSN);
 	if (ret) {
-		acm_log(0, "ERROR - failed to modify QP to rts\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to modify QP to rts\n");
 		goto err2;
 	}
 
@@ -2795,7 +2764,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 
 	ret = acm_init_ep_loopback(ep);
 	if (ret) {
-		acm_log(0, "ERROR - unable to init loopback\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to init loopback\n");
 		goto err2;
 	}
 	pthread_mutex_lock(&port->lock);
@@ -2818,14 +2787,14 @@ static void acm_port_up(struct acm_port *port)
 	uint16_t pkey;
 	int i, ret;
 
-	acm_log(1, "%s %d\n", port->dev->verbs->device->name, port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d\n", port->dev->verbs->device->name, port->port_num);
 	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
 	if (ret) {
-		acm_log(0, "ERROR - unable to get port state\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to get port state\n");
 		return;
 	}
 	if (attr.state != IBV_PORT_ACTIVE) {
-		acm_log(1, "port not active\n");
+		ssa_log(SSA_LOG_VERBOSE, "port not active\n");
 		return;
 	}
 
@@ -2866,7 +2835,7 @@ static void acm_port_up(struct acm_port *port)
 
 	acm_port_join(port);
 	port->state = IBV_PORT_ACTIVE;
-	acm_log(1, "%s %d is up\n", port->dev->verbs->device->name, port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d is up\n", port->dev->verbs->device->name, port->port_num);
 }
 
 static void acm_port_down(struct acm_port *port)
@@ -2874,10 +2843,10 @@ static void acm_port_down(struct acm_port *port)
 	struct ibv_port_attr attr;
 	int ret;
 
-	acm_log(1, "%s %d\n", port->dev->verbs->device->name, port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d\n", port->dev->verbs->device->name, port->port_num);
 	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
 	if (!ret && attr.state == IBV_PORT_ACTIVE) {
-		acm_log(1, "port active\n");
+		ssa_log(SSA_LOG_VERBOSE, "port active\n");
 		return;
 	}
 
@@ -2892,7 +2861,7 @@ static void acm_port_down(struct acm_port *port)
 	while (atomic_get(&port->sa_dest.refcnt))
 		sleep(0);
 	ibv_destroy_ah(port->sa_dest.ah);
-	acm_log(1, "%s %d is down\n", port->dev->verbs->device->name, port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d is down\n", port->dev->verbs->device->name, port->port_num);
 }
 
 /*
@@ -2907,7 +2876,7 @@ static void acm_event_handler(void *context)
 	struct ibv_async_event event;
 	int i, ret;
 
-	acm_log(1, "started\n");
+	ssa_log(SSA_LOG_VERBOSE, "started\n");
 	for (i = 0; i < dev->port_cnt; i++) {
 		acm_port_up(&dev->port[i]);
 	}
@@ -2917,7 +2886,7 @@ static void acm_event_handler(void *context)
 		if (ret)
 			continue;
 
-		acm_log(2, "processing async event %s\n",
+		ssa_log(SSA_LOG_VERBOSE, "processing async event %s\n",
 			ibv_event_type_str(event.event_type));
 		i = event.element.port_num - 1;
 		switch (event.event_type) {
@@ -2942,7 +2911,7 @@ static void acm_activate_devices()
 	struct acm_device *dev;
 	DLIST_ENTRY *dev_entry;
 
-	acm_log(1, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	for (dev_entry = dev_list.Next; dev_entry != &dev_list;
 		dev_entry = dev_entry->Next) {
 
@@ -2954,7 +2923,7 @@ static void acm_activate_devices()
 
 static void acm_open_port(struct acm_port *port, struct acm_device *dev, uint8_t port_num)
 {
-	acm_log(1, "%s %d\n", dev->verbs->device->name, port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d\n", dev->verbs->device->name, port_num);
 	port->dev = dev;
 	port->port_num = port_num;
 	pthread_mutex_init(&port->lock, NULL);
@@ -2963,14 +2932,14 @@ static void acm_open_port(struct acm_port *port, struct acm_device *dev, uint8_t
 
 	port->mad_portid = umad_open_port(dev->verbs->device->name, port->port_num);
 	if (port->mad_portid < 0) {
-		acm_log(0, "ERROR - unable to open MAD port\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to open MAD port\n");
 		return;
 	}
 
 	port->mad_agentid = umad_register(port->mad_portid,
 		IB_MGMT_CLASS_SA, 1, 1, NULL);
 	if (port->mad_agentid < 0) {
-		acm_log(0, "ERROR - unable to register MAD client\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to register MAD client\n");
 		goto err;
 	}
 
@@ -2988,16 +2957,16 @@ static void acm_open_dev(struct ibv_device *ibdev)
 	size_t size;
 	int i, ret;
 
-	acm_log(1, "%s\n", ibdev->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s\n", ibdev->name);
 	verbs = ibv_open_device(ibdev);
 	if (verbs == NULL) {
-		acm_log(0, "ERROR - opening device %s\n", ibdev->name);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - opening device %s\n", ibdev->name);
 		return;
 	}
 
 	ret = ibv_query_device(verbs, &attr);
 	if (ret) {
-		acm_log(0, "ERROR - ibv_query_device (%s) %d\n", ret, ibdev->name);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - ibv_query_device (%s) %d\n", ret, ibdev->name);
 		goto err1;
 	}
 
@@ -3012,13 +2981,13 @@ static void acm_open_dev(struct ibv_device *ibdev)
 
 	dev->pd = ibv_alloc_pd(dev->verbs);
 	if (!dev->pd) {
-		acm_log(0, "ERROR - unable to allocate PD\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate PD\n");
 		goto err2;
 	}
 
 	dev->channel = ibv_create_comp_channel(dev->verbs);
 	if (!dev->channel) {
-		acm_log(0, "ERROR - unable to create comp channel\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create comp channel\n");
 		goto err3;
 	}
 
@@ -3027,7 +2996,7 @@ static void acm_open_dev(struct ibv_device *ibdev)
 
 	DListInsertHead(&dev->entry, &dev_list);
 
-	acm_log(1, "%s opened\n", ibdev->name);
+	ssa_log(SSA_LOG_VERBOSE, "%s opened\n", ibdev->name);
 	return;
 
 err3:
@@ -3044,10 +3013,10 @@ static int acm_open_devices(void)
 	int dev_cnt;
 	int i;
 
-	acm_log(1, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "\n");
 	ibdev = ibv_get_device_list(&dev_cnt);
 	if (!ibdev) {
-		acm_log(0, "ERROR - unable to get device list\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to get device list\n");
 		return -1;
 	}
 
@@ -3056,7 +3025,7 @@ static int acm_open_devices(void)
 
 	ibv_free_device_list(ibdev);
 	if (DListEmpty(&dev_list)) {
-		acm_log(0, "ERROR - no devices\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - no devices\n");
 		return -1;
 	}
 
@@ -3120,38 +3089,22 @@ static void acm_set_options(void)
 
 static void acm_log_options(void)
 {
-	acm_log(0, "log level %d\n", log_level);
-	acm_log(0, "lock file %s\n", lock_file);
-	acm_log(0, "address resolution %d\n", addr_prot);
-	acm_log(0, "address timeout %d\n", addr_timeout);
-	acm_log(0, "route resolution %d\n", route_prot);
-	acm_log(0, "route timeout %d\n", route_timeout);
-	acm_log(0, "loopback resolution %d\n", loopback_prot);
-	acm_log(0, "server_port %d\n", server_port);
-	acm_log(0, "timeout %d ms\n", timeout);
-	acm_log(0, "retries %d\n", retries);
-	acm_log(0, "resolve depth %d\n", resolve_depth);
-	acm_log(0, "sa depth %d\n", sa_depth);
-	acm_log(0, "send depth %d\n", send_depth);
-	acm_log(0, "receive depth %d\n", recv_depth);
-	acm_log(0, "minimum mtu %d\n", min_mtu);
-	acm_log(0, "minimum rate %d\n", min_rate);
-}
-
-static FILE *acm_open_log(void)
-{
-	FILE *f;
-
-	if (!strcasecmp(log_file, "stdout"))
-		return stdout;
-
-	if (!strcasecmp(log_file, "stderr"))
-		return stderr;
-
-	if (!(f = fopen(log_file, "w")))
-		f = stdout;
-
-	return f;
+	ssa_log(SSA_LOG_DEFAULT, "log level %d\n", log_level);
+	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
+	ssa_log(SSA_LOG_DEFAULT, "address resolution %d\n", addr_prot);
+	ssa_log(SSA_LOG_DEFAULT, "address timeout %d\n", addr_timeout);
+	ssa_log(SSA_LOG_DEFAULT, "route resolution %d\n", route_prot);
+	ssa_log(SSA_LOG_DEFAULT, "route timeout %d\n", route_timeout);
+	ssa_log(SSA_LOG_DEFAULT, "loopback resolution %d\n", loopback_prot);
+	ssa_log(SSA_LOG_DEFAULT, "server_port %d\n", server_port);
+	ssa_log(SSA_LOG_DEFAULT, "timeout %d ms\n", timeout);
+	ssa_log(SSA_LOG_DEFAULT, "retries %d\n", retries);
+	ssa_log(SSA_LOG_DEFAULT, "resolve depth %d\n", resolve_depth);
+	ssa_log(SSA_LOG_DEFAULT, "sa depth %d\n", sa_depth);
+	ssa_log(SSA_LOG_DEFAULT, "send depth %d\n", send_depth);
+	ssa_log(SSA_LOG_DEFAULT, "receive depth %d\n", recv_depth);
+	ssa_log(SSA_LOG_DEFAULT, "minimum mtu %d\n", min_mtu);
+	ssa_log(SSA_LOG_DEFAULT, "minimum rate %d\n", min_rate);
 }
 
 static void show_usage(char *program)
@@ -3196,10 +3149,8 @@ int main(int argc, char **argv)
 	if (ssa_open_lock_file(lock_file))
 		return -1;
 
-	pthread_mutex_init(&log_lock, NULL);
-	flog = acm_open_log();
-
-	acm_log(0, "Assistant to the InfiniBand Communication Manager\n");
+	ssa_open_log(log_file);
+	ssa_log(SSA_LOG_DEFAULT, "Assistant to the InfiniBand Communication Manager\n");
 	acm_log_options();
 
 	atomic_init(&tid);
@@ -3212,17 +3163,17 @@ int main(int argc, char **argv)
 
 	umad_init();
 	if (acm_open_devices()) {
-		acm_log(0, "ERROR - unable to open any devices\n");
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to open any devices\n");
 		return -1;
 	}
 
 	acm_activate_devices();
-	acm_log(1, "starting timeout/retry thread\n");
+	ssa_log(SSA_LOG_VERBOSE, "starting timeout/retry thread\n");
 	beginthread(acm_retry_handler, NULL);
-	acm_log(1, "starting server\n");
+	ssa_log(SSA_LOG_VERBOSE, "starting server\n");
 	acm_server();
 
-	acm_log(0, "shutting down\n");
-	fclose(flog);
+	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
+	ssa_close_log();
 	return 0;
 }
