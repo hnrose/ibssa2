@@ -65,7 +65,6 @@ static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 //static atomic_t counter[SSA_MAX_COUNTER];
 
 int log_level = SSA_LOG_DEFAULT;
-char lock_file[128];
 //static short server_port = 6125;
 
 int ssa_open_log(char *log_file)
@@ -835,6 +834,7 @@ int ssa_open_devices(void)
 
 	return 0;
 }
+#endif
 
 int ssa_open_lock_file(char *lock_file)
 {
@@ -854,7 +854,6 @@ int ssa_open_lock_file(char *lock_file)
 	write(lock_fd, pid, strlen(pid));
 	return 0;
 }
-#endif
 
 void ssa_daemonize(void)
 {

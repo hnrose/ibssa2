@@ -3154,25 +3154,6 @@ static FILE *acm_open_log(void)
 	return f;
 }
 
-static int acm_open_lock_file(void)
-{
-	int lock_fd;
-	char pid[16];
-
-	lock_fd = open(lock_file, O_RDWR | O_CREAT, 0640);
-	if (lock_fd < 0)
-		return lock_fd;
-
-	if (lockf(lock_fd, F_TLOCK, 0)) {
-		close(lock_fd);
-		return -1;
-	}
-
-	snprintf(pid, sizeof pid, "%d\n", getpid());
-	write(lock_fd, pid, strlen(pid));
-	return 0;
-}
-
 static void show_usage(char *program)
 {
 	printf("usage: %s\n", program);
@@ -3212,7 +3193,7 @@ int main(int argc, char **argv)
 		ssa_daemonize();
 
 	acm_set_options();
-	if (acm_open_lock_file())
+	if (ssa_open_lock_file(lock_file))
 		return -1;
 
 	pthread_mutex_init(&log_lock, NULL);
