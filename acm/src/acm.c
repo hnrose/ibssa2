@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2009-2013 Intel Corporation. All rights reserved.
  *
  * This software is available to you under the OpenIB.org BSD license
  * below:
@@ -45,6 +45,7 @@
 #include <infiniband/verbs.h>
 #include <dlist.h>
 #include <search.h>
+#include <common.h>
 #include "acm_mad.h"
 
 #define src_out     data[0]
@@ -3172,26 +3173,6 @@ static int acm_open_lock_file(void)
 	return 0;
 }
 
-static void daemonize(void)
-{
-	pid_t pid, sid;
-
-	pid = fork();
-	if (pid)
-		exit(pid < 0);
-
-	sid = setsid();
-	if (sid < 0)
-		exit(1);
-
-	if (chdir("/"))
-		exit(1);
-
-	freopen("/dev/null", "r", stdin);
-	freopen("/dev/null", "w", stdout);
-	freopen("/dev/null", "w", stderr);
-}
-
 static void show_usage(char *program)
 {
 	printf("usage: %s\n", program);
@@ -3228,7 +3209,7 @@ int main(int argc, char **argv)
 	}
 
 	if (daemon)
-		daemonize();
+		ssa_daemonize();
 
 	acm_set_options();
 	if (acm_open_lock_file())

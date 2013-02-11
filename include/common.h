@@ -89,7 +89,7 @@ struct ssa_dest {
 //	uint64_t               req_id;
 //	DLIST_ENTRY            req_queue;
 //	uint32_t               remote_qpn;
-	lock_t                 lock;
+//	lock_t                 lock;
 //	enum acm_state         state;
 	atomic_t               refcnt;
 //	uint8_t                addr_type;
@@ -98,7 +98,7 @@ struct ssa_dest {
 struct ssa_port {
 	struct ssa_device   *dev;
 	DLIST_ENTRY         ep_list;
-	lock_t              lock;
+//	lock_t              lock;
 	int                 mad_portid;
 	int                 mad_agentid;
 	struct ssa_dest     sa_dest;	// needed?
@@ -132,19 +132,19 @@ struct ssa_ep {
 	DLIST_ENTRY           entry;
 	uint16_t              pkey_index;
 	uint16_t              pkey;
-	lock_t                lock;
+//	lock_t                lock;
 //	DLIST_ENTRY           req_queue;
 	enum ssa_svc_state    state;
 };
 
-extern DLIST_ENTRY dev_list;
+//extern DLIST_ENTRY dev_list;
 
 int ssa_open_devices(void);
 void ssa_activate_devices(void);
 
 /* clients currently setup to connect over TCP sockets */
 struct ssa_client {
-	lock_t   lock;   /* acquire ep lock first */
+//	lock_t   lock;   /* acquire ep lock first */
 	int	 sock;
 	int      index;
 	atomic_t refcnt;

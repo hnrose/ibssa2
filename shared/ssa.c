@@ -49,9 +49,11 @@
 #include <infiniband/acm.h>
 #include <infiniband/umad.h>
 #include <infiniband/verbs.h>
-#include <dlist.h>
+//#include <dlist.h>
 #include <search.h>
+#include <common.h>
 
+#if 0
 DLIST_ENTRY dev_list;
 
 static atomic_t tid;
@@ -852,6 +854,7 @@ int ssa_open_lock_file(char *lock_file)
 	write(lock_fd, pid, strlen(pid));
 	return 0;
 }
+#endif
 
 void ssa_daemonize(void)
 {
