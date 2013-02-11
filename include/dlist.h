@@ -40,18 +40,18 @@ typedef struct _DLIST_ENTRY {
 
 }	DLIST_ENTRY;
 
-static void DListInit(DLIST_ENTRY *pHead)
+static inline void DListInit(DLIST_ENTRY *pHead)
 {
 	pHead->Next = pHead;
 	pHead->Prev = pHead;
 }
 
-static int DListEmpty(DLIST_ENTRY *pHead)
+static inline int DListEmpty(DLIST_ENTRY *pHead)
 {
 	return pHead->Next == pHead;
 }
 
-static void DListInsertAfter(DLIST_ENTRY *pNew, DLIST_ENTRY *pHead)
+static inline void DListInsertAfter(DLIST_ENTRY *pNew, DLIST_ENTRY *pHead)
 {
 	pNew->Next = pHead->Next;
 	pNew->Prev = pHead;
@@ -59,7 +59,7 @@ static void DListInsertAfter(DLIST_ENTRY *pNew, DLIST_ENTRY *pHead)
 	pHead->Next = pNew;
 }
 
-static void DListInsertBefore(DLIST_ENTRY *pNew, DLIST_ENTRY *pHead)
+static inline void DListInsertBefore(DLIST_ENTRY *pNew, DLIST_ENTRY *pHead)
 {
 	DListInsertAfter(pNew, pHead->Prev);
 }
@@ -67,7 +67,7 @@ static void DListInsertBefore(DLIST_ENTRY *pNew, DLIST_ENTRY *pHead)
 #define DListInsertHead DListInsertAfter
 #define DListInsertTail DListInsertBefore
 
-static void DListRemove(DLIST_ENTRY *pEntry)
+static inline void DListRemove(DLIST_ENTRY *pEntry)
 {
 	pEntry->Prev->Next = pEntry->Next;
 	pEntry->Next->Prev = pEntry->Prev;
