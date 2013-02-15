@@ -1,3 +1,121 @@
+2013-02-14
+==========
+
+Failure modes:
+--------------
+
+Get children vs get parent.
+Using keep alive?  (writing epoch number?)
+
+Does this matter?  If this is a failure case anyway?
+
+Use get parent since this is an infrequent occurrence.
+
+
+We will use a hybrid model where during a failure nodes will attempt to go to
+backups and once the master eventually knows where everyone is connected it
+can take action.
+
+The question is how does the master query for the new tree.  Get children
+allows for less messages but the messages will be big.  1 query returns N
+children.
+
+Get parent will result in a number of queries to all the nodes.
+
+
+
+Packaging:
+----------
+
+No "common library"  just share code.
+
+1 package multiple daemons
+
+How many packages/daemons?
+
+Sean was thinking 3 packages and 3 services.
+
+1 "plugin" daemon/ includes "distribution/access" functionality
+1 "distribution/access"
+1 "acm"
+
+1 source tree for all of them and they can share code.
+
+
+
+DS Library:
+-----------
+
+The binary trees were of different orders which is not exactly a red-black
+tree.
+
+Requirements:
+
+	1) distro supported
+	2) efficient
+
+Or we just use it for what it can do and implement our own when needed.
+
+
+
+Rsockets distribution:
+----------------------
+
+Sean is concerned about the circular install dependency.
+
+Wouldn't Rsockets use AF_IB?  Yes that avoids the run time dependency.
+
+The installation is Seans concern.
+
+Could we use the rsockets.h file in acm?  Yes probably.
+
+
+State Machines:
+---------------
+
+We can come back to that as we implement more.
+
+
+Database epoch:
+---------------
+
+What is the granularity?
+
+
+
+Should we have a face to face?
+------------------------------
+
+
+Partitioning:
+-------------
+
+Yes all the service is on the default partition.  Only leafs and access nodes
+will be on non-default partitions.
+
+
+AF_IB:
+------
+
+Looks like it will go through.
+
+Roland's waiting for Dave to say this is ok.
+
+
+
+libibumad patches:
+------------------
+
+Hal is checking with Alex but he is sure we can do that.
+
+
+Should we bring this up at the OFA conference?:
+
+discuss next week.
+
+
+
+
 2013-01-31
 ----------
 
