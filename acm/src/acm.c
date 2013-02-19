@@ -190,7 +190,7 @@ union socket_addr {
 	struct sockaddr_in6 sin6;
 };
 
-pthread_t event_thread, retry_thread, comp_thread;
+pthread_t event_thread, retry_thread, comp_thread, ctrl_thread;
 
 static DLIST_ENTRY device_list;
 
@@ -3112,6 +3112,18 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "minimum rate %d\n", min_rate);
 }
 
+static void *acm_ctrl_handler(void *context)
+{
+	int ret;
+
+ssa_log(1,"dev_list next %p\n", dev_list.Next);
+	ret = ssa_open_devices(sizeof(struct ssa_device), sizeof(struct ssa_port));
+	if (!ret)
+		ssa_close_devices();
+
+	return context;
+}
+
 static void show_usage(char *program)
 {
 	printf("usage: %s\n", program);
@@ -3170,6 +3182,9 @@ int main(int argc, char **argv)
 	event_init(&timeout_event);
 	for (i = 0; i < ACM_MAX_COUNTER; i++)
 		atomic_init(&counter[i]);
+
+	pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
+	pthread_join(ctrl_thread, &retval);
 
 	if (acm_open_devices()) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to open any devices\n");
