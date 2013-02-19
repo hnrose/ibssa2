@@ -46,17 +46,18 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <syslog.h>
 #include <infiniband/acm.h>
 #include <infiniband/umad.h>
 #include <infiniband/verbs.h>
-//#include <dlist.h>
+#include <ibssa_mad.h>
+#include <dlist.h>
 #include <search.h>
 #include <common.h>
-#include <syslog.h>
 
-#if 0
 DLIST_ENTRY dev_list;
 
+#if 0
 static atomic_t tid;
 #endif
 
@@ -723,26 +724,30 @@ void ssa_activate_devices()
 //		beginthread(ssa_comp_handler, dev);
 	}
 }
+#endif
 
 static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t port_num)
 {
-	//ssa_log(1, "%s %d\n", dev->verbs->device->name, port_num);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+		"%s %d\n", dev->verbs->device->name, port_num);
 	port->dev = dev;
 	port->port_num = port_num;
-	pthread_mutex_init(&port->lock, NULL);
-	DListInit(&port->ep_list);
+//	pthread_mutex_init(&port->lock, NULL);
+//	DListInit(&port->ep_list);
 //	ssa_init_dest(&port->sa_dest, SSA_ADDRESS_LID, NULL, 0);
 
 	port->mad_portid = umad_open_port(dev->verbs->device->name, port->port_num);
 	if (port->mad_portid < 0) {
-		//ssa_log(0, "ERROR - unable to open MAD port\n");
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - unable to open MAD port\n");
 		return;
 	}
 
 	port->mad_agentid = umad_register(port->mad_portid,
-		IB_MGMT_CLASS_SA, 1, 1, NULL);
+		IB_SSA_CLASS, IB_SSA_CLASS_VERSION, 0, NULL);
 	if (port->mad_agentid < 0) {
-		//ssa_log(0, "ERROR - unable to register MAD client\n");
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - unable to register MAD client\n");
 		goto err;
 	}
 
@@ -752,89 +757,105 @@ err:
 	umad_close_port(port->mad_portid);
 }
 
-static void ssa_open_dev(struct ibv_device *ibdev)
+static void ssa_open_dev(struct ibv_device *ibdev, size_t dev_size, size_t port_size)
 {
 	struct ssa_device *dev;
 	struct ibv_device_attr attr;
 	struct ibv_context *verbs;
-	size_t size;
 	int i, ret;
 
-	//ssa_log(1, "%s\n", ibdev->name);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", ibdev->name);
 	verbs = ibv_open_device(ibdev);
 	if (verbs == NULL) {
-		//ssa_log(0, "ERROR - opening device %s\n", ibdev->name);
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - opening device %s\n", ibdev->name);
 		return;
 	}
 
 	ret = ibv_query_device(verbs, &attr);
 	if (ret) {
-		//ssa_log(0, "ERROR - ibv_query_device (%s) %d\n", ret, ibdev->name);
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - ibv_query_device (%s) %d\n", ret, ibdev->name);
 		goto err1;
 	}
 
-	size = sizeof(*dev) + sizeof(struct ssa_port) * attr.phys_port_cnt;
-	dev = (struct ssa_device *) calloc(1, size);
+	dev = (struct ssa_device *)
+	      calloc(1, dev_size + port_size * attr.phys_port_cnt);
 	if (!dev)
 		goto err1;
 
 	dev->verbs = verbs;
 	dev->guid = ibv_get_device_guid(ibdev);
+	memcpy(dev->name, ibdev->name, IBV_SYSFS_NAME_MAX);
+	dev->port = (void *) dev + dev_size;
 	dev->port_cnt = attr.phys_port_cnt;
-
-	dev->pd = ibv_alloc_pd(dev->verbs);
-	if (!dev->pd) {
-		//ssa_log(0, "ERROR - unable to allocate PD\n");
-		goto err2;
-	}
-
-	dev->channel = ibv_create_comp_channel(dev->verbs);
-	if (!dev->channel) {
-		//ssa_log(0, "ERROR - unable to create comp channel\n");
-		goto err3;
-	}
+	dev->port_size = port_size;
 
 	for (i = 0; i < dev->port_cnt; i++)
-		ssa_open_port(&dev->port[i], dev, i + 1);
+		ssa_open_port(ssa_dev_port(dev, i), dev, i + 1);
 
 	DListInsertHead(&dev->entry, &dev_list);
 
-	//ssa_log(1, "%s opened\n", ibdev->name);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
 
-err3:
-	ibv_dealloc_pd(dev->pd);
-err2:
-	free(dev);
 err1:
 	ibv_close_device(verbs);
 }
 
-int ssa_open_devices(void)
+int ssa_open_devices(size_t dev_size, size_t port_size)
 {
 	struct ibv_device **ibdev;
 	int dev_cnt;
 	int i;
 
-	//ssa_log(1, "\n");
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
 	ibdev = ibv_get_device_list(&dev_cnt);
 	if (!ibdev) {
-		//ssa_log(0, "ERROR - unable to get device list\n");
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - unable to get device list\n");
 		return -1;
 	}
 
 	for (i = 0; i < dev_cnt; i++)
-		ssa_open_dev(ibdev[i]);
+		ssa_open_dev(ibdev[i], dev_size, port_size);
 
 	ibv_free_device_list(ibdev);
 	if (DListEmpty(&dev_list)) {
-		//ssa_log(0, "ERROR - no devices\n");
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - no devices\n");
 		return -1;
 	}
 
 	return 0;
 }
-#endif
+
+static void ssa_close_port(struct ssa_port *port)
+{
+	if (port->mad_agentid >= 0)
+		umad_unregister(port->mad_portid, port->mad_agentid);
+	if (port->mad_portid >= 0)
+		umad_close_port(port->mad_portid);
+}
+
+void ssa_close_devices()
+{
+	struct ssa_device *dev;
+	int i;
+
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
+	while (!DListEmpty(&dev_list)) {
+		dev = container_of(dev_list.Next, struct ssa_device, entry);
+
+		for (i = 0; i < dev->port_cnt; i++)
+			ssa_close_port(ssa_dev_port(dev, i));
+
+		ibv_close_device(dev->verbs);
+		DListRemove(&dev->entry);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s closed\n", dev->name);
+		free(dev);
+	}
+}
 
 int ssa_open_lock_file(char *lock_file)
 {
@@ -873,4 +894,21 @@ void ssa_daemonize(void)
 	freopen("/dev/null", "r", stdin);
 	freopen("/dev/null", "w", stdout);
 	freopen("/dev/null", "w", stderr);
+}
+
+int ssa_init(void)
+{
+	int ret;
+
+	DListInit(&dev_list);
+	ret = umad_init();
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+void ssa_cleanup(void)
+{
+	umad_done();
 }

@@ -47,6 +47,8 @@
 #include <search.h>
 
 void ssa_daemonize(void);
+int ssa_init(void);
+void ssa_cleanup(void);
 int ssa_open_lock_file(char *lock_file);
 
 enum ssa_addr_type {
@@ -111,31 +113,28 @@ struct ssa_dest {
 };
 
 struct ssa_port {
-	struct ssa_device   *dev;
-	DLIST_ENTRY         ep_list;
-//	lock_t              lock;
-	int                 mad_portid;
-	int                 mad_agentid;
-	struct ssa_dest     sa_dest;	// needed?
-	enum ibv_port_state state;
-//	enum ibv_mtu        mtu;
-//	enum ibv_rate       rate;
-	int                 subnet_timeout;
-	int                 gid_cnt;
-	uint16_t            pkey_cnt;
-	uint16_t            lid;
-	uint16_t            lid_mask;
-	uint8_t             port_num;
+	struct ssa_device	*dev;
+//	DLIST_ENTRY		ep_list;
+//	lock_t			lock;
+	int			mad_portid;
+	int			mad_agentid;
+//	struct ssa_dest		sa_dest;	// needed?
+	enum ibv_port_state	state;
+	int			gid_cnt;
+	uint16_t		pkey_cnt;
+	uint16_t		lid;
+	uint16_t		lid_mask;
+	uint8_t			port_num;
 };
 
 struct ssa_device {
 	struct ibv_context      *verbs;
-	struct ibv_comp_channel *channel;
-	struct ibv_pd           *pd;
 	uint64_t                guid;
+	char			name[IBV_SYSFS_NAME_MAX];
 	DLIST_ENTRY             entry;
+	size_t			port_size;
 	int                     port_cnt;
-	struct ssa_port         port[0];
+	struct ssa_port         *port;
 };
 
 struct ssa_ep {
@@ -152,10 +151,16 @@ struct ssa_ep {
 	enum ssa_svc_state    state;
 };
 
-//extern DLIST_ENTRY dev_list;
+extern DLIST_ENTRY dev_list;
 
-int ssa_open_devices(void);
-void ssa_activate_devices(void);
+int ssa_open_devices(size_t dev_size, size_t port_size);
+//void ssa_activate_devices(void);
+void ssa_close_devices(void);
+
+static inline struct ssa_port *ssa_dev_port(struct ssa_device *dev, int index)
+{
+	return (struct ssa_port *) ((void *) dev->port + dev->port_size * index);
+}
 
 /* clients currently setup to connect over TCP sockets */
 struct ssa_client {

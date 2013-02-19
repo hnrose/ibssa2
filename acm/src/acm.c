@@ -192,7 +192,7 @@ union socket_addr {
 
 pthread_t event_thread, retry_thread, comp_thread;
 
-static DLIST_ENTRY dev_list;
+static DLIST_ENTRY device_list;
 
 static atomic_t tid;
 static DLIST_ENTRY timeout_list;
@@ -1613,7 +1613,7 @@ static void *acm_retry_handler(void *context)
 			event_wait(&timeout_event, -1);
 
 		next_expire = -1;
-		for (dev_entry = dev_list.Next; dev_entry != &dev_list;
+		for (dev_entry = device_list.Next; dev_entry != &device_list;
 			 dev_entry = dev_entry->Next) {
 
 			dev = container_of(dev_entry, struct acm_device, entry);
@@ -1804,7 +1804,7 @@ acm_get_ep(struct acm_ep_addr_data *data)
 	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			data->type, data->info.addr, sizeof data->info.addr);
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", log_data);
-	for (dev_entry = dev_list.Next; dev_entry != &dev_list;
+	for (dev_entry = device_list.Next; dev_entry != &device_list;
 		 dev_entry = dev_entry->Next) {
 
 		dev = container_of(dev_entry, struct acm_device, entry);
@@ -2917,7 +2917,7 @@ static void acm_activate_devices()
 	DLIST_ENTRY *dev_entry;
 
 	ssa_log(SSA_LOG_VERBOSE, "\n");
-	for (dev_entry = dev_list.Next; dev_entry != &dev_list;
+	for (dev_entry = device_list.Next; dev_entry != &device_list;
 		dev_entry = dev_entry->Next) {
 
 		dev = container_of(dev_entry, struct acm_device, entry);
@@ -2999,7 +2999,7 @@ static void acm_open_dev(struct ibv_device *ibdev)
 	for (i = 0; i < dev->port_cnt; i++)
 		acm_open_port(&dev->port[i], dev, i + 1);
 
-	DListInsertHead(&dev->entry, &dev_list);
+	DListInsertHead(&dev->entry, &device_list);
 
 	ssa_log(SSA_LOG_VERBOSE, "%s opened\n", ibdev->name);
 	return;
@@ -3029,7 +3029,7 @@ static int acm_open_devices(void)
 		acm_open_dev(ibdev[i]);
 
 	ibv_free_device_list(ibdev);
-	if (DListEmpty(&dev_list)) {
+	if (DListEmpty(&device_list)) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - no devices\n");
 		return -1;
 	}
@@ -3125,7 +3125,8 @@ static void show_usage(char *program)
 
 int main(int argc, char **argv)
 {
-	int i, op, daemon = 1;
+	int ret, i, op, daemon = 1;
+	void *retval;
 
 	while ((op = getopt(argc, argv, "DPA:O:")) != -1) {
 		switch (op) {
@@ -3150,6 +3151,10 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
+	ret = ssa_init();
+	if (ret)
+		return ret;
+
 	acm_set_options();
 	if (ssa_open_lock_file(lock_file))
 		return -1;
@@ -3160,13 +3165,12 @@ int main(int argc, char **argv)
 
 	atomic_init(&tid);
 	atomic_init(&wait_cnt);
-	DListInit(&dev_list);
+	DListInit(&device_list);
 	DListInit(&timeout_list);
 	event_init(&timeout_event);
 	for (i = 0; i < ACM_MAX_COUNTER; i++)
 		atomic_init(&counter[i]);
 
-	umad_init();
 	if (acm_open_devices()) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to open any devices\n");
 		return -1;
@@ -3180,5 +3184,6 @@ int main(int argc, char **argv)
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	ssa_close_log();
+	ssa_cleanup();
 	return 0;
 }
