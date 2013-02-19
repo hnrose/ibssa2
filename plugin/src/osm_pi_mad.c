@@ -146,6 +146,7 @@ static void pi_handle_set_member_rec(IN osm_madw_t * p_madw,
 	new_node = calloc(1, sizeof(*new_node));
 	if (!new_node) {
 		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_INTERNAL_ERR);
+		return;
 	}
 
 	cl_qlist_init(&new_node->children);
