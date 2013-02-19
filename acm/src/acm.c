@@ -3056,7 +3056,7 @@ static void acm_set_options(void)
 		if (!strcasecmp("log_file", opt))
 			strcpy(log_file, value);
 		else if (!strcasecmp("log_level", opt))
-			log_level = atoi(value);
+			ssa_set_log_level(atoi(value));
 		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
 		else if (!strcasecmp("addr_prot", opt))
@@ -3094,7 +3094,7 @@ static void acm_set_options(void)
 
 static void acm_log_options(void)
 {
-	ssa_log(SSA_LOG_DEFAULT, "log level %d\n", log_level);
+	ssa_log_options();
 	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
 	ssa_log(SSA_LOG_DEFAULT, "address resolution %d\n", addr_prot);
 	ssa_log(SSA_LOG_DEFAULT, "address timeout %d\n", addr_timeout);

@@ -70,6 +70,11 @@ __thread char log_data[128];
 int log_level = SSA_LOG_DEFAULT;
 //static short server_port = 6125;
 
+void ssa_set_log_level(int level)
+{
+	log_level = level;
+}
+
 int ssa_open_log(char *log_file)
 {
 	if (!strcasecmp(log_file, "stdout")) {
@@ -149,6 +154,11 @@ void ssa_sprint_addr(int level, char *str, size_t str_size,
 		strcpy(str, "Unknown");
 		break;
 	}
+}
+
+void ssa_log_options()
+{
+	ssa_log(SSA_LOG_DEFAULT, "log level %d\n", log_level);
 }
 
 #if 0

@@ -69,7 +69,6 @@ enum {
 	SSA_LOG_ALL		= 0xFFFFFFFF,
 };
 
-extern int log_level;
 extern __thread char log_data[128];
 
 void ssa_set_log_level(int level);
@@ -80,6 +79,7 @@ void ssa_write_log(int level, const char *format, ...);
 	ssa_write_log(level, "%s: "format, __func__, ## __VA_ARGS__)
 void ssa_sprint_addr(int level, char *str, size_t str_size,
 		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size);
+void ssa_log_options(void);
 
 enum ssa_svc_state {
 	SSA_STATE_IDLE,
