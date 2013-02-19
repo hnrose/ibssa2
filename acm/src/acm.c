@@ -190,6 +190,8 @@ union socket_addr {
 	struct sockaddr_in6 sin6;
 };
 
+pthread_t event_thread, retry_thread, comp_thread;
+
 static DLIST_ENTRY dev_list;
 
 static atomic_t tid;
@@ -1377,7 +1379,7 @@ static void acm_process_comp(struct acm_ep *ep, struct ibv_wc *wc)
 		acm_complete_send((struct acm_send_msg *) (uintptr_t) wc->wr_id);
 }
 
-static void acm_comp_handler(void *context)
+static void *acm_comp_handler(void *context)
 {
 	struct acm_device *dev = (struct acm_device *) context;
 	struct acm_ep *ep;
@@ -1403,6 +1405,7 @@ static void acm_comp_handler(void *context)
 
 		ibv_ack_cq_events(cq, cnt);
 	}
+	return context;
 }
 
 static void acm_format_mgid(union ibv_gid *mgid, uint16_t pkey, uint8_t tos,
@@ -1595,7 +1598,7 @@ static void acm_process_wait_queue(struct acm_ep *ep, uint64_t *next_expire)
 	}
 }
 
-static void acm_retry_handler(void *context)
+static void *acm_retry_handler(void *context)
 {
 	struct acm_device *dev;
 	struct acm_port *port;
@@ -1636,6 +1639,7 @@ static void acm_retry_handler(void *context)
 		if (wait > 0 && atomic_get(&wait_cnt))
 			event_wait(&timeout_event, wait);
 	}
+	return context;
 }
 
 static void acm_init_server(void)
@@ -2870,7 +2874,7 @@ static void acm_port_down(struct acm_port *port)
  * those must synchronize against changes accordingly, but this thread only
  * needs to lock when making modifications.
  */
-static void acm_event_handler(void *context)
+static void *acm_event_handler(void *context)
 {
 	struct acm_device *dev = (struct acm_device *) context;
 	struct ibv_async_event event;
@@ -2904,6 +2908,7 @@ static void acm_event_handler(void *context)
 
 		ibv_ack_async_event(&event);
 	}
+	return context;
 }
 
 static void acm_activate_devices()
@@ -2916,8 +2921,8 @@ static void acm_activate_devices()
 		dev_entry = dev_entry->Next) {
 
 		dev = container_of(dev_entry, struct acm_device, entry);
-		beginthread(acm_event_handler, dev);
-		beginthread(acm_comp_handler, dev);
+		pthread_create(&event_thread, NULL, acm_event_handler, dev);
+		pthread_create(&comp_thread, NULL, acm_comp_handler, dev);
 	}
 }
 
@@ -3169,7 +3174,7 @@ int main(int argc, char **argv)
 
 	acm_activate_devices();
 	ssa_log(SSA_LOG_VERBOSE, "starting timeout/retry thread\n");
-	beginthread(acm_retry_handler, NULL);
+	pthread_create(&retry_thread, NULL, acm_retry_handler, NULL);
 	ssa_log(SSA_LOG_VERBOSE, "starting server\n");
 	acm_server();
 
