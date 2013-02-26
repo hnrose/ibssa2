@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <infiniband/acm.h>
 #include <infiniband/umad.h>
 #include <infiniband/verbs.h>
@@ -80,6 +81,60 @@ void ssa_sprint_addr(int level, char *str, size_t str_size,
 		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size);
 void ssa_log_options(void);
 
+
+struct ssa_class;
+struct ssa_device;
+struct ssa_port;
+struct ssa_svc;
+
+enum ssa_obj_type {
+	SSA_OBJ_DEVICE,
+	SSA_OBJ_PORT,
+	SSA_OBJ_SVC
+};
+
+struct ssa_obj {
+	enum ssa_obj_type		type;
+	union {
+		struct ssa_device	*dev;
+		struct ssa_port		*port;
+		struct ssa_svc		*svc;
+	};
+};
+
+struct ssa_class {
+	struct ssa_device	*dev;
+	int			dev_cnt;
+	size_t			dev_size;
+	size_t			port_size;
+	struct ssa_obj		*fds_obj;
+	struct pollfd		*fds;
+	nfds_t			nfds;
+	uint8_t			node_type;
+};
+
+struct ssa_device {
+	struct ssa_class	*ssa;
+	struct ibv_context      *verbs;
+	uint64_t                guid;
+	size_t			port_size;
+	int                     port_cnt;
+	struct ssa_port         *port;
+};
+
+struct ssa_port {
+	struct ssa_device	*dev;
+	int			mad_portid;
+	int			mad_agentid;
+	//pthread_mutex_t		lock;
+	union ibv_gid		gid;		// set
+	uint16_t		sm_lid;		// set
+	uint8_t			sm_sl;		// set
+	uint8_t			port_num;
+	uint16_t		svc_cnt;
+	struct ssa_svc		**svc;
+};
+
 enum ssa_svc_state {
 	SSA_STATE_IDLE,
 	SSA_STATE_JOINING,
@@ -92,102 +147,44 @@ enum ssa_svc_state {
 	SSA_STATE_HAVE_BACKUP
 };
 
-/*
- * Nested locking order: dest -> ep, dest -> port
- */
-
-struct ssa_dest {
-//	uint8_t                address[ACM_MAX_ADDRESS]; /* keep first */
-//	char                   name[ACM_MAX_ADDRESS];
-	struct ibv_ah          *ah;
-	struct ibv_ah_attr     av;
-//	struct ibv_path_record path;
-//	uint64_t               req_id;
-//	DLIST_ENTRY            req_queue;
-//	uint32_t               remote_qpn;
-//	lock_t                 lock;
-//	enum acm_state         state;
-	atomic_t               refcnt;
-//	uint8_t                addr_type;
-};
-
-struct ssa_port {
-	struct ssa_device	*dev;
-//	DLIST_ENTRY		ep_list;
-//	lock_t			lock;
-	int			mad_portid;
-	int			mad_agentid;
-//	struct ssa_dest		sa_dest;	// needed?
-	enum ibv_port_state	state;
-	int			gid_cnt;
-	uint16_t		pkey_cnt;
-	uint16_t		lid;
-	uint16_t		lid_mask;
-	uint8_t			port_num;
-};
-
-struct ssa_device {
-	struct ssa_class	*ssa;
-	struct ibv_context      *verbs;
-	uint64_t                guid;
-	char			name[IBV_SYSFS_NAME_MAX];
-	size_t			port_size;
-	int                     port_cnt;
-	struct ssa_port         *port;
-};
-
-struct ssa_ep {
-	struct ssa_port       *port;
-//	struct ibv_cq         *cq;
-//	struct ibv_qp         *qp;
-//	struct ibv_mr         *mr;
-//	uint8_t               *recv_bufs;
-	DLIST_ENTRY           entry;
-	uint16_t              pkey_index;
-	uint16_t              pkey;
-//	lock_t                lock;
-//	DLIST_ENTRY           req_queue;
-	enum ssa_svc_state    state;
+struct ssa_svc {
+	struct ssa_port		*port;
+	uint64_t		database_id;
+	int			sock[2];
+	int			rsock;
+	uint16_t		index;
+	uint16_t		tid;
+	pthread_t		upstream;
+	//pthread_mutex_t		lock;
+	int			timeout;
+	enum ssa_svc_state	state;
 };
 
 int ssa_open_devices(struct ssa_class *ssa);
-//void ssa_activate_devices(void);
 void ssa_close_devices(struct ssa_class *ssa);
 
-struct ssa_class {
-	struct ssa_device	*dev;
-	int			dev_cnt;
-	size_t			dev_size;
-	size_t			port_size;
-};
+struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
+			      size_t svc_size);
+int ssa_ctrl_run(struct ssa_class *ssa);
 
-static inline struct ssa_port *ssa_dev_port(struct ssa_device *dev, int index)
-{
-	return (struct ssa_port *) ((void *) dev->port + dev->port_size * index);
-}
 
 static inline struct ssa_device *ssa_dev(struct ssa_class *ssa, int index)
 {
 	return (struct ssa_device *) ((void *) ssa->dev + ssa->dev_size * index);
 }
 
-int ssa_init(struct ssa_class *ssa, size_t dev_size, size_t port_size);
+static inline struct ssa_port *ssa_dev_port(struct ssa_device *dev, int port_num)
+{
+	return (struct ssa_port *)
+		((void *) dev->port + dev->port_size * (port_num - 1));
+}
+
+
+static inline char *ssa_dev_name(struct ssa_device *dev)
+{
+	return dev->verbs->device->name;
+}
+
+int ssa_init(struct ssa_class *ssa, uint8_t node_type,
+	     size_t dev_size, size_t port_size);
 void ssa_cleanup(struct ssa_class *ssa);
-
-/* clients currently setup to connect over TCP sockets */
-struct ssa_client {
-//	lock_t   lock;   /* acquire ep lock first */
-	int	 sock;
-	int      index;
-	atomic_t refcnt;
-};
-
-struct ssa_request {
-	struct acm_client *client;
-	DLIST_ENTRY       entry;
-//	struct ssa_msg    msg;
-};
-
-void ssa_init_server();
-int ssa_listen();
-void ssa_disconnect_client(struct ssa_client *client);

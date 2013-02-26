@@ -50,14 +50,15 @@
 #include <infiniband/acm.h>
 #include <infiniband/umad.h>
 #include <infiniband/verbs.h>
-#include <ibssa_mad.h>
+#include <infiniband/ssa_mad.h>
 #include <dlist.h>
 #include <search.h>
 #include <common.h>
+#include <ssa_ctrl.h>
 
-#if 0
-static atomic_t tid;
-#endif
+
+#define DEFAULT_TIMEOUT 1000
+#define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
 
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -65,7 +66,7 @@ static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
-int log_level = SSA_LOG_DEFAULT;
+static int log_level = SSA_LOG_DEFAULT;
 //static short server_port = 6125;
 
 void ssa_set_log_level(int level)
@@ -252,136 +253,10 @@ out:
 }
 */
 
-/*
- * This is setup for multicast - not SSA
-static void ssa_init_join(struct ib_sa_mad *mad, union ibv_gid *port_gid,
-	uint16_t pkey, uint8_t tos, uint8_t tclass, uint8_t sl, uint8_t rate, uint8_t mtu)
-{
-	struct ib_mc_member_rec *mc_rec;
+#endif
 
-	//ssa_log(2, "\n");
-	mad->base_version = 1;
-	mad->mgmt_class = IB_MGMT_CLASS_SA;
-	mad->class_version = 2;
-	mad->method = IB_METHOD_SET;
-	mad->tid = (uint64_t) atomic_inc(&tid);
-	mad->attr_id = IB_SA_ATTR_MC_MEMBER_REC;
-	mad->comp_mask =
-		IB_COMP_MASK_MC_MGID | IB_COMP_MASK_MC_PORT_GID |
-		IB_COMP_MASK_MC_QKEY | IB_COMP_MASK_MC_MTU_SEL| IB_COMP_MASK_MC_MTU |
-		IB_COMP_MASK_MC_TCLASS | IB_COMP_MASK_MC_PKEY | IB_COMP_MASK_MC_RATE_SEL |
-		IB_COMP_MASK_MC_RATE | IB_COMP_MASK_MC_SL | IB_COMP_MASK_MC_FLOW |
-		IB_COMP_MASK_MC_SCOPE | IB_COMP_MASK_MC_JOIN_STATE;
 
-	mc_rec = (struct ib_mc_member_rec *) mad->data;
-	ssa_format_mgid(&mc_rec->mgid, pkey, tos, rate, mtu);
-	mc_rec->port_gid = *port_gid;
-	mc_rec->qkey = SSA_QKEY;
-	mc_rec->mtu = 0x80 | mtu;
-	mc_rec->tclass = tclass;
-	mc_rec->pkey = htons(pkey);
-	mc_rec->rate = 0x80 | rate;
-	mc_rec->sl_flow_hop = htonl(((uint32_t) sl) << 28);
-	mc_rec->scope_state = 0x51;
-}
- */
-
-/*
- * Convert from MC join to SSA
-static void ssa_join_group(struct ssa_ep *ep, union ibv_gid *port_gid,
-	uint8_t tos, uint8_t tclass, uint8_t sl, uint8_t rate, uint8_t mtu)
-{
-	struct ssa_port *port;
-	struct ib_sa_mad *mad;
-	struct ib_user_mad *umad;
-	struct ib_mc_member_rec *mc_rec;
-	int ret, len;
-
-	//ssa_log(2, "\n");
-	len = sizeof(*umad) + sizeof(*mad);
-	umad = (struct ib_user_mad *) calloc(1, len);
-	if (!umad) {
-		//ssa_log(0, "ERROR - unable to allocate MAD for join\n");
-		return;
-	}
-
-	port = ep->port;
-	umad->addr.qpn = htonl(port->sa_dest.remote_qpn);
-	umad->addr.qkey = htonl(SSA_QKEY);
-	umad->addr.pkey_index = ep->pkey_index;
-	umad->addr.lid = htons(port->sa_dest.av.dlid);
-	umad->addr.sl = port->sa_dest.av.sl;
-	umad->addr.path_bits = port->sa_dest.av.src_path_bits;
-
-	//ssa_log(0, "%s %d pkey 0x%x, sl 0x%x, rate 0x%x, mtu 0x%x\n",
-	//	ep->port->dev->verbs->device->name, ep->port->port_num,
-	//	ep->pkey, sl, rate, mtu);
-	mad = (struct ib_sa_mad *) umad->data;
-	ssa_init_join(mad, port_gid, ep->pkey, tos, tclass, sl, rate, mtu);
-	mc_rec = (struct ib_mc_member_rec *) mad->data;
-	ssa_set_dest_addr(&ep->mc_dest[ep->mc_cnt++], SSA_ADDRESS_GID,
-		mc_rec->mgid.raw, sizeof(mc_rec->mgid));
-
-	ret = umad_send(port->mad_portid, port->mad_agentid, (void *) umad,
-		sizeof(*mad), timeout, retries);
-	if (ret) {
-		//ssa_log(0, "ERROR - failed to send multicast join request %d\n", ret);
-		goto out;
-	}
-
-	//ssa_log(1, "waiting for response from SA to join request\n");
-	ret = umad_recv(port->mad_portid, (void *) umad, &len, -1);
-	if (ret < 0) {
-		//ssa_log(0, "ERROR - recv error for multicast join response %d\n", ret);
-		goto out;
-	}
-
-	ssa_process_join_resp(ep, umad);
-out:
-	free(umad);
-}
- */
-
-static void ssa_port_join(struct ssa_port *port)
-{
-	struct ssa_device *dev;
-//	struct ssa_ep *ep;
-	union ibv_gid port_gid;
-	DLIST_ENTRY *ep_entry;
-	int ret;
-
-	dev = port->dev;
-	//ssa_log(1, "device %s port %d\n", dev->verbs->device->name,
-	//	port->port_num);
-
-	ret = ibv_query_gid(dev->verbs, port->port_num, 0, &port_gid);
-	if (ret) {
-		//ssa_log(0, "ERROR - ibv_query_gid %d device %s port %d\n",
-		//	ret, dev->verbs->device->name, port->port_num);
-		return;
-	}
-
-	// TODO: join all services/endpoints
-	/*
-	for (ep_entry = port->ep_list.Next; ep_entry != &port->ep_list;
-		 ep_entry = ep_entry->Next) {
-
-		ep = container_of(ep_entry, struct ssa_ep, entry);
-		ep->mc_cnt = 0;
-		ssa_join_group(ep, &port_gid, 0, 0, 0, min_rate, min_mtu);
-
-		if ((ep->state = ep->mc_dest[0].state) != SSA_READY)
-			continue;
-
-		if ((route_prot == SSA_ROUTE_PROT_ACM) &&
-		    (port->rate != min_rate || port->mtu != min_mtu))
-			ssa_join_group(ep, &port_gid, 0, 0, 0, port->rate, port->mtu);
-	}
-	*/
-	//ssa_log(1, "joins for device %s port %d complete\n", dev->verbs->device->name,
-	//	port->port_num);
-}
-
+#if 0
 void ssa_init_server(void)
 {
 	FILE *f;
@@ -591,175 +466,443 @@ static void ssa_server(void)
 		}
 	}
 }
+#endif
 
-static void ssa_port_up(struct ssa_port *port)
+static be64_t ssa_svc_tid(struct ssa_svc *svc)
 {
-	struct ibv_port_attr attr;
-	union ibv_gid gid;
-	uint16_t pkey;
-	int i, ret;
-
-	//ssa_log(1, "%s %d\n", port->dev->verbs->device->name, port->port_num);
-	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
-	if (ret) {
-		//ssa_log(0, "ERROR - unable to get port state\n");
-		return;
-	}
-	if (attr.state != IBV_PORT_ACTIVE) {
-		//ssa_log(1, "port not active\n");
-		return;
-	}
-
-//	port->mtu = attr.active_mtu;
-//	port->rate = ssa_get_rate(attr.active_width, attr.active_speed);
-	if (attr.subnet_timeout >= 8)
-		port->subnet_timeout = 1 << (attr.subnet_timeout - 8);
-	for (port->gid_cnt = 0;; port->gid_cnt++) {
-		ret = ibv_query_gid(port->dev->verbs, port->port_num, port->gid_cnt, &gid);
-		if (ret || !gid.global.interface_id)
-			break;
-	}
-
-	for (port->pkey_cnt = 0;; port->pkey_cnt++) {
-		ret = ibv_query_pkey(port->dev->verbs, port->port_num, port->pkey_cnt, &pkey);
-		if (ret || !pkey)
-			break;
-	}
-	port->lid = attr.lid;
-	port->lid_mask = 0xffff - ((1 << attr.lmc) - 1);
-
-	port->sa_dest.av.src_path_bits = 0;
-	port->sa_dest.av.dlid = attr.sm_lid;
-	port->sa_dest.av.sl = attr.sm_sl;
-	port->sa_dest.av.port_num = port->port_num;
-	port->sa_dest.remote_qpn = 1;
-	attr.sm_lid = htons(attr.sm_lid);
-//	ssa_set_dest_addr(&port->sa_dest, SSA_ADDRESS_LID,
-//		(uint8_t *) &attr.sm_lid, sizeof(attr.sm_lid));
-
-	port->sa_dest.ah = ibv_create_ah(port->dev->pd, &port->sa_dest.av);
-	if (!port->sa_dest.ah)
-		return;
-
-	atomic_set(&port->sa_dest.refcnt, 1);
-//	for (i = 0; i < port->pkey_cnt; i++)
-//		 ssa_ep_up(port, (uint16_t) i);
-
-	ssa_port_join(port);
-	port->state = IBV_PORT_ACTIVE;
-	//ssa_log(1, "%s %d is up\n", port->dev->verbs->device->name, port->port_num);
+	return htonll((((uint64_t) svc->index) << 16) | svc->tid++);
 }
 
-static void ssa_port_down(struct ssa_port *port)
+static struct ssa_svc *ssa_svc_from_tid(struct ssa_port *port, be64_t tid)
 {
-	struct ibv_port_attr attr;
+	uint16_t index = (uint16_t) (ntohll(tid) >> 16);
+	return (index < port->svc_cnt) ? port->svc[index] : NULL;
+}
+
+static struct ssa_svc *ssa_find_svc(struct ssa_port *port, uint64_t database_id)
+{
+	int i;
+	for (i = 0; i < port->svc_cnt; i++) {
+		if (port->svc[i] && port->svc[i]->database_id == database_id)
+			return port->svc[i];
+	}
+	return NULL;
+}
+
+static void ssa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
+			     uint8_t method, uint16_t attr_id)
+{
+	hdr->base_version = 1;
+	hdr->mgmt_class = SSA_CLASS;
+	hdr->class_version = SSA_CLASS_VERSION;
+	hdr->method = method;
+	hdr->tid = ssa_svc_tid(svc);
+	hdr->attr_id = htons(attr_id);
+}
+
+static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
+{
+	struct ssa_member_record *rec;
+
+	ssa_init_mad_hdr(svc, &mad->mad_hdr, UMAD_METHOD_SET, SSA_ATTR_MEMBER_REC);
+	mad->ssa_key = 0;	/* TODO: set for real */
+
+	rec = (struct ssa_member_record *) &mad->data;
+	memcpy(rec->port_gid, svc->port->gid.raw, 16);
+	rec->database_id = htonll(svc->database_id);
+	rec->node_type = svc->port->dev->ssa->node_type;
+}
+
+static void ssa_svc_join(struct ssa_svc *svc)
+{
+	struct ssa_umad umad;
 	int ret;
 
-	//ssa_log(1, "%s %d\n", port->dev->verbs->device->name, port->port_num);
-	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
-	if (!ret && attr.state == IBV_PORT_ACTIVE) {
-		//ssa_log(1, "port active\n");
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
+	memset(&umad, 0, sizeof umad);
+	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
+	ssa_init_join(svc, &umad.packet);
+	svc->state = SSA_STATE_JOINING;
+
+	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
+			(void *) &umad, sizeof umad, svc->timeout, 0);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - failed to send join request\n");
+		svc->state = SSA_STATE_IDLE;
+	}
+}
+
+static void ssa_upstream_dev_event(struct ssa_svc *svc, int len)
+{
+	enum ibv_event_type event;
+
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
+	read(svc->sock[1], (char *) &event, sizeof event);
+	switch (event) {
+	case IBV_EVENT_PORT_ACTIVE:
+		if (svc->state == SSA_STATE_IDLE) {
+			svc->timeout = DEFAULT_TIMEOUT;
+			ssa_svc_join(svc);
+		}
+		break;
+	case IBV_EVENT_PORT_ERR:
+		if (svc->rsock >= 0)
+			/*r*/close(svc->rsock);
+		svc->state = SSA_STATE_IDLE;
+		break;
+	default:
+		break;
+	}
+}
+
+static void ssa_upstream_mad(struct ssa_svc *svc, int len)
+{
+	struct ssa_umad umad;
+
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
+	read(svc->sock[1], (char *) &umad, len);
+	if (svc->state == SSA_STATE_IDLE) {
+		svc->timeout = DEFAULT_TIMEOUT;
 		return;
 	}
 
-	port->state = attr.state;
+	if (umad.umad.status) {
+		if (svc->state != SSA_STATE_JOINING)
+			return;
 
-	/*
-	 * We wait for the SA destination to be released.  We could use an
-	 * event instead of a sleep loop, but it's not worth it given how
-	 * infrequently we should be processing a port down event in practice.
-	 */
-	atomic_dec(&port->sa_dest.refcnt);
-	while (atomic_get(&port->sa_dest.refcnt))
-		sleep(0);
-	ibv_destroy_ah(port->sa_dest.ah);
-	//ssa_log(1, "%s %d is down\n", port->dev->verbs->device->name, port->port_num);
+		svc->timeout = min(svc->timeout << 1, MAX_TIMEOUT);
+		ssa_svc_join(svc);
+		return;
+	}
+
+	svc->timeout = DEFAULT_TIMEOUT;
+	if (svc->state == SSA_STATE_JOINING)
+		svc->state = SSA_STATE_ORPHAN;
+
+	if (ntohs(umad.packet.mad_hdr.attr_id) != SSA_ATTR_INFO_REC)
+		return;
+
+	switch (svc->state) {
+	case SSA_STATE_ORPHAN:
+	case SSA_STATE_HAVE_PARENT:
+		/* TODO save parent */
+		break;
+	case SSA_STATE_CONNECTING:
+	case SSA_STATE_CONNECTED:		/* TODO compare against current parent, if same done */
+		/* if parent is different, save parent, close rsock, and reopen */
+		break;
+	default:
+		break;
+	}
+}
+
+static void *ssa_upstream_handler(void *context)
+{
+	struct ssa_svc *svc = context;
+	struct ssa_ctrl_msg msg;
+
+	msg.len = sizeof msg;
+	msg.type = SSA_CTRL_ACK;
+	write(svc->sock[1], (char *) &msg, sizeof msg);
+
+	while (msg.type != SSA_CTRL_EXIT) {
+		read(svc->sock[1], (char *) &msg, sizeof msg);
+		switch (msg.type) {
+		case SSA_CTRL_MAD:
+			ssa_upstream_mad(svc, msg.len - sizeof msg);
+			break;
+		case SSA_CTRL_DEV_EVENT:
+			ssa_upstream_dev_event(svc, msg.len - sizeof msg);
+			break;
+		case SSA_CTRL_EXIT:
+			break;
+		default:
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"WARNING ignoring unexpected message type\n");
+			break;
+		}
+	}
+
+	return NULL;
+}
+
+static void ssa_ctrl_port_send(struct ssa_port *port, struct ssa_ctrl_msg *msg)
+{
+	int i;
+	for (i = 0; i < port->svc_cnt; i++)
+		write(port->svc[i]->sock[0], msg, msg->len);
 }
 
 /*
- * There is one event handler thread per device.  This is the only thread that
- * modifies the port state or a port endpoint list.  Other threads which access
- * those must synchronize against changes accordingly, but this thread only
- * needs to lock when making modifications.
- */
-static void ssa_event_handler(void *context)
+static void ssa_ctrl_dev_send(struct ssa_device *dev, struct ssa_ctrl_msg *msg)
 {
-	struct ssa_device *dev = (struct ssa_device *) context;
-	struct ibv_async_event event;
-	int i, ret;
+	int i;
+	for (i = 1; i <= dev->port_cnt; i++)
+		ssa_ctrl_port_send(ssa_dev_port(dev, i), msg);
+}
+*/
 
-	//ssa_log(1, "started\n");
-	for (i = 0; i < dev->port_cnt; i++) {
-		ssa_port_up(&dev->port[i]);
-	}
+static void ssa_ctrl_send_event(struct ssa_port *port, enum ibv_event_type event)
+{
+	struct ssa_ctrl_dev_event_msg msg;
 
-	for (;;) {
-		ret = ibv_get_async_event(dev->verbs, &event);
-		if (ret)
-			continue;
-
-		//ssa_log(2, "processing async event %s\n",
-			ibv_event_type_str(event.event_type));
-		i = event.element.port_num - 1;
-		switch (event.event_type) {
-		case IBV_EVENT_PORT_ACTIVE:
-			if (dev->port[i].state != IBV_PORT_ACTIVE)
-				ssa_port_up(&dev->port[i]);
-			break;
-		case IBV_EVENT_PORT_ERR:
-			if (dev->port[i].state == IBV_PORT_ACTIVE)
-				ssa_port_down(&dev->port[i]);
-			break;
-		default:
-			break;
-		}
-
-		ibv_ack_async_event(&event);
-	}
+	msg.hdr.len = sizeof msg;
+	msg.hdr.type = SSA_CTRL_DEV_EVENT;
+	msg.event = event;
+	ssa_ctrl_port_send(port, &msg.hdr);
 }
 
-void ssa_activate_devices()
+static void ssa_ctrl_device(struct ssa_device *dev)
+{
+	struct ibv_async_event event;
+	int ret;
+
+	ssa_log(SSA_LOG_CTRL, "device %s\n", ssa_dev_name(dev));
+	ret = ibv_get_async_event(dev->verbs, &event);
+	if (ret)
+		return;
+
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+		"async event %s\n", ibv_event_type_str(event.event_type));
+	switch (event.event_type) {
+	case IBV_EVENT_PORT_ACTIVE:
+	case IBV_EVENT_PORT_ERR:
+		ssa_ctrl_send_event(ssa_dev_port(dev, event.element.port_num),
+				    event.event_type);
+		break;
+	default:
+		break;
+	}
+
+	ibv_ack_async_event(&event);
+}
+
+static void ssa_ctrl_port(struct ssa_port *port)
+{
+	struct ssa_svc *svc;
+	struct ssa_ctrl_umad_msg msg;
+	struct ssa_info_record *rec;
+	int len, ret;
+
+	len = sizeof msg.umad;
+	ret = umad_recv(port->mad_portid, (void *) &msg.umad, &len, 0);
+	if (ret < 0) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"WARNING receive MAD failure\n");
+		return;
+	}
+
+	if ((msg.umad.packet.mad_hdr.method & UMAD_METHOD_RESP_MASK) ||
+	     msg.umad.umad.status) {
+		svc = ssa_svc_from_tid(port, msg.umad.packet.mad_hdr.tid);
+	} else {
+		if (ntohs(msg.umad.packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
+			rec = (struct ssa_info_record *) msg.umad.packet.data;
+			svc = ssa_find_svc(port, ntohll(rec->database_id));
+		} else {
+			svc = NULL;
+		}
+	}
+
+	if (!svc) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR no matching service for received MAD\n");
+		return;
+	}
+
+	msg.hdr.type = SSA_CTRL_MAD;
+	msg.hdr.len = sizeof msg;
+	write(svc->sock[0], (void *) &msg, msg.hdr.len);
+}
+
+static void ssa_ctrl_svc(struct ssa_svc *svc)
+{
+
+}
+
+static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 {
 	struct ssa_device *dev;
-	DLIST_ENTRY *dev_entry;
+	struct ssa_port *port;
+	int d, p, i = 0;
 
-	//ssa_log(1, "\n");
-	for (dev_entry = dev_list.Next; dev_entry != &dev_list;
-		dev_entry = dev_entry->Next) {
-
-		dev = container_of(dev_entry, struct ssa_device, entry);
-		beginthread(ssa_event_handler, dev);
-//		beginthread(ssa_comp_handler, dev);
+	ssa->nfds = ssa->dev_cnt;	/* async device events */
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		ssa->nfds += dev->port_cnt;	/* mads */
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			//ssa->nfds += port->svc_cnt;	/* service listen */
+		}
 	}
+
+	ssa->fds = calloc(ssa->nfds, sizeof(*ssa->fds) + sizeof(*ssa->fds_obj));
+	if (!ssa->fds)
+		return seterr(ENOMEM);
+
+	ssa->fds_obj = (struct ssa_obj *) (&ssa->fds[ssa->nfds]);
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		ssa->fds[i].fd = dev->verbs->async_fd;
+		ssa->fds[i].events = POLLIN;
+		ssa->fds_obj[i].type = SSA_OBJ_DEVICE;
+		ssa->fds_obj[i++].dev = dev;
+
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			ssa->fds[i].fd = umad_get_fd(port->mad_portid);
+			ssa->fds[i].events = POLLIN;
+			ssa->fds_obj[i].type = SSA_OBJ_PORT;
+			ssa->fds_obj[i++].port = port;
+		}
+	}
+	return 0;
 }
-#endif
+
+int ssa_ctrl_run(struct ssa_class *ssa)
+{
+	int i, ret;
+
+	ssa_log(SSA_LOG_CTRL, "\n");
+	ret = ssa_ctrl_init_fds(ssa);
+	if (ret)
+		return ret;
+
+	/* TODO: activate all services on active ports
+	for (i = 0; i < dev->port_cnt; i++) {
+		ssa_ctrl_activate_port(&dev->port[i]);
+	}
+	*/
+
+	for (;;) {
+		ret = poll(ssa->fds, ssa->nfds, -1);
+		if (ret) {
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"ERROR polling fds\n");
+			continue;
+		}
+
+		for (i = 0; i < ssa->nfds; i++) {
+			if (!ssa->fds[i].revents)
+				continue;
+
+			ssa->fds[i].revents = 0;
+			switch (ssa->fds_obj[i].type) {
+			case SSA_OBJ_DEVICE:
+				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					"device event\n");
+				ssa_ctrl_device(ssa->fds_obj[i].dev);
+				break;
+			case SSA_OBJ_PORT:
+				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					"port event\n");
+				ssa_ctrl_port(ssa->fds_obj[i].port);
+				break;
+			case SSA_OBJ_SVC:
+				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					"service event\n");
+				ssa_ctrl_svc(ssa->fds_obj[i].svc);
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
+struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
+			      size_t svc_size)
+{
+	struct ssa_svc *svc, **list;
+	struct ssa_ctrl_msg msg;
+	int ret;
+
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%ull\n", database_id);
+	list = realloc(port->svc, (port->svc_cnt + 1) * sizeof(svc));
+	if (!list)
+		return NULL;
+
+	port->svc = list;
+	svc = calloc(1, svc_size);
+	if (!svc)
+		return NULL;
+
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR creating socketpair\n");
+		goto err1;
+	}
+
+	svc->index = port->svc_cnt;
+	svc->port = port;
+	svc->database_id = database_id;
+	svc->rsock = -1;
+	svc->state = SSA_STATE_IDLE;
+	//pthread_mutex_init(&svc->lock, NULL);
+
+	// TODO: start listen
+
+	ret = pthread_create(&svc->upstream, NULL, ssa_upstream_handler, svc);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR creating upstream thread\n");
+		errno = ret;
+		goto err2;
+	}
+
+	ret = read(svc->sock[0], (char *) &msg, sizeof msg);
+	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR with upstream thread\n");
+		goto err3;
+
+	}
+
+	port->svc[port->svc_cnt++] = svc;
+	return svc;
+
+err3:
+	pthread_join(svc->upstream, NULL);
+err2:
+	close(svc->sock[0]);
+	close(svc->sock[1]);
+err1:
+	free(svc);
+	return NULL;
+}
 
 static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t port_num)
 {
+	int ret;
+
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-		"%s %d\n", dev->verbs->device->name, port_num);
+		"%s %d\n", ssa_dev_name(dev), port_num);
 	port->dev = dev;
 	port->port_num = port_num;
-//	pthread_mutex_init(&port->lock, NULL);
-//	DListInit(&port->ep_list);
-//	ssa_init_dest(&port->sa_dest, SSA_ADDRESS_LID, NULL, 0);
+	//pthread_mutex_init(&port->lock, NULL);
 
-	port->mad_portid = umad_open_port(dev->verbs->device->name, port->port_num);
+	port->mad_portid = umad_open_port(ssa_dev_name(dev), port->port_num);
 	if (port->mad_portid < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - unable to open MAD port\n");
 		return;
 	}
 
+	ret = fcntl(umad_get_fd(port->mad_portid), F_SETFL, O_NONBLOCK);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"WARNING - MAD fd is blocking\n");
+	}
+
 	port->mad_agentid = umad_register(port->mad_portid,
-		IB_SSA_CLASS, IB_SSA_CLASS_VERSION, 0, NULL);
+		SSA_CLASS, SSA_CLASS_VERSION, 0, NULL);
 	if (port->mad_agentid < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - unable to register MAD client\n");
 		goto err;
 	}
 
-	port->state = IBV_PORT_DOWN;
 	return;
 err:
 	umad_close_port(port->mad_portid);
@@ -786,20 +929,25 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 		goto err1;
 	}
 
+	ret = fcntl(dev->verbs->async_fd, F_SETFL, O_NONBLOCK);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"WARNING - event fd is blocking\n");
+	}
+
 	dev->port = (struct ssa_port *) calloc(attr.phys_port_cnt, ssa->port_size);
 	if (!dev)
 		goto err1;
 
 	dev->ssa = ssa;
 	dev->guid = ibv_get_device_guid(ibdev);
-	memcpy(dev->name, ibdev->name, IBV_SYSFS_NAME_MAX);
 	dev->port_cnt = attr.phys_port_cnt;
 	dev->port_size = ssa->port_size;
 
-	for (i = 0; i < dev->port_cnt; i++)
-		ssa_open_port(ssa_dev_port(dev, i), dev, i + 1);
+	for (i = 1; i <= dev->port_cnt; i++)
+		ssa_open_port(ssa_dev_port(dev, i), dev, i);
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", ssa_dev_name(dev));
 	return;
 
 err1:
@@ -835,8 +983,31 @@ free:
 	return ret;
 }
 
+static void ssa_stop_service(struct ssa_svc *svc)
+{
+	struct ssa_ctrl_msg msg;
+
+	msg.len = sizeof msg;
+	msg.type = SSA_CTRL_EXIT;
+	write(svc->sock[0], (char *) &msg, sizeof msg);
+	pthread_join(svc->upstream, NULL);
+
+	svc->port->svc[svc->index] = NULL;
+	if (svc->rsock >= 0)
+		/*r*/close(svc->rsock);
+	close(svc->sock[0]);
+	close(svc->sock[1]);
+	free(svc);
+}
+
+
 static void ssa_close_port(struct ssa_port *port)
 {
+	while (port->svc_cnt)
+		ssa_stop_service(port->svc[--port->svc_cnt]);
+	if (port->svc)
+		free(port->svc);
+
 	if (port->mad_agentid >= 0)
 		umad_unregister(port->mad_portid, port->mad_agentid);
 	if (port->mad_portid >= 0)
@@ -851,11 +1022,12 @@ void ssa_close_devices(struct ssa_class *ssa)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
-		for (p = 0; p < dev->port_cnt; p++)
+		for (p = 1; p <= dev->port_cnt; p++)
 			ssa_close_port(ssa_dev_port(dev, p));
 
 		ibv_close_device(dev->verbs);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s closed\n", dev->name);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+			"%s closed\n", ssa_dev_name(dev));
 		free(dev->port);
 	}
 	free(ssa->dev);
@@ -901,11 +1073,12 @@ void ssa_daemonize(void)
 	freopen("/dev/null", "w", stderr);
 }
 
-int ssa_init(struct ssa_class *ssa, size_t dev_size, size_t port_size)
+int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t port_size)
 {
 	int ret;
 
 	memset(ssa, 0, sizeof *ssa);
+	ssa->node_type = node_type;
 	ssa->dev_size = dev_size;
 	ssa->port_size = port_size;
 	ret = umad_init();
@@ -918,4 +1091,8 @@ int ssa_init(struct ssa_class *ssa, size_t dev_size, size_t port_size)
 void ssa_cleanup(struct ssa_class *ssa)
 {
 	umad_done();
+	if (ssa->fds)
+		free(ssa->fds);
+	if (ssa->fds_obj)
+		free(ssa->fds_obj);
 }

@@ -41,8 +41,8 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <infiniband/acm.h>
-#include <infiniband/umad.h>
 #include <infiniband/verbs.h>
+#include <infiniband/ssa_mad.h>
 #include <dlist.h>
 #include <search.h>
 #include <common.h>
@@ -3115,12 +3115,29 @@ static void acm_log_options(void)
 
 static void *acm_ctrl_handler(void *context)
 {
+	struct ssa_svc *svc;
 	int ret;
 
 	ret = ssa_open_devices(&ssa);
-	if (!ret)
-		ssa_close_devices(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
+		return NULL;
+	}
 
+	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
+			    sizeof *svc);
+	if (!svc) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
+		goto close;
+	}
+
+	ret = ssa_ctrl_run(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR processing control\n");
+		goto close;
+	}
+close:
+	ssa_close_devices(&ssa);
 	return context;
 }
 
@@ -3138,7 +3155,6 @@ static void show_usage(char *program)
 int main(int argc, char **argv)
 {
 	int ret, i, op, daemon = 1;
-	void *retval;
 
 	while ((op = getopt(argc, argv, "DPA:O:")) != -1) {
 		switch (op) {
@@ -3163,7 +3179,8 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
-	ret = ssa_init(&ssa, sizeof(struct ssa_device), sizeof(struct ssa_port));
+	ret = ssa_init(&ssa, SSA_NODE_CONSUMER, sizeof(struct ssa_device),
+			sizeof(struct ssa_port));
 	if (ret)
 		return ret;
 
@@ -3184,7 +3201,7 @@ int main(int argc, char **argv)
 		atomic_init(&counter[i]);
 
 	pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
-	pthread_join(ctrl_thread, &retval);
+	pthread_join(ctrl_thread, NULL);
 
 	if (acm_open_devices()) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to open any devices\n");
