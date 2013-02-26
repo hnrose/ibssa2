@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <infiniband/umad.h>
 
 struct acm_port {
 	uint8_t           port_num;

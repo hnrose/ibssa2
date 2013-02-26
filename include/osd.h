@@ -75,13 +75,6 @@ static inline int seterr(int err)
 #define min(a, b) (a < b ? a : b)
 #define max(a, b) (a > b ? a : b)
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define htonll(x) bswap_64(x)
-#else
-#define htonll(x) (x)
-#endif
-#define ntohll(x) htonll(x)
-
 #if DEFINE_ATOMICS
 typedef struct { pthread_mutex_t mut; int val; } atomic_t;
 static inline int atomic_inc(atomic_t *atomic)
