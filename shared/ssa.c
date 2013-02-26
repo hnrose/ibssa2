@@ -55,8 +55,6 @@
 #include <search.h>
 #include <common.h>
 
-DLIST_ENTRY dev_list;
-
 #if 0
 static atomic_t tid;
 #endif
@@ -767,7 +765,7 @@ err:
 	umad_close_port(port->mad_portid);
 }
 
-static void ssa_open_dev(struct ibv_device *ibdev, size_t dev_size, size_t port_size)
+static void ssa_open_dev(struct ssa_class *ssa, struct ibv_device *ibdev)
 {
 	struct ssa_device *dev;
 	struct ibv_device_attr attr;
@@ -790,21 +788,22 @@ static void ssa_open_dev(struct ibv_device *ibdev, size_t dev_size, size_t port_
 	}
 
 	dev = (struct ssa_device *)
-	      calloc(1, dev_size + port_size * attr.phys_port_cnt);
+	      calloc(1, ssa->dev_size + ssa->port_size * attr.phys_port_cnt);
 	if (!dev)
 		goto err1;
 
+	dev->ssa = ssa;
 	dev->verbs = verbs;
 	dev->guid = ibv_get_device_guid(ibdev);
 	memcpy(dev->name, ibdev->name, IBV_SYSFS_NAME_MAX);
-	dev->port = (void *) dev + dev_size;
+	dev->port = (void *) dev + ssa->dev_size;
 	dev->port_cnt = attr.phys_port_cnt;
-	dev->port_size = port_size;
+	dev->port_size = ssa->port_size;
 
 	for (i = 0; i < dev->port_cnt; i++)
 		ssa_open_port(ssa_dev_port(dev, i), dev, i + 1);
 
-	DListInsertHead(&dev->entry, &dev_list);
+	DListInsertHead(&dev->entry, &ssa->dev_list);
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
@@ -813,7 +812,7 @@ err1:
 	ibv_close_device(verbs);
 }
 
-int ssa_open_devices(size_t dev_size, size_t port_size)
+int ssa_open_devices(struct ssa_class *ssa)
 {
 	struct ibv_device **ibdev;
 	int dev_cnt;
@@ -828,10 +827,10 @@ int ssa_open_devices(size_t dev_size, size_t port_size)
 	}
 
 	for (i = 0; i < dev_cnt; i++)
-		ssa_open_dev(ibdev[i], dev_size, port_size);
+		ssa_open_dev(ssa, ibdev[i]);
 
 	ibv_free_device_list(ibdev);
-	if (DListEmpty(&dev_list)) {
+	if (DListEmpty(&ssa->dev_list)) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - no devices\n");
 		return -1;
@@ -848,14 +847,14 @@ static void ssa_close_port(struct ssa_port *port)
 		umad_close_port(port->mad_portid);
 }
 
-void ssa_close_devices()
+void ssa_close_devices(struct ssa_class *ssa)
 {
 	struct ssa_device *dev;
 	int i;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
-	while (!DListEmpty(&dev_list)) {
-		dev = container_of(dev_list.Next, struct ssa_device, entry);
+	while (!DListEmpty(&ssa->dev_list)) {
+		dev = container_of(ssa->dev_list.Next, struct ssa_device, entry);
 
 		for (i = 0; i < dev->port_cnt; i++)
 			ssa_close_port(ssa_dev_port(dev, i));
@@ -906,11 +905,13 @@ void ssa_daemonize(void)
 	freopen("/dev/null", "w", stderr);
 }
 
-int ssa_init(void)
+int ssa_init(struct ssa_class *ssa, size_t dev_size, size_t port_size)
 {
 	int ret;
 
-	DListInit(&dev_list);
+	ssa->dev_size = dev_size;
+	ssa->port_size = port_size;
+	DListInit(&ssa->dev_list);
 	ret = umad_init();
 	if (ret)
 		return ret;
@@ -918,7 +919,7 @@ int ssa_init(void)
 	return 0;
 }
 
-void ssa_cleanup(void)
+void ssa_cleanup(struct ssa_class *ssa)
 {
 	umad_done();
 }

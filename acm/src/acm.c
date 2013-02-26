@@ -190,6 +190,7 @@ union socket_addr {
 	struct sockaddr_in6 sin6;
 };
 
+struct ssa_class ssa;
 pthread_t event_thread, retry_thread, comp_thread, ctrl_thread;
 
 static DLIST_ENTRY device_list;
@@ -3116,10 +3117,9 @@ static void *acm_ctrl_handler(void *context)
 {
 	int ret;
 
-ssa_log(1,"dev_list next %p\n", dev_list.Next);
-	ret = ssa_open_devices(sizeof(struct ssa_device), sizeof(struct ssa_port));
+	ret = ssa_open_devices(&ssa);
 	if (!ret)
-		ssa_close_devices();
+		ssa_close_devices(&ssa);
 
 	return context;
 }
@@ -3163,7 +3163,7 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
-	ret = ssa_init();
+	ret = ssa_init(&ssa, sizeof(struct ssa_device), sizeof(struct ssa_port));
 	if (ret)
 		return ret;
 
@@ -3199,6 +3199,6 @@ int main(int argc, char **argv)
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	ssa_close_log();
-	ssa_cleanup();
+	ssa_cleanup(&ssa);
 	return 0;
 }

@@ -46,9 +46,16 @@
 #include <dlist.h>
 #include <search.h>
 
+
+struct ssa_class {
+	DLIST_ENTRY	dev_list;
+	size_t		dev_size;
+	size_t		port_size;
+};
+
+int ssa_init(struct ssa_class *ssa, size_t dev_size, size_t port_size);
+void ssa_cleanup(struct ssa_class *ssa);
 void ssa_daemonize(void);
-int ssa_init(void);
-void ssa_cleanup(void);
 int ssa_open_lock_file(char *lock_file);
 
 enum ssa_addr_type {
@@ -128,6 +135,7 @@ struct ssa_port {
 };
 
 struct ssa_device {
+	struct ssa_class	*ssa;
 	struct ibv_context      *verbs;
 	uint64_t                guid;
 	char			name[IBV_SYSFS_NAME_MAX];
@@ -151,11 +159,9 @@ struct ssa_ep {
 	enum ssa_svc_state    state;
 };
 
-extern DLIST_ENTRY dev_list;
-
-int ssa_open_devices(size_t dev_size, size_t port_size);
+int ssa_open_devices(struct ssa_class *ssa);
 //void ssa_activate_devices(void);
-void ssa_close_devices(void);
+void ssa_close_devices(struct ssa_class *ssa);
 
 static inline struct ssa_port *ssa_dev_port(struct ssa_device *dev, int index)
 {
