@@ -765,78 +765,74 @@ err:
 	umad_close_port(port->mad_portid);
 }
 
-static void ssa_open_dev(struct ssa_class *ssa, struct ibv_device *ibdev)
+static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
+			 struct ibv_device *ibdev)
 {
-	struct ssa_device *dev;
 	struct ibv_device_attr attr;
-	struct ibv_context *verbs;
 	int i, ret;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", ibdev->name);
-	verbs = ibv_open_device(ibdev);
-	if (verbs == NULL) {
+	dev->verbs = ibv_open_device(ibdev);
+	if (dev->verbs == NULL) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - opening device %s\n", ibdev->name);
 		return;
 	}
 
-	ret = ibv_query_device(verbs, &attr);
+	ret = ibv_query_device(dev->verbs, &attr);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - ibv_query_device (%s) %d\n", ret, ibdev->name);
+			"ERROR - ibv_query_device (%s) %d\n", ibdev->name, ret);
 		goto err1;
 	}
 
-	dev = (struct ssa_device *)
-	      calloc(1, ssa->dev_size + ssa->port_size * attr.phys_port_cnt);
+	dev->port = (struct ssa_port *) calloc(attr.phys_port_cnt, ssa->port_size);
 	if (!dev)
 		goto err1;
 
 	dev->ssa = ssa;
-	dev->verbs = verbs;
 	dev->guid = ibv_get_device_guid(ibdev);
 	memcpy(dev->name, ibdev->name, IBV_SYSFS_NAME_MAX);
-	dev->port = (void *) dev + ssa->dev_size;
 	dev->port_cnt = attr.phys_port_cnt;
 	dev->port_size = ssa->port_size;
 
 	for (i = 0; i < dev->port_cnt; i++)
 		ssa_open_port(ssa_dev_port(dev, i), dev, i + 1);
 
-	DListInsertHead(&dev->entry, &ssa->dev_list);
-
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
 
 err1:
-	ibv_close_device(verbs);
+	ibv_close_device(dev->verbs);
+	dev->verbs = NULL;
 }
 
 int ssa_open_devices(struct ssa_class *ssa)
 {
 	struct ibv_device **ibdev;
-	int dev_cnt;
-	int i;
+	int i, ret;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
-	ibdev = ibv_get_device_list(&dev_cnt);
+	ibdev = ibv_get_device_list(&ssa->dev_cnt);
 	if (!ibdev) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - unable to get device list\n");
 		return -1;
 	}
 
-	for (i = 0; i < dev_cnt; i++)
-		ssa_open_dev(ssa, ibdev[i]);
-
-	ibv_free_device_list(ibdev);
-	if (DListEmpty(&ssa->dev_list)) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - no devices\n");
-		return -1;
+	ssa->dev = (struct ssa_device *) calloc(ssa->dev_cnt, ssa->dev_size);
+	if (!ssa->dev) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "ERROR allocating devices\n");
+		ret = seterr(ENOMEM);
+		goto free;
 	}
 
-	return 0;
+	for (i = 0; i < ssa->dev_cnt; i++)
+		ssa_open_dev(ssa_dev(ssa, i), ssa, ibdev[i]);
+
+free:
+	ibv_free_device_list(ibdev);
+	return ret;
 }
 
 static void ssa_close_port(struct ssa_port *port)
@@ -850,20 +846,20 @@ static void ssa_close_port(struct ssa_port *port)
 void ssa_close_devices(struct ssa_class *ssa)
 {
 	struct ssa_device *dev;
-	int i;
+	int d, p;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
-	while (!DListEmpty(&ssa->dev_list)) {
-		dev = container_of(ssa->dev_list.Next, struct ssa_device, entry);
-
-		for (i = 0; i < dev->port_cnt; i++)
-			ssa_close_port(ssa_dev_port(dev, i));
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		for (p = 0; p < dev->port_cnt; p++)
+			ssa_close_port(ssa_dev_port(dev, p));
 
 		ibv_close_device(dev->verbs);
-		DListRemove(&dev->entry);
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s closed\n", dev->name);
-		free(dev);
+		free(dev->port);
 	}
+	free(ssa->dev);
+	ssa->dev_cnt = 0;
 }
 
 int ssa_open_lock_file(char *lock_file)
@@ -909,9 +905,9 @@ int ssa_init(struct ssa_class *ssa, size_t dev_size, size_t port_size)
 {
 	int ret;
 
+	memset(ssa, 0, sizeof *ssa);
 	ssa->dev_size = dev_size;
 	ssa->port_size = port_size;
-	DListInit(&ssa->dev_list);
 	ret = umad_init();
 	if (ret)
 		return ret;

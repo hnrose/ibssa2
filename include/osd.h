@@ -66,6 +66,12 @@
 	((type *) ((void *) ptr - offsetof(type, field)))
 #endif
 
+static inline int seterr(int err)
+{
+	errno = err;
+	return -1;
+}
+
 #define min(a, b) (a < b ? a : b)
 #define max(a, b) (a > b ? a : b)
 
