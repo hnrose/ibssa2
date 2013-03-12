@@ -38,14 +38,14 @@
 #define __OSM_PLUGIN_CONFIG__
 
 #include "config.h"
-
+#include "osd.h"
 #include "osm_pi_log.h"
 
 #define DEF_FLUSH 1
 #define DEF_APPEND 1
 #define DEF_LOG_LEVEL (PI_LOG_ERROR | PI_LOG_INFO | PI_LOG_SYS)
-#define DEF_LOG_FILE IBSSA_LOG_PATH "/opensmssa.log"
-#define DEF_CONFIG_FILE IBSSA_CONFIG_PATH "/opensmssa.conf"
+#define DEF_LOG_FILE "/var/log/opensmssa.log"
+#define DEF_CONFIG_FILE RDMA_CONF_DIR "/opensmssa.conf"
 
 struct opensmssa_config {
 	/* [Logging] */
