@@ -41,7 +41,7 @@
 #include "osm_pi_main.h"
 
 static inline osm_madw_t *pi_get_mad(struct ibssa_plugin *pi,
-					IN osm_madw_t *p_madw)
+					osm_madw_t *p_madw)
 {
 	return (osm_mad_pool_get(&pi->osm->mad_pool,
 				       pi->qp1_handle, MAD_BLOCK_SIZE,
@@ -49,9 +49,9 @@ static inline osm_madw_t *pi_get_mad(struct ibssa_plugin *pi,
 }
 
 
-static void pi_send_resp(IN osm_madw_t *p_madw,
-			IN osm_madw_t *p_resp_madw,
-			IN struct ibssa_plugin *pi,
+static void pi_send_resp(osm_madw_t *p_madw,
+			osm_madw_t *p_resp_madw,
+			struct ibssa_plugin *pi,
 			uint16_t status)
 {
 	ib_api_status_t api_status;
@@ -87,8 +87,8 @@ static void pi_send_resp(IN osm_madw_t *p_madw,
 	}
 }
 
-static void pi_send_member_rec_getresp(IN osm_madw_t * p_madw,
-				     IN struct ibssa_plugin * pi,
+static void pi_send_member_rec_getresp(osm_madw_t * p_madw,
+				     struct ibssa_plugin * pi,
 				     enum ssa_class_status st)
 {
 	uint16_t status = 0;
@@ -113,8 +113,8 @@ static void pi_send_member_rec_getresp(IN osm_madw_t * p_madw,
 			ib_ssa_status_str(st));
 }
 
-static void pi_handle_set_member_rec(IN osm_madw_t * p_madw,
-				     IN struct ibssa_plugin * pi,
+static void pi_handle_set_member_rec(osm_madw_t * p_madw,
+				     struct ibssa_plugin * pi,
 				     struct ib_ssa_mad * ssa_mad)
 {
 	uint64_t service_guid;
@@ -166,14 +166,14 @@ static void pi_handle_set_member_rec(IN osm_madw_t * p_madw,
 	cl_event_signal(&pi->wake_up);
 }
 
-static void pi_handle_getresp_info_record(IN osm_madw_t * p_madw, IN void *context,
-				     IN osm_madw_t * p_req_madw)
+static void pi_handle_getresp_info_record(osm_madw_t * p_madw, IN void *context,
+				     osm_madw_t * p_req_madw)
 {
 	/* move node from conn_req into the service tree */
 }
 
-static void pi_handle_delete_member_rec(IN osm_madw_t * p_madw, IN void *context,
-				     IN osm_madw_t * p_req_madw)
+static void pi_handle_delete_member_rec(osm_madw_t * p_madw, IN void *context,
+				     osm_madw_t * p_req_madw)
 {
 	/* we assume the node has disconnected from it's parents */
 
@@ -181,8 +181,8 @@ static void pi_handle_delete_member_rec(IN osm_madw_t * p_madw, IN void *context
 	/* after we have reparented all the children, remove node from tree */
 }
 
-static void pi_mad_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
-				     IN osm_madw_t * p_req_madw)
+static void pi_mad_rcv_callback(osm_madw_t * p_madw, IN void *context,
+				     osm_madw_t * p_req_madw)
 {
 	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
 	PI_LOG_ENTER(pi);
@@ -225,7 +225,7 @@ static void pi_mad_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
 	PI_LOG_EXIT(pi);
 }
 
-static void pi_mad_send_err_callback(IN void *context, IN osm_madw_t * p_madw)
+static void pi_mad_send_err_callback(void *context, osm_madw_t * p_madw)
 {
 	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
 

@@ -46,7 +46,7 @@ static void update_config(struct ibssa_plugin *pi)
 	osm_log_set_level(&pi->log, pi->conf->log_level);
 }
 
-static void process_service_tree(IN cl_map_item_t * item, void * context)
+static void process_service_tree(cl_map_item_t * item, void * context)
 {
 	struct ibssa_tree * tree = (struct ibssa_tree *)item;
 	struct ibssa_plugin * pi = (struct ibssa_plugin *)context;
@@ -68,7 +68,7 @@ static void process_service_tree(IN cl_map_item_t * item, void * context)
 	/* FIXME run some rebalance algorithm */
 }
 
-static void ibssa_main(IN void * context)
+static void ibssa_main(void * context)
 {
 	struct ibssa_plugin *pi = (struct ibssa_plugin *)context;
 	/* Note this thread can't do anything until the SM has reported SUBNET
