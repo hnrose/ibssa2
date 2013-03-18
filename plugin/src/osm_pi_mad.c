@@ -37,7 +37,6 @@
 #include "osm_headers.h"
 
 #include "ibssa_mad.h"
-#include "ibssa_helper.h"
 #include "osm_pi_main.h"
 
 static inline osm_madw_t *pi_get_mad(struct ibssa_plugin *pi,
@@ -122,10 +121,11 @@ static void pi_handle_set_member_rec(osm_madw_t * p_madw,
 	struct ibssa_node *new_node;
 	struct ib_ssa_member_record * mr =
 			(struct ib_ssa_member_record *)ssa_mad->data;
-	char buf[256];
+	char buf[32];
 
+	/* TODO: replace with ssa_sprint_addr after converting to ssa logging */
 	PI_LOG(pi, PI_LOG_DEBUG, "AppSet(SSAMemberRecord) from %s : 0x%x\n",
-		net_gid_2_str(&mr->port_gid, buf, 256),
+		inet_ntop(AF_INET6, &mr->port_gid, buf, sizeof buf),
 		cl_ntoh16(osm_madw_get_mad_addr_ptr(p_madw)->dest_lid));
 
 	service_guid = cl_ntoh64(mr->service_guid);
@@ -150,10 +150,7 @@ static void pi_handle_set_member_rec(osm_madw_t * p_madw,
 	}
 
 	cl_qlist_init(&new_node->children);
-	new_node->port_gid.global.subnet_prefix
-			= cl_ntoh64(mr->port_gid.global.subnet_prefix);
-	new_node->port_gid.global.interface_id
-			= cl_ntoh64(mr->port_gid.global.interface_id);
+	memcpy(&new_node->port_gid, mr->port_gid, sizeof new_node->port_gid);
 	new_node->service_id = cl_ntoh64(mr->service_id);
 	new_node->pkey = cl_ntoh16(mr->pkey);
 	new_node->node_type = mr->node_type;
@@ -322,8 +319,9 @@ void ibssa_mad_send_primary(struct ibssa_plugin *pi,
 			struct ibssa_node * node,
 			struct ibssa_node * primary)
 {
-	char str[256], str2[256];
+	char str[32], str2[32];
+	/* TODO: use ssa_sprint_addr after converting to ssa log routines */
 	PI_LOG(pi, PI_LOG_VERBOSE, "Setting parent : node (%s) -> primary parent (%s)\n",
-			gid_2_str(&node->port_gid, str, 256),
-			gid_2_str(&primary->port_gid, str2, 256));
+		inet_pton(AF_INET6, &node->port_gid, str, sizeof str),
+		inet_pton(AF_INET6, &primary->port_gid, str2, sizeof str2));
 }
