@@ -35,6 +35,7 @@
 
 #include <arpa/inet.h>
 #include "osm_headers.h"
+#include <infiniband/umad_types.h>
 
 #include "ibssa_mad.h"
 #include "osm_pi_main.h"
@@ -73,7 +74,7 @@ static void pi_send_resp(osm_madw_t *p_madw,
 	resp_mad->hdr.mgmt_class = IB_SSA_CLASS;
 	resp_mad->hdr.class_version = IB_SSA_CLASS_VERSION;
 	resp_mad->hdr.method = IB_SSA_METHOD_GETRESP;
-	resp_mad->hdr.status = cl_hton16(status);
+	resp_mad->hdr.status = htons(status);
 	resp_mad->hdr.tid = mad->hdr.tid;
 	resp_mad->hdr.attr_id = mad->hdr.attr_id;
 	resp_mad->hdr.attr_mod = mad->hdr.attr_mod;
@@ -126,9 +127,9 @@ static void pi_handle_set_member_rec(osm_madw_t * p_madw,
 	/* TODO: replace with ssa_sprint_addr after converting to ssa logging */
 	PI_LOG(pi, PI_LOG_DEBUG, "AppSet(SSAMemberRecord) from %s : 0x%x\n",
 		inet_ntop(AF_INET6, &mr->port_gid, buf, sizeof buf),
-		cl_ntoh16(osm_madw_get_mad_addr_ptr(p_madw)->dest_lid));
+		ntohs(osm_madw_get_mad_addr_ptr(p_madw)->dest_lid));
 
-	service_guid = cl_ntoh64(mr->service_guid);
+	service_guid = ntohll(mr->service_guid);
 	tree = (struct ibssa_tree *)cl_qmap_get(&pi->service_trees, service_guid);
 	if (!tree) {
 		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_GUID_NOT_SUP);
@@ -138,7 +139,7 @@ static void pi_handle_set_member_rec(osm_madw_t * p_madw,
 		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_VERSION);
 		return;
 	}
-	if (tree->self.pkey != cl_ntoh16(mr->pkey)) {
+	if (tree->self.pkey != ntohs(mr->pkey)) {
 		pi_send_member_rec_getresp(p_madw, pi, SSA_SERVICE_UNSUP_PKEY);
 		return;
 	}
@@ -151,8 +152,8 @@ static void pi_handle_set_member_rec(osm_madw_t * p_madw,
 
 	cl_qlist_init(&new_node->children);
 	memcpy(&new_node->port_gid, mr->port_gid, sizeof new_node->port_gid);
-	new_node->service_id = cl_ntoh64(mr->service_id);
-	new_node->pkey = cl_ntoh16(mr->pkey);
+	new_node->service_id = ntohll(mr->service_id);
+	new_node->pkey = ntohs(mr->pkey);
 	new_node->node_type = mr->node_type;
 	new_node->ssa_version = mr->ssa_version;
 
@@ -198,7 +199,7 @@ static void pi_mad_rcv_callback(osm_madw_t * p_madw, IN void *context,
 
 	/* FIXME verify key */
 
-	switch ((mad->hdr.method << 16) | cl_ntoh16(mad->hdr.attr_id))
+	switch ((mad->hdr.method << 16) | ntohs(mad->hdr.attr_id))
 	{
 		case ((IB_SSA_METHOD_SET << 16) | IB_SSA_ATTR_SSAMemberRecord):
 			pi_handle_set_member_rec(p_madw, pi, mad);
@@ -246,7 +247,7 @@ static void pi_mad_send_err_callback(void *context, osm_madw_t * p_madw)
 
 	struct ib_ssa_mad * mad = (struct ib_ssa_mad *)p_madw->p_mad;
 
-	switch ((mad->hdr.method << 16) | cl_ntoh16(mad->hdr.attr_id)) {
+	switch ((mad->hdr.method << 16) | ntohs(mad->hdr.attr_id)) {
 		case ((IB_SSA_METHOD_GETRESP << 16) | IB_SSA_ATTR_SSAMemberRecord):
 			break;
 		case ((IB_SSA_METHOD_SET << 16) | IB_SSA_ATTR_SSAInfoRecord):
@@ -301,12 +302,12 @@ ib_api_status_t ibssa_plugin_mad_bind(struct ibssa_plugin *pi)
 		PI_LOG(pi, PI_LOG_ERROR, "ERR IBSSA: "
 			"Vendor specific bind failed (%s) on port GUID "
 			"0x%"PRIx64"\n",
-			ib_get_err_str(status), cl_ntoh64(sm_port_guid));
+			ib_get_err_str(status), ntohll(sm_port_guid));
 		goto Exit;
 	}
 
 	PI_LOG(pi, PI_LOG_INFO,
-		"bound to port GUID 0x%" PRIx64 "\n", cl_ntoh64(sm_port_guid));
+		"bound to port GUID 0x%" PRIx64 "\n", ntohll(sm_port_guid));
 
 	pi->sm_port_guid = sm_port_guid;
 
