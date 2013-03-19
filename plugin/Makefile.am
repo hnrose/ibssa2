@@ -16,8 +16,7 @@ else
 endif
 
 src_libopensmssa_la_SOURCES =	src/osm_pi_main.c \
-				src/osm_pi_mad.c \
-				src/osm_pi_config.c
+				src/osm_pi_mad.c
 src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
 		$(libopensmssa_version_script)
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map \
