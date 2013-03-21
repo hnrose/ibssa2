@@ -27,9 +27,8 @@
  * SOFTWARE.
  */
 
-#if HAVE_CONFIG_H
-#  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#ifndef _SSA_COMMON_H
+#define _SSA_COMMON_H
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -44,9 +43,13 @@
 #include <infiniband/acm.h>
 #include <infiniband/umad.h>
 #include <infiniband/verbs.h>
+#include <ssa_ctrl.h>
 #include <dlist.h>
 #include <search.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void ssa_daemonize(void);
 int ssa_open_lock_file(char *lock_file);
@@ -88,6 +91,7 @@ struct ssa_port;
 struct ssa_svc;
 
 enum ssa_obj_type {
+	SSA_OBJ_CLASS,
 	SSA_OBJ_DEVICE,
 	SSA_OBJ_PORT,
 	SSA_OBJ_SVC
@@ -107,6 +111,7 @@ struct ssa_class {
 	int			dev_cnt;
 	size_t			dev_size;
 	size_t			port_size;
+	int			sock[2];
 	struct ssa_obj		*fds_obj;
 	struct pollfd		*fds;
 	nfds_t			nfds;
@@ -150,6 +155,8 @@ enum ssa_svc_state {
 struct ssa_svc {
 	struct ssa_port		*port;
 	uint64_t		database_id;
+	int			(*process_msg)(struct ssa_svc *svc,
+					       struct ssa_ctrl_msg_buf *msg);
 	int			sock[2];
 	int			rsock;
 	uint16_t		index;
@@ -164,8 +171,13 @@ int ssa_open_devices(struct ssa_class *ssa);
 void ssa_close_devices(struct ssa_class *ssa);
 
 struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
-			      size_t svc_size);
+			      size_t svc_size,
+			      int (*process_msg)(struct ssa_svc *svc,
+					         struct ssa_ctrl_msg_buf *msg));
 int ssa_ctrl_run(struct ssa_class *ssa);
+void ssa_ctrl_stop(struct ssa_class *ssa);
+
+int ssa_compare_gid(const void *gid1, const void *gid2);
 
 
 static inline struct ssa_device *ssa_dev(struct ssa_class *ssa, int index)
@@ -188,3 +200,9 @@ static inline char *ssa_dev_name(struct ssa_device *dev)
 int ssa_init(struct ssa_class *ssa, uint8_t node_type,
 	     size_t dev_size, size_t port_size);
 void ssa_cleanup(struct ssa_class *ssa);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _SSA_COMMON_H */

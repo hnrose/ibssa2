@@ -88,7 +88,7 @@ struct acm_dest {
 	uint64_t               req_id;
 	DLIST_ENTRY            req_queue;
 	uint32_t               remote_qpn;
-	pthread_mutex_t                 lock;
+	pthread_mutex_t        lock;
 	enum acm_state         state;
 	atomic_t               refcnt;
 	uint64_t	       addr_timeout;
@@ -99,7 +99,7 @@ struct acm_dest {
 struct acm_port {
 	struct acm_device   *dev;
 	DLIST_ENTRY         ep_list;
-	pthread_mutex_t              lock;
+	pthread_mutex_t     lock;
 	int                 mad_portid;
 	int                 mad_agentid;
 	struct acm_dest     sa_dest;
@@ -145,7 +145,7 @@ struct acm_ep {
 	int                   mc_cnt;
 	uint16_t              pkey_index;
 	uint16_t              pkey;
-	pthread_mutex_t                lock;
+	pthread_mutex_t       lock;
 	struct acm_send_queue resolve_queue;
 	struct acm_send_queue sa_queue;
 	struct acm_send_queue resp_queue;
@@ -172,10 +172,10 @@ struct acm_send_msg {
 };
 
 struct acm_client {
-	pthread_mutex_t   lock;   /* acquire ep lock first */
-	int      sock;
-	int      index;
-	atomic_t refcnt;
+	pthread_mutex_t lock;   /* acquire ep lock first */
+	int             sock;
+	int             index;
+	atomic_t        refcnt;
 };
 
 struct acm_request {
@@ -190,8 +190,8 @@ union socket_addr {
 	struct sockaddr_in6 sin6;
 };
 
-struct ssa_class ssa;
-pthread_t event_thread, retry_thread, comp_thread, ctrl_thread;
+static struct ssa_class ssa;
+static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread;
 
 static DLIST_ENTRY device_list;
 
@@ -3118,6 +3118,7 @@ static void *acm_ctrl_handler(void *context)
 	struct ssa_svc *svc;
 	int ret;
 
+	ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
@@ -3125,7 +3126,7 @@ static void *acm_ctrl_handler(void *context)
 	}
 
 	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
-			    sizeof *svc);
+			    sizeof *svc, NULL);
 	if (!svc) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
 		goto close;
@@ -3137,6 +3138,7 @@ static void *acm_ctrl_handler(void *context)
 		goto close;
 	}
 close:
+	ssa_log(SSA_LOG_VERBOSE, "closing SSA framework\n");
 	ssa_close_devices(&ssa);
 	return context;
 }

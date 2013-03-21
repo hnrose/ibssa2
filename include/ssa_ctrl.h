@@ -38,6 +38,9 @@
 #include <infiniband/verbs.h>
 #include <infiniband/ssa_mad.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum ssa_ctrl_msg_type {
 	SSA_CTRL_EXIT,
@@ -61,5 +64,17 @@ struct ssa_ctrl_umad_msg {
 	struct ssa_ctrl_msg	hdr;
 	struct ssa_umad		umad;
 };
+
+struct ssa_ctrl_msg_buf {
+	struct ssa_ctrl_msg	hdr;
+	union {
+		enum ibv_event_type	event;
+		struct ssa_umad		umad;
+	} data;
+};
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _SSA_CTRL_H */

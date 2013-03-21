@@ -49,6 +49,7 @@
 #include <syslog.h>
 #include <infiniband/acm.h>
 #include <infiniband/umad.h>
+#include <infiniband/umad_str.h>
 #include <infiniband/verbs.h>
 #include <infiniband/ssa_mad.h>
 #include <dlist.h>
@@ -158,6 +159,33 @@ void ssa_sprint_addr(int level, char *str, size_t str_size,
 void ssa_log_options()
 {
 	ssa_log(SSA_LOG_DEFAULT, "log level %d\n", log_level);
+}
+
+const char *ssa_method_str(uint8_t method)
+{
+	return umad_method_str(UMAD_CLASS_SUBN_ADM, method);
+}
+
+const char *ssa_attribute_str(be16_t attr_id)
+{
+	switch  (ntohs(attr_id)) {
+	case SSA_ATTR_MEMBER_REC:
+		return "MemberRecord";
+	case SSA_ATTR_INFO_REC:
+		return "InfoRecord";
+	default:
+		return umad_attribute_str(UMAD_CLASS_SUBN_ADM, attr_id);
+	}
+}
+
+const char *ssa_mad_status_str(be16_t status)
+{
+	return umad_sa_mad_status_str(status);
+}
+
+int ssa_compare_gid(const void *gid1, const void *gid2)
+{
+	return memcmp(gid1, gid2, 16);
 }
 
 #if 0
@@ -518,14 +546,15 @@ static void ssa_svc_join(struct ssa_svc *svc)
 	struct ssa_umad umad;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
+		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
 	memset(&umad, 0, sizeof umad);
 	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
 	ssa_init_join(svc, &umad.packet);
 	svc->state = SSA_STATE_JOINING;
 
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
-			(void *) &umad, sizeof umad, svc->timeout, 0);
+			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - failed to send join request\n");
@@ -533,41 +562,51 @@ static void ssa_svc_join(struct ssa_svc *svc)
 	}
 }
 
-static void ssa_upstream_dev_event(struct ssa_svc *svc, int len)
+static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
-	enum ibv_event_type event;
-
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
-	read(svc->sock[1], (char *) &event, sizeof event);
-	switch (event) {
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu %s\n",
+		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id,
+		ibv_event_type_str(msg->data.event));
+	switch (msg->data.event) {
+	case IBV_EVENT_CLIENT_REREGISTER:
+	case IBV_EVENT_PORT_ERR:
+		if (svc->rsock >= 0)
+			/*r*/close(svc->rsock);
+		svc->state = SSA_STATE_IDLE;
+		if (msg->data.event != IBV_EVENT_CLIENT_REREGISTER)
+			break;
+		/* fall through to reactivate */
 	case IBV_EVENT_PORT_ACTIVE:
 		if (svc->state == SSA_STATE_IDLE) {
 			svc->timeout = DEFAULT_TIMEOUT;
 			ssa_svc_join(svc);
 		}
 		break;
-	case IBV_EVENT_PORT_ERR:
-		if (svc->rsock >= 0)
-			/*r*/close(svc->rsock);
-		svc->state = SSA_STATE_IDLE;
-		break;
 	default:
 		break;
 	}
 }
 
-static void ssa_upstream_mad(struct ssa_svc *svc, int len)
+static void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
-	struct ssa_umad umad;
+	struct ssa_umad *umad;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
-	read(svc->sock[1], (char *) &umad, len);
+	umad = &msg->data.umad;
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
+		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
 	if (svc->state == SSA_STATE_IDLE) {
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "in idle state, discarding MAD\n");
 		svc->timeout = DEFAULT_TIMEOUT;
 		return;
 	}
 
-	if (umad.umad.status) {
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "method %s attr %s\n",
+		ssa_method_str(umad->packet.mad_hdr.method),
+		ssa_attribute_str(umad->packet.mad_hdr.attr_id));
+	/* TODO: do we need to check umad->packet.mad_hdr.status too? */
+	if (umad->umad.status) {
+		ssa_log(SSA_LOG_DEFAULT, "send failed - status 0x%x (%s)\n",
+			umad->umad.status, strerror(umad->umad.status));
 		if (svc->state != SSA_STATE_JOINING)
 			return;
 
@@ -577,10 +616,12 @@ static void ssa_upstream_mad(struct ssa_svc *svc, int len)
 	}
 
 	svc->timeout = DEFAULT_TIMEOUT;
-	if (svc->state == SSA_STATE_JOINING)
+	if (svc->state == SSA_STATE_JOINING) {
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "join successful\n");
 		svc->state = SSA_STATE_ORPHAN;
+	}
 
-	if (ntohs(umad.packet.mad_hdr.attr_id) != SSA_ATTR_INFO_REC)
+	if (ntohs(umad->packet.mad_hdr.attr_id) != SSA_ATTR_INFO_REC)
 		return;
 
 	switch (svc->state) {
@@ -600,20 +641,29 @@ static void ssa_upstream_mad(struct ssa_svc *svc, int len)
 static void *ssa_upstream_handler(void *context)
 {
 	struct ssa_svc *svc = context;
-	struct ssa_ctrl_msg msg;
+	struct ssa_ctrl_msg_buf msg;
 
-	msg.len = sizeof msg;
-	msg.type = SSA_CTRL_ACK;
-	write(svc->sock[1], (char *) &msg, sizeof msg);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
+		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
+	msg.hdr.len = sizeof msg;
+	msg.hdr.type = SSA_CTRL_ACK;
+	write(svc->sock[1], (char *) &msg, sizeof msg.hdr);
 
-	while (msg.type != SSA_CTRL_EXIT) {
-		read(svc->sock[1], (char *) &msg, sizeof msg);
-		switch (msg.type) {
+	while (msg.hdr.type != SSA_CTRL_EXIT) {
+		read(svc->sock[1], (char *) &msg, sizeof msg.hdr);
+		if (msg.hdr.len > sizeof msg.hdr) {
+			read(svc->sock[1], (char *) &msg.hdr.data,
+			     msg.hdr.len - sizeof msg.hdr);
+		}
+		if (svc->process_msg && svc->process_msg(svc, &msg))
+			continue;
+
+		switch (msg.hdr.type) {
 		case SSA_CTRL_MAD:
-			ssa_upstream_mad(svc, msg.len - sizeof msg);
+			ssa_upstream_mad(svc, &msg);
 			break;
 		case SSA_CTRL_DEV_EVENT:
-			ssa_upstream_dev_event(svc, msg.len - sizeof msg);
+			ssa_upstream_dev_event(svc, &msg);
 			break;
 		case SSA_CTRL_EXIT:
 			break;
@@ -658,7 +708,7 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 	struct ibv_async_event event;
 	int ret;
 
-	ssa_log(SSA_LOG_CTRL, "device %s\n", ssa_dev_name(dev));
+	ssa_log(SSA_LOG_CTRL, "%s\n", ssa_dev_name(dev));
 	ret = ibv_get_async_event(dev->verbs, &event);
 	if (ret)
 		return;
@@ -668,6 +718,7 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 	switch (event.event_type) {
 	case IBV_EVENT_PORT_ACTIVE:
 	case IBV_EVENT_PORT_ERR:
+	case IBV_EVENT_CLIENT_REREGISTER:
 		ssa_ctrl_send_event(ssa_dev_port(dev, event.element.port_num),
 				    event.event_type);
 		break;
@@ -682,9 +733,12 @@ static void ssa_ctrl_port(struct ssa_port *port)
 {
 	struct ssa_svc *svc;
 	struct ssa_ctrl_umad_msg msg;
-	struct ssa_info_record *rec;
+	struct ssa_member_record *member_rec;
+	struct ssa_info_record *info_rec;
 	int len, ret;
 
+	ssa_log(SSA_LOG_CTRL, "%s:%d receiving MAD\n",
+		ssa_dev_name(port->dev), port->port_num);
 	len = sizeof msg.umad;
 	ret = umad_recv(port->mad_portid, (void *) &msg.umad, &len, 0);
 	if (ret < 0) {
@@ -697,11 +751,18 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	     msg.umad.umad.status) {
 		svc = ssa_svc_from_tid(port, msg.umad.packet.mad_hdr.tid);
 	} else {
-		if (ntohs(msg.umad.packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
-			rec = (struct ssa_info_record *) msg.umad.packet.data;
-			svc = ssa_find_svc(port, ntohll(rec->database_id));
-		} else {
+		switch (ntohs(msg.umad.packet.mad_hdr.attr_id)) {
+		case SSA_ATTR_INFO_REC:
+			info_rec = (struct ssa_info_record *) msg.umad.packet.data;
+			svc = ssa_find_svc(port, ntohll(info_rec->database_id));
+			break;
+		case SSA_ATTR_MEMBER_REC:
+			member_rec = (struct ssa_member_record *) msg.umad.packet.data;
+			svc = ssa_find_svc(port, ntohll(member_rec->database_id));
+			break;
+		default:
 			svc = NULL;
+			break;
 		}
 	}
 
@@ -727,7 +788,8 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 	struct ssa_port *port;
 	int d, p, i = 0;
 
-	ssa->nfds = ssa->dev_cnt;	/* async device events */
+	ssa->nfds = 1;			/* ssa socketpair */
+	ssa->nfds += ssa->dev_cnt;	/* async device events */
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
 		ssa->nfds += dev->port_cnt;	/* mads */
@@ -742,6 +804,9 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 		return seterr(ENOMEM);
 
 	ssa->fds_obj = (struct ssa_obj *) (&ssa->fds[ssa->nfds]);
+	ssa->fds[i].fd = ssa->sock[1];
+	ssa->fds[i].events = POLLIN;
+	ssa->fds_obj[i++].type = SSA_OBJ_CLASS;
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
 		ssa->fds[i].fd = dev->verbs->async_fd;
@@ -760,24 +825,52 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 	return 0;
 }
 
+static void ssa_ctrl_activate_ports(struct ssa_class *ssa)
+{
+	struct ssa_device *dev;
+	struct ssa_port *port;
+	int d, p;
+	struct ibv_port_attr attr;
+
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+
+			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+				"%s:%d\n", ssa_dev_name(dev), port->port_num);
+			ibv_query_port(dev->verbs, port->port_num, &attr);
+			if (attr.state == IBV_PORT_ACTIVE) {
+				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					"sending activate message\n");
+				ssa_ctrl_send_event(port, IBV_EVENT_PORT_ACTIVE);
+			}
+		}
+	}
+}
+
 int ssa_ctrl_run(struct ssa_class *ssa)
 {
+	struct ssa_ctrl_msg msg;
 	int i, ret;
 
 	ssa_log(SSA_LOG_CTRL, "\n");
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, ssa->sock);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR creating socketpair\n");
+		return ret;
+	}
+
 	ret = ssa_ctrl_init_fds(ssa);
 	if (ret)
-		return ret;
+		goto err;
 
-	/* TODO: activate all services on active ports
-	for (i = 0; i < dev->port_cnt; i++) {
-		ssa_ctrl_activate_port(&dev->port[i]);
-	}
-	*/
+	ssa_ctrl_activate_ports(ssa);
 
 	for (;;) {
 		ret = poll(ssa->fds, ssa->nfds, -1);
-		if (ret) {
+		if (ret < 0) {
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 				"ERROR polling fds\n");
 			continue;
@@ -789,6 +882,10 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 
 			ssa->fds[i].revents = 0;
 			switch (ssa->fds_obj[i].type) {
+			case SSA_OBJ_CLASS:
+				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					"class event\n");
+				goto out;
 			case SSA_OBJ_DEVICE:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 					"device event\n");
@@ -807,17 +904,44 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 			}
 		}
 	}
+out:
+	read(ssa->sock[1], (char *) &msg, sizeof msg);
+	msg.type = SSA_CTRL_ACK;
+	write(ssa->sock[1], (char *) &msg, sizeof msg);
+	free(ssa->fds);
 	return 0;
+
+err:
+	close(ssa->sock[0]);
+	close(ssa->sock[1]);
+	return ret;
+}
+
+void ssa_ctrl_stop(struct ssa_class *ssa)
+{
+	struct ssa_ctrl_msg msg;
+
+	ssa_log(SSA_LOG_CTRL, "\n");
+	msg.len = sizeof msg;
+	msg.type = SSA_CTRL_EXIT;
+	write(ssa->sock[0], (char *) &msg, sizeof msg);
+	read(ssa->sock[0], (char *) &msg, sizeof msg);
+
+	close(ssa->sock[0]);
+	close(ssa->sock[1]);
 }
 
 struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
-			      size_t svc_size)
+			      size_t svc_size,
+			      int (*process_msg)(struct ssa_svc *svc,
+					         struct ssa_ctrl_msg_buf *msg))
 {
 	struct ssa_svc *svc, **list;
 	struct ssa_ctrl_msg msg;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%ull\n", database_id);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
+		ssa_dev_name(port->dev), port->port_num, database_id);
 	list = realloc(port->svc, (port->svc_cnt + 1) * sizeof(svc));
 	if (!list)
 		return NULL;
@@ -839,6 +963,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	svc->database_id = database_id;
 	svc->rsock = -1;
 	svc->state = SSA_STATE_IDLE;
+	svc->process_msg = process_msg;
 	//pthread_mutex_init(&svc->lock, NULL);
 
 	// TODO: start listen
@@ -874,10 +999,11 @@ err1:
 
 static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t port_num)
 {
+	long methods[16 / sizeof(long)];
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-		"%s %d\n", ssa_dev_name(dev), port_num);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d\n",
+		ssa_dev_name(dev), port_num);
 	port->dev = dev;
 	port->port_num = port_num;
 	//pthread_mutex_init(&port->lock, NULL);
@@ -895,8 +1021,9 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 			"WARNING - MAD fd is blocking\n");
 	}
 
+	memset(methods, 0xFF, sizeof methods);
 	port->mad_agentid = umad_register(port->mad_portid,
-		SSA_CLASS, SSA_CLASS_VERSION, 0, NULL);
+		SSA_CLASS, SSA_CLASS_VERSION, 0, methods);
 	if (port->mad_agentid < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - unable to register MAD client\n");
@@ -958,7 +1085,7 @@ err1:
 int ssa_open_devices(struct ssa_class *ssa)
 {
 	struct ibv_device **ibdev;
-	int i, ret;
+	int i, ret = 0;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
 	ibdev = ibv_get_device_list(&ssa->dev_cnt);
@@ -983,10 +1110,12 @@ free:
 	return ret;
 }
 
-static void ssa_stop_service(struct ssa_svc *svc)
+static void ssa_stop_svc(struct ssa_svc *svc)
 {
 	struct ssa_ctrl_msg msg;
 
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
+		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
 	write(svc->sock[0], (char *) &msg, sizeof msg);
@@ -1000,11 +1129,12 @@ static void ssa_stop_service(struct ssa_svc *svc)
 	free(svc);
 }
 
-
 static void ssa_close_port(struct ssa_port *port)
 {
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d\n",
+		ssa_dev_name(port->dev), port->port_num);
 	while (port->svc_cnt)
-		ssa_stop_service(port->svc[--port->svc_cnt]);
+		ssa_stop_svc(port->svc[--port->svc_cnt]);
 	if (port->svc)
 		free(port->svc);
 
@@ -1091,8 +1221,4 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 void ssa_cleanup(struct ssa_class *ssa)
 {
 	umad_done();
-	if (ssa->fds)
-		free(ssa->fds);
-	if (ssa->fds_obj)
-		free(ssa->fds_obj);
 }

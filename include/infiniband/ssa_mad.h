@@ -42,12 +42,30 @@
 #include <infiniband/umad_sa.h>
 #include <infiniband/sa.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * Match with SA definitions where possible.
+ */
 enum {
 	SSA_CLASS_VERSION		= 1,
 	SSA_CLASS			= 0x2C,
 
 	SSA_METHOD_DELETE		= UMAD_SA_METHOD_DELETE,
 	SSA_METHOD_DELETE_RESP		= UMAD_SA_METHOD_DELETE_RESP
+};
+
+enum {
+	SSA_STATUS_SUCCESS		= UMAD_SA_STATUS_SUCCESS,
+	SSA_STATUS_NO_RESOURCES		= UMAD_SA_STATUS_NO_RESOURCES,
+	SSA_STATUS_REQ_INVALID		= UMAD_SA_STATUS_REQ_INVALID,
+	SSA_STATUS_NO_RECORDS		= UMAD_SA_STATUS_NO_RECORDS,
+	SSA_STATUS_TOO_MANY_RECORDS	= UMAD_SA_STATUS_TOO_MANY_RECORDS,
+	SSA_STATUS_INVALID_GID		= UMAD_SA_STATUS_INVALID_GID,
+	SSA_STATUS_INSUF_COMPS		= UMAD_SA_STATUS_INSUF_COMPS,
+	SSA_STATUS_REQ_DENIED		= UMAD_SA_STATUS_REQ_DENIED,
 };
 
 enum {
@@ -125,5 +143,13 @@ struct ssa_info_record {
 	be64_t			database_id;
 	struct ibv_path_data	path_data;
 };
+
+const char *ssa_method_str(uint8_t method);
+const char *ssa_attribute_str(be16_t attr_id);
+const char *ssa_mad_status_str(be16_t status);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _SSA_MAD_H */

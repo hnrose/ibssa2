@@ -45,6 +45,10 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef SYSCONFDIR
 #define SYSCONFDIR "/etc"
 #endif
@@ -143,5 +147,8 @@ static inline uint64_t time_stamp_us(void)
 #define time_stamp_sec() (time_stamp_ms() / (uint64_t) 1000)
 #define time_stamp_min() (time_stamp_sec() / (uint64_t) 60)
 
-#endif /* OSD_H */
+#ifdef __cplusplus
+}
+#endif
 
+#endif /* OSD_H */

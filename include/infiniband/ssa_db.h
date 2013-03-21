@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012 Mellanox Technologies LTD. All rights reserved.
- * Copyright (c) 2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2012-2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2012 Lawrence Livermore National Securities.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -33,13 +33,17 @@
  *
  */
 
-#ifndef __IBSSA_DB_H__
-#define __IBSSA_DB_H__
+#ifndef __SSA_DB_H__
+#define __SSA_DB_H__
 
 #include <stdint.h>
 #include <byteswap.h>
 #include <infiniband/umad.h>
 #include "ibssa_control.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * The format of the data contained in a database is described by the
@@ -261,4 +265,8 @@ struct ib_ssa_db_msg {
 	struct db_dataset	info;
 };
 
-#endif /* __IBSSA_DB_H__ */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __SSA_DB_H__ */

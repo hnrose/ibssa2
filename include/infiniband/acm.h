@@ -33,6 +33,10 @@
 #include <infiniband/verbs.h>
 #include <infiniband/sa.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ACM_VERSION             1
 
 #define ACM_OP_MASK             0x0F
@@ -131,5 +135,9 @@ struct acm_msg {
 		uint64_t                perf_data[0];
 	};
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ACM_H */
