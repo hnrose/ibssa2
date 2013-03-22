@@ -196,7 +196,7 @@ static void core_destroy_svc(struct ssa_svc *svc)
 	struct ssa_core *core = container_of(svc, struct ssa_core, svc);
 	ssa_log(SSA_LOG_CTRL, "\n");
 	if (core->member_map)
-		tdestroy(&core->member_map, core_free_member);
+		tdestroy(core->member_map, core_free_member);
 }
 
 static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)

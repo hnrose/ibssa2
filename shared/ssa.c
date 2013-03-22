@@ -546,8 +546,11 @@ static void ssa_svc_join(struct ssa_svc *svc)
 	struct ssa_umad umad;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
-		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
+	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
+			SSA_ADDR_GID, svc->port->gid.raw, sizeof svc->port->gid);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu %s\n",
+		ssa_dev_name(svc->port->dev), svc->port->port_num,
+		svc->database_id, log_data);
 	memset(&umad, 0, sizeof umad);
 	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
 	ssa_init_join(svc, &umad.packet);
@@ -573,11 +576,9 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf 
 		if (svc->rsock >= 0)
 			/*r*/close(svc->rsock);
 		svc->state = SSA_STATE_IDLE;
-		if (msg->data.event != IBV_EVENT_CLIENT_REREGISTER)
-			break;
 		/* fall through to reactivate */
 	case IBV_EVENT_PORT_ACTIVE:
-		if (svc->state == SSA_STATE_IDLE) {
+		if (svc->port->state == IBV_PORT_ACTIVE && svc->state == SSA_STATE_IDLE) {
 			svc->timeout = DEFAULT_TIMEOUT;
 			ssa_svc_join(svc);
 		}
@@ -703,6 +704,22 @@ static void ssa_ctrl_send_event(struct ssa_port *port, enum ibv_event_type event
 	ssa_ctrl_port_send(port, &msg.hdr);
 }
 
+static void ssa_ctrl_update_port(struct ssa_port *port)
+{
+	struct ibv_port_attr attr;
+
+	ibv_query_port(port->dev->verbs, port->port_num, &attr);
+	if (attr.state == IBV_PORT_ACTIVE) {
+		port->sm_lid = attr.sm_lid;
+		port->sm_sl = attr.sm_sl;
+		ibv_query_gid(port->dev->verbs, port->port_num, 0, &port->gid);
+	}
+	port->state = attr.state;
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d state %s SM LID %d\n",
+		ssa_dev_name(port->dev), port->port_num,
+		ibv_port_state_str(port->state), port->sm_lid);
+}
+
 static void ssa_ctrl_device(struct ssa_device *dev)
 {
 	struct ibv_async_event event;
@@ -717,8 +734,9 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 		"async event %s\n", ibv_event_type_str(event.event_type));
 	switch (event.event_type) {
 	case IBV_EVENT_PORT_ACTIVE:
-	case IBV_EVENT_PORT_ERR:
 	case IBV_EVENT_CLIENT_REREGISTER:
+	case IBV_EVENT_PORT_ERR:
+		ssa_ctrl_update_port(ssa_dev_port(dev, event.element.port_num));
 		ssa_ctrl_send_event(ssa_dev_port(dev, event.element.port_num),
 				    event.event_type);
 		break;
@@ -774,6 +792,8 @@ static void ssa_ctrl_port(struct ssa_port *port)
 
 	msg.hdr.type = SSA_CTRL_MAD;
 	msg.hdr.len = sizeof msg;
+	/* set qkey for possible response */
+	msg.umad.umad.addr.qkey = htonl(UMAD_QKEY);
 	write(svc->sock[0], (void *) &msg, msg.hdr.len);
 }
 
@@ -830,19 +850,15 @@ static void ssa_ctrl_activate_ports(struct ssa_class *ssa)
 	struct ssa_device *dev;
 	struct ssa_port *port;
 	int d, p;
-	struct ibv_port_attr attr;
 
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
 		for (p = 1; p <= dev->port_cnt; p++) {
 			port = ssa_dev_port(dev, p);
-
-			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-				"%s:%d\n", ssa_dev_name(dev), port->port_num);
-			ibv_query_port(dev->verbs, port->port_num, &attr);
-			if (attr.state == IBV_PORT_ACTIVE) {
+			ssa_ctrl_update_port(port);
+			if (port->state == IBV_PORT_ACTIVE) {
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"sending activate message\n");
+					"%s:%d\n", ssa_dev_name(dev), port->port_num);
 				ssa_ctrl_send_event(port, IBV_EVENT_PORT_ACTIVE);
 			}
 		}

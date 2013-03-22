@@ -132,9 +132,10 @@ struct ssa_port {
 	int			mad_portid;
 	int			mad_agentid;
 	//pthread_mutex_t		lock;
-	union ibv_gid		gid;		// set
-	uint16_t		sm_lid;		// set
-	uint8_t			sm_sl;		// set
+	enum ibv_port_state	state;
+	union ibv_gid		gid;
+	uint16_t		sm_lid;
+	uint8_t			sm_sl;
 	uint8_t			port_num;
 	uint16_t		svc_cnt;
 	struct ssa_svc		**svc;
