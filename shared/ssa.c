@@ -520,7 +520,7 @@ static struct ssa_svc *ssa_find_svc(struct ssa_port *port, uint64_t database_id)
 static void ssa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
 			     uint8_t method, uint16_t attr_id)
 {
-	hdr->base_version = 1;
+	hdr->base_version = UMAD_BASE_VERSION;
 	hdr->mgmt_class = SSA_CLASS;
 	hdr->class_version = SSA_CLASS_VERSION;
 	hdr->method = method;

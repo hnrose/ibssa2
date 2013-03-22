@@ -98,7 +98,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	ssa_log(SSA_LOG_CTRL, "sending join response\n");
 	umad->packet.mad_hdr.method = UMAD_METHOD_GET_RESP;
 	umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
-		  (void *) &umad, sizeof umad->packet, 0, 0);
+		  (void *) umad, sizeof umad->packet, 0, 0);
 }
 
 static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
@@ -126,7 +126,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 	ssa_log(SSA_LOG_CTRL, "sending leave response\n");
 	umad->packet.mad_hdr.method = SSA_METHOD_DELETE_RESP;
 	umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
-		  (void *) &umad, sizeof umad->packet, 0, 0);
+		  (void *) umad, sizeof umad->packet, 0, 0);
 }
 
 static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
