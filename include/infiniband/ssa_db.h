@@ -39,7 +39,7 @@
 #include <stdint.h>
 #include <byteswap.h>
 #include <infiniband/umad.h>
-#include "ibssa_control.h"
+#include <infiniband/ssa.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -255,13 +255,13 @@ struct db_trans_log_entry {
  */
 
 enum {
-	IBSSA_MSG_ID_QUERY_DB_DEF = IBSSA_MSG_ID_DB_START,
-	IBSSA_MSG_ID_QUERY_DATASET,
-	IBSSA_MSG_ID_PUBLISH_EPOCH_BUF,
+	SSA_MSG_DB_QUERY_DEF,
+	SSA_MSG_DB_QUERY_DATASET,
+	SSA_MSG_DB_PUBLISH_EPOCH_BUF,
 };
 
-struct ib_ssa_db_msg {
-	struct ib_ssa_msg_hdr	hdr;
+struct ssa_db_msg {
+	struct ssa_msg_hdr	hdr;
 	struct db_dataset	info;
 };
 
