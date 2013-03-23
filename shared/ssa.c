@@ -548,9 +548,7 @@ static void ssa_svc_join(struct ssa_svc *svc)
 
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, svc->port->gid.raw, sizeof svc->port->gid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu %s\n",
-		ssa_dev_name(svc->port->dev), svc->port->port_num,
-		svc->database_id, log_data);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name, log_data);
 	memset(&umad, 0, sizeof umad);
 	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
 	ssa_init_join(svc, &umad.packet);
@@ -567,8 +565,7 @@ static void ssa_svc_join(struct ssa_svc *svc)
 
 static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu %s\n",
-		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id,
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name,
 		ibv_event_type_str(msg->data.event));
 	switch (msg->data.event) {
 	case IBV_EVENT_CLIENT_REREGISTER:
@@ -593,8 +590,7 @@ static void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	struct ssa_umad *umad;
 
 	umad = &msg->data.umad;
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
-		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	if (svc->state == SSA_STATE_IDLE) {
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "in idle state, discarding MAD\n");
 		svc->timeout = DEFAULT_TIMEOUT;
@@ -644,8 +640,7 @@ static void *ssa_upstream_handler(void *context)
 	struct ssa_svc *svc = context;
 	struct ssa_ctrl_msg_buf msg;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
-		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg;
 	msg.hdr.type = SSA_CTRL_ACK;
 	write(svc->sock[1], (char *) &msg, sizeof msg.hdr);
@@ -715,9 +710,8 @@ static void ssa_ctrl_update_port(struct ssa_port *port)
 		ibv_query_gid(port->dev->verbs, port->port_num, 0, &port->gid);
 	}
 	port->state = attr.state;
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d state %s SM LID %d\n",
-		ssa_dev_name(port->dev), port->port_num,
-		ibv_port_state_str(port->state), port->sm_lid);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s state %s SM LID %d\n",
+		port->name, ibv_port_state_str(port->state), port->sm_lid);
 }
 
 static void ssa_ctrl_device(struct ssa_device *dev)
@@ -725,7 +719,7 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 	struct ibv_async_event event;
 	int ret;
 
-	ssa_log(SSA_LOG_CTRL, "%s\n", ssa_dev_name(dev));
+	ssa_log(SSA_LOG_CTRL, "%s\n", dev->name);
 	ret = ibv_get_async_event(dev->verbs, &event);
 	if (ret)
 		return;
@@ -755,8 +749,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	struct ssa_info_record *info_rec;
 	int len, ret;
 
-	ssa_log(SSA_LOG_CTRL, "%s:%d receiving MAD\n",
-		ssa_dev_name(port->dev), port->port_num);
+	ssa_log(SSA_LOG_CTRL, "%s receiving MAD\n", port->name);
 	len = sizeof msg.umad;
 	ret = umad_recv(port->mad_portid, (void *) &msg.umad, &len, 0);
 	if (ret < 0) {
@@ -857,8 +850,7 @@ static void ssa_ctrl_activate_ports(struct ssa_class *ssa)
 			port = ssa_dev_port(dev, p);
 			ssa_ctrl_update_port(port);
 			if (port->state == IBV_PORT_ACTIVE) {
-				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"%s:%d\n", ssa_dev_name(dev), port->port_num);
+				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", port->name);
 				ssa_ctrl_send_event(port, IBV_EVENT_PORT_ACTIVE);
 			}
 		}
@@ -956,8 +948,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	struct ssa_ctrl_msg msg;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
-		ssa_dev_name(port->dev), port->port_num, database_id);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%llu\n", port->name, database_id);
 	list = realloc(port->svc, (port->svc_cnt + 1) * sizeof(svc));
 	if (!list)
 		return NULL;
@@ -976,6 +967,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 
 	svc->index = port->svc_cnt;
 	svc->port = port;
+	snprintf(svc->name, sizeof svc->name, "%s:%llu", port->name, database_id);
 	svc->database_id = database_id;
 	svc->rsock = -1;
 	svc->state = SSA_STATE_IDLE;
@@ -1018,13 +1010,13 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 	long methods[16 / sizeof(long)];
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d\n",
-		ssa_dev_name(dev), port_num);
 	port->dev = dev;
 	port->port_num = port_num;
+	snprintf(port->name, sizeof port->name, "%s:%d", dev->name, port_num);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", port->name);
 	//pthread_mutex_init(&port->lock, NULL);
 
-	port->mad_portid = umad_open_port(ssa_dev_name(dev), port->port_num);
+	port->mad_portid = umad_open_port(dev->name, port->port_num);
 	if (port->mad_portid < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - unable to open MAD port\n");
@@ -1084,13 +1076,14 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 
 	dev->ssa = ssa;
 	dev->guid = ibv_get_device_guid(ibdev);
+	snprintf(dev->name, sizeof dev->name, ibdev->name);
 	dev->port_cnt = attr.phys_port_cnt;
 	dev->port_size = ssa->port_size;
 
 	for (i = 1; i <= dev->port_cnt; i++)
 		ssa_open_port(ssa_dev_port(dev, i), dev, i);
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", ssa_dev_name(dev));
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
 
 err1:
@@ -1130,8 +1123,7 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 {
 	struct ssa_ctrl_msg msg;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
-		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
 	write(svc->sock[0], (char *) &msg, sizeof msg);
@@ -1147,8 +1139,7 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 
 static void ssa_close_port(struct ssa_port *port)
 {
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d\n",
-		ssa_dev_name(port->dev), port->port_num);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", port->name);
 	while (port->svc_cnt)
 		ssa_stop_svc(port->svc[--port->svc_cnt]);
 	if (port->svc)
@@ -1172,8 +1163,7 @@ void ssa_close_devices(struct ssa_class *ssa)
 			ssa_close_port(ssa_dev_port(dev, p));
 
 		ibv_close_device(dev->verbs);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"%s closed\n", ssa_dev_name(dev));
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s closed\n", dev->name);
 		free(dev->port);
 	}
 	free(ssa->dev);

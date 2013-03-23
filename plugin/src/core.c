@@ -75,9 +75,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	rec = (struct ssa_member_record *) &umad->packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu %s\n",
-		ssa_dev_name(core->svc.port->dev), core->svc.port->port_num,
-		core->svc.database_id, log_data);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
 
 	tgid = tfind(rec->port_gid, &core->member_map, ssa_compare_gid);
 	if (!tgid) {
@@ -110,9 +108,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 	rec = (struct ssa_member_record *) &umad->packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu %s\n",
-		ssa_dev_name(core->svc.port->dev), core->svc.port->port_num,
-		core->svc.database_id, log_data);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
 
 	tgid = tdelete(rec->port_gid, &core->member_map, ssa_compare_gid);
 	if (tgid) {
@@ -134,8 +130,7 @@ static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	struct ssa_core *core;
 	struct ssa_umad *umad;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%d:%llu\n",
-		ssa_dev_name(svc->port->dev), svc->port->port_num, svc->database_id);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	if (msg->hdr.type != SSA_CTRL_MAD)
 		return 0;
 
@@ -185,7 +180,6 @@ static void core_free_member(void *gid)
 {
 	struct ssa_member *member;
 	struct ssa_member_record *rec;
-	ssa_log(SSA_LOG_CTRL, "\n");
 	rec = container_of(gid, struct ssa_member_record, port_gid);
 	member = container_of(rec, struct ssa_member, rec);
 	free(member);

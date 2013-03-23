@@ -51,6 +51,8 @@
 extern "C" {
 #endif
 
+#define SSA_NAME_SIZE 32
+
 void ssa_daemonize(void);
 int ssa_open_lock_file(char *lock_file);
 
@@ -122,6 +124,7 @@ struct ssa_device {
 	struct ssa_class	*ssa;
 	struct ibv_context      *verbs;
 	uint64_t                guid;
+	char			name[SSA_NAME_SIZE];
 	size_t			port_size;
 	int                     port_cnt;
 	struct ssa_port         *port;
@@ -129,6 +132,7 @@ struct ssa_device {
 
 struct ssa_port {
 	struct ssa_device	*dev;
+	char			name[SSA_NAME_SIZE];
 	int			mad_portid;
 	int			mad_agentid;
 	//pthread_mutex_t		lock;
@@ -155,6 +159,7 @@ enum ssa_svc_state {
 
 struct ssa_svc {
 	struct ssa_port		*port;
+	char			name[SSA_NAME_SIZE];
 	uint64_t		database_id;
 	int			(*process_msg)(struct ssa_svc *svc,
 					       struct ssa_ctrl_msg_buf *msg);
@@ -192,11 +197,6 @@ static inline struct ssa_port *ssa_dev_port(struct ssa_device *dev, int port_num
 		((void *) dev->port + dev->port_size * (port_num - 1));
 }
 
-
-static inline char *ssa_dev_name(struct ssa_device *dev)
-{
-	return dev->verbs->device->name;
-}
 
 int ssa_init(struct ssa_class *ssa, uint8_t node_type,
 	     size_t dev_size, size_t port_size);
