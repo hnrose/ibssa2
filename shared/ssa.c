@@ -659,7 +659,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 
 	svc->index = port->svc_cnt;
 	svc->port = port;
-	snprintf(svc->name, sizeof svc->name, "%s:%llu", port->name, database_id);
+	snprintf(svc->name, sizeof svc->name, "%s:%llu", port->name,
+		 (unsigned long long) database_id);
 	svc->database_id = database_id;
 	svc->rsock = -1;
 	svc->state = SSA_STATE_IDLE;
