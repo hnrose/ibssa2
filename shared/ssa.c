@@ -734,7 +734,8 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 	port->mad_portid = umad_open_port(dev->name, port->port_num);
 	if (port->mad_portid < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - unable to open MAD port\n");
+			"ERROR - unable to open MAD port %s\n",
+			port->name);
 		return;
 	}
 
@@ -749,7 +750,8 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 		SSA_CLASS, SSA_CLASS_VERSION, 0, methods);
 	if (port->mad_agentid < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - unable to register MAD client\n");
+			"ERROR - unable to register MAD client on port %s\n",
+			port->name);
 		goto err;
 	}
 
