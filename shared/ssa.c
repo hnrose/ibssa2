@@ -67,6 +67,21 @@ static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
+static const char * month_str[] = {
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
+};
+
 static int log_level = SSA_LOG_DEFAULT;
 //static short server_port = 6125;
 
@@ -104,14 +119,21 @@ void ssa_write_log(int level, const char *format, ...)
 {
 	va_list args;
 	struct timeval tv;
+	time_t tim;
+	struct tm result;
 
 	if (!(level & log_level))
 		return;
 
 	gettimeofday(&tv, NULL);
+	tim = tv.tv_sec;
+	localtime_r(&tim, &result);
 	va_start(args, format);
 	pthread_mutex_lock(&log_lock);
-	fprintf(flog, "%u.%03u: ", (unsigned) tv.tv_sec, (unsigned) (tv.tv_usec / 1000));
+	fprintf(flog, "%s %02d %02d:%02d:%02d %06d: ",
+		(result.tm_mon < 12 ? month_str[result.tm_mon] : "???"),
+		result.tm_mday, result.tm_hour, result.tm_min,
+		result.tm_sec, (unsigned int)tv.tv_usec);
 	vfprintf(flog, format, args);
 	fflush(flog);
 	pthread_mutex_unlock(&log_lock);
