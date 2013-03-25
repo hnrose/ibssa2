@@ -158,7 +158,7 @@ void ssa_sprint_addr(int level, char *str, size_t str_size,
 
 void ssa_log_options()
 {
-	ssa_log(SSA_LOG_DEFAULT, "log level %d\n", log_level);
+	ssa_log(SSA_LOG_DEFAULT, "log level 0x%x\n", log_level);
 }
 
 const char *ssa_method_str(uint8_t method)
