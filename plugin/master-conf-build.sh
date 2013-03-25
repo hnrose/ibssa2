@@ -12,7 +12,7 @@ if [ ! -f Makefile ]; then
    libdir=$prefix/lib
    export LDFLAGS="-L$prefix/lib"
    export CPPFLAGS="-I$prefix/include -I$prefix/include/infiniband"
-   ./autogen.sh && ./configure --prefix=$prefix --libdir=$libdir --enable-debug
+   ./autogen.sh && ./configure --prefix=$prefix --libdir=$libdir
    rc=$?
    if [ $rc != 0 ]; then
    	exit $rc
