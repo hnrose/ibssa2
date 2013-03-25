@@ -3,7 +3,7 @@
 if [ "$1" = "" ] || [ "$1" = "-h" ]; then
    echo "$0 <dir>"
    echo "   Build plugin against a master management build installed in <dir>"
-   echo "   Remove \"Makfile\" to force rebuild" 
+   echo "   Remove \"Makefile\" to force rebuild" 
    exit 1
 fi
 
