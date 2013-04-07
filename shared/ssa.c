@@ -118,6 +118,7 @@ void ssa_close_log()
 void ssa_write_log(int level, const char *format, ...)
 {
 	va_list args;
+	pid_t tid;
 	struct timeval tv;
 	time_t tim;
 	struct tm result;
@@ -128,12 +129,13 @@ void ssa_write_log(int level, const char *format, ...)
 	gettimeofday(&tv, NULL);
 	tim = tv.tv_sec;
 	localtime_r(&tim, &result);
+	tid = pthread_self();
 	va_start(args, format);
 	pthread_mutex_lock(&log_lock);
-	fprintf(flog, "%s %02d %02d:%02d:%02d %06d: ",
+	fprintf(flog, "%s %02d %02d:%02d:%02d %06d [%04X]: ",
 		(result.tm_mon < 12 ? month_str[result.tm_mon] : "???"),
 		result.tm_mday, result.tm_hour, result.tm_min,
-		result.tm_sec, (unsigned int)tv.tv_usec);
+		result.tm_sec, (unsigned int)tv.tv_usec, tid);
 	vfprintf(flog, format, args);
 	fflush(flog);
 	pthread_mutex_unlock(&log_lock);
