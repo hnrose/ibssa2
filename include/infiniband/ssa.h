@@ -53,12 +53,32 @@ enum {
 	/* SSA_MSG_CLASS_MAD */
 
 	SSA_MSG_FLAG_RESP		= (1 << 0),
+	SSA_MSG_FLAG_END		= (1 << 1)
 };
 
 enum {
 	SSA_MSG_CTRL_SYNC,
 };
 
+/*
+ * ssa_msg_hdr:
+ * @version - version of this structure
+ * @class - message class
+ * @op - requested operation to perform (per class value)
+ * @len - size of message, including header, in bytes
+ * @flags - bitmask of flags to control operation
+ * @status - result of request
+ * @id - identifier of request
+ * @reserved - set to 0
+ * @rdma_len - size of rdma response buffer or transfer
+ * @rdma_addr - address of rdma response buffer
+ *
+ * All SSA messages are preceded by the ssa_msg_hdr structure.  The len
+ * indicates the size of the message, if known.  If the len is set to -1,
+ * then the end of the message must be determined using class specific
+ * means.  An ssa_msg_hdr with the END flag set transferred after class
+ * specific data may be used to mark the end of response.
+ */
 struct ssa_msg_hdr {
 	uint8_t			version;
 	uint8_t			class;

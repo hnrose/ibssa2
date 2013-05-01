@@ -55,6 +55,14 @@ extern "C" {
 
 #define DB_NAME_LEN		64
 #define DB_VARIABLE_SIZE	0xFFFFFFFF
+#define DB_ID_DEFS		0xFF
+
+struct db_id {
+	uint8_t		db;
+	uint8_t		table;
+	uint8_t		field;
+	uint8_t		reserved;
+};
 
 /**
  * db_def:
@@ -78,7 +86,7 @@ struct db_def {
 	uint8_t		version;
 	uint8_t		size;
 	uint8_t		reserved[2];
-	be32_t		id;
+	struct db_id	id;
 	char		name[DB_NAME_LEN];
 	be32_t		table_def_size;
 };
@@ -127,7 +135,7 @@ struct db_table_def {
 	uint8_t		size;
 	uint8_t		type;
 	uint8_t		access;
-	be32_t		id;
+	struct db_id	id;
 	char		name[DB_NAME_LEN];
 	be32_t		record_size;
 	be32_t		ref_table_id;
@@ -167,7 +175,7 @@ struct db_field_def {
 	uint8_t		reserved;
 	uint8_t		type;
 	uint8_t		reserved2;
-	be32_t		id;
+	struct db_id	id;
 	char		name[DB_NAME_LEN];
 	be32_t		field_size;
 	be32_t		field_offset;
@@ -179,7 +187,7 @@ struct db_field_def {
  * @size - size of this structure
  * @reserved - set to 0
  * @access - flags that indicate how to access the data correctly
- * @def_id - id of table that defines record format
+ * @id - id of requested data
  * @epoch - static or dynamic version of data
  * @set_size - size of current dataset, in bytes
  * @set_offset - offset of first record in current dataset, in bytes
@@ -196,6 +204,13 @@ struct db_field_def {
  * Clients may use this to determine if byte-swapping is necessary on
  * fields where byte order is not specified (DBF_TYPE_U16, DBF_TYPE_U32,
  * DBF_TYPE_U64).
+ *
+ * The id field specifies the data to return in response to a query.  In
+ * most cases, the id field will specify the id of a database or table,
+ * indicating that the query should return all data in the database or
+ * table, respectively.  If an id field contains DB_ID_DEFS, the response
+ * should return definitions, such as the table definitions for a database,
+ * or field definitions for a table.
  *
  * The epoch value is used to track changes to the dataset.  The epoch
  * value is incremented anytime a transaction has modified, added, or
@@ -219,7 +234,7 @@ struct db_dataset {
 	uint8_t		size;
 	uint8_t		reserved;
 	uint8_t		access;
-	be32_t		def_id;
+	struct db_id	id;
 	be64_t		epoch;
 	be64_t		set_size;
 	be64_t		set_offset;
