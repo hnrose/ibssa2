@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2012-2013 Mellanox Technologies LTD. All rights reserved.
  * Copyright (c) 2012-2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2012 Lawrence Livermore National Securities.  All rights reserved.
  *
@@ -39,13 +39,19 @@
 #include <infiniband/ssa_mad.h>
 #include <ssa_ctrl.h>
 
+#define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
+
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
+
+static int first = 1;
 
 struct ssa_member {
 	struct ssa_member_record	rec;
 	struct ssa_member		*primary;
 	struct ssa_member		*secondary;
+	uint16_t			lid;
+	uint8_t				sl;
 	DLIST_ENTRY			list;
 	DLIST_ENTRY			entry;
 };
@@ -85,6 +91,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 			return;
 
 		member->rec = *rec;
+		member->lid = ntohs(umad->umad.addr.lid);
 		DListInit(&member->list);
 		if (!tsearch(&member->rec.port_gid, &core->member_map, ssa_compare_gid)) {
 			free(member);
@@ -125,16 +132,87 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 		  (void *) umad, sizeof umad->packet, 0, 0);
 }
 
+void core_init_parent(struct ssa_core *core, struct ssa_mad_packet *mad,
+		      struct ssa_member_record *member,
+		      struct ibv_path_record *path)
+{
+	struct ssa_info_record *rec;
+
+	ssa_init_mad_hdr(&core->svc, &mad->mad_hdr, UMAD_METHOD_SET, SSA_ATTR_INFO_REC);
+	mad->ssa_key = 0;	/* TODO: set for real */
+
+	rec = (struct ssa_info_record *) &mad->data;
+	rec->database_id = member->database_id;
+	rec->path_data.flags = IBV_PATH_FLAG_GMP | IBV_PATH_FLAG_PRIMARY |
+			       IBV_PATH_FLAG_BIDIRECTIONAL;
+	rec->path_data.path = *path;
+}
+
+static void core_process_parent_set(struct ssa_core *core, struct ssa_umad *umad)
+{
+
+}
+
+static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
+{
+	struct ibv_path_record *path;
+	struct ssa_member **member;
+	struct ssa_umad umad_sa;
+	int ret;
+
+	path = (struct ibv_path_record *) &umad->packet.data;
+	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
+			SSA_ADDR_GID, (uint8_t *) &path->dgid, sizeof path->dgid);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
+
+	/* Joined port GID is DGID in PathRecord */
+	member = tfind(&path->dgid, &core->member_map, ssa_compare_gid);
+	if (!member) {
+		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
+				sizeof log_data, SSA_ADDR_GID,
+				(uint8_t *) &path->dgid, sizeof path->dgid);
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - couldn't find joined port GID %s\n", log_data);
+		return;
+	}
+
+	/*
+	 * TODO: SL should come from another PathRecord between core
+	 * and joined client.
+	 *
+	 * In prototype, since core is coresident with SM, this is SL
+	 * from the PathRecord between the client and the parent
+	 * since the (only) parent is the core.
+	 */
+	(*member)->sl = ntohs(path->qosclass_sl) & 0xF;
+
+	memset(&umad_sa, 0, sizeof umad_sa);
+	umad_set_addr(&umad_sa.umad, (*member)->lid, 1, (*member)->sl, UMAD_QKEY);
+	core_init_parent(core, &umad_sa.packet, &(*member)->rec, path);
+
+	ssa_log(SSA_LOG_CTRL, "sending set parent\n");
+	ret = umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
+			(void *) &umad_sa, sizeof umad_sa.packet, core->svc.timeout, 0);
+	if (ret)
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - failed to send set parent\n");
+}
+
 static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	struct ssa_core *core;
 	struct ssa_umad *umad;
+	struct sa_umad *umad_sa;
+	struct ssa_member_record *rec;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
-	if (msg->hdr.type != SSA_CTRL_MAD)
+	if (msg->hdr.type != SSA_CTRL_MAD && msg->hdr.type != SSA_SA_MAD)
 		return 0;
 
 	core = container_of(svc, struct ssa_core, svc);
+	if (msg->hdr.type == SSA_SA_MAD)
+		goto samad;
+
 	umad = &msg->data.umad;
 	if (umad->umad.status)
 		return 0;
@@ -143,12 +221,63 @@ static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	case UMAD_METHOD_SET:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
 			core_process_join(core, umad);
+
+			/*
+			 * TODO: Really need to wait for first
+			 * SUBNET UP event.
+			 *
+			 * Just a one time artificial delay for now.
+			 */
+			if (first) {
+				usleep(INITIAL_SUBNET_UP_DELAY);
+				first = 0;
+			}
+
+			/*
+			 * For now, issue SA path query here.
+			 * DGID is from incoming join.
+			 * For now (prototype), SGID is from port join came in on.
+			 * Longer term, SGID needs to come from the tree
+			 * calculation code so rather than query PathRecord
+			 * here, this would inform the tree calculation
+			 * that a parent is needed for joining port and
+			 * when parent is determined, then the SA path
+			 * query would be issued.
+			 *
+			 */
+			rec = (struct ssa_member_record *) &umad->packet.data;
+			ssa_svc_query_path(svc, (union ibv_gid *) rec->port_gid,
+					   &svc->port->gid);
 			return 1;
 		}
 		break;
 	case SSA_METHOD_DELETE:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
 			core_process_leave(core, umad);
+			return 1;
+		}
+		break;
+	case UMAD_METHOD_GET_RESP:
+		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
+			core_process_parent_set(core, umad);
+			return 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+
+samad:
+	umad_sa = &msg->data.umad_sa;
+	if (umad_sa->umad.status)
+		return 0;
+
+	switch (umad_sa->packet.mad_hdr.method) {
+	case UMAD_METHOD_GET_RESP:
+		if (ntohs(umad_sa->packet.mad_hdr.attr_id) == UMAD_SA_ATTR_PATH_REC) {
+			core_process_path_rec(core, umad_sa);
 			return 1;
 		}
 		break;

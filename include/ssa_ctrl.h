@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013 Intel Corporation. All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -46,7 +47,8 @@ enum ssa_ctrl_msg_type {
 	SSA_CTRL_EXIT,
 	SSA_CTRL_ACK,
 	SSA_CTRL_DEV_EVENT,
-	SSA_CTRL_MAD		/* struct ssa_umad */
+	SSA_CTRL_MAD,		/* struct ssa_umad */
+	SSA_SA_MAD		/* struct sa_umad */
 };
 
 struct ssa_ctrl_msg {
@@ -70,6 +72,7 @@ struct ssa_ctrl_msg_buf {
 	union {
 		enum ibv_event_type	event;
 		struct ssa_umad		umad;
+		struct sa_umad		umad_sa;
 	} data;
 };
 

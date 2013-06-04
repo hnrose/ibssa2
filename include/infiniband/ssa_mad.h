@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2012-2013 Mellanox Technologies LTD. All rights reserved.
  * Copyright (c) 2012-2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2012 Lawrence Livermore National Securities.  All rights reserved.
  *
@@ -88,6 +88,10 @@ struct ssa_umad {
 	struct ssa_mad_packet	packet;
 };
 
+struct sa_umad {
+	struct ib_user_mad	umad;
+	struct umad_sa_packet	packet;
+};
 
 /**
  * An AppSet(SSAMemberRecord) request indicates that port/service/pkey wishes

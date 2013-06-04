@@ -233,12 +233,23 @@ static struct ssa_svc *ssa_find_svc(struct ssa_port *port, uint64_t database_id)
 	return NULL;
 }
 
-static void ssa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
-			     uint8_t method, uint16_t attr_id)
+void ssa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
+		      uint8_t method, uint16_t attr_id)
 {
 	hdr->base_version = UMAD_BASE_VERSION;
 	hdr->mgmt_class = SSA_CLASS;
 	hdr->class_version = SSA_CLASS_VERSION;
+	hdr->method = method;
+	hdr->tid = ssa_svc_tid(svc);
+	hdr->attr_id = htons(attr_id);
+}
+
+static void sa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
+			    uint8_t method, uint16_t attr_id)
+{
+	hdr->base_version = UMAD_BASE_VERSION;
+	hdr->mgmt_class = UMAD_CLASS_SUBN_ADM;
+	hdr->class_version = UMAD_SA_CLASS_VERSION;
 	hdr->method = method;
 	hdr->tid = ssa_svc_tid(svc);
 	hdr->attr_id = htons(attr_id);
@@ -255,6 +266,25 @@ static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
 	memcpy(rec->port_gid, svc->port->gid.raw, 16);
 	rec->database_id = htonll(svc->database_id);
 	rec->node_type = svc->port->dev->ssa->node_type;
+}
+
+static void sa_init_path_query(struct ssa_svc *svc, struct umad_sa_packet *mad,
+			       union ibv_gid *dgid, union ibv_gid *sgid)
+{
+	struct ibv_path_record *path;
+
+	sa_init_mad_hdr(svc, &mad->mad_hdr, UMAD_METHOD_GET,
+			UMAD_SA_ATTR_PATH_REC);
+	mad->comp_mask = htonll(((uint64_t)1) << 2 |	/* DGID */
+				((uint64_t)1) << 3 |	/* SGID */
+				((uint64_t)1) << 11 |	/* Reversible */
+				((uint64_t)1) << 13);	/* P_Key */
+
+	path = (struct ibv_path_record *) &mad->data;
+	memcpy(path->dgid.raw, dgid, 16);
+	memcpy(path->sgid.raw, sgid, 16);
+	path->reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
+	path->pkey = 0xFFFF;	/* default partition */
 }
 
 static void ssa_svc_join(struct ssa_svc *svc)
@@ -277,6 +307,24 @@ static void ssa_svc_join(struct ssa_svc *svc)
 			"ERROR - failed to send join request\n");
 		svc->state = SSA_STATE_IDLE;
 	}
+}
+
+void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
+			union ibv_gid *sgid)
+{
+	struct sa_umad umad;
+	int ret;
+
+	memset(&umad, 0, sizeof umad);
+	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
+	sa_init_path_query(svc, &umad.packet, dgid, sgid);
+
+	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
+			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - failed to send path query to SA\n");
+        }
 }
 
 static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
@@ -336,6 +384,10 @@ static void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 
 	if (ntohs(umad->packet.mad_hdr.attr_id) != SSA_ATTR_INFO_REC)
 		return;
+
+	umad->packet.mad_hdr.method = UMAD_METHOD_GET_RESP;
+	umad_send(svc->port->mad_portid, svc->port->mad_agentid,
+		  (void *) umad, sizeof umad->packet, 0, 0);
 
 	switch (svc->state) {
 	case SSA_STATE_ORPHAN:
@@ -477,6 +529,10 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	if ((msg.umad.packet.mad_hdr.method & UMAD_METHOD_RESP_MASK) ||
 	     msg.umad.umad.status) {
 		svc = ssa_svc_from_tid(port, msg.umad.packet.mad_hdr.tid);
+		if (msg.umad.packet.mad_hdr.mgmt_class == UMAD_CLASS_SUBN_ADM)
+			msg.hdr.type = SSA_SA_MAD;
+		else
+			msg.hdr.type = SSA_CTRL_MAD;
 	} else {
 		switch (ntohs(msg.umad.packet.mad_hdr.attr_id)) {
 		case SSA_ATTR_INFO_REC:
@@ -491,6 +547,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 			svc = NULL;
 			break;
 		}
+		msg.hdr.type = SSA_CTRL_MAD;
 	}
 
 	if (!svc) {
@@ -499,7 +556,6 @@ static void ssa_ctrl_port(struct ssa_port *port)
 		return;
 	}
 
-	msg.hdr.type = SSA_CTRL_MAD;
 	msg.hdr.len = sizeof msg;
 	/* set qkey for possible response */
 	msg.umad.umad.addr.qkey = htonl(UMAD_QKEY);
@@ -752,12 +808,24 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 		SSA_CLASS, SSA_CLASS_VERSION, 0, methods);
 	if (port->mad_agentid < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - unable to register MAD client on port %s\n",
+			"ERROR - unable to register SSA class on port %s\n",
 			port->name);
 		goto err;
 	}
 
+	/* Only registering for solicited SA MADs */
+	port->sa_agentid = umad_register(port->mad_portid,
+		UMAD_CLASS_SUBN_ADM, UMAD_SA_CLASS_VERSION, 0, NULL);
+	if (port->sa_agentid < 0) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - unable to register SA class on port %s\n",
+			port->name);
+		goto err2;
+	}
+
 	return;
+err2:
+	umad_unregister(port->mad_portid, port->mad_agentid);
 err:
 	umad_close_port(port->mad_portid);
 }
@@ -864,6 +932,8 @@ static void ssa_close_port(struct ssa_port *port)
 	if (port->svc)
 		free(port->svc);
 
+	if (port->sa_agentid >= 0)
+		umad_unregister(port->mad_portid, port->sa_agentid);
 	if (port->mad_agentid >= 0)
 		umad_unregister(port->mad_portid, port->mad_agentid);
 	if (port->mad_portid >= 0)

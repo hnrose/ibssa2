@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009-2013 Intel Corporation. All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the OpenIB.org BSD license
  * below:
@@ -135,6 +136,7 @@ struct ssa_port {
 	char			name[SSA_NAME_SIZE];
 	int			mad_portid;
 	int			mad_agentid;
+	int			sa_agentid;
 	//pthread_mutex_t		lock;
 	enum ibv_port_state	state;
 	union ibv_gid		gid;
@@ -201,6 +203,11 @@ static inline struct ssa_port *ssa_dev_port(struct ssa_device *dev, int port_num
 int ssa_init(struct ssa_class *ssa, uint8_t node_type,
 	     size_t dev_size, size_t port_size);
 void ssa_cleanup(struct ssa_class *ssa);
+
+void ssa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
+		      uint8_t method, uint16_t attr_id);
+void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
+			union ibv_gid *sgid);
 
 #ifdef __cplusplus
 }
