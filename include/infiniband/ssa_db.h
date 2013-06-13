@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2012-2013 Mellanox Technologies LTD. All rights reserved.
  * Copyright (c) 2012-2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2012 Lawrence Livermore National Securities.  All rights reserved.
  *
@@ -280,6 +280,32 @@ struct ssa_db_msg {
 	struct db_dataset	info;
 };
 
+void ssa_db_def_init(struct db_def * p_db_def, uint8_t version,
+		     uint8_t size, uint8_t db_id, uint8_t table_id,
+		     uint8_t field_id, const char * name,
+		     uint32_t table_def_size);
+
+void ssa_db_dataset_init(struct db_dataset * p_dataset,
+			 uint8_t version, uint8_t size,
+			 uint8_t access, uint8_t db_id,
+			 uint8_t table_id, uint8_t field_id,
+			 uint64_t epoch, uint64_t set_size,
+			 uint64_t set_offset, uint64_t set_count);
+
+void ssa_db_table_def_insert(struct db_table_def * p_tbl,
+			     struct db_dataset * p_dataset,
+			     uint8_t version, uint8_t size,
+			     uint8_t type, uint8_t access,
+			     uint8_t db_id, uint8_t table_id,
+			     uint8_t field_id, const char * name,
+			     uint32_t record_size, uint32_t ref_table_id);
+
+void ssa_db_field_def_insert(struct db_field_def * p_tbl,
+			     struct db_dataset * p_dataset,
+			     uint8_t version, uint8_t type,
+			     uint8_t db_id, uint8_t table_id,
+			     uint8_t field_id, const char * name,
+			     uint32_t field_size, uint32_t field_offset);
 #ifdef __cplusplus
 }
 #endif
