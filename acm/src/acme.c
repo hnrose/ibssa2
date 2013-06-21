@@ -64,6 +64,7 @@ static char *src_arg;
 static char addr_type = 'u';
 static int verify;
 static int nodelay;
+static int repetitions = 1;
 
 enum perf_query_output {
 	PERF_QUERY_NONE,
@@ -92,6 +93,7 @@ static void show_usage(char *program)
 	printf("   [-c]             - read ACM cached data only\n");
 	printf("   [-P]             - query performance data from destination service\n");
 	printf("   [-S svc_addr]    - address of ACM service, default: local service\n");
+	printf("   [-C repetitions] - repeat count for resolution\n");
 	printf("usage 2: %s\n", program);
 	printf("Generate default ibacm service configuration and option files\n");
 	printf("   -A [addr_file]   - generate local address configuration file\n");
@@ -821,7 +823,7 @@ static int resolve_ip(struct ibv_path_record *path)
 	}
 
 	ret = ib_acm_resolve_ip(saddr, (struct sockaddr *) &dest,
-		&paths, &count, get_resolve_flags());
+		&paths, &count, get_resolve_flags(), (repetitions == 1));
 	if (ret) {
 		printf("ib_acm_resolve_ip failed: %s\n", strerror(errno));
 		return ret;
@@ -837,7 +839,7 @@ static int resolve_name(struct ibv_path_record *path)
 	struct ibv_path_data *paths;
 	int ret, count;
 
-	ret = ib_acm_resolve_name(src_addr, dest_addr, &paths, &count, get_resolve_flags());
+	ret = ib_acm_resolve_name(src_addr, dest_addr, &paths, &count, get_resolve_flags(), (repetitions == 1));
 	if (ret) {
 		printf("ib_acm_resolve_name failed: %s\n", strerror(errno));
 		return ret;
@@ -972,7 +974,7 @@ static int resolve(char *svc)
 {
 	char **dest_list, **src_list;
 	struct ibv_path_record path = {};
-	int ret = 0, d = 0, s = 0;
+	int ret = 0, d = 0, s = 0, i;
 	char dest_type;
 
 	dest_list = parse(dest_arg, NULL);
@@ -992,23 +994,25 @@ static int resolve(char *svc)
 			printf("Destination: %s\n", dest_addr);
 			if (src_addr)
 				printf("Source: %s\n", src_addr);
-			switch (dest_type) {
-			case 'i':
-				ret = resolve_ip(&path);
-				break;
-			case 'n':
-				ret = resolve_name(&path);
-				break;
-			case 'l':
-				memset(&path, 0, sizeof path);
-				ret = resolve_lid(&path);
-				break;
-			case 'g':
-				memset(&path, 0, sizeof path);
-				ret = resolve_gid(&path);
-				break;
-			default:
-				break;
+			for (i = 0; i < repetitions; i++) {
+				switch (dest_type) {
+				case 'i':
+					ret = resolve_ip(&path);
+					break;
+				case 'n':
+					ret = resolve_name(&path);
+					break;
+				case 'l':
+					memset(&path, 0, sizeof path);
+					ret = resolve_lid(&path);
+					break;
+				case 'g':
+					memset(&path, 0, sizeof path);
+					ret = resolve_gid(&path);
+					break;
+				default:
+					break;
+				}
 			}
 
 			if (!ret)
@@ -1119,7 +1123,7 @@ int main(int argc, char **argv)
 	int make_addr = 0;
 	int make_opts = 0;
 
-	while ((op = getopt(argc, argv, "f:s:d:vcA::O::D:P::S:V")) != -1) {
+	while ((op = getopt(argc, argv, "f:s:d:vcA::O::D:P::S:C:V")) != -1) {
 		switch (op) {
 		case 'f':
 			addr_type = optarg[0];
@@ -1160,6 +1164,11 @@ int main(int argc, char **argv)
 			break;
 		case 'S':
 			svc_arg = optarg;
+			break;
+		case 'C':
+			repetitions = atoi(optarg);
+			if (!repetitions)
+				repetitions = 1;
 			break;
 		case 'V':
 			verbose = 1;
