@@ -170,6 +170,11 @@ static atomic_t counter[ACM_MAX_COUNTER];
 
 static int acm_issue_query_done;
 
+enum acm_addr_preload {
+	ACM_ADDR_PRELOAD_NONE,
+	ACM_ADDR_PRELOAD_HOSTS
+};
+
 /*
  * Service options - may be set through ibacm_opts.cfg file.
  */
@@ -178,6 +183,7 @@ static char *opts_file = RDMA_CONF_DIR "/" ACM_OPTS_FILE;
 static char *addr_file = RDMA_CONF_DIR "/" ACM_ADDR_FILE;
 static char route_data_file[128] = RDMA_CONF_DIR "/ibacm_route.data";
 static char route_data_dir[128] = RDMA_CONF_DIR "/ssa_db";
+static char addr_data_file[128] = RDMA_CONF_DIR "/ibacm_hosts.data";
 static char log_file[128] = "/var/log/ibacm.log";
 static char lock_file[128] = "/var/run/ibacm.pid";
 static enum acm_addr_prot addr_prot = ACM_ADDR_PROT_ACM;
@@ -195,6 +201,7 @@ static int recv_depth = 1024;
 static uint8_t min_mtu = IBV_MTU_2048;
 static uint8_t min_rate = IBV_RATE_10_GBPS;
 static enum acm_route_preload route_preload;
+static enum acm_addr_preload addr_preload;
 static enum acm_mode acm_mode = ACM_MODE_SSA;
 static uint64_t *lid2guid_cached = NULL;
 static useconds_t acm_query_timeout = ACM_DEFAULT_QUERY_TIMEOUT;
@@ -2615,6 +2622,16 @@ static enum acm_route_preload acm_convert_route_preload(char *param)
 	return route_preload;
 }
 
+static enum acm_route_preload acm_convert_addr_preload(char *param)
+{
+	if (!strcasecmp("none", param) || !strcasecmp("no", param))
+		return ACM_ADDR_PRELOAD_NONE;
+	else if (!strcasecmp("acm_hosts", param))
+		return ACM_ADDR_PRELOAD_HOSTS;
+
+	return addr_preload;
+}
+
 static enum acm_mode acm_convert_mode(char *param)
 {
 	if (!strcasecmp("acm", param))
@@ -3267,6 +3284,80 @@ err:
 	return ret;
 }
 
+static void acm_parse_hosts_file(struct acm_ep *ep)
+{
+	FILE *f;
+	char s[120];
+	char addr[INET6_ADDRSTRLEN], gid[INET6_ADDRSTRLEN];
+	uint8_t name[ACM_MAX_ADDRESS];
+	struct in6_addr ip_addr, ib_addr;
+	struct acm_dest *dest, *new_dest;
+	uint8_t addr_type;
+
+	if (!(f = fopen(addr_data_file, "r"))) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't open %s\n",
+			addr_data_file);
+		return;
+        }
+
+	while (fgets(s, sizeof s, f)) {
+		if (s[0] == '#')
+			continue;
+
+		if (sscanf(s, "%46s%46s", addr, gid) != 2)
+			continue;
+
+		ssa_log(SSA_LOG_VERBOSE, "%s", s);
+		if (inet_pton(AF_INET6, gid, &ib_addr) <= 0) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - %s is not IB GID\n", gid);
+			continue;
+		}
+		if (inet_pton(AF_INET, addr, &ip_addr) > 0)
+			addr_type = ACM_ADDRESS_IP;
+		else if (inet_pton(AF_INET6, addr, &ip_addr) > 0)
+			addr_type = ACM_ADDRESS_IP6;
+		else {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - %s is not IP address\n", addr);
+			continue;
+		}
+
+		memset(name, 0, ACM_MAX_ADDRESS);
+		memcpy(name, &ib_addr, sizeof(ib_addr));
+		dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
+		if (!dest) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - IB GID %s not found in cache\n", gid);
+			continue;
+		}
+
+		memset(name, 0, ACM_MAX_ADDRESS);
+		if (addr_type == ACM_ADDRESS_IP)
+			memcpy(name, &ip_addr, 4);
+		else
+			memcpy(name, &ip_addr, sizeof(ip_addr));
+		new_dest = acm_acquire_dest(ep, addr_type, name);
+		if (!new_dest) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to create dest %s\n", addr);
+			continue;
+		}
+		new_dest->path = dest->path;
+		new_dest->remote_qpn = dest->remote_qpn;
+		new_dest->addr_timeout = dest->addr_timeout;
+		new_dest->route_timeout = dest->route_timeout;
+		new_dest->state = dest->state;
+		acm_put_dest(new_dest);
+		acm_put_dest(dest);
+		ssa_log(SSA_LOG_VERBOSE,
+			"added host %s address type %d IB GID %s\n",
+			addr, addr_type, gid);
+	}
+
+	fclose(f);
+}
+
 static int acm_assign_ep_names(struct acm_ep *ep)
 {
 	FILE *faddr;
@@ -3341,6 +3432,11 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 	return !index;
 }
 
+/*
+ * We currently require that the routing data be preloaded in order to
+ * load the address data.  This is backwards from normal operation, which
+ * usually resolves the address before the route.
+ */
 static void acm_ep_preload(struct acm_ep *ep)
 {
 	switch (route_preload) {
@@ -3351,6 +3447,14 @@ static void acm_ep_preload(struct acm_ep *ep)
 	case ACM_ROUTE_PRELOAD_ACCESS_V1:
 		if (acm_parse_access_v1(ep))
 			ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to preload EP\n");
+		break;
+	default:
+		return;
+	}
+
+	switch (addr_preload) {
+	case ACM_ADDR_PRELOAD_HOSTS:
+		acm_parse_hosts_file(ep);
 		break;
 	default:
 		break;
@@ -4123,6 +4227,10 @@ static void acm_set_options(void)
 		        strcpy(route_data_file, value);
 		else if (!strcasecmp("route_data_dir", opt))
 		        strcpy(route_data_dir, value);
+		else if (!strcasecmp("addr_preload", opt))
+			addr_preload = acm_convert_addr_preload(value);
+		else if (!strcasecmp("addr_data_file", opt))
+			strcpy(addr_data_file, value);
 		else if (!strcasecmp("acm_mode", opt))
 			acm_mode = acm_convert_mode(value);
 		else if (!strcasecmp("acm_query_timeout", opt))
@@ -4167,6 +4275,8 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "route preload %d\n", route_preload);
 	ssa_log(SSA_LOG_DEFAULT, "route data file %s\n", route_data_file);
 	ssa_log(SSA_LOG_DEFAULT, "route data directory %s\n", route_data_dir);
+	ssa_log(SSA_LOG_DEFAULT, "address preload %d\n", addr_preload);
+	ssa_log(SSA_LOG_DEFAULT, "address data file %s\n", addr_data_file);
 	ssa_log(SSA_LOG_DEFAULT, "acm mode %d\n", acm_mode);
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_timeout %lu\n",acm_query_timeout);
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_retries %d\n", acm_query_retries);
