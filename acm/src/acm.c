@@ -3291,7 +3291,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	char addr[INET6_ADDRSTRLEN], gid[INET6_ADDRSTRLEN];
 	uint8_t name[ACM_MAX_ADDRESS];
 	struct in6_addr ip_addr, ib_addr;
-	struct acm_dest *dest, *new_dest;
+	struct acm_dest *dest, *gid_dest;
 	uint8_t addr_type;
 
 	if (!(f = fopen(addr_data_file, "r"))) {
@@ -3313,22 +3313,13 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 				"ERROR - %s is not IB GID\n", gid);
 			continue;
 		}
-		if (inet_pton(AF_INET, addr, &ip_addr) > 0)
+		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
 			addr_type = ACM_ADDRESS_IP;
-		else if (inet_pton(AF_INET6, addr, &ip_addr) > 0)
+		} else if (inet_pton(AF_INET6, addr, &ip_addr) > 0) {
 			addr_type = ACM_ADDRESS_IP6;
-		else {
+		} else {
 			ssa_log(SSA_LOG_DEFAULT,
 				"ERROR - %s is not IP address\n", addr);
-			continue;
-		}
-
-		memset(name, 0, ACM_MAX_ADDRESS);
-		memcpy(name, &ib_addr, sizeof(ib_addr));
-		dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
-		if (!dest) {
-			ssa_log(SSA_LOG_DEFAULT,
-				"ERROR - IB GID %s not found in cache\n", gid);
 			continue;
 		}
 
@@ -3337,18 +3328,41 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 			memcpy(name, &ip_addr, 4);
 		else
 			memcpy(name, &ip_addr, sizeof(ip_addr));
-		new_dest = acm_acquire_dest(ep, addr_type, name);
-		if (!new_dest) {
+		dest = acm_acquire_dest(ep, addr_type, name);
+		if (!dest) {
 			ssa_log(SSA_LOG_DEFAULT,
 				"ERROR - unable to create dest %s\n", addr);
 			continue;
 		}
-		new_dest->path = dest->path;
-		new_dest->remote_qpn = dest->remote_qpn;
-		new_dest->addr_timeout = dest->addr_timeout;
-		new_dest->route_timeout = dest->route_timeout;
-		new_dest->state = dest->state;
-		acm_put_dest(new_dest);
+
+		memset(name, 0, ACM_MAX_ADDRESS);
+		memcpy(name, &ib_addr, sizeof(ib_addr));
+		gid_dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
+		if (gid_dest) {
+			dest->path = gid_dest->path;
+			dest->state = ACM_READY;
+			acm_put_dest(gid_dest);
+		} else {
+			memcpy(&dest->path.dgid, &ib_addr, 16);
+			if (acm_mode == ACM_MODE_ACM) {
+				//ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
+				//		((struct acm_port *)ep->port)->port_num,
+				//		0, &dest->path.sgid);
+				dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
+			} else {	/* ACM_MODE_SSA */
+				//ibv_query_gid(((struct ssa_port *)ep->port)->dev->verbs,
+				//		((struct ssa_port *)ep->port)->port_num,
+				//		0, &dest->path.sgid);
+				dest->path.slid = htons(((struct ssa_port *)ep->port)->lid);
+			}
+			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
+			dest->path.pkey = htons(ep->pkey);
+			dest->state = ACM_ADDR_RESOLVED;
+		}
+
+		dest->remote_qpn = 1;
+		dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
+		dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
 		acm_put_dest(dest);
 		ssa_log(SSA_LOG_VERBOSE,
 			"added host %s address type %d IB GID %s\n",
@@ -3449,7 +3463,7 @@ static void acm_ep_preload(struct acm_ep *ep)
 			ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to preload EP\n");
 		break;
 	default:
-		return;
+		break;
 	}
 
 	switch (addr_preload) {
