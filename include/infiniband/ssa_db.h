@@ -130,6 +130,7 @@ enum {
  * the corresponding table.
  */
 #define DBT_DEF_VERSION 0
+#define DBT_DEF_NO_RELATED_TBL 0xFFFFFFFF
 struct db_table_def {
 	uint8_t		version;
 	uint8_t		size;
