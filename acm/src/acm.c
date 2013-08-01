@@ -3635,6 +3635,7 @@ void acm_ep_up(void *port, uint16_t pkey_index)
 	if (ret)
 		return;
 
+	pkey = ntohs(pkey);	/* ibv_query_pkey returns pkey in network order */
 	if (acm_find_ep(port, pkey)) {
 		ssa_log(SSA_LOG_VERBOSE,
 			"endpoint for pkey 0x%x already exists\n", pkey);
