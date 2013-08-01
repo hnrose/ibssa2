@@ -3648,7 +3648,7 @@ void acm_ep_up(void *port, uint16_t pkey_index)
 
 	ret = acm_assign_ep_names(ep);
 	if (ret) {
-		ssa_log_err(0, "unable to assign EP name\n");
+		ssa_log_err(0, "unable to assign EP name for pkey 0x%x\n", pkey);
 		goto err0;
 	}
 
