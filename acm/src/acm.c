@@ -875,7 +875,7 @@ static void acm_init_path_query(struct ib_sa_mad *mad)
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
 	mad->class_version = UMAD_SA_CLASS_VERSION;
 	mad->method = IB_METHOD_GET;
-	mad->tid = (uint64_t) atomic_inc(&tid);
+	mad->tid = htonll((uint64_t) atomic_inc(&tid));
 	mad->attr_id = IB_SA_ATTR_PATH_REC;
 }
 
@@ -1543,7 +1543,7 @@ static void acm_init_join(struct ib_sa_mad *mad, union ibv_gid *port_gid,
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
 	mad->class_version = UMAD_SA_CLASS_VERSION;
 	mad->method = IB_METHOD_SET;
-	mad->tid = (uint64_t) atomic_inc(&tid);
+	mad->tid = htonll((uint64_t) atomic_inc(&tid));
 	mad->attr_id = IB_SA_ATTR_MC_MEMBER_REC;
 	mad->comp_mask =
 		IB_COMP_MASK_MC_MGID | IB_COMP_MASK_MC_PORT_GID |
@@ -2077,7 +2077,7 @@ acm_send_resolve(struct acm_ep *ep, struct acm_dest *dest,
 	mad->class_version = ACM_CLASS_VERSION;
 	mad->method = IB_METHOD_GET;
 	mad->control = ACM_CTRL_RESOLVE;
-	mad->tid = (uint64_t) atomic_inc(&tid);
+	mad->tid = htonll((uint64_t) atomic_inc(&tid));
 
 	rec = (struct acm_resolve_rec *) mad->data;
 	rec->src_type = (uint8_t) saddr->type;
