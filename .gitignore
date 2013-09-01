@@ -1,13 +1,77 @@
-# http://www.gnu.org/software/automake
+###################
+# Compiled source #
+###################
+*.slo
+*.lo
+*.o
+*.so
+*.dylib
+*.lai
+*.la
+*.a
+*.exe
+*.out
+*.app
 
+.deps/
+.libs/
+libtool
+config.h
+
+######################
+# Windows specific   #
+#####################
+[Ww]in[87][Dd]ebug/
+[Ww]in[87][Rr]elease/
+Vista[Dd]ebug/
+Vista[Rr]elease
+*vcxproj.user
+*.sdf
+*.opensdf
+*.v11.suo
+
+###################
+# Autoconfigure   #
+###################
+autom4te.cache
+aclocal.m4
+config
+config.log
+config.status
+configure
+ibutils2.spec
+INSTALL
+Makefile
 Makefile.in
+COPYING
+!./COPYING
+stamp-h1
+config.h.in
+*.spec
+configure.in
+ssaaccesslayer.spec.in
+####################
+# git files        #
+####################
+.gitignore
 
-# http://www.gnu.org/software/autoconf
+#####################
+#   dumps           #
+#####################
+core.*
 
-/autom4te.cache
-/aclocal.m4
-/compile
-/configure
-/depcomp
-/install-sh
-/missing
+#####################
+#   vim temp files  #
+#####################
+*~
+*.swo
+
+#####################
+# ctags temp files  #
+#####################
+tags
+
+#####################
+# testers           #
+#####################
+tests/pr_pair/pr_pair
