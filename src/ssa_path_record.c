@@ -185,7 +185,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb* p_ssa_db_smdb,
 					if(NULL!=dump_clbk)
 						dump_clbk(&path_prm,clbk_prm);
 				}else if(SSA_PR_ERROR == path_res)
-					ssa_log(SSA_LOG_VERBOSE,"Path record calucation is failed. Source LID: %"SCNu16", dest LID: %"SCNu16"\n"); 
+					ssa_log(SSA_LOG_VERBOSE,"Path record calucation is failed. Source LID: %x"SCNu16", dest LID: %x"SCNu16"\n",ntohs(source_lid),ntohs(dest_lid)); 
 				
 			}
 		}
@@ -216,7 +216,7 @@ static int find_destination_port(const struct ssa_db_smdb* p_ssa_db_smdb,
 	for (i = 0; i < lft_top_count && source_lid !=p_lft_top_tbl[i].lid ; i++);
 	if(i >= lft_top_count || dest_lid > p_lft_top_tbl[i].lft_top){
 		ssa_log(SSA_LOG_VERBOSE,"Error: Source lid: %"SCNx16" Destination lid: %"SCNx16" Current lft top block index: %u top lid in the block: %u\n",
-			source_lid,i,p_lft_top_tbl[i].lft_top);
+			ntohs(source_lid),i,p_lft_top_tbl[i].lft_top);
 		return -1;
 	}
 
@@ -225,7 +225,7 @@ static int find_destination_port(const struct ssa_db_smdb* p_ssa_db_smdb,
 			return p_lft_block_tbl[i].block[lft_port_num];
 
 	ssa_log(SSA_LOG_VERBOSE,"Path not found.  Switch lid: %"SCNx16" Destination lid: %"SCNx16" block index: %u index in  the block: %u\n",
-			source_lid,dest_lid,ntohs(lft_block_num),lft_port_num);
+			ntohs(source_lid),ntohs(dest_lid),ntohs(lft_block_num),lft_port_num);
 
 	return LFT_NO_PATH ;
 }

@@ -52,8 +52,8 @@ typedef enum _ssa_pr_status_t {
 
 typedef struct ssa_path_parms {
 	be64_t from_guid;
-	be16_t from_lid;
 	be64_t to_guid;
+	be16_t from_lid;
 	be16_t to_lid;
 	be16_t pkey;
 	uint8_t mtu;
