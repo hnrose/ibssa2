@@ -1,0 +1,38 @@
+Name: ibssa_distrib
+Version: 0.0.1
+Release: 1%{?dist}
+Summary: Scalable SA Distribution/Access
+
+Group: System Environment/Daemons
+License: GPLv2 or BSD
+Url: http://www.openfabrics.org/
+Source0: http://www.openfabrics.org/downloads/rdmacm/%{name}-%{version}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+ 
+BuildRequires: libibverbs-devel >= 1.1-1, autoconf, libtool, libibumad-devel
+Requires(post): /sbin/chkconfig
+Requires(preun): /sbin/chkconfig
+ExcludeArch: s390, s390x
+
+%description
+The %{name} daemon is part of the Scalable SA which is comprised of
+OpenSM plugin and core, distribution/access, and ACM (consumer).
+
+%build
+aclocal -I config && libtoolize --force --copy && autoheader && \
+        automake --foreign --add-missing --copy && autoconf
+%configure CFLAGS="$CXXFLAGS -fno-strict-aliasing" LDFLAGS=-lpthread
+make %{?_smp_mflags}
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
+%makeinstall
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-,root,root,-)
+%{_sbindir}/ibssa_distrib
+
