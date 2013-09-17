@@ -27,6 +27,8 @@ dnl Checks for libraries
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
     AC_MSG_ERROR([ibv_get_device_list() not found.  ibacm requires libibverbs.]))
+AC_CHECK_LIB(rdmacm, rselect, [],
+    AC_MSG_ERROR([rselect() not found.  ibacm requires librdmacm.]))
 AC_CHECK_LIB(ibumad, umad_send, [],
     AC_MSG_ERROR([umad_send() not found.  ibacm requires libibumad.]))
 fi
@@ -36,6 +38,8 @@ AC_HEADER_STDC
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_HEADER(infiniband/verbs.h, [],
     AC_MSG_ERROR([<infiniband/verbs.h> not found.  Is libibverbs installed?]))
+AC_CHECK_HEADER(rdma/rsocket.h, [],
+    AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librsocket installed?]))
 AC_CHECK_HEADER(infiniband/umad.h, [],
     AC_MSG_ERROR([<infiniband/umad.h> not found.  Is libibumad installed?]))
 fi

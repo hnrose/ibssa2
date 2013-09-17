@@ -20,7 +20,7 @@ src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
 		$(libopensmssa_version_script)
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map \
 		$(GLIB_LIBS)
-src_libopensmssa_la_LIBADD = -L$(libdir) -losmcomp
+src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp
 
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h

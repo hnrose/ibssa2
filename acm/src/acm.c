@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009-2013 Intel Corporation. All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the OpenIB.org BSD license
  * below:
@@ -40,6 +41,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <rdma/rsocket.h>
 #include <infiniband/acm.h>
 #include <infiniband/verbs.h>
 #include <infiniband/ssa_mad.h>
@@ -2370,7 +2372,7 @@ static void acm_server(void)
 			}
 		}
 
-		ret = select(n + 1, &readfds, NULL, NULL, NULL);
+		ret = rselect(n + 1, &readfds, NULL, NULL, NULL);
 		if (ret == -1) {
 			ssa_log(SSA_LOG_DEFAULT, "ERROR - server select error\n");
 			continue;

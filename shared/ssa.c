@@ -46,6 +46,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <rdma/rsocket.h>
 #include <syslog.h>
 #include <infiniband/acm.h>
 #include <infiniband/umad.h>
@@ -649,7 +650,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 	ssa_ctrl_activate_ports(ssa);
 
 	for (;;) {
-		ret = poll(ssa->fds, ssa->nfds, -1);
+		ret = rpoll(ssa->fds, ssa->nfds, -1);
 		if (ret < 0) {
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 				"ERROR polling fds\n");

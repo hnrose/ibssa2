@@ -39,6 +39,8 @@ dnl Check for libraries
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
     AC_MSG_ERROR([ibv_get_device_list() not found.  ibacm requires libibverbs.]))
+AC_CHECK_LIB(rdmacm, rselect, [],
+    AC_MSG_ERROR([rselect() not found.  ibacm requires librdmacm.]))
 AC_CHECK_LIB(ibumad, umad_register, [],
     AC_MSG_ERROR([umad_register() not found.  libibumad is required.]))
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.2])
@@ -65,6 +67,9 @@ CPPFLAGS="$CPPFLAGS -I`eval echo $OSM_INC`"
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_HEADER(opensm/osm_event_plugin.h, [], 
 	AC_MSG_ERROR([opensm/osm_event_plugin.h not found.  opensm event plugin support required.]))
+
+AC_CHECK_HEADER(rdma/rsocket.h, [],
+	AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librsocket installed?]))
 
 AC_CHECK_MEMBER(struct umad_hdr.base_version, [],
     AC_MSG_ERROR([struct umad_hdr not found.  A newer version of libibumad is required.]),

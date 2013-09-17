@@ -8,6 +8,7 @@ svc_ibacm_SOURCES = src/acm.c src/ssa.c
 util_ib_acme_SOURCES = src/acme.c src/libacm.c src/parse.c
 svc_ibacm_CFLAGS = $(AM_CFLAGS)
 util_ib_acme_CFLAGS = $(AM_CFLAGS)
+svc_ibacm_LDADD = -lrdmacm
 
 ibacmincludedir = $(includedir)/infiniband
 
