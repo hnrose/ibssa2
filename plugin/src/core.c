@@ -162,15 +162,15 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 
 	path = (struct ibv_path_record *) &umad->packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
-			SSA_ADDR_GID, (uint8_t *) &path->dgid, sizeof path->dgid);
+			SSA_ADDR_GID, (uint8_t *) &path->sgid, sizeof path->sgid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
 
-	/* Joined port GID is DGID in PathRecord */
-	member = tfind(&path->dgid, &core->member_map, ssa_compare_gid);
+	/* Joined port GID is SGID in PathRecord */
+	member = tfind(&path->sgid, &core->member_map, ssa_compare_gid);
 	if (!member) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
-				(uint8_t *) &path->dgid, sizeof path->dgid);
+				(uint8_t *) &path->sgid, sizeof path->sgid);
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - couldn't find joined port GID %s\n", log_data);
 		return;
@@ -246,8 +246,8 @@ static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			 *
 			 */
 			rec = (struct ssa_member_record *) &umad->packet.data;
-			ssa_svc_query_path(svc, (union ibv_gid *) rec->port_gid,
-					   &svc->port->gid);
+			ssa_svc_query_path(svc, &svc->port->gid,
+					   (union ibv_gid *) rec->port_gid);
 			return 1;
 		}
 		break;
