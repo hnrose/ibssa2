@@ -353,6 +353,8 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf 
 static void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	struct ssa_umad *umad;
+	struct ssa_mad_packet *mad;
+	struct ssa_info_record *info_rec;
 
 	umad = &msg->data.umad;
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
@@ -392,8 +394,12 @@ static void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 
 	switch (svc->state) {
 	case SSA_STATE_ORPHAN:
+		svc->state = SSA_STATE_HAVE_PARENT;
 	case SSA_STATE_HAVE_PARENT:
-		/* TODO save parent */
+		mad = &umad->packet;
+		info_rec = (struct ssa_info_record *) &mad->data;
+		memcpy(&svc->primary_parent, &info_rec->path_data,
+		       sizeof(svc->primary_parent));
 		break;
 	case SSA_STATE_CONNECTING:
 	case SSA_STATE_CONNECTED:		/* TODO compare against current parent, if same done */
