@@ -287,21 +287,47 @@ samad:
 	return 0;
 }
 
-static void *distrib_ctrl_handler(void *context)
-{
-	int ret;
-
-	ret = ssa_ctrl_run(&ssa);
-	if (ret)
-		ssa_log(SSA_LOG_DEFAULT, "ERROR processing control\n");
-
-	return context;
-}
-
 static void distrib_init_svc(struct ssa_svc *svc)
 {
 	struct ssa_distrib *distrib= container_of(svc, struct ssa_distrib, svc);
 	DListInit(&distrib->orphan_list);
+}
+
+static void *distrib_ctrl_handler(void *context)
+{
+	struct ssa_svc *svc;
+	int ret, d, p;
+
+	ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
+	ret = ssa_open_devices(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
+		return NULL;
+	}
+
+	for (d = 0; d < ssa.dev_cnt; d++) {
+		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
+			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
+					    SSA_DB_PATH_DATA,
+					    sizeof(struct ssa_distrib),
+					    distrib_process_msg);
+			if (!svc) {
+				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
+				goto close;
+			}
+			distrib_init_svc(svc);
+		}
+	}
+
+	ret = ssa_ctrl_run(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR processing control\n");
+		goto close;
+	}
+close:
+	ssa_log(SSA_LOG_VERBOSE, "closing SSA framework\n");
+	ssa_close_devices(&ssa);
+	return context;
 }
 
 static void distrib_free_member(void *gid)
@@ -323,8 +349,7 @@ static void distrib_destroy_svc(struct ssa_svc *svc)
 
 static void *distrib_construct()
 {
-	struct ssa_svc *svc;
-	int d, p, ret;
+	int ret;
 
 	ret = ssa_init(&ssa, SSA_NODE_DISTRIBUTION, sizeof(struct ssa_device),
 			sizeof(struct ssa_port));
@@ -334,39 +359,12 @@ static void *distrib_construct()
 	/* TODO: ssa_set_options(); */
 	ssa_set_log_level(SSA_LOG_ALL);
 	if (ssa_open_lock_file(lock_file))
-		goto err1;
+		return NULL;
 
 	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
 	ssa_log_options();
-
-	ret = ssa_open_devices(&ssa);
-	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
-		goto err1;
-	}
-
-	for (d = 0; d < ssa.dev_cnt; d++) {
-		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
-					    SSA_DB_PATH_DATA, sizeof(struct ssa_distrib),
-					    distrib_process_msg);
-			if (!svc) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
-				goto err2;
-			}
-			distrib_init_svc(svc);
-		}
-	}
-
-	pthread_create(&ctrl_thread, NULL, distrib_ctrl_handler, NULL);
 	return &ssa;
-
-err2:
-	ssa_close_devices(&ssa);
-err1:
-	ssa_cleanup(&ssa);
-	return NULL;
 }
 
 static void distrib_destroy()
@@ -375,7 +373,6 @@ static void distrib_destroy()
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	ssa_ctrl_stop(&ssa);
-	pthread_join(ctrl_thread, NULL);
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
@@ -420,6 +417,9 @@ int main(int argc, char **argv)
 	ssa = distrib_construct();
 	if (!ssa)
 		return -1;
+
+	pthread_create(&ctrl_thread, NULL, distrib_ctrl_handler, NULL);
+	pthread_join(ctrl_thread, NULL);
 
 	distrib_destroy();
 	return 0;
