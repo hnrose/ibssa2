@@ -346,7 +346,12 @@ static void *core_construct(osm_opensm_t *opensm)
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
 	ssa_log_options();
 
-	ssa_open_devices(&ssa);
+	ret = ssa_open_devices(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
+		goto err1;
+	}
+
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
