@@ -40,8 +40,8 @@
 
 #define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
 
-static char log_file[128] = "/var/log/ibssa_distrib.log";
-static char lock_file[128] = "/var/run/ibssa_distrib.pid";
+static char log_file[128] = "/var/log/ibssa.log";
+static char lock_file[128] = "/var/run/ibssa.pid";
 
 static int first = 1;
 

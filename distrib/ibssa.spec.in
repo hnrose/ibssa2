@@ -1,4 +1,4 @@
-Name: ibssa_distrib
+Name: ibssa
 Version: 0.0.1
 Release: 1%{?dist}
 Summary: Scalable SA Distribution/Access
@@ -34,5 +34,5 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-%{_sbindir}/ibssa_distrib
+%{_sbindir}/ibssa
 
