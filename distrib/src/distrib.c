@@ -69,7 +69,8 @@ pthread_t ctrl_thread;
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
  */
-static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *umad)
+static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *umad,
+				 struct ssa_svc *svc)
 {
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
@@ -103,6 +104,32 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 	umad->packet.mad_hdr.method = UMAD_METHOD_GET_RESP;
 	umad_send(distrib->svc.port->mad_portid, distrib->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
+
+	/*
+	 * TODO: Really need to wait for first
+	 * SUBNET UP event.
+	 *
+	 * Just a one time artificial delay for now.
+	 */
+	if (first) {
+		usleep(INITIAL_SUBNET_UP_DELAY);
+		first = 0;
+	}
+
+	/*
+	 * For now, issue SA path query here.
+	 * DGID is from incoming join.
+	 * For now (prototype), SGID is from port join came in on.
+	 * Longer term, SGID needs to come from the tree
+	 * calculation code so rather than query PathRecord
+	 * here, this would inform the tree calculation
+	 * that a parent is needed for joining port and
+	 * when parent is determined, then the SA path
+	 * query would be issued.
+	 * 
+	 */
+	ssa_svc_query_path(svc, &svc->port->gid,
+			   (union ibv_gid *) rec->port_gid);
 }
 
 static void distrib_process_leave(struct ssa_distrib *distrib, struct ssa_umad *umad)
@@ -202,7 +229,6 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	struct ssa_distrib *distrib;
 	struct ssa_umad *umad;
 	struct sa_umad *umad_sa;
-	struct ssa_member_record *rec;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	if (msg->hdr.type != SSA_CTRL_MAD && msg->hdr.type != SSA_SA_MAD)
@@ -219,34 +245,7 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	switch (umad->packet.mad_hdr.method) {
 	case UMAD_METHOD_SET:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
-			distrib_process_join(distrib, umad);
-
-			/*
-			 * TODO: Really need to wait for first
-			 * SUBNET UP event.
-			 *
-			 * Just a one time artificial delay for now.
-			 */
-			if (first) {
-				usleep(INITIAL_SUBNET_UP_DELAY);
-				first = 0;
-			}
-
-			/*
-			 * For now, issue SA path query here.
-			 * DGID is from incoming join.
-			 * For now (prototype), SGID is from port join came in on.
-			 * Longer term, SGID needs to come from the tree
-			 * calculation code so rather than query PathRecord
-			 * here, this would inform the tree calculation
-			 * that a parent is needed for joining port and
-			 * when parent is determined, then the SA path
-			 * query would be issued.
-			 *
-			 */
-			rec = (struct ssa_member_record *) &umad->packet.data;
-			ssa_svc_query_path(svc, &svc->port->gid,
-					   (union ibv_gid *) rec->port_gid);
+			distrib_process_join(distrib, umad, svc);
 			return 1;
 		}
 		break;
