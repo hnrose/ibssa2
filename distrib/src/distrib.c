@@ -224,23 +224,41 @@ static void distrib_process_path_rec(struct ssa_distrib *distrib, struct sa_umad
 			"ERROR - failed to send set parent\n");
 }
 
-static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static int distrib_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	struct ssa_distrib *distrib;
-	struct ssa_umad *umad;
 	struct sa_umad *umad_sa;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
-	if (msg->hdr.type != SSA_CTRL_MAD && msg->hdr.type != SSA_SA_MAD)
+	umad_sa = &msg->data.umad_sa;
+	if (umad_sa->umad.status)
 		return 0;
 
 	distrib = container_of(svc, struct ssa_distrib, svc);
-	if (msg->hdr.type == SSA_SA_MAD)
-		goto samad;
+
+	switch (umad_sa->packet.mad_hdr.method) {
+	case UMAD_METHOD_GET_RESP:
+		if (ntohs(umad_sa->packet.mad_hdr.attr_id) == UMAD_SA_ATTR_PATH_REC) {
+			distrib_process_path_rec(distrib, umad_sa);
+			return 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int distrib_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	struct ssa_distrib *distrib;
+	struct ssa_umad *umad;
 
 	umad = &msg->data.umad;
 	if (umad->umad.status)
 		return 0;
+
+	distrib = container_of(svc, struct ssa_distrib, svc);
 
 	switch (umad->packet.mad_hdr.method) {
 	case UMAD_METHOD_SET:
@@ -266,23 +284,19 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	}
 
 	return 0;
+}
 
-samad:
-	umad_sa = &msg->data.umad_sa;
-	if (umad_sa->umad.status)
-		return 0;
-
-	switch (umad_sa->packet.mad_hdr.method) {
-	case UMAD_METHOD_GET_RESP:
-		if (ntohs(umad_sa->packet.mad_hdr.attr_id) == UMAD_SA_ATTR_PATH_REC) {
-			distrib_process_path_rec(distrib, umad_sa);
-			return 1;
-		}
-		break;
+static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
+	switch(msg->hdr.type) {
+	case SSA_CTRL_MAD:
+		return distrib_process_ssa_mad(svc, msg);
+	case SSA_SA_MAD:
+		return distrib_process_sa_mad(svc, msg);
 	default:
 		break;
 	}
-
 	return 0;
 }
 
