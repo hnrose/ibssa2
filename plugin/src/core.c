@@ -71,7 +71,8 @@ static osm_opensm_t *osm;
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
  */
-static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
+static void core_process_join(struct ssa_core *core, struct ssa_umad *umad,
+			      struct ssa_svc *svc)
 {
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
@@ -104,6 +105,32 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	umad->packet.mad_hdr.method = UMAD_METHOD_GET_RESP;
 	umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
+
+	/*
+	 * TODO: Really need to wait for first
+	 * SUBNET UP event.
+	 *
+	 * Just a one time artificial delay for now.
+	 */
+	if (first) {
+		usleep(INITIAL_SUBNET_UP_DELAY);
+		first = 0;
+	}
+
+	/*
+	 * For now, issue SA path query here.
+	 * DGID is from incoming join.
+	 * For now (prototype), SGID is from port join came in on.
+	 * Longer term, SGID needs to come from the tree
+	 * calculation code so rather than query PathRecord
+	 * here, this would inform the tree calculation
+	 * that a parent is needed for joining port and
+	 * when parent is determined, then the SA path
+	 * query would be issued.
+	 *
+	 */
+	ssa_svc_query_path(svc, &svc->port->gid,
+			   (union ibv_gid *) rec->port_gid);
 }
 
 static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
@@ -203,7 +230,6 @@ static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	struct ssa_core *core;
 	struct ssa_umad *umad;
 	struct sa_umad *umad_sa;
-	struct ssa_member_record *rec;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	if (msg->hdr.type != SSA_CTRL_MAD && msg->hdr.type != SSA_SA_MAD)
@@ -220,34 +246,7 @@ static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	switch (umad->packet.mad_hdr.method) {
 	case UMAD_METHOD_SET:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
-			core_process_join(core, umad);
-
-			/*
-			 * TODO: Really need to wait for first
-			 * SUBNET UP event.
-			 *
-			 * Just a one time artificial delay for now.
-			 */
-			if (first) {
-				usleep(INITIAL_SUBNET_UP_DELAY);
-				first = 0;
-			}
-
-			/*
-			 * For now, issue SA path query here.
-			 * DGID is from incoming join.
-			 * For now (prototype), SGID is from port join came in on.
-			 * Longer term, SGID needs to come from the tree
-			 * calculation code so rather than query PathRecord
-			 * here, this would inform the tree calculation
-			 * that a parent is needed for joining port and
-			 * when parent is determined, then the SA path
-			 * query would be issued.
-			 *
-			 */
-			rec = (struct ssa_member_record *) &umad->packet.data;
-			ssa_svc_query_path(svc, &svc->port->gid,
-					   (union ibv_gid *) rec->port_gid);
+			core_process_join(core, umad, svc);
 			return 1;
 		}
 		break;
