@@ -4,7 +4,7 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\
 
 sbin_PROGRAMS = svc/ibssa
 svc_ibssa_SOURCES = src/distrib.c src/ssa.c
-svc_ibssa_CFLAGS = $(AM_CFLAGS) -L/usr/local/lib 
+svc_ibssa_CFLAGS = $(AM_CFLAGS)
 svc_ibssa_LDADD = -lrdmacm
 
 ibssa_includedir = $(includedir)/infiniband
