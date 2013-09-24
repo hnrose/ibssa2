@@ -3040,6 +3040,48 @@ static int acm_open_devices(void)
 	return 0;
 }
 
+static void acm_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	/* First, handle set of parent in SSA */
+	ssa_upstream_mad(svc, msg);
+
+	/* Now, initiate rsocket client connection to parent */
+}
+
+static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	struct ssa_umad *umad;
+
+	umad = &msg->data.umad;
+	if (umad->umad.status)
+		return 0;
+
+	switch (umad->packet.mad_hdr.method) {
+	case UMAD_METHOD_SET:
+		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
+			acm_process_parent_set(svc, msg);
+			return 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
+	switch(msg->hdr.type) {
+	case SSA_CTRL_MAD:
+		return acm_process_ssa_mad(svc, msg);
+	default:
+		break;
+	}
+	return 0;
+}
+
 static void acm_set_options(void)
 {
 	FILE *f;
@@ -3128,7 +3170,7 @@ static void *acm_ctrl_handler(void *context)
 	}
 
 	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
-			    sizeof *svc, NULL);
+			    sizeof *svc, acm_process_msg);
 	if (!svc) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
 		goto close;

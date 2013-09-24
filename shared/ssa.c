@@ -350,7 +350,7 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf 
 	}
 }
 
-static void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	struct ssa_umad *umad;
 	struct ssa_mad_packet *mad;
