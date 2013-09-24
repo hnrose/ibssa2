@@ -50,7 +50,7 @@ AM_CPPFLAGS = $(DBG) -Wall -Werror -g
 
 COV =
 if COVERAGE
-AM_CPPFLAGS += -fprofile-arcs -ftest-coverage
+AM_CPPFLAGS += -fprofile-arcs -ftest-coverage -I config
 COV += -lgcov
 endif
 
@@ -67,12 +67,15 @@ bin_PROGRAMS = pr_pair
 
 # Quiter for the server
 pr_pair_SOURCES = ./pr_pair.c
-pr_pair_CPPFLAGS =  $(INCLUDES) -I$(includedir)  $(DEPS_CFLAGS)  -g
+pr_pair_CPPFLAGS =  $(INCLUDES) -I$(includedir)  $(DEPS_CFLAGS)  -g $(GLIB_CFLAGS)
 pr_pair_LDFLAGS = -L../../.libs -lssaaccesslayer \
 									-L$(OSM_DBHELPER_PATH)\.libs -lssadbhelper \
 									-L$(libdir) -lssa \
 									-L$(exec_prefix)\local\lib \
 									-losmcomp -lopensm -losmvendor  -libumad \
 									-lpthread \
-									-lm
+									$(GLIB_LIBS) -lglib-2.0  \
+									-lm 
+
+#pr_pair_LDADD =  $(GLIB_LIBS)
 

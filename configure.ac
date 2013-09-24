@@ -29,7 +29,7 @@
 
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([ssaaccesslayer],[1.0])
+AC_INIT([ssaaccesslayer],[1.0],[sashakot@mellanox.com])
 AC_CONFIG_SRCDIR([])
 AC_CONFIG_MACRO_DIR(config)
 
@@ -93,6 +93,7 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_CC
 AC_PROG_CXX
+AM_PROG_CC_C_O
 
 dnl We will use libtool for making ...
 AC_PROG_LIBTOOL

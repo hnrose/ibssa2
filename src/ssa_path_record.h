@@ -40,6 +40,12 @@
 
 #define SSA_ACCESS_LAYER_OUTPUT_FILE "ssa_access_layer.log"
 
+#if defined (_DEBUG_)
+#define SSA_ASSERT	assert
+#else				/* _DEBUG_ */
+#define SSA_ASSERT( __exp__ )
+#endif				/* _DEBUG_ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -82,14 +88,30 @@ enum {
 	SSA_LOG_ALL     = 0xFFFFFFFF,
 };
 
+enum {
+	SSA_PR_NO_LOG = 0,
+	SSA_PR_EEROR_LEVEL = 1,
+	SSA_PR_INFO_LEVEL = 2,
+	SSA_PR_DEBUG_LEVEL = 3
+};
 
-extern FILE *flog1;
-int  ssa_open_log1(char *log_file);
-void ssa_close_log1(void);
-void ssa_write_log1(int level, const char *format, ...);
-#define ssa_log(level, format, ...) \
-	ssa_write_log1(level, "%s: "format, __func__, ## __VA_ARGS__)
+#define ERROR_TAG "ERR"
+#define INFO_TAG "INFO"
+#define DEBUG_TAG "DEBUG"
 
+
+extern int ssa_pr_log_level;
+extern const char* get_time();
+
+#define _FILE strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__
+#define SSA_PR_LOG_FORMAT "%s | %-7s | %-15s | %s:%d |"
+#define SSA_PR_LOG_PREFIX_ARGS(tag) get_time(), tag ,_FILE,__func__,__LINE__ 
+#define SSA_PR_LOG_PRINT_FUNCTION(format,...) fprintf(stderr,format,__VA_ARGS__)
+
+
+#define SSA_PR_LOG_ERROR(message,args...) {if(ssa_pr_log_level>=SSA_PR_EEROR_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n",SSA_PR_LOG_PREFIX_ARGS(ERROR_TAG), ##args);}
+#define SSA_PR_LOG_INFO(message,args...) {if(ssa_pr_log_level>=SSA_PR_INFO_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n",SSA_PR_LOG_PREFIX_ARGS(INFO_TAG), ##args);}
+#define SSA_PR_LOG_DEBUG(message,args...) {if(ssa_pr_log_level>=SSA_PR_DEBUG_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n",SSA_PR_LOG_PREFIX_ARGS(DEBUG_TAG), ##args);}
 
 #ifdef __cplusplus
 }
