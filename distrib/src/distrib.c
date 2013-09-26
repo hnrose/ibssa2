@@ -43,8 +43,6 @@
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
-static int first = 1;
-
 struct ssa_member {
 	struct ssa_member_record	rec;
 	struct ssa_member		*primary;
@@ -104,17 +102,6 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 	umad->packet.mad_hdr.method = UMAD_METHOD_GET_RESP;
 	umad_send(distrib->svc.port->mad_portid, distrib->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
-
-	/*
-	 * TODO: Really need to wait for first
-	 * SUBNET UP event.
-	 *
-	 * Just a one time artificial delay for now.
-	 */
-	if (first) {
-		usleep(INITIAL_SUBNET_UP_DELAY);
-		first = 0;
-	}
 
 	/*
 	 * For now, issue SA path query here.
