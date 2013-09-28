@@ -41,7 +41,6 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <infiniband/acm.h>
 #include <infiniband/umad.h>
 #include <infiniband/verbs.h>
 #include <ssa_ctrl.h>
