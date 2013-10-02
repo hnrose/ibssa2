@@ -400,7 +400,7 @@ int main(int argc, char **argv)
 	int op, daemon = 1;
 	struct ssa_class *ssa;
 
-	while ((op = getopt(argc, argv, "P:")) != -1) {
+	while ((op = getopt(argc, argv, "P::")) != -1) {
 		switch (op) {
 		case 'P':
 			daemon = 0;
