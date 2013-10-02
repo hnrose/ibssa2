@@ -334,8 +334,10 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf 
 	switch (msg->data.event) {
 	case IBV_EVENT_CLIENT_REREGISTER:
 	case IBV_EVENT_PORT_ERR:
-		if (svc->rsock >= 0)
-			/*r*/close(svc->rsock);
+		if (svc->rsock >= 0) {
+			rclose(svc->rsock);
+			svc->rsock = -1;
+		}
 		svc->state = SSA_STATE_IDLE;
 		/* fall through to reactivate */
 	case IBV_EVENT_PORT_ACTIVE:
@@ -923,8 +925,10 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	pthread_join(svc->upstream, NULL);
 
 	svc->port->svc[svc->index] = NULL;
-	if (svc->rsock >= 0)
-		/*r*/close(svc->rsock);
+	if (svc->rsock >= 0) {
+		rclose(svc->rsock);
+		svc->rsock = -1;
+	}
 	close(svc->sock[0]);
 	close(svc->sock[1]);
 	free(svc);
