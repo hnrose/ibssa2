@@ -117,6 +117,8 @@ struct ssa_class {
 	struct ssa_obj		*fds_obj;
 	struct pollfd		*fds;
 	nfds_t			nfds;
+	nfds_t			nsfds;
+	int			sfds_start;
 	uint8_t			node_type;
 };
 

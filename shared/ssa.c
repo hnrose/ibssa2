@@ -48,10 +48,12 @@
 #include <fcntl.h>
 #include <rdma/rsocket.h>
 #include <syslog.h>
+#include <netinet/tcp.h>
 #include <infiniband/umad.h>
 #include <infiniband/umad_str.h>
 #include <infiniband/verbs.h>
 #include <infiniband/ssa_mad.h>
+#include <infiniband/ib.h>
 #include <dlist.h>
 #include <search.h>
 #include <common.h>
@@ -309,6 +311,96 @@ static void ssa_svc_join(struct ssa_svc *svc)
 	}
 }
 
+static void ssa_svc_listen(struct ssa_svc *svc)
+{
+	int sport = 7470;
+	struct sockaddr_ib src_addr;
+	int ret, val, i;
+	struct ssa_class *ssa;
+
+	/* Only listening on rsocket when server (not consumer - ACM) */
+	if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
+		return;
+
+	if (svc->rsock >= 0)
+		return;
+
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "%s\n", svc->port->name);
+
+	src_addr.sib_family = AF_IB;
+	src_addr.sib_pkey = 0xFFFF;
+	src_addr.sib_flowinfo = 0;
+	src_addr.sib_sid = htonll(((uint64_t) RDMA_PS_TCP << 16) + sport);
+	src_addr.sib_sid_mask = htonll(RDMA_IB_IP_PS_MASK | RDMA_IB_IP_PORT_MASK);
+	src_addr.sib_scope_id = 0;
+	memcpy(&src_addr.sib_addr, &svc->port->gid, 16);
+
+	svc->rsock = rsocket(AF_IB, SOCK_STREAM, 0);
+	if (svc->rsock < 0) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rsocket ERROR %d (%s)\n",
+			errno, strerror(errno));
+		return;
+	}
+
+	val = 1;
+	ret = rsetsockopt(svc->rsock, SOL_SOCKET, SO_REUSEADDR,
+			  &val, sizeof val);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rsetsockopt SO_REUSEADDR ERROR %d (%s)\n",
+			errno, strerror(errno));
+		goto err;
+	}
+
+	ret = rsetsockopt(svc->rsock, IPPROTO_TCP, TCP_NODELAY,
+			  (void *) &val, sizeof(val));
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rsetsockopt TCP_NODELAY ERROR %d (%s)\n",
+			errno, strerror(errno));
+		goto err;
+	}
+	ret = rfcntl(svc->rsock, F_SETFL, O_NONBLOCK);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rfcntl ERROR %d (%s)\n",
+			errno, strerror(errno));
+		goto err;
+	}
+
+	ret = rbind(svc->rsock, (const struct sockaddr *) &src_addr, sizeof(src_addr));
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rbind ERROR %d (%s)\n",
+			errno, strerror(errno));
+		goto err;
+	}
+	ret = rlisten(svc->rsock, 1);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rlisten ERROR %d (%s)\n",
+			errno, strerror(errno));
+		goto err;
+	}
+
+	ssa = svc->port->dev->ssa;
+	for (i = ssa->sfds_start; i < ssa->sfds_start + ssa->nsfds; i++) {
+		if ((ssa->fds[i].fd == -1) && (ssa->fds_obj[i].svc == NULL)) {
+			ssa->fds[i].fd = svc->rsock;
+			ssa->fds_obj[i].svc = svc;
+			ssa->nfds++;
+			return;
+		}
+	}
+
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "no service slot available ERROR\n");
+
+err:
+	rclose(svc->rsock);
+	svc->rsock = -1;
+}
+
 void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 			union ibv_gid *sgid)
 {
@@ -523,7 +615,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	struct ssa_ctrl_umad_msg msg;
 	struct ssa_member_record *member_rec;
 	struct ssa_info_record *info_rec;
-	int len, ret;
+	int len, ret, parent = 0;
 
 	ssa_log(SSA_LOG_CTRL, "%s receiving MAD\n", port->name);
 	len = sizeof msg.umad;
@@ -544,6 +636,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	} else {
 		switch (ntohs(msg.umad.packet.mad_hdr.attr_id)) {
 		case SSA_ATTR_INFO_REC:
+			parent = 1;
 			info_rec = (struct ssa_info_record *) msg.umad.packet.data;
 			svc = ssa_find_svc(port, ntohll(info_rec->database_id));
 			break;
@@ -568,18 +661,44 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	/* set qkey for possible response */
 	msg.umad.umad.addr.qkey = htonl(UMAD_QKEY);
 	write(svc->sock[0], (void *) &msg, msg.hdr.len);
+
+	if (parent)
+		ssa_svc_listen(svc);
 }
 
 static void ssa_ctrl_svc(struct ssa_svc *svc)
 {
+	int fd;
+	struct sockaddr_ib peer_addr;
+	socklen_t peer_len;
 
+	fd = raccept(svc->rsock, NULL, 0);
+	if (fd < 0) {
+		if ((errno == EAGAIN || errno == EWOULDBLOCK))
+			return;		/* ignore these errors */
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"raccept fd %d ERROR %d (%s)\n",
+			svc->rsock, errno, strerror(errno)); 
+		return;
+	}
+
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+		"new connection accepted on fd %d\n", fd);
+
+	if (!rgetpeername(fd, (struct sockaddr *) &peer_addr, &peer_len)) {
+		if (peer_addr.sib_family == AF_IB) {
+		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
+				SSA_ADDR_GID, (uint8_t *) &peer_addr.sib_addr, peer_len);
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "peer GID %s\n", log_data);
+		}
+	}
 }
 
 static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 {
 	struct ssa_device *dev;
 	struct ssa_port *port;
-	int d, p, i = 0;
+	int d, p, s, i = 0;
 
 	ssa->nfds = 1;			/* ssa socketpair */
 	ssa->nfds += ssa->dev_cnt;	/* async device events */
@@ -588,15 +707,16 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 		ssa->nfds += dev->port_cnt;	/* mads */
 		for (p = 1; p <= dev->port_cnt; p++) {
 			port = ssa_dev_port(dev, p);
-			//ssa->nfds += port->svc_cnt;	/* service listen */
+			ssa->nsfds += port->svc_cnt;	/* service listen */
 		}
 	}
 
-	ssa->fds = calloc(ssa->nfds, sizeof(*ssa->fds) + sizeof(*ssa->fds_obj));
+	ssa->fds = calloc(ssa->nfds + ssa->nsfds,
+			  sizeof(*ssa->fds) + sizeof(*ssa->fds_obj));
 	if (!ssa->fds)
 		return seterr(ENOMEM);
 
-	ssa->fds_obj = (struct ssa_obj *) (&ssa->fds[ssa->nfds]);
+	ssa->fds_obj = (struct ssa_obj *) (&ssa->fds[ssa->nfds + ssa->nsfds]);
 	ssa->fds[i].fd = ssa->sock[1];
 	ssa->fds[i].events = POLLIN;
 	ssa->fds_obj[i++].type = SSA_OBJ_CLASS;
@@ -614,6 +734,13 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 			ssa->fds_obj[i].type = SSA_OBJ_PORT;
 			ssa->fds_obj[i++].port = port;
 		}
+	}
+	ssa->sfds_start = i;
+	for (s = 0; s < ssa->nsfds; s++) {
+		ssa->fds[i].fd = -1;
+		ssa->fds[i].events = POLLIN;
+		ssa->fds_obj[i].type = SSA_OBJ_SVC;
+		ssa->fds_obj[i++].svc = NULL;
 	}
 	return 0;
 }
@@ -754,8 +881,6 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	svc->state = SSA_STATE_IDLE;
 	svc->process_msg = process_msg;
 	//pthread_mutex_init(&svc->lock, NULL);
-
-	// TODO: start listen
 
 	ret = pthread_create(&svc->upstream, NULL, ssa_upstream_handler, svc);
 	if (ret) {
