@@ -688,9 +688,9 @@ static void ssa_ctrl_svc(struct ssa_svc *svc)
 
 	if (!rgetpeername(fd, (struct sockaddr *) &peer_addr, &peer_len)) {
 		if (peer_addr.sib_family == AF_IB) {
-		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
+			ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
 				SSA_ADDR_GID, (uint8_t *) &peer_addr.sib_addr, peer_len);
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "peer GID %s\n", log_data);
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "peer GID %s\n", log_data);
 		}
 	}
 }
