@@ -327,14 +327,6 @@ static void ssa_svc_listen(struct ssa_svc *svc)
 
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "%s\n", svc->port->name);
 
-	src_addr.sib_family = AF_IB;
-	src_addr.sib_pkey = 0xFFFF;
-	src_addr.sib_flowinfo = 0;
-	src_addr.sib_sid = htonll(((uint64_t) RDMA_PS_TCP << 16) + sport);
-	src_addr.sib_sid_mask = htonll(RDMA_IB_IP_PS_MASK | RDMA_IB_IP_PORT_MASK);
-	src_addr.sib_scope_id = 0;
-	memcpy(&src_addr.sib_addr, &svc->port->gid, 16);
-
 	svc->rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (svc->rsock < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
@@ -369,6 +361,14 @@ static void ssa_svc_listen(struct ssa_svc *svc)
 		goto err;
 	}
 
+	src_addr.sib_family = AF_IB;
+	src_addr.sib_pkey = 0xFFFF;
+	src_addr.sib_flowinfo = 0;
+	src_addr.sib_sid = htonll(((uint64_t) RDMA_PS_TCP << 16) + sport);
+	src_addr.sib_sid_mask = htonll(RDMA_IB_IP_PS_MASK | RDMA_IB_IP_PORT_MASK);
+	src_addr.sib_scope_id = 0;
+	memcpy(&src_addr.sib_addr, &svc->port->gid, 16);
+
 	ret = rbind(svc->rsock, (const struct sockaddr *) &src_addr, sizeof(src_addr));
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
@@ -388,6 +388,7 @@ static void ssa_svc_listen(struct ssa_svc *svc)
 	for (i = ssa->sfds_start; i < ssa->sfds_start + ssa->nsfds; i++) {
 		if ((ssa->fds[i].fd == -1) && (ssa->fds_obj[i].svc == NULL)) {
 			ssa->fds[i].fd = svc->rsock;
+			ssa->fds[i].events = POLLIN;
 			ssa->fds_obj[i].svc = svc;
 			ssa->nfds++;
 			return;
@@ -738,7 +739,6 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 	ssa->sfds_start = i;
 	for (s = 0; s < ssa->nsfds; s++) {
 		ssa->fds[i].fd = -1;
-		ssa->fds[i].events = POLLIN;
 		ssa->fds_obj[i].type = SSA_OBJ_SVC;
 		ssa->fds_obj[i++].svc = NULL;
 	}
