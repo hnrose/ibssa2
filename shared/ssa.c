@@ -799,21 +799,21 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 			switch (ssa->fds_obj[i].type) {
 			case SSA_OBJ_CLASS:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"class event\n");
+					"class event on fd %d\n", ssa->fds[i]);
 				goto out;
 			case SSA_OBJ_DEVICE:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"device event\n");
+					"device event on fd %d\n", ssa->fds[i]);
 				ssa_ctrl_device(ssa->fds_obj[i].dev);
 				break;
 			case SSA_OBJ_PORT:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"port event\n");
+					"port event on fd %d\n", ssa->fds[i]);
 				ssa_ctrl_port(ssa->fds_obj[i].port);
 				break;
 			case SSA_OBJ_SVC:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"service event\n");
+					"service event on fd %d\n", ssa->fds[i]);
 				ssa_ctrl_svc(ssa->fds_obj[i].svc);
 				break;
 			}
