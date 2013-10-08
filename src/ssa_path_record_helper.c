@@ -1,3 +1,4 @@
+
 /*
  * Copyright 2004-2013 Mellanox Technologies LTD. All rights reserved.
  *
@@ -27,61 +28,29 @@
  * SOFTWARE.
  *
  */
-#ifndef __SSA_PATH_RECORD_H__
-#define __SSA_PATH_RECORD_H__
-
-/*
- * The file contains SSA Access Layer API. 
- */
-
-#include <stdint.h>
-#include <byteswap.h>
-#include <infiniband/umad.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef enum _ssa_pr_status_t {
-    SSA_PR_SUCCESS,
-    SSA_PR_ERROR,
-	SSA_PR_NO_PATH
-} ssa_pr_status_t;
-
-typedef struct ssa_path_parms {
-	be64_t from_guid;
-	be64_t to_guid;
-	be16_t from_lid;
-	be16_t to_lid;
-	be16_t pkey;
-	uint8_t mtu;
-	uint8_t rate;
-	uint8_t sl;
-	uint8_t pkt_life;
-	uint8_t reversible;
-	uint8_t hops;
-} ssa_path_parms_t;
 
 
-typedef void (*ssa_pr_path_dump_t)(const ssa_path_parms_t*,void*);
 
+#if HAVE_CONFIG_H
+#  include <config.h>
+#endif              /* HAVE_CONFIG_H */
 
-extern void * ssa_pr_create_context(FILE* log_fd, int log_level);
-extern void ssa_pr_destroy_context(void * ctx);
+#include <time.h>
+#include "ssa_path_record_helper.h"
 
-extern ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb* p_ssa_db_smdb, 
-		void * context,
-		be64_t port_guid,
-		ssa_pr_path_dump_t dump_clbk,
-		void* clbk_prm);
+int ssa_pr_log_level = SSA_PR_EEROR_LEVEL;
+FILE *ssa_pr_log_fd = NULL;
 
-extern ssa_pr_status_t ssa_pr_whole_world(struct ssa_db_smdb* p_ssa_db_smdb, 
-		void * context,
-		ssa_pr_path_dump_t dump_clbk,
-		void* clbk_prm);
+const char* get_time()
+{
+	static char buffer[64] = {};
+	time_t rawtime;
+	struct tm *timeinfo;
 
-#ifdef __cplusplus
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	strftime(buffer, 64, "%Y-%m-%d %H:%M:%S", timeinfo);
+
+	return buffer;
 }
-#endif
-
-#endif /* __SSA_PATH_RECORD_H__ */

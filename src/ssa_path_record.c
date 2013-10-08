@@ -35,22 +35,30 @@
 #endif              /* HAVE_CONFIG_H */
 
 #include <string.h>
-#include <math.h>
 #include <stdarg.h>
 #include <assert.h>
+#include <math.h>
 #include <ssa_smdb.h>
 #include "ssa_path_record.h"
+#include "ssa_path_record_helper.h"
+#include "ssa_path_record_data.h"
 
+#ifndef MIN
 #define MIN(X,Y) ((X) < (Y) ?  (X) : (Y))
+#endif
+#ifndef MAX
 #define MAX(X,Y) ((X) > (Y) ?  (X) : (Y))
+#endif
 
 #define MAX_HOPS 64
-#define LFT_NO_PATH 255
 
 
-int ssa_pr_log_level = SSA_PR_EEROR_LEVEL;
+struct ssa_pr_context {
+	struct ssa_pr_smdb_index *p_index;
+};
 
 static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smdb,
+		const struct ssa_pr_context *p_context,
 		const struct ep_guid_to_lid_tbl_rec *p_source_rec,
 		const struct ep_guid_to_lid_tbl_rec *p_dest_rec,
 		ssa_path_parms_t *p_path_prm);
@@ -104,33 +112,8 @@ inline static size_t get_dataset_count(const struct ssa_db_smdb *p_ssa_db_smdb,
 	return ntohll(p_ssa_db_smdb->db_tables[table_id].set_count);
 }
 
-static const struct ep_guid_to_lid_tbl_rec *find_guid_to_lid_rec_by_guid(const struct ssa_db_smdb *p_ssa_db_smdb,
-		const be64_t port_guid)
-{
-	size_t i = 0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
-	size_t count = 0;
-
-	SSA_ASSERT(p_ssa_db_smdb);
-	SSA_ASSERT(port_guid);
-
-	p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_GUID_TO_LID];
-	SSA_ASSERT(p_guid_to_lid_tbl);
-
-	count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_GUID_TO_LID);
-
-	for (i = 0; i < count; i++) {
-		if (port_guid == p_guid_to_lid_tbl[i].guid) 
-			return p_guid_to_lid_tbl + i;
-	}
-
-	SSA_PR_LOG_ERROR("GUID to LID record is not found. GUID: 0x%016"PRIx64,ntohll(port_guid));
-
-	return NULL;
-}
-
-
 ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb, 
+		void * p_ctnx,
 		be64_t port_guid,
 		ssa_pr_path_dump_t dump_clbk,
 		void *clbk_prm)
@@ -143,9 +126,17 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 	uint16_t source_base_lid = 0;
 	uint16_t source_last_lid = 0;
 	uint16_t source_lid = 0;
+	struct ssa_pr_context *p_context = (struct ssa_pr_context *)p_ctnx;
 
 	SSA_ASSERT(port_guid);
 	SSA_ASSERT(p_ssa_db_smdb);
+	SSA_ASSERT(p_context);
+
+
+	if(ssa_pr_rebuild_indexes(p_context->p_index,p_ssa_db_smdb)) {
+		SSA_PR_LOG_ERROR("Index rebuild is failed.");
+		return SSA_PR_ERROR;
+	}
 
 	p_guid_to_lid_tbl = (const struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_GUID_TO_LID];
 	SSA_ASSERT(p_guid_to_lid_tbl);
@@ -163,6 +154,9 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 	source_last_lid = source_base_lid + pow(2,p_source_rec->lmc) - 1;
 
 	for(source_lid = source_base_lid; source_lid <= source_last_lid; ++source_lid) {
+		SSA_PR_LOG_DEBUG("Compute \"half world\" path records for: 0x%"SCNx16,
+				source_lid);
+
 		for (i = 0; i < guid_to_lid_count; i++) {
 			uint16_t dest_base_lid = 0;
 			uint16_t dest_last_lid = 0;
@@ -181,10 +175,9 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 				path_prm.to_guid = p_dest_rec->guid;
 				path_prm.to_lid = htons(dest_lid);
 
-				SSA_PR_LOG_DEBUG("Search for path: (0x%"SCNx16") -> (0x%"SCNx16")",
-						source_lid,dest_lid);
 
-				path_res = ssa_pr_path_params(p_ssa_db_smdb,p_source_rec,p_dest_rec,&path_prm);
+				path_res = ssa_pr_path_params(p_ssa_db_smdb,p_context,
+						p_source_rec,p_dest_rec,&path_prm);
 				if(SSA_PR_SUCCESS == path_res) {
 					ssa_path_parms_t revers_path_prm;
 					ssa_pr_status_t revers_path_res = SSA_PR_SUCCESS;
@@ -195,7 +188,8 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 					revers_path_prm.to_lid = path_prm.from_lid;
 					revers_path_prm.reversible = 1;
 
-					revers_path_res = ssa_pr_path_params(p_ssa_db_smdb,p_dest_rec,p_source_rec,&revers_path_prm);
+					revers_path_res = ssa_pr_path_params(p_ssa_db_smdb,p_context,
+							p_dest_rec,p_source_rec,&revers_path_prm);
 
 					if(SSA_PR_ERROR == revers_path_res) {
 						SSA_PR_LOG_INFO("Reverse path calculation is failed. Source LID 0x%"SCNx16" Destination LID: 0x%"SCNx16,source_lid,dest_lid);
@@ -217,138 +211,58 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 	return SSA_PR_SUCCESS;
 }
 										
-static int find_destination_port(const struct ssa_db_smdb *p_ssa_db_smdb,
-		const be16_t source_lid,
-		const be16_t dest_lid)
+ssa_pr_status_t ssa_pr_whole_world(struct ssa_db_smdb* p_ssa_db_smdb, 
+		void * context,
+		ssa_pr_path_dump_t dump_clbk,
+		void* clbk_prm)
 {
 	size_t i = 0;
-
-	struct ep_lft_top_tbl_rec *p_lft_top_tbl = NULL;
-	size_t lft_top_count = 0;
-
-	struct ep_lft_block_tbl_rec *p_lft_block_tbl = NULL;
-	size_t lft_block_count = 0;
-
-	size_t lft_block_num = 0;
-	size_t lft_port_num = 0;
-
-	SSA_ASSERT(p_ssa_db_smdb);
-	SSA_ASSERT(source_lid);
-	SSA_ASSERT(dest_lid);
-
-	p_lft_top_tbl = (struct ep_lft_top_tbl_rec *)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_LFT_TOP];
-	SSA_ASSERT(p_lft_top_tbl);
-
-	p_lft_block_tbl =(struct ep_lft_block_tbl_rec *)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_LFT_BLOCK];
-	SSA_ASSERT(p_lft_block_tbl);
-
-	lft_top_count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_LFT_TOP);
-	lft_block_count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_LFT_BLOCK);
-
-	lft_block_num = floorl(ntohs(dest_lid) / IB_SMP_DATA_SIZE);
-	lft_port_num = ntohs(dest_lid) % IB_SMP_DATA_SIZE;
-
-	for (i = 0; i < lft_top_count && source_lid != p_lft_top_tbl[i].lid; i++);
-	if(i >= lft_top_count) {
-		SSA_PR_LOG_ERROR("LFT routing is failed. LFT top is not found. "
-				"Source LID (0x%"SCNx16") Destination LID: (0x%"SCNx16")",
-			ntohs(source_lid));
-		return -1;
-	}
-	if(i >= lft_top_count || ntohs(dest_lid) > ntohs(p_lft_top_tbl[i].lft_top)) {
-		SSA_PR_LOG_ERROR("LFT routing is failed. Destination LID exceeds LFT top . "
-				"Source LID (0x%"SCNx16") Destination LID: (0x%"SCNx16") LFT top: %u",
-			ntohs(source_lid),ntohs(dest_lid),p_lft_top_tbl[i].lft_top);
-		return -1;
-	}
-
-	for (i = 0;i < lft_block_count;++i) 
-		if(source_lid == p_lft_block_tbl[i].lid && lft_block_num == ntohs(p_lft_block_tbl[i].block_num))
-			return p_lft_block_tbl[i].block[lft_port_num];
-
-	return LFT_NO_PATH ;
-}
-
-static const struct ep_port_tbl_rec *find_port(const struct ssa_db_smdb *p_ssa_db_smdb,
-		const be16_t lid,
-		const int port_num)
-{
-	size_t i = 0;
-	const struct ep_port_tbl_rec  *p_port_tbl = NULL;
+	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
 	size_t count = 0;
+	ssa_pr_status_t res = SSA_PR_SUCCESS;
 
 	SSA_ASSERT(p_ssa_db_smdb);
-	SSA_ASSERT(lid);
 
-	p_port_tbl = (const struct ep_port_tbl_rec*)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_PORT];
-	SSA_ASSERT(p_port_tbl );
+	p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_GUID_TO_LID];
+	SSA_ASSERT(p_guid_to_lid_tbl);
 
-	count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_PORT);
+	count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_GUID_TO_LID);
 
 	for (i = 0; i < count; i++) {
-		if(p_port_tbl[i].port_lid == lid &&
-				(!(p_port_tbl[i].rate & SSA_DB_PORT_IS_SWITCH_MASK) || port_num == p_port_tbl[i].port_num))
-				return p_port_tbl + i;
+		res = ssa_pr_half_world(p_ssa_db_smdb,context,p_guid_to_lid_tbl[i].guid,dump_clbk,clbk_prm);
+		if (SSA_PR_ERROR == res) {
+			SSA_PR_LOG_ERROR("\"Half world\" calculation is failed for GUID: 0x%"PRIx64
+					" . \"Whole world\" calculation is stopped.",ntohll(p_guid_to_lid_tbl[i].guid));
+			return res;
+		}
 	}
-
-	if(port_num >= 0) {
-		SSA_PR_LOG_ERROR("Port is not found. LID: 0x%"SCNx16" Port num: %d",
-			   ntohs(lid),port_num);
-	} else {
-		SSA_PR_LOG_ERROR("Port is not found. LID: 0x%"SCNx16,ntohs(lid));
-	}
-
-	return NULL;
+	return SSA_PR_SUCCESS;
 }
 
+
+
 static inline const struct ep_port_tbl_rec *get_switch_port(const struct ssa_db_smdb *p_ssa_db_smdb,
+		const struct ssa_pr_smdb_index * p_index,
 		const be16_t switch_lid,
 		const int port_num)
 {
-	return find_port(p_ssa_db_smdb,switch_lid,port_num);
+	return find_port(p_ssa_db_smdb,p_index,switch_lid,port_num);
 }
 
 static inline const struct ep_port_tbl_rec *get_host_port(const struct ssa_db_smdb *p_ssa_db_smdb,
+		const struct ssa_pr_smdb_index * p_index,
 		const be16_t lid)
 {
 	/*
 	 * For host there is only one record in port table.
 	 * Port num is not relevant
 	 * */
-	return find_port(p_ssa_db_smdb,lid,-1);
+	return find_port(p_ssa_db_smdb,p_index,lid,-1);
 }
 
-static const struct ep_link_tbl_rec *find_link(const struct ssa_db_smdb *p_ssa_db_smdb,
-		const be16_t lid,
-		const int port_num)
-{
-	size_t i = 0;
-	const struct ep_link_tbl_rec  *p_link_tbl =  NULL;
-	size_t link_count = 0;
-
-	SSA_ASSERT(p_ssa_db_smdb);
-	SSA_ASSERT(lid);
-
-	p_link_tbl = (const struct ep_link_tbl_rec*)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_LINK];
-	SSA_ASSERT(p_link_tbl);
-
-	link_count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_LINK);
-
-	for (i = 0;i < link_count;i++)
-		if(lid == p_link_tbl[i].from_lid && (port_num < 0 || port_num == p_link_tbl[i].from_port_num))
-			return p_link_tbl + i;
-
-	if(port_num >= 0) {
-		SSA_PR_LOG_ERROR("Link is not found. LID: 0x%"SCNx16" Port num: %u",
-			   ntohs(lid),port_num);
-	} else {
-		SSA_PR_LOG_ERROR("Link is not found. LID: 0x%"SCNx16,ntohs(lid));
-	}
-
-	return NULL;
-}
 
 static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smdb,
+		const struct ssa_pr_context *p_context,
 		const struct ep_guid_to_lid_tbl_rec *p_source_rec,
 		const struct ep_guid_to_lid_tbl_rec *p_dest_rec,
 		ssa_path_parms_t *p_path_prm)
@@ -360,6 +274,8 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 	const struct ep_subnet_opts_tbl_rec *opt_rec = NULL;
 
 	SSA_ASSERT(p_ssa_db_smdb);
+	SSA_ASSERT(p_context);
+	SSA_ASSERT(p_context->p_index);
 	SSA_ASSERT(p_source_rec);
 	SSA_ASSERT(p_dest_rec);
 	SSA_ASSERT(p_path_prm);
@@ -369,9 +285,9 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 	SSA_ASSERT(opt_rec);
 
 	if(p_source_rec->is_switch) 
-		source_port = get_switch_port(p_ssa_db_smdb,p_source_rec->lid,0);
+		source_port = get_switch_port(p_ssa_db_smdb,p_context->p_index,p_source_rec->lid,0);
 	else
-		source_port = get_host_port(p_ssa_db_smdb,p_source_rec->lid);
+		source_port = get_host_port(p_ssa_db_smdb,p_context->p_index,p_source_rec->lid);
 	if(NULL == source_port) {
 		SSA_PR_LOG_ERROR("Source port is not found. Path record calculation is stopped."
 			   " LID: 0x%"SCNx16,htons(p_source_rec->lid));
@@ -379,9 +295,9 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 	}
 
 	if(p_dest_rec->is_switch)
-		dest_port = get_switch_port(p_ssa_db_smdb,p_dest_rec->lid,0);	
+		dest_port = get_switch_port(p_ssa_db_smdb,p_context->p_index,p_dest_rec->lid,0);	
 	else
-		dest_port = get_host_port(p_ssa_db_smdb,p_dest_rec->lid);
+		dest_port = get_host_port(p_ssa_db_smdb,p_context->p_index,p_dest_rec->lid);
 	if(NULL == dest_port) {
 		SSA_PR_LOG_ERROR("Destination port is not found. Path record calculation is stopped."
 			   " LID: 0x%"SCNx16,htons(p_dest_rec->lid));
@@ -395,7 +311,7 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 	p_path_prm->hops = 0;
 
 	if(p_source_rec->is_switch) {
-		const int out_port_num = find_destination_port(p_ssa_db_smdb,
+		const int out_port_num = find_destination_port(p_ssa_db_smdb,p_context->p_index,
 				p_source_rec->lid,p_dest_rec->lid);
 		if(out_port_num  < 0) {
 			SSA_PR_LOG_ERROR("Failed to faind outgoing port for LID: 0x%"SCNx16
@@ -403,13 +319,13 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 					"Path record calculation is sttoped."
 					,htons(p_dest_rec->lid),htons(p_source_rec->lid));
 			return SSA_PR_ERROR;
-		} else if(LFT_NO_PATH == source_port_num) {
+		} else if(LFT_NO_PATH == out_port_num) {
 			SSA_PR_LOG_DEBUG("There is no path from LID: 0x%"SCNx16" to LID: 0x%"SCNx16" .",
 					htons(p_source_rec->lid),htons(p_dest_rec->lid));
 			return SSA_PR_NO_PATH;
 		}
 
-		port = find_port(p_ssa_db_smdb,p_source_rec->lid,out_port_num);	
+		port = find_port(p_ssa_db_smdb,p_context->p_index,p_source_rec->lid,out_port_num);	
 		if(NULL == port) {
 			SSA_PR_LOG_ERROR("Port is not found. Path record calculation is stopped."
 					" LID: 0x%"SCNx16" num: %u",htons(p_source_rec->lid),out_port_num);
@@ -420,7 +336,8 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 	}
 
 	while(port != dest_port) {
-		const struct ep_link_tbl_rec *link_rec = find_link(p_ssa_db_smdb,port->port_lid,
+		const struct ep_link_tbl_rec *link_rec = find_link(p_ssa_db_smdb,p_context->p_index,
+				port->port_lid,
 				port->rate &  SSA_DB_PORT_IS_SWITCH_MASK ? port->port_num:-1);
 		int out_port_num = -1;
 
@@ -432,7 +349,8 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 			return SSA_PR_ERROR;
 		}
 
-		port = find_port(p_ssa_db_smdb,link_rec->to_lid,link_rec->to_port_num);
+		port = find_port(p_ssa_db_smdb,p_context->p_index,
+				link_rec->to_lid,link_rec->to_port_num);
 		if(NULL == port) {
 			SSA_PR_LOG_ERROR("Port is not found. Path record calculation is stopped."
 					" LID: 0x%"SCNx16" num: %u",htons(link_rec->to_lid),link_rec->to_port_num);
@@ -458,14 +376,14 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 		if(ib_path_compare_rates(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 			p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 
-		out_port_num  = find_destination_port(p_ssa_db_smdb,link_rec->to_lid,p_dest_rec->lid);
+		out_port_num  = find_destination_port(p_ssa_db_smdb,p_context->p_index,link_rec->to_lid,p_dest_rec->lid);
 		if(LFT_NO_PATH == out_port_num){
 			SSA_PR_LOG_DEBUG("There is no path from LID: 0x%"SCNx16" to LID: 0x%"SCNx16" .",
 					htons(p_source_rec->lid),htons(p_dest_rec->lid));
 			return SSA_PR_NO_PATH;
 		}
 
-		port = find_port(p_ssa_db_smdb,link_rec->to_lid,out_port_num);
+		port = find_port(p_ssa_db_smdb,p_context->p_index,link_rec->to_lid,out_port_num);
 		if(NULL == port) {
 			SSA_PR_LOG_ERROR("Port is not found. Path record calculation is stopped."
 					" LID: 0x%"SCNx16" num: %u",
@@ -498,16 +416,63 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 
 	return SSA_PR_SUCCESS;
 }
-const char* get_time()
+
+
+void *ssa_pr_create_context(FILE* log_fd, int log_level)
 {
-	static char buffer[64] = {};
-	time_t rawtime;
-	struct tm *timeinfo;
+	struct ssa_pr_context *p_context = NULL;
 
-	time(&rawtime);
-	timeinfo = localtime(&rawtime);
+	ssa_pr_log_level = log_level;
+	ssa_pr_log_fd = log_fd;
 
-	strftime(buffer, 64, "%Y-%m-%d %H:%M:%S", timeinfo);
+	p_context = (struct ssa_pr_context *)malloc(sizeof(struct ssa_pr_context )); 
+	if(!p_context) {
+		SSA_PR_LOG_ERROR("Cannot allocate path record calculation context");
+		goto Error;
+	}
+	
+	memset(p_context,'\0',sizeof(struct ssa_pr_context));
 
-	return buffer;
+	p_context->p_index = (struct ssa_pr_smdb_index *)malloc(sizeof(struct ssa_pr_smdb_index));
+	if(!p_context->p_index) {
+		SSA_PR_LOG_ERROR("Cannot allocate path record data index");
+		goto Error;
+	}
+
+	memset(p_context->p_index,'\0',sizeof(struct ssa_pr_smdb_index));
+	p_context->p_index->epoch = -1;
+
+	return p_context;
+Error:
+	if(p_context && p_context->p_index) {
+		free(p_context->p_index);
+		p_context->p_index = NULL;
+	}
+
+	if(p_context) {
+		free(p_context);
+		p_context = NULL;
+	}
+
+	ssa_pr_log_level = 0;
+	ssa_pr_log_fd = NULL;
+
+	return NULL;
+}
+
+void ssa_pr_destroy_context(void * ctx)
+{
+	struct ssa_pr_context *p_context = (struct ssa_pr_context *)ctx;
+
+	if(p_context) {
+		if(p_context->p_index) {
+			free(p_context->p_index);
+			p_context->p_index = NULL;
+		}
+		free(p_context);
+		p_context = NULL;
+	}
+
+	ssa_pr_log_level = 0;
+	ssa_pr_log_fd = NULL;
 }

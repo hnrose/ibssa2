@@ -50,9 +50,13 @@
 
 #define GUIDS_CHUNK 1024
 
+static const char *log_verbosity_level[] = {"No log","Error","Info","Debug"};
+
 static void print_usage(FILE *file,const char *name)
 {
-	fprintf(file,"Usage: %s [-h] [-o output file] [-n number | -f file name | -a] [-l | -g]  input folder\n", name);
+	int i = 0;
+
+	fprintf(file,"Usage: %s [-h] [-o output file] [-n number | -f file name | -a] [-l | -g] [-L file name] [-v number] input folder\n", name);
 	fprintf(file,"\t-h\t\t-Print this help\n");
 	fprintf(file,"\t-o\t\t-Output file location. If ommited, stdout is used\n");
 	fprintf(file,"\t-f\t\t-Input file location. One ID per line\n");
@@ -60,6 +64,10 @@ static void print_usage(FILE *file,const char *name)
 	fprintf(file,"\t-a\t\t-Use all possible IDs. It's a default parameter.\n");
 	fprintf(file,"\t-l\t\t-Input ID is LID\n");
 	fprintf(file,"\t-g\t\t-Input ID is GUID. It's a default parameter\n");
+	fprintf(file,"\t-L\t\t-Access Layer log file path. If ommited, stdout is used.\n");
+	fprintf(file,"\t-v\t\t-Log verbosity level. Default value is 1\n");
+	for(i = 0; i < sizeof(log_verbosity_level) / sizeof(log_verbosity_level[0]); ++i)
+		fprintf(file,"\t\t\t\t-%d - %s.\n",i,log_verbosity_level[i]);
 	fprintf(file,"\tinput folder\t-SMDB database\n");
 }
 
@@ -101,7 +109,7 @@ static void print_memory_usage(const char* prefix)
 		unsigned data;//       data/stack
 		unsigned dt;//         dirty pages (unused in Linux 2.6)
 		fscanf(pf, "%u" /* %u %u %u %u %u"*/, &size/*, &resident, &share, &text, &lib, &data*/);
-		SSA_PR_LOG_INFO("%s %u MB mem used",prefix, size / (1024.0));
+		printf("%s %u MB mem used\n",prefix, size / (1024.0));
 	}
 	fclose(pf);
 	pf = NULL;
@@ -119,29 +127,38 @@ struct input_prm
 	char db_path[PATH_MAX];
 	char dump_path[PATH_MAX];
 	char input_path[PATH_MAX];
+	char log_path[PATH_MAX];
 	uint64_t id;
 	uint8_t whole_world;
 	uint8_t is_guid;
+	uint8_t log_verbosity;
 };
+
 
 static void print_input_prm(const struct input_prm *prm)
 {
-	SSA_PR_LOG_INFO("SMDB database path: %s",prm->db_path);
-	SSA_PR_LOG_INFO("Dump to : %s",strlen(prm->db_path)? prm->db_path: "stdout");
+	printf("Log path: %s\n",prm->log_path);
+	if(prm->log_verbosity >= 0 && prm->log_verbosity < sizeof(log_verbosity_level) / sizeof(log_verbosity_level[0])) {
+		printf("Log verbosity: %s\n",log_verbosity_level[prm->log_verbosity]);
+	} else {
+		printf("Log verbosity: --- The parameter is wrong ---");
+	}
+	printf("Dump to : %s\n",strlen(prm->db_path)? prm->db_path: "stdout");
+	printf("SMDB database path: %s\n",prm->db_path);
 	if(prm->id) {
 		if(prm->is_guid) {
-			SSA_PR_LOG_INFO("Input GUID: 0x%"PRIx64"",prm->id);
+			printf("Input GUID: 0x%\n"PRIx64"",prm->id);
 			return;
 		} else {
-			SSA_PR_LOG_INFO("Input LID: 0x%"PRIx16"",prm->id);
+			printf("Input LID: 0x%\n"PRIx16"",prm->id);
 			return;
 		}
 	} else if(strlen(prm->input_path)) {
-		SSA_PR_LOG_INFO("Input file with IDs: %s",prm->input_path);
+		printf("Input file with IDs: %s\n",prm->input_path);
 	}
 
 	if(prm->whole_world) {
-		SSA_PR_LOG_INFO("Compute \"whole world\" path records.");
+		printf("Compute \"whole world\" path records.\n");
 		return;
 	}
 }
@@ -251,11 +268,11 @@ static struct ssa_db_smdb *load_smdb(const char *path)
 	end = clock();
 	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 	if(NULL != db_diff) {
-		SSA_PR_LOG_INFO("A database is loaded successfully.");
-		SSA_PR_LOG_INFO("Loading cpu time: %.5f sec.",cpu_time_used);
+		printf("A database is loaded successfully.\n");
+		printf("Loading cpu time: %.5f sec.\n",cpu_time_used);
 		print_memory_usage("Memory usage after the database loading: ");
 	} else {
-		SSA_PR_LOG_ERROR("Database loading is failed.");
+		fprintf(stderr,"Database loading is failed.\n");
 	}
 	return db_diff;
 }
@@ -263,7 +280,7 @@ static struct ssa_db_smdb *load_smdb(const char *path)
 static void destroy_smdb(struct ssa_db_smdb *db_diff)
 {
 	ssa_db_smdb_destroy(db_diff);
-	SSA_PR_LOG_DEBUG("smdb database is destroyed.");
+	printf("smdb database is destroyed.\n");
 }
 
 static size_t read_ids_from_file(const char *path, GArray *arr)
@@ -277,7 +294,7 @@ static size_t read_ids_from_file(const char *path, GArray *arr)
 
 	fd = fopen(path,"r");
 	if(!fd) {
-		SSA_PR_LOG_ERROR("Can't open file for reading: %s",path);
+		fprintf(stderr,"Can't open file for reading: %s\n",path);
 		goto Exit;
 	}
 
@@ -340,7 +357,7 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 		const size_t tmp = read_ids_from_file(p_prm->input_path,p_arr);
 
 		if(0 == tmp) {
-			SSA_PR_LOG_ERROR("Can't read ids from file: %s",p_prm->input_path);
+			fprintf(stderr,"Can't read ids from file: %s",p_prm->input_path);
 			return 0;
 		}
 	}
@@ -354,21 +371,31 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 static int run_pr_calculation(struct input_prm* p_prm)
 {
 	short dump_to_stdout = 1;
-	FILE* fd_dump = NULL;
+	FILE *fd_dump = NULL;
+	FILE *fd_log = NULL;
+	int close_log = 0;
 	struct ssa_db_smdb *p_db_diff = NULL;
+	void *p_context = NULL;
 	be64_t *p_guids = NULL;
 	size_t count_guids = 0;
 	GPtrArray *path_arr = NULL;
 	GArray *guids_arr = NULL;
 	guint i = 0;
 	int res = 0;
+	ssa_pr_status_t pr_res = SSA_PR_SUCCESS;
 
-	/*
-	if(ssa_open_log1(SSA_ACCESS_LAYER_OUTPUT_FILE)) {
-		fprintf(stderr,"Can't open log file: %s\n",SSA_ACCESS_LAYER_OUTPUT_FILE);
-		return -1;
+	if(!strlen(p_prm->log_path) || !strcmp(p_prm->log_path,"stderr"))
+		fd_log = stderr;
+	else if(!strcmp(p_prm->log_path,"stdout"))
+		fd_log = stdout;
+	else {
+		fd_log = fopen(p_prm->log_path,"w");
+		if(!fd_log) {
+			fprintf(stderr,"Can't open file for writing: %s\n",p_prm->log_path);
+			return -1;
+		}
+		close_log  = 1;
 	}
-	*/
 
 	if(strlen(p_prm->dump_path) > 0) {
 		fd_dump = fopen(p_prm->dump_path,"w");
@@ -384,46 +411,61 @@ static int run_pr_calculation(struct input_prm* p_prm)
 
 	p_db_diff = load_smdb(p_prm->db_path);
 	if(NULL == p_db_diff){
-		SSA_PR_LOG_ERROR("Can't create smdb database from: %s .",p_prm->db_path);
+		fprintf(stderr,"Can't create smdb database from: %s .",p_prm->db_path);
 		res = -1;
 		goto Exit;
 	}
 
 	guids_arr = g_array_sized_new(FALSE,TRUE,sizeof(uint64_t),10000);
 	if(NULL == guids_arr) {
-		SSA_PR_LOG_ERROR("Can't create Glib array for guids.");
+		fprintf(stderr,"Can't create Glib array for guids.\n");
 		res = -1;
 		goto Exit;
 	}
-	get_input_guids(p_prm,p_db_diff,guids_arr);
 
 	path_arr = init_pr_path_container();
 	if(NULL == path_arr) {
-		SSA_PR_LOG_ERROR("Can't create a Glib array.");
+		fprintf(stderr,"Can't create a Glib array.\n");
 		res = -1;
 		goto Exit;
 	}
 
-	for(i = 0; i < guids_arr->len; ++i) {
-		be64_t guid = htonll(g_array_index(guids_arr,uint64_t,i));
-		ssa_pr_status_t res = SSA_PR_SUCCESS;
-
-		res = ssa_pr_half_world(p_db_diff,guid,ssa_pr_path_output,path_arr);
-		if(SSA_PR_SUCCESS != res) {
-			SSA_PR_LOG_ERROR("Path record algorithm is failed. Input guid: 0x016%"PRIx64"",ntohll(guid));
-			res = -1;
-			goto Exit;
-		}
+	p_context = ssa_pr_create_context(fd_log,p_prm->log_verbosity);
+	if(NULL == p_context) {
+		fprintf(stderr,"Can't create path record calculation context\n");
+		res = -1;
+		goto Exit;
 	}
 
+	if(!p_prm->whole_world) { 
+		get_input_guids(p_prm,p_db_diff,guids_arr);
+		for(i = 0; i < guids_arr->len && SSA_PR_SUCCESS == res; ++i) {
+			be64_t guid = htonll(g_array_index(guids_arr,uint64_t,i));
+
+			pr_res = ssa_pr_half_world(p_db_diff,p_context,guid,ssa_pr_path_output,path_arr);
+		}
+	} else {
+		pr_res = ssa_pr_whole_world(p_db_diff,p_context,ssa_pr_path_output,path_arr);
+	}	
+
+	if(SSA_PR_SUCCESS != pr_res) {
+		fprintf(stderr,"Path record algorithm is failed.\n");
+		res = -1;
+		goto Exit;
+	}
+
+	printf("%u path records found\n",path_arr->len);
 	dump_pr(path_arr,p_db_diff,fd_dump);
 
 Exit:
+	if(!p_context ) {
+		ssa_pr_destroy_context(p_context);
+		p_context = NULL;
+	}
 	if(!p_db_diff) {
 		destroy_smdb(p_db_diff);
 		p_db_diff = NULL;
 	}
-
 	if(!dump_to_stdout && fd_dump) {
 		fclose(fd_dump);
 		fd_dump = NULL;
@@ -440,7 +482,10 @@ Exit:
 		g_array_free(guids_arr,FALSE);
 		guids_arr = NULL;
 	}
-	//ssa_close_log1();
+	if(close_log && fd_log) {
+		fclose(fd_log);
+		fd_log = NULL;
+	}
 	return res;
 }
 
@@ -452,25 +497,31 @@ int main(int argc,char *argv[])
 	char dump_path[PATH_MAX] = {};
 	char input_path[PATH_MAX] = {};
 	char db_path[PATH_MAX] = {};
+	char log_path[PATH_MAX] = {};
 	short use_output_opt = 0;
 	short use_all_opt = 0;
 	short use_file_opt = 0;
 	short use_single_id_opt = 0;
 	short use_guid_opt = 0;
 	short use_lid_opt = 0;
+	short use_log_opt = 0;
+	short use_verbosity_opt =0;
 	short err_opt = 0;
 	uint64_t id = 0; 
 	char id_string_val[PATH_MAX] = {};
+	char verbosity_string_val[PATH_MAX] = {};
 
 	memset(&prm,'\0',sizeof(prm));
 
-	ssa_pr_log_level = SSA_PR_DEBUG_LEVEL ;
-
-	while ((opt = getopt(argc, argv, "glan:f:o:h?")) != -1) {
+	while ((opt = getopt(argc, argv, "glan:f:o:hL:v:?")) != -1) {
 		switch (opt) {
 			case 'o':
 				use_output_opt = 1;
 				strncpy(dump_path,optarg,PATH_MAX);
+				break;
+			case 'L':
+				use_log_opt  = 1;
+				strncpy(log_path,optarg,PATH_MAX);
 				break;
 			case 'a':
 				use_all_opt = 1;
@@ -483,6 +534,10 @@ int main(int argc,char *argv[])
 				if(!err_opt){
 					strncpy(id_string_val,optarg,PATH_MAX);
 				}
+				break;
+			case 'v':
+				use_verbosity_opt  = 1;
+				strncpy(verbosity_string_val,optarg,PATH_MAX);
 				break;
 			case 'f':
 				use_file_opt = 1;
@@ -557,6 +612,39 @@ int main(int argc,char *argv[])
 
 		prm.id = id;
 		prm.is_guid = use_guid_opt;
+	}
+
+	if(use_verbosity_opt && strlen(verbosity_string_val)) {
+		int res = 0;
+		int verbosity = -1;
+
+		res = sscanf(verbosity_string_val,"%d",&verbosity);
+
+		if(res != 1) {
+			fprintf(stderr,"String : %s can't be converted to numeric value.\n"
+					,verbosity_string_val);
+			print_usage(stderr,argv[0]);
+			exit(EXIT_FAILURE);
+		}
+
+		if(verbosity < 0 || 
+				verbosity >= sizeof(log_verbosity_level) / sizeof(log_verbosity_level[0])) {
+			fprintf(stderr,"Vebosity paramater has wrong value: %d.\n",verbosity);
+			print_usage(stderr,argv[0]);
+			exit(EXIT_FAILURE);
+		}
+		prm.log_verbosity = verbosity;
+	} else {
+		prm.log_verbosity = 1;
+	}
+
+	if(strlen(log_path)) {
+		if(is_file_exist(log_path)) {
+			fprintf(stderr,"Log file will be replaced: %s\n",log_path);
+			strncpy(prm.log_path,log_path,PATH_MAX);
+		}
+	} else {
+		strncpy(prm.log_path,"stderr",PATH_MAX);
 	}
 
 	if(!is_dir_exist(db_path)) {
