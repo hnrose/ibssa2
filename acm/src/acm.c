@@ -3046,6 +3046,8 @@ static void acm_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf 
 	ssa_upstream_mad(svc, msg);
 
 	/* Now, initiate rsocket client connection to parent */
+	if (svc->state == SSA_STATE_HAVE_PARENT)
+		ssa_ctrl_conn(svc->port->dev->ssa, svc);
 }
 
 static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)

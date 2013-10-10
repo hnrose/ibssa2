@@ -168,6 +168,7 @@ struct ssa_svc {
 					       struct ssa_ctrl_msg_buf *msg);
 	int			sock[2];
 	int			rsock;
+	int			slot;
 	uint16_t		index;
 	uint16_t		tid;
 	pthread_t		upstream;
@@ -186,6 +187,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			      int (*process_msg)(struct ssa_svc *svc,
 					         struct ssa_ctrl_msg_buf *msg));
 int ssa_ctrl_run(struct ssa_class *ssa);
+void ssa_ctrl_conn(struct ssa_class *ssa, struct ssa_svc *svc);
 void ssa_ctrl_stop(struct ssa_class *ssa);
 
 int ssa_compare_gid(const void *gid1, const void *gid2);
