@@ -82,6 +82,7 @@ void ssa_close_log(void);
 void ssa_write_log(int level, const char *format, ...);
 #define ssa_log(level, format, ...) \
 	ssa_write_log(level, "%s: "format, __func__, ## __VA_ARGS__)
+#define ssa_log_func(level) ssa_log(level, "\n");
 void ssa_sprint_addr(int level, char *str, size_t str_size,
 		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size);
 void ssa_log_options(void);

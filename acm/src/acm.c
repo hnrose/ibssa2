@@ -771,7 +771,7 @@ acm_record_acm_route(struct acm_ep *ep, struct acm_dest *dest)
 {
 	int i;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	for (i = 0; i < MAX_EP_MC; i++) {
 		if (!memcmp(&dest->mgid, &ep->mc_dest[i].mgid, sizeof dest->mgid))
 			break;
@@ -792,7 +792,7 @@ acm_record_acm_route(struct acm_ep *ep, struct acm_dest *dest)
 
 static void acm_init_path_query(struct ib_sa_mad *mad)
 {
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	mad->base_version = 1;
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
 	mad->class_version = 2;
@@ -807,7 +807,7 @@ static uint64_t acm_path_comp_mask(struct ibv_path_record *path)
 	uint16_t qos_sl;
 	uint64_t comp_mask = 0;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	if (path->service_id)
 		comp_mask |= IB_COMP_MASK_PR_SERVICE_ID;
 	if (!ib_any_gid(&path->dgid))
@@ -1110,7 +1110,7 @@ acm_resolve_sa_resp(struct acm_send_msg *msg, struct ibv_wc *wc, struct acm_mad 
 	struct acm_dest *dest = (struct acm_dest *) msg->context;
 	int send_resp;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	acm_dest_sa_resp(msg, wc, mad);
 
 	pthread_mutex_lock(&dest->lock);
@@ -1129,7 +1129,7 @@ acm_process_addr_req(struct acm_ep *ep, struct ibv_wc *wc, struct acm_mad *mad)
 	uint8_t status;
 	int addr_index;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	if ((status = acm_validate_addr_req(mad))) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid request\n");
 		return;
@@ -1237,7 +1237,7 @@ static void acm_process_acm_recv(struct acm_ep *ep, struct ibv_wc *wc, struct ac
 	struct acm_resolve_rec *rec;
 	int free;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	if (mad->base_version != 1 || mad->class_version != 1) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid version %d %d\n",
 			mad->base_version, mad->class_version);
@@ -1327,7 +1327,7 @@ static void acm_process_sa_recv(struct acm_ep *ep, struct ibv_wc *wc, struct acm
 	struct acm_send_msg *req;
 	int free;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	if (mad->base_version != 1 || mad->class_version != 2 ||
 	    !(mad->method & IB_METHOD_RESP) || sa_mad->attr_id != IB_SA_ATTR_PATH_REC) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - unexpected SA MAD %d %d\n",
@@ -1437,7 +1437,7 @@ static void acm_init_join(struct ib_sa_mad *mad, union ibv_gid *port_gid,
 {
 	struct ib_mc_member_rec *mc_rec;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	mad->base_version = 1;
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
 	mad->class_version = 2;
@@ -1472,7 +1472,7 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 	struct ib_mc_member_rec *mc_rec;
 	int ret, len;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	len = sizeof(*umad) + sizeof(*mad);
 	umad = (struct ib_user_mad *) calloc(1, len);
 	if (!umad) {
@@ -1670,7 +1670,7 @@ static int acm_listen(void)
 	struct sockaddr_in addr;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (listen_socket == -1) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate listen socket\n");
@@ -1710,7 +1710,7 @@ static void acm_svr_accept(void)
 {
 	int s, i;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	s = accept(listen_socket, NULL, NULL);
 	if (s == -1) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to accept connection\n");
@@ -1896,7 +1896,7 @@ acm_send_resolve(struct acm_ep *ep, struct acm_dest *dest,
 	struct acm_resolve_rec *rec;
 	int i;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	msg = acm_alloc_send(ep, &ep->mc_dest[0], sizeof(*mad));
 	if (!msg) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot allocate send msg\n");
@@ -2601,7 +2601,7 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 	struct acm_dest *dest;
 	int i;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	if (loopback_prot != ACM_LOOPBACK_PROT_LOCAL)
 		return 0;
 
@@ -2659,7 +2659,7 @@ acm_alloc_ep(struct acm_port *port, uint16_t pkey, uint16_t pkey_index)
 {
 	struct acm_ep *ep;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	ep = calloc(1, sizeof *ep);
 	if (!ep)
 		return NULL;
@@ -2688,7 +2688,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	int ret, sq_size;
 	uint16_t pkey;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	ret = ibv_query_pkey(port->dev->verbs, port->port_num, pkey_index, &pkey);
 	if (ret)
 		return;
@@ -2919,7 +2919,7 @@ static void acm_activate_devices()
 	struct acm_device *dev;
 	DLIST_ENTRY *dev_entry;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	for (dev_entry = device_list.Next; dev_entry != &device_list;
 		dev_entry = dev_entry->Next) {
 
@@ -3021,7 +3021,7 @@ static int acm_open_devices(void)
 	int dev_cnt;
 	int i;
 
-	ssa_log(SSA_LOG_VERBOSE, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE);
 	ibdev = ibv_get_device_list(&dev_cnt);
 	if (!ibdev) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to get device list\n");

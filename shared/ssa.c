@@ -931,7 +931,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 	int i, ret, errnum;
 	struct ssa_ctrl_conn_msg *conn;
 
-	ssa_log(SSA_LOG_CTRL, "\n");
+	ssa_log_func(SSA_LOG_CTRL);
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, ssa->sock);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
@@ -1018,7 +1018,7 @@ void ssa_ctrl_conn(struct ssa_class *ssa, struct ssa_svc *svc)
 {
 	struct ssa_ctrl_conn_msg msg;
 
-	ssa_log(SSA_LOG_CTRL, "\n");
+	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_CTRL_CONN;
 	msg.hdr.len = sizeof msg;
 	msg.svc = svc;
@@ -1029,7 +1029,7 @@ void ssa_ctrl_stop(struct ssa_class *ssa)
 {
 	struct ssa_ctrl_msg msg;
 
-	ssa_log(SSA_LOG_CTRL, "\n");
+	ssa_log_func(SSA_LOG_CTRL);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
 	write(ssa->sock[0], (char *) &msg, sizeof msg);
@@ -1210,7 +1210,7 @@ int ssa_open_devices(struct ssa_class *ssa)
 	struct ibv_device **ibdev;
 	int i, ret = 0;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	ibdev = ibv_get_device_list(&ssa->dev_cnt);
 	if (!ibdev) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
@@ -1274,7 +1274,7 @@ void ssa_close_devices(struct ssa_class *ssa)
 	struct ssa_device *dev;
 	int d, p;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "\n");
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
 		for (p = 1; p <= dev->port_cnt; p++)
