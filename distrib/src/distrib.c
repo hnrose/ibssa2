@@ -342,7 +342,7 @@ static void distrib_free_member(void *gid)
 static void distrib_destroy_svc(struct ssa_svc *svc)
 {
 	struct ssa_distrib *distrib = container_of(svc, struct ssa_distrib, svc);
-	ssa_log(SSA_LOG_CTRL, "\n");
+	ssa_log_func(SSA_LOG_CTRL);
 	if (distrib->member_map)
 		tdestroy(distrib->member_map, distrib_free_member);
 }
