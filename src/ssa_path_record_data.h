@@ -164,18 +164,19 @@ extern int find_destination_port(const struct ssa_db_smdb *p_smdb,
 		const be16_t dest_lid);
 
 /**
- * find_link - search in SSA_TABLE_ID_LINK table
+ * find_linked_port - search in SSA_TABLE_ID_LINK table for a linked port
  * @p_smdb: Pointer to a smdb databse.
  * @p_index: Pointer to a smdb index. It's used for boot retrieval operations 
- * @lid: source LID in network order.
- * @port_num: source port number. For CA the parameter is not relevant.
+ * @from_lid: source LID in network order.
+ * @from_port_num: source port number. For CA the parameter is not relevant.
  *
  * @return value: pointer to found record. NULL - failure.
  *
- * The function searches for link record
+ * The function searches for link record and if it's found returns pointer to
+ * linked port
  **/
-extern const struct ep_link_tbl_rec *find_link(const struct ssa_db_smdb *p_smdb,
+extern const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db_smdb *p_smdb,
 		const struct ssa_pr_smdb_index *p_index,
-		const be16_t lid,
-		const int port_num);
+		const be16_t from_lid,
+		const int from_port_num);
 #endif /* end of include guard: SSA_PATH_RECORD_DATA_H */

@@ -39,6 +39,12 @@
 #include "ssa_path_record_data.h"
 
 
+static size_t find_port_index(const struct ssa_db_smdb *p_smdb,
+		const struct ssa_pr_smdb_index *p_index,
+		const be16_t lid,
+		const int port_num);
+
+
 inline static size_t get_dataset_count(const struct ssa_db_smdb *p_smdb,
 		unsigned int table_id)
 {
@@ -185,7 +191,7 @@ static int build_lft_block_lookup(struct ssa_pr_smdb_index *p_index,
 static int build_link_index(struct ssa_pr_smdb_index *p_index,
 		const struct ssa_db_smdb *p_smdb)
 {
-	size_t i = 0, count = 0;
+	size_t i = 0, link_count = 0, port_count = 0;
 	const struct ep_link_tbl_rec  *p_link_tbl =  NULL;
 	uint64_t default_val = 0;
 
@@ -199,10 +205,20 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 	p_link_tbl = (const struct ep_link_tbl_rec*)p_smdb->p_tables[SSA_TABLE_ID_LINK];
 	SSA_ASSERT(p_link_tbl);
 
-	count = get_dataset_count(p_smdb,SSA_TABLE_ID_LINK);
-	default_val = count + 1;
+	link_count = get_dataset_count(p_smdb,SSA_TABLE_ID_LINK);
+	port_count = get_dataset_count(p_smdb,SSA_TABLE_ID_PORT);
+	default_val = port_count  + 1;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < link_count; i++) {
+		size_t to_port_index = find_port_index(p_smdb,p_index,
+				p_link_tbl[i].to_lid,p_link_tbl[i].to_port_num);
+
+		if(to_port_index >= port_count) {
+			SSA_PR_LOG_ERROR("Can't find port for LID: 0x"SCNx16 ". Link index build is failed",
+				ntohs(p_link_tbl[i].to_lid));
+			return -1;
+		}
+
 		if(p_index->is_switch_lookup[ntohs(p_link_tbl[i].from_lid)]) {
 			uint64_t *port_lookup = p_index->switch_link_lookup[ntohs(p_link_tbl[i].from_lid)];
 			if(!port_lookup) {
@@ -212,10 +228,10 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 				for(j = 0;j < MAX_LOOKUP_PORT;++j)
 					port_lookup[j] = default_val;
 			}
-			port_lookup[p_link_tbl[i].from_port_num] = i;
+			port_lookup[p_link_tbl[i].from_port_num] = to_port_index ;
 		}
 		else {
-			p_index->ca_link_lookup[ntohs(p_link_tbl[i].from_lid)] = i;
+			p_index->ca_link_lookup[ntohs(p_link_tbl[i].from_lid)] = to_port_index;
 		}
 	}
 
@@ -235,14 +251,14 @@ int ssa_pr_build_indexes(struct ssa_pr_smdb_index *p_index,
 		SSA_PR_LOG_ERROR("Build for is_switch_lookup is failed");
 		return res;
 	}
-	res = build_lft_top_lookup(p_index,p_smdb);
-	if(res) {
-		SSA_PR_LOG_ERROR("Build for lft_top is failed");
-		return res;
-	}
 	res = build_port_index(p_index,p_smdb);
 	if(res) {
 		SSA_PR_LOG_ERROR("Build for port index is failed");
+		return res;
+	}
+	res = build_lft_top_lookup(p_index,p_smdb);
+	if(res) {
+		SSA_PR_LOG_ERROR("Build for lft_top is failed");
 		return res;
 	}
 	res = build_lft_block_lookup(p_index,p_smdb);
@@ -404,25 +420,18 @@ int find_destination_port(const struct ssa_db_smdb *p_smdb,
 	return p_lft_block_tbl[lft_block_index].block[lft_port_shift];
 }
 
-const struct ep_port_tbl_rec *find_port(const struct ssa_db_smdb *p_smdb,
+static size_t find_port_index(const struct ssa_db_smdb *p_smdb,
 		const struct ssa_pr_smdb_index *p_index,
 		const be16_t lid,
 		const int port_num)
 {
 	size_t i = 0;
-	const struct ep_port_tbl_rec  *p_port_tbl = NULL;
-	size_t count = 0;
-	size_t port_index = 0;
+	size_t port_index = -1;
 
 	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(p_index);
 	SSA_ASSERT(p_index->is_switch_lookup);
 	SSA_ASSERT(lid);
-
-	p_port_tbl = (const struct ep_port_tbl_rec*)p_smdb->p_tables[SSA_TABLE_ID_PORT];
-	SSA_ASSERT(p_port_tbl );
-
-	count = get_dataset_count(p_smdb,SSA_TABLE_ID_PORT);
 
 	if(p_index->is_switch_lookup[ntohs(lid)]) {
 		uint64_t *switch_port_lookup = p_index->switch_port_lookup[ntohs(lid)]; 
@@ -430,12 +439,31 @@ const struct ep_port_tbl_rec *find_port(const struct ssa_db_smdb *p_smdb,
 		if(!switch_port_lookup) {
 			SSA_PR_LOG_ERROR("Port is not found. LID: 0x%"SCNx16" Port num: %d",
 					ntohs(lid),port_num);
-			return NULL;
+			return -1;
 		}
 		port_index = switch_port_lookup[port_num];
 	} else {
 		port_index = p_index->ca_port_lookup[ntohs(lid)];
 	}
+
+	return port_index;
+}
+
+const struct ep_port_tbl_rec *find_port(const struct ssa_db_smdb *p_smdb,
+		const struct ssa_pr_smdb_index *p_index,
+		const be16_t lid,
+		const int port_num)
+{
+	size_t port_index = 0;
+	const struct ep_port_tbl_rec  *p_port_tbl = NULL;
+	size_t count = 0;
+
+	p_port_tbl = (const struct ep_port_tbl_rec*)p_smdb->p_tables[SSA_TABLE_ID_PORT];
+	SSA_ASSERT(p_port_tbl );
+
+	count = get_dataset_count(p_smdb,SSA_TABLE_ID_PORT);
+
+	port_index = find_port_index(p_smdb,p_index,lid,port_num);
 
 	if(port_index >= count) {
 		SSA_PR_LOG_ERROR("Port is not found. LID: 0x%"SCNx16" Port num: %d",
@@ -445,14 +473,14 @@ const struct ep_port_tbl_rec *find_port(const struct ssa_db_smdb *p_smdb,
 	return p_port_tbl + port_index;
 }
 
-const struct ep_link_tbl_rec *find_link(const struct ssa_db_smdb *p_smdb,
+const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db_smdb *p_smdb,
 		const struct ssa_pr_smdb_index *p_index,
 		const be16_t lid,
 		const int port_num)
 {
 	size_t i = 0;
-	const struct ep_link_tbl_rec *p_link_tbl =  NULL;
-	size_t link_count = 0;
+	const struct ep_port_tbl_rec *p_port_tbl = NULL;
+	size_t port_count = 0;
 	size_t record_index = 0;
 
 	SSA_ASSERT(p_smdb);
@@ -460,8 +488,8 @@ const struct ep_link_tbl_rec *find_link(const struct ssa_db_smdb *p_smdb,
 	SSA_ASSERT(p_index->is_switch_lookup);
 	SSA_ASSERT(lid);
 
-	p_link_tbl = (const struct ep_link_tbl_rec*)p_smdb->p_tables[SSA_TABLE_ID_LINK];
-	SSA_ASSERT(p_link_tbl);
+	p_port_tbl = (const struct ep_port_tbl_rec*)p_smdb->p_tables[SSA_TABLE_ID_PORT];
+	SSA_ASSERT(p_port_tbl );
 
 	if(p_index->is_switch_lookup[ntohs(lid)]) {
 		uint64_t *port_lookup = p_index->switch_link_lookup[ntohs(lid)];
@@ -476,9 +504,9 @@ const struct ep_link_tbl_rec *find_link(const struct ssa_db_smdb *p_smdb,
 		record_index = p_index->ca_link_lookup[ntohs(lid)];
 	}
 
-	link_count = get_dataset_count(p_smdb,SSA_TABLE_ID_LINK);
+	port_count = get_dataset_count(p_smdb,SSA_TABLE_ID_PORT);
 
-	if(record_index >= link_count) {
+	if(record_index >= port_count) {
 		if(port_num >= 0) {
 			SSA_PR_LOG_ERROR("Link is not found. LID: 0x%"SCNx16" Port num: %u",
 					ntohs(lid),port_num);
@@ -488,5 +516,5 @@ const struct ep_link_tbl_rec *find_link(const struct ssa_db_smdb *p_smdb,
 		return NULL;
 	}
 
-	return p_link_tbl + record_index;
+	return p_port_tbl + record_index;
 }

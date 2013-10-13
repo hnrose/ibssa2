@@ -63,43 +63,17 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 		const struct ep_guid_to_lid_tbl_rec *p_dest_rec,
 		ssa_path_parms_t *p_path_prm);
 
-static int ordered_rates[] = {
-	0, 0,	/*  0, 1 - reserved */
-	1,	/*  2 - 2.5 Gbps */
-	3,	/*  3 - 10  Gbps */
-	6,	/*  4 - 30  Gbps */
-	2,	/*  5 - 5   Gbps */
-	5,	/*  6 - 20  Gbps */
-	8,	/*  7 - 40  Gbps */
-	9,	/*  8 - 60  Gbps */
-	11,	/*  9 - 80  Gbps */
-	12,	/* 10 - 120 Gbps */
-	4,	/* 11 -  14 Gbps (17 Gbps equiv) */
-	10,	/* 12 -  56 Gbps (68 Gbps equiv) */
-	14,	/* 13 - 112 Gbps (136 Gbps equiv) */
-	15,	/* 14 - 168 Gbps (204 Gbps equiv) */
-	7,	/* 15 -  25 Gbps (31.25 Gbps equiv) */
-	13,	/* 16 - 100 Gbps (125 Gbps equiv) */
-	16,	/* 17 - 200 Gbps (250 Gbps equiv) */
-	17	/* 18 - 300 Gbps (375 Gbps equiv) */
-};
 
-static int ib_path_compare_rates(IN const int rate1, IN const int rate2)
+/*
+ * According to profiling results,ib_path_compare_rates takes about
+ * 7% of overall path record computation time.
+ * ib_path_compare_rates_fast is a fast version of ib_path_compare_rates that use staic lookup
+ *  table with precomputed results. It used for performance optimisation in 
+ * the path records algorithm.
+ */
+static inline int ib_path_compare_rates_fast(IN const int rate1, IN const int rate2)
 {
-	int orate1 = 0, orate2 = 0;
-
-	SSA_ASSERT(rate1 >= IB_MIN_RATE && rate1 <= IB_MAX_RATE);
-	SSA_ASSERT(rate2 >= IB_MIN_RATE && rate2 <= IB_MAX_RATE);
-
-	if (rate1 <= IB_MAX_RATE)
-		orate1 = ordered_rates[rate1];
-	if (rate2 <= IB_MAX_RATE)
-		orate2 = ordered_rates[rate2];
-	if (orate1 < orate2)
-		return -1;
-	if (orate1 == orate2)
-		return 0;
-	return 1;
+	return rates_cmp_table[rate1][rate2];
 }
 
 inline static size_t get_dataset_count(const struct ssa_db_smdb *p_ssa_db_smdb,
@@ -127,6 +101,8 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 	uint16_t source_last_lid = 0;
 	uint16_t source_lid = 0;
 	struct ssa_pr_context *p_context = (struct ssa_pr_context *)p_ctnx;
+	clock_t start, end;
+	double cpu_time_used;
 
 	SSA_ASSERT(port_guid);
 	SSA_ASSERT(p_ssa_db_smdb);
@@ -154,9 +130,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 	source_last_lid = source_base_lid + pow(2,p_source_rec->lmc) - 1;
 
 	for(source_lid = source_base_lid; source_lid <= source_last_lid; ++source_lid) {
-		SSA_PR_LOG_DEBUG("Compute \"half world\" path records for: 0x%"SCNx16,
-				source_lid);
-
+		start = clock();
 		for (i = 0; i < guid_to_lid_count; i++) {
 			uint16_t dest_base_lid = 0;
 			uint16_t dest_last_lid = 0;
@@ -207,6 +181,10 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db_smdb *p_ssa_db_smdb,
 				} 
 			}
 		}
+		end = clock();
+		cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+		SSA_PR_LOG_DEBUG("\"half world\" path records for: 0x%"SCNx16
+				" time: %f sec.",source_lid,cpu_time_used );
 	}
 	return SSA_PR_SUCCESS;
 }
@@ -336,24 +314,11 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 	}
 
 	while(port != dest_port) {
-		const struct ep_link_tbl_rec *link_rec = find_link(p_ssa_db_smdb,p_context->p_index,
-				port->port_lid,
-				port->rate &  SSA_DB_PORT_IS_SWITCH_MASK ? port->port_num:-1);
 		int out_port_num = -1;
 
-		if(NULL == link_rec) {
-			SSA_PR_LOG_ERROR("There is no link from port LID: 0x%"SCNx16" num: %u. "
-					"Path record calculation is stopped",
-					ntohs(port->port_lid),
-					port->port_num);
-			return SSA_PR_ERROR;
-		}
-
-		port = find_port(p_ssa_db_smdb,p_context->p_index,
-				link_rec->to_lid,link_rec->to_port_num);
+		port = find_linked_port(p_ssa_db_smdb,p_context->p_index,port->port_lid,port->port_num);
 		if(NULL == port) {
-			SSA_PR_LOG_ERROR("Port is not found. Path record calculation is stopped."
-					" LID: 0x%"SCNx16" num: %u",htons(link_rec->to_lid),link_rec->to_port_num);
+			SSA_PR_LOG_ERROR("Port is not found. Path record calculation is stopped.");
 			return SSA_PR_ERROR;
 		}
 
@@ -373,26 +338,26 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 		}	
 
 		p_path_prm->mtu = MIN(p_path_prm->mtu,port->neighbor_mtu);
-		if(ib_path_compare_rates(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
+		if(ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 			p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 
-		out_port_num  = find_destination_port(p_ssa_db_smdb,p_context->p_index,link_rec->to_lid,p_dest_rec->lid);
+		out_port_num  = find_destination_port(p_ssa_db_smdb,p_context->p_index,port->port_lid,p_dest_rec->lid);
 		if(LFT_NO_PATH == out_port_num){
 			SSA_PR_LOG_DEBUG("There is no path from LID: 0x%"SCNx16" to LID: 0x%"SCNx16" .",
 					htons(p_source_rec->lid),htons(p_dest_rec->lid));
 			return SSA_PR_NO_PATH;
 		}
 
-		port = find_port(p_ssa_db_smdb,p_context->p_index,link_rec->to_lid,out_port_num);
+		port = find_port(p_ssa_db_smdb,p_context->p_index,port->port_lid,out_port_num);
 		if(NULL == port) {
 			SSA_PR_LOG_ERROR("Port is not found. Path record calculation is stopped."
 					" LID: 0x%"SCNx16" num: %u",
-					htons(link_rec->to_lid),out_port_num);
+					htons(port->port_lid),out_port_num);
 			return SSA_PR_ERROR;
 		}
 
 		p_path_prm->mtu = MIN(p_path_prm->mtu,port->neighbor_mtu);
-		if(ib_path_compare_rates(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
+		if(ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 			p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 		p_path_prm->hops++;
 
@@ -411,7 +376,7 @@ static ssa_pr_status_t ssa_pr_path_params(const struct ssa_db_smdb *p_ssa_db_smd
 	}
 
 	p_path_prm->mtu = MIN(p_path_prm->mtu,port->neighbor_mtu);
-	if(ib_path_compare_rates(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
+	if(ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 		p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 
 	return SSA_PR_SUCCESS;

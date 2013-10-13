@@ -60,6 +60,8 @@ extern int ssa_pr_log_level;
 extern FILE *ssa_pr_log_fd;
 extern const char* get_time();
 
+extern  int rates_cmp_table[19][19];
+
 #define _FILE strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__
 #define SSA_PR_LOG_FORMAT "%s | %-7s | %-15s:%d | %s |"
 #define SSA_PR_LOG_PREFIX_ARGS(tag) get_time(), tag ,_FILE,__LINE__,__func__ 
