@@ -323,7 +323,7 @@ static int ssa_svc_modify(struct ssa_svc *svc, int fd_slot, int events)
 	return -1;
 }
 
-static int ssa_svc_insert(struct ssa_svc *svc, int events)
+static int ssa_svc_insert(struct ssa_svc *svc, int fd, int events)
 {
 	struct ssa_class *ssa;
 	int i;
@@ -331,7 +331,7 @@ static int ssa_svc_insert(struct ssa_svc *svc, int events)
 	ssa = svc->port->dev->ssa;
 	for (i = ssa->sfds_start; i < ssa->sfds_start + ssa->nsfds; i++) {
 		if ((ssa->fds[i].fd == -1) && (ssa->fds_obj[i].svc == NULL)) {
-			ssa->fds[i].fd = svc->rsock;
+			ssa->fds[i].fd = fd;
 			ssa->fds[i].events = events;
 			ssa->fds_obj[i].svc = svc;
 			ssa->nfds++;
@@ -413,7 +413,7 @@ static void ssa_svc_listen(struct ssa_svc *svc)
 		goto err;
 	}
 
-	svc->slot = ssa_svc_insert(svc, POLLIN);
+	svc->slot = ssa_svc_insert(svc, svc->rsock, POLLIN);
 	if (svc->slot >= 0)
 		return;
 
@@ -827,7 +827,7 @@ static void ssa_ctrl_initiate_conn(struct ssa_svc *svc)
 			sizeof dst_addr.sib_addr);
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "dest GID %s\n", log_data);
 
-	svc->slot = ssa_svc_insert(svc, POLLOUT);
+	svc->slot = ssa_svc_insert(svc, svc->rsock, POLLOUT);
 	if (svc->slot < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - no service slot available\n");
