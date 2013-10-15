@@ -316,7 +316,9 @@ static int ssa_svc_modify(struct ssa_svc *svc, int fd_slot, int events)
 	struct ssa_class *ssa;
 
 	ssa = svc->port->dev->ssa;
-	if (ssa->fds[fd_slot].fd == svc->rsock) {
+	if (fd_slot >= (ssa->nfds + ssa->nsfds))
+		return -1;
+	if (ssa->fds[fd_slot].fd != -1) {
 		ssa->fds[fd_slot].events = events;
 		return fd_slot;
 	}
