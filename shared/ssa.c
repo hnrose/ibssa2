@@ -988,17 +988,17 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 				break;
 			case SSA_OBJ_DEVICE:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"device event on fd %d\n", ssa->fds[i]);
+					"device event on fd %d\n", ssa->fds[i].fd);
 				ssa_ctrl_device(ssa->fds_obj[i].dev);
 				break;
 			case SSA_OBJ_PORT:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"port event on fd %d\n", ssa->fds[i]);
+					"port event on fd %d\n", ssa->fds[i].fd);
 				ssa_ctrl_port(ssa->fds_obj[i].port);
 				break;
 			case SSA_OBJ_SVC:
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"service event on fd %d\n", ssa->fds[i]);
+					"service event on fd %d\n", ssa->fds[i].fd);
 				ssa_ctrl_svc(ssa->fds_obj[i].svc, errnum);
 				break;
 			}
