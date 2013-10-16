@@ -419,7 +419,7 @@ static void ssa_svc_listen(struct ssa_svc *svc)
 	if (svc->slot >= 0)
 		return;
 
-	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "ERROR - no service slot available\n");
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "no service slot available ERROR\n");
 
 err:
 	rclose(svc->rsock);
@@ -679,7 +679,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 
 	if (!svc) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - no matching service for received MAD\n");
+			"ERROR no matching service for received MAD\n");
 		return;
 	}
 
@@ -832,7 +832,7 @@ static void ssa_ctrl_initiate_conn(struct ssa_svc *svc)
 	svc->slot = ssa_svc_insert(svc, svc->rsock, POLLOUT);
 	if (svc->slot < 0) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - no service slot available\n");
+			"no service slot available ERROR\n");
 		goto close;
 	}
 
@@ -937,7 +937,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, ssa->sock);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - creating socketpair\n");
+			"ERROR creating socketpair\n");
 		return ret;
 	}
 
@@ -951,7 +951,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 		ret = rpoll(ssa->fds, ssa->nfds, -1);
 		if (ret < 0) {
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-				"ERROR - polling fds %d (%s)\n",
+				"ERROR %d (%s) polling fds\n",
 				errno, strerror(errno));
 			continue;
 		}
@@ -1063,7 +1063,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - creating socketpair\n");
+			"ERROR creating socketpair\n");
 		goto err1;
 	}
 
@@ -1081,7 +1081,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	ret = pthread_create(&svc->upstream, NULL, ssa_upstream_handler, svc);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - creating upstream thread\n");
+			"ERROR creating upstream thread\n");
 		errno = ret;
 		goto err2;
 	}
