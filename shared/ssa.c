@@ -305,8 +305,7 @@ static void ssa_svc_join(struct ssa_svc *svc)
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
 			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - failed to send join request\n");
+		ssa_log_err(SSA_LOG_CTRL, "failed to send join request\n");
 		svc->state = SSA_STATE_IDLE;
 	}
 }
@@ -419,7 +418,7 @@ static void ssa_svc_listen(struct ssa_svc *svc)
 	if (svc->slot >= 0)
 		return;
 
-	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "no service slot available ERROR\n");
+	ssa_log_err(SSA_LOG_CTRL, "no service slot available\n");
 
 err:
 	rclose(svc->rsock);
@@ -439,8 +438,7 @@ void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
 			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - failed to send path query to SA\n");
+		ssa_log_err(SSA_LOG_CTRL, "failed to send path query to SA\n");
         }
 }
 
@@ -557,9 +555,9 @@ static void *ssa_upstream_handler(void *context)
 		case SSA_CTRL_EXIT:
 			break;
 		default:
-			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-				"WARNING ignoring unexpected message type %d\n",
-				msg.hdr.type);
+			ssa_log_warn(SSA_LOG_CTRL,
+				     "ignoring unexpected message type %d\n",
+				     msg.hdr.type);
 			break;
 		}
 	}
@@ -647,8 +645,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	len = sizeof msg.umad;
 	ret = umad_recv(port->mad_portid, (void *) &msg.umad, &len, 0);
 	if (ret < 0) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"WARNING receive MAD failure\n");
+		ssa_log_warn(SSA_LOG_CTRL, "receive MAD failure\n");
 		return;
 	}
 
@@ -678,8 +675,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	}
 
 	if (!svc) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR no matching service for received MAD\n");
+		ssa_log_err(SSA_LOG_CTRL, "no matching service for received MAD\n");
 		return;
 	}
 
@@ -831,8 +827,7 @@ static void ssa_ctrl_initiate_conn(struct ssa_svc *svc)
 
 	svc->slot = ssa_svc_insert(svc, svc->rsock, POLLOUT);
 	if (svc->slot < 0) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"no service slot available ERROR\n");
+		ssa_log_err(SSA_LOG_CTRL, "no service slot available\n");
 		goto close;
 	}
 
@@ -936,8 +931,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 	ssa_log_func(SSA_LOG_CTRL);
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, ssa->sock);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR creating socketpair\n");
+		ssa_log_err(SSA_LOG_CTRL, "creating socketpair\n");
 		return ret;
 	}
 
@@ -950,9 +944,8 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 	for (;;) {
 		ret = rpoll(ssa->fds, ssa->nfds, -1);
 		if (ret < 0) {
-			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-				"ERROR %d (%s) polling fds\n",
-				errno, strerror(errno));
+			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
+				    errno, strerror(errno));
 			continue;
 		}
 		errnum = errno;
@@ -980,9 +973,9 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 				case SSA_CTRL_EXIT:
 					goto out;
 				default:
-					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-						"WARNING ignoring unexpected message type %d\n",
-						msg.hdr.type);
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "ignoring unexpected message type %d\n",
+						     msg.hdr.type);
 					break;
 				}
 				break;
@@ -1062,8 +1055,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR creating socketpair\n");
+		ssa_log_err(SSA_LOG_CTRL, "creating socketpair\n");
 		goto err1;
 	}
 
@@ -1080,16 +1072,14 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 
 	ret = pthread_create(&svc->upstream, NULL, ssa_upstream_handler, svc);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR creating upstream thread\n");
+		ssa_log_err(SSA_LOG_CTRL, "creating upstream thread\n");
 		errno = ret;
 		goto err2;
 	}
 
 	ret = read(svc->sock[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR with upstream thread\n");
+		ssa_log_err(SSA_LOG_CTRL, "with upstream thread\n");
 		goto err3;
 
 	}
@@ -1120,25 +1110,22 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 
 	port->mad_portid = umad_open_port(dev->name, port->port_num);
 	if (port->mad_portid < 0) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - unable to open MAD port %s\n",
-			port->name);
+		ssa_log_err(SSA_LOG_CTRL, "unable to open MAD port %s\n",
+			    port->name);
 		return;
 	}
 
 	ret = fcntl(umad_get_fd(port->mad_portid), F_SETFL, O_NONBLOCK);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"WARNING - MAD fd is blocking\n");
+		ssa_log_warn(SSA_LOG_CTRL, "MAD fd is blocking\n");
 	}
 
 	memset(methods, 0xFF, sizeof methods);
 	port->mad_agentid = umad_register(port->mad_portid,
 		SSA_CLASS, SSA_CLASS_VERSION, 0, methods);
 	if (port->mad_agentid < 0) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - unable to register SSA class on port %s\n",
-			port->name);
+		ssa_log_err(SSA_LOG_CTRL, "unable to register SSA class on port %s\n",
+			    port->name);
 		goto err;
 	}
 
@@ -1146,9 +1133,8 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t
 	port->sa_agentid = umad_register(port->mad_portid,
 		UMAD_CLASS_SUBN_ADM, UMAD_SA_CLASS_VERSION, 0, NULL);
 	if (port->sa_agentid < 0) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - unable to register SA class on port %s\n",
-			port->name);
+		ssa_log_err(SSA_LOG_CTRL, "unable to register SA class on port %s\n",
+			    port->name);
 		goto err2;
 	}
 
@@ -1168,22 +1154,20 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", ibdev->name);
 	dev->verbs = ibv_open_device(ibdev);
 	if (dev->verbs == NULL) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - opening device %s\n", ibdev->name);
+		ssa_log_err(SSA_LOG_CTRL, "opening device %s\n", ibdev->name);
 		return;
 	}
 
 	ret = ibv_query_device(dev->verbs, &attr);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - ibv_query_device (%s) %d\n", ibdev->name, ret);
+		ssa_log_err(SSA_LOG_CTRL, "ibv_query_device (%s) %d\n",
+			    ibdev->name, ret);
 		goto err1;
 	}
 
 	ret = fcntl(dev->verbs->async_fd, F_SETFL, O_NONBLOCK);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"WARNING - event fd is blocking\n");
+		ssa_log_warn(SSA_LOG_CTRL, "event fd is blocking\n");
 	}
 
 	dev->port = (struct ssa_port *) calloc(attr.phys_port_cnt, ssa->port_size);
@@ -1215,14 +1199,13 @@ int ssa_open_devices(struct ssa_class *ssa)
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	ibdev = ibv_get_device_list(&ssa->dev_cnt);
 	if (!ibdev) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - unable to get device list\n");
+		ssa_log_err(SSA_LOG_CTRL, "unable to get device list\n");
 		return -1;
 	}
 
 	ssa->dev = (struct ssa_device *) calloc(ssa->dev_cnt, ssa->dev_size);
 	if (!ssa->dev) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "ERROR allocating devices\n");
+		ssa_log_err(SSA_LOG_CTRL, "allocating devices\n");
 		ret = seterr(ENOMEM);
 		goto free;
 	}
