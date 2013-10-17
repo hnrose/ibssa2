@@ -299,7 +299,7 @@ acm_alloc_dest(uint8_t addr_type, uint8_t *addr)
 
 	dest = calloc(1, sizeof *dest);
 	if (!dest) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate dest\n");
+		ssa_log_err(0, "unable to allocate dest\n");
 		return NULL;
 	}
 
@@ -395,7 +395,7 @@ acm_alloc_req(struct acm_client *client, struct acm_msg *msg)
 
 	req = calloc(1, sizeof *req);
 	if (!req) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to alloc client request\n");
+		ssa_log_err(0, "unable to alloc client request\n");
 		return NULL;
 	}
 
@@ -421,21 +421,21 @@ acm_alloc_send(struct acm_ep *ep, struct acm_dest *dest, size_t size)
 
 	msg = (struct acm_send_msg *) calloc(1, sizeof *msg);
 	if (!msg) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate send buffer\n");
+		ssa_log_err(0, "unable to allocate send buffer\n");
 		return NULL;
 	}
 
 	msg->ep = ep;
 	msg->mr = ibv_reg_mr(ep->port->dev->pd, msg->data, size, 0);
 	if (!msg->mr) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to register send buffer\n");
+		ssa_log_err(0, "failed to register send buffer\n");
 		goto err1;
 	}
 
 	if (!dest->ah) {
 		msg->ah = ibv_create_ah(ep->port->dev->pd, &dest->av);
 		if (!msg->ah) {
-			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create ah\n");
+			ssa_log_err(0, "unable to create ah\n");
 			goto err2;
 		}
 		msg->wr.wr.ud.ah = msg->ah;
@@ -708,11 +708,11 @@ static void acm_process_join_resp(struct acm_ep *ep, struct ib_user_mad *umad)
 	ssa_log(SSA_LOG_VERBOSE, "response status: 0x%x, mad status: 0x%x\n",
 		umad->status, mad->status);
 	if (umad->status) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - send join failed 0x%x\n", umad->status);
+		ssa_log_err(0, "send join failed 0x%x\n", umad->status);
 		return;
 	}
 	if (mad->status) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - join response status 0x%x\n", mad->status);
+		ssa_log_err(0, "join response status 0x%x\n", mad->status);
 		return;
 	}
 
@@ -720,7 +720,7 @@ static void acm_process_join_resp(struct acm_ep *ep, struct ib_user_mad *umad)
 	pthread_mutex_lock(&ep->lock);
 	index = acm_mc_index(ep, &mc_rec->mgid);
 	if (index < 0) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - MGID in join response not found\n");
+		ssa_log_err(0, "MGID in join response not found\n");
 		goto out;
 	}
 
@@ -732,12 +732,12 @@ static void acm_process_join_resp(struct acm_ep *ep, struct ib_user_mad *umad)
 	if (index == 0) {
 		dest->ah = ibv_create_ah(ep->port->dev->pd, &dest->av);
 		if (!dest->ah) {
-			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create ah\n");
+			ssa_log_err(0, "unable to create ah\n");
 			goto out;
 		}
 		ret = ibv_attach_mcast(ep->qp, &mc_rec->mgid, mc_rec->mlid);
 		if (ret) {
-			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to attach QP to multicast group\n");
+			ssa_log_err(0, "unable to attach QP to multicast group\n");
 			goto out;
 		}
 	}
@@ -777,7 +777,7 @@ acm_record_acm_route(struct acm_ep *ep, struct acm_dest *dest)
 			break;
 	}
 	if (i == MAX_EP_MC) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot match mgid\n");
+		ssa_log_err(0, "cannot match mgid\n");
 		return ACM_STATUS_EINVAL;
 	}
 
@@ -873,7 +873,7 @@ static uint8_t acm_resolve_path(struct acm_ep *ep, struct acm_dest *dest,
 	msg = acm_alloc_send(ep, &ep->port->sa_dest, sizeof(*mad));
 	acm_release_sa_dest(&ep->port->sa_dest);
 	if (!msg) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot allocate send msg\n");
+		ssa_log_err(0, "cannot allocate send msg\n");
 		ret = ACM_STATUS_ENOMEM;
 		goto err;
 	}
@@ -904,7 +904,7 @@ acm_record_acm_addr(struct acm_ep *ep, struct acm_dest *dest, struct ibv_wc *wc,
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	index = acm_best_mc_index(ep, rec);
 	if (index < 0) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - no shared multicast groups\n");
+		ssa_log_err(0, "no shared multicast groups\n");
 		dest->state = ACM_INIT;
 		return ACM_STATUS_ENODATA;
 	}
@@ -948,13 +948,13 @@ static uint8_t acm_validate_addr_req(struct acm_mad *mad)
 	struct acm_resolve_rec *rec;
 
 	if (mad->method != IB_METHOD_GET) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid method 0x%x\n", mad->method);
+		ssa_log_err(0, "invalid method 0x%x\n", mad->method);
 		return ACM_STATUS_EINVAL;
 	}
 
 	rec = (struct acm_resolve_rec *) mad->data;
 	if (!rec->src_type || rec->src_type >= ACM_ADDRESS_RESERVED) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unknown src type 0x%x\n", rec->src_type);
+		ssa_log_err(0, "unknown src type 0x%x\n", rec->src_type);
 		return ACM_STATUS_EINVAL;
 	}
 
@@ -971,7 +971,7 @@ acm_send_addr_resp(struct acm_ep *ep, struct acm_dest *dest)
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	msg = acm_alloc_send(ep, dest, sizeof (*mad));
 	if (!msg) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to allocate message\n");
+		ssa_log_err(0, "failed to allocate message\n");
 		return;
 	}
 
@@ -1008,7 +1008,7 @@ acm_client_resolve_resp(struct acm_client *client, struct acm_msg *req_msg,
 
 	pthread_mutex_lock(&client->lock);
 	if (client->sock == -1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - connection lost\n");
+		ssa_log_err(0, "connection lost\n");
 		ret = ACM_STATUS_ENOTCONN;
 		goto release;
 	}
@@ -1036,7 +1036,7 @@ acm_client_resolve_resp(struct acm_client *client, struct acm_msg *req_msg,
 
 	ret = send(client->sock, (char *) &msg, msg.hdr.length, 0);
 	if (ret != msg.hdr.length)
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send response\n");
+		ssa_log_err(0, "failed to send response\n");
 	else
 		ret = 0;
 
@@ -1131,14 +1131,14 @@ acm_process_addr_req(struct acm_ep *ep, struct ibv_wc *wc, struct acm_mad *mad)
 
 	ssa_log_func(SSA_LOG_VERBOSE);
 	if ((status = acm_validate_addr_req(mad))) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid request\n");
+		ssa_log_err(0, "invalid request\n");
 		return;
 	}
 
 	rec = (struct acm_resolve_rec *) mad->data;
 	dest = acm_acquire_dest(ep, rec->src_type, rec->src);
 	if (!dest) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to add source\n");
+		ssa_log_err(0, "unable to add source\n");
 		return;
 	}
 	
@@ -1239,13 +1239,13 @@ static void acm_process_acm_recv(struct acm_ep *ep, struct ibv_wc *wc, struct ac
 
 	ssa_log_func(SSA_LOG_VERBOSE);
 	if (mad->base_version != 1 || mad->class_version != 1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid version %d %d\n",
-			mad->base_version, mad->class_version);
+		ssa_log_err(0, "invalid version %d %d\n",
+			    mad->base_version, mad->class_version);
 		return;
 	}
 	
 	if (mad->control != ACM_CTRL_RESOLVE) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid control 0x%x\n", mad->control);
+		ssa_log_err(0, "invalid control 0x%x\n", mad->control);
 		return;
 	}
 
@@ -1282,7 +1282,7 @@ acm_client_query_resp(struct acm_client *client,
 	ssa_log(SSA_LOG_VERBOSE, "status 0x%x\n", status);
 	pthread_mutex_lock(&client->lock);
 	if (client->sock == -1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - connection lost\n");
+		ssa_log_err(0, "connection lost\n");
 		ret = ACM_STATUS_ENOTCONN;
 		goto release;
 	}
@@ -1292,7 +1292,7 @@ acm_client_query_resp(struct acm_client *client,
 
 	ret = send(client->sock, (char *) msg, msg->hdr.length, 0);
 	if (ret != msg->hdr.length)
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send response\n");
+		ssa_log_err(0, "failed to send response\n");
 	else
 		ret = 0;
 
@@ -1330,8 +1330,8 @@ static void acm_process_sa_recv(struct acm_ep *ep, struct ibv_wc *wc, struct acm
 	ssa_log_func(SSA_LOG_VERBOSE);
 	if (mad->base_version != 1 || mad->class_version != 2 ||
 	    !(mad->method & IB_METHOD_RESP) || sa_mad->attr_id != IB_SA_ATTR_PATH_REC) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unexpected SA MAD %d %d\n",
-			mad->base_version, mad->class_version);
+		ssa_log_err(0, "unexpected SA MAD %d %d\n",
+			    mad->base_version, mad->class_version);
 		return;
 	}
 	
@@ -1360,7 +1360,7 @@ static void acm_process_recv(struct acm_ep *ep, struct ibv_wc *wc)
 		acm_process_acm_recv(ep, wc, mad);
 		break;
 	default:
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid mgmt class 0x%x\n", mad->mgmt_class);
+		ssa_log_err(0, "invalid mgmt class 0x%x\n", mad->mgmt_class);
 		break;
 	}
 
@@ -1370,9 +1370,9 @@ static void acm_process_recv(struct acm_ep *ep, struct ibv_wc *wc)
 static void acm_process_comp(struct acm_ep *ep, struct ibv_wc *wc)
 {
 	if (wc->status) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - work completion error\n"
-			"\topcode %d, completion status %d\n",
-			wc->opcode, wc->status);
+		ssa_log_err(0, "work completion error\n"
+			    "\topcode %d, completion status %d\n",
+			    wc->opcode, wc->status);
 		return;
 	}
 
@@ -1476,7 +1476,7 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 	len = sizeof(*umad) + sizeof(*mad);
 	umad = (struct ib_user_mad *) calloc(1, len);
 	if (!umad) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate MAD for join\n");
+		ssa_log_err(0, "unable to allocate MAD for join\n");
 		return;
 	}
 
@@ -1500,14 +1500,14 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 	ret = umad_send(port->mad_portid, port->mad_agentid, (void *) umad,
 		sizeof(*mad), timeout, retries);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send multicast join request %d\n", ret);
+		ssa_log_err(0, "failed to send multicast join request %d\n", ret);
 		goto out;
 	}
 
 	ssa_log(SSA_LOG_VERBOSE, "waiting for response from SA to join request\n");
 	ret = umad_recv(port->mad_portid, (void *) umad, &len, -1);
 	if (ret < 0) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - recv error for multicast join response %d\n", ret);
+		ssa_log_err(0, "recv error for multicast join response %d\n", ret);
 		goto out;
 	}
 
@@ -1530,8 +1530,8 @@ static void acm_port_join(struct acm_port *port)
 
 	ret = ibv_query_gid(dev->verbs, port->port_num, 0, &port_gid);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - ibv_query_gid %d device %s port %d\n",
-			ret, dev->verbs->device->name, port->port_num);
+		ssa_log_err(0, "ibv_query_gid %d device %s port %d\n",
+			    ret, dev->verbs->device->name, port->port_num);
 		return;
 	}
 
@@ -1673,7 +1673,7 @@ static int acm_listen(void)
 	ssa_log_func(SSA_LOG_VERBOSE);
 	listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (listen_socket == -1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate listen socket\n");
+		ssa_log_err(0, "unable to allocate listen socket\n");
 		return errno;
 	}
 
@@ -1682,13 +1682,13 @@ static int acm_listen(void)
 	addr.sin_port = htons(server_port);
 	ret = bind(listen_socket, (struct sockaddr *) &addr, sizeof addr);
 	if (ret == -1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to bind listen socket\n");
+		ssa_log_err(0, "unable to bind listen socket\n");
 		return errno;
 	}
 	
 	ret = listen(listen_socket, 0);
 	if (ret == -1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to start listen\n");
+		ssa_log_err(0, "unable to start listen\n");
 		return errno;
 	}
 
@@ -1713,7 +1713,7 @@ static void acm_svr_accept(void)
 	ssa_log_func(SSA_LOG_VERBOSE);
 	s = accept(listen_socket, NULL, NULL);
 	if (s == -1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to accept connection\n");
+		ssa_log_err(0, "failed to accept connection\n");
 		return;
 	}
 
@@ -1723,7 +1723,7 @@ static void acm_svr_accept(void)
 	}
 
 	if (i == FD_SETSIZE - 1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - all connections busy - rejecting\n");
+		ssa_log_err(0, "all connections busy - rejecting\n");
 		close(s);
 		return;
 	}
@@ -1837,7 +1837,7 @@ acm_svr_query_path(struct acm_client *client, struct acm_msg *msg)
 
 	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	if (msg->hdr.length != ACM_MSG_HDR_LENGTH + ACM_MSG_EP_LENGTH) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid length: 0x%x\n", msg->hdr.length);
+		ssa_log_err(0, "invalid length: 0x%x\n", msg->hdr.length);
 		status = ACM_STATUS_EINVAL;
 		goto resp;
 	}
@@ -1864,7 +1864,7 @@ acm_svr_query_path(struct acm_client *client, struct acm_msg *msg)
 	sa_msg = acm_alloc_send(ep, &ep->port->sa_dest, sizeof(*mad));
 	acm_release_sa_dest(&ep->port->sa_dest);
 	if (!sa_msg) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot allocate send msg\n");
+		ssa_log_err(0, "cannot allocate send msg\n");
 		status = ACM_STATUS_ENOMEM;
 		goto free;
 	}
@@ -1899,7 +1899,7 @@ acm_send_resolve(struct acm_ep *ep, struct acm_dest *dest,
 	ssa_log_func(SSA_LOG_VERBOSE);
 	msg = acm_alloc_send(ep, &ep->mc_dest[0], sizeof(*mad));
 	if (!msg) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot allocate send msg\n");
+		ssa_log_err(0, "cannot allocate send msg\n");
 		return ACM_STATUS_ENOMEM;
 	}
 
@@ -1960,20 +1960,20 @@ static int acm_svr_select_src(struct acm_ep_addr_data *src, struct acm_ep_addr_d
 
 	s = socket(addr.sa.sa_family, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate socket\n");
+		ssa_log_err(0, "unable to allocate socket\n");
 		return errno;
 	}
 
 	ret = connect(s, &addr.sa, len);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to connect socket\n");
+		ssa_log_err(0, "unable to connect socket\n");
 		ret = errno;
 		goto out;
 	}
 
 	ret = getsockname(s, &addr.sa, &len);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to get socket address\n");
+		ssa_log_err(0, "failed to get socket address\n");
 		ret = errno;
 		goto out;
 	}
@@ -2005,7 +2005,7 @@ acm_svr_verify_resolve(struct acm_msg *msg,
 	int i, cnt;
 
 	if (msg->hdr.length < ACM_MSG_HDR_LENGTH) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - invalid msg hdr length %d\n", msg->hdr.length);
+		ssa_log_err(0, "invalid msg hdr length %d\n", msg->hdr.length);
 		return ACM_STATUS_EINVAL;
 	}
 
@@ -2013,24 +2013,24 @@ acm_svr_verify_resolve(struct acm_msg *msg,
 	for (i = 0; i < cnt; i++) {
 		if (msg->resolve_data[i].flags & ACM_EP_FLAG_SOURCE) {
 			if (src) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR - multiple sources specified\n");
+				ssa_log_err(0, "multiple sources specified\n");
 				return ACM_STATUS_ESRCADDR;
 			}
 			if (!msg->resolve_data[i].type ||
 			    (msg->resolve_data[i].type >= ACM_ADDRESS_RESERVED)) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR - unsupported source address type\n");
+				ssa_log_err(0, "unsupported source address type\n");
 				return ACM_STATUS_ESRCTYPE;
 			}
 			src = &msg->resolve_data[i];
 		}
 		if (msg->resolve_data[i].flags & ACM_EP_FLAG_DEST) {
 			if (dst) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR - multiple destinations specified\n");
+				ssa_log_err(0, "multiple destinations specified\n");
 				return ACM_STATUS_EDESTADDR;
 			}
 			if (!msg->resolve_data[i].type ||
 			    (msg->resolve_data[i].type >= ACM_ADDRESS_RESERVED)) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR - unsupported destination address type\n");
+				ssa_log_err(0, "unsupported destination address type\n");
 				return ACM_STATUS_EDESTTYPE;
 			}
 			dst = &msg->resolve_data[i];
@@ -2038,7 +2038,7 @@ acm_svr_verify_resolve(struct acm_msg *msg,
 	}
 
 	if (!dst) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - destination address required\n");
+		ssa_log_err(0, "destination address required\n");
 		return ACM_STATUS_EDESTTYPE;
 	}
 
@@ -2122,7 +2122,7 @@ acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 
 	dest = acm_acquire_dest(ep, daddr->type, daddr->info.addr);
 	if (!dest) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate destination in client request\n");
+		ssa_log_err(0, "unable to allocate destination in client request\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
 	}
 
@@ -2220,7 +2220,7 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 		dest = acm_acquire_dest(ep, ACM_ADDRESS_GID, addr);
 	}
 	if (!dest) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate destination in client request\n");
+		ssa_log_err(0, "unable to allocate destination in client request\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
 	}
 
@@ -2298,7 +2298,7 @@ static int acm_svr_perf_query(struct acm_client *client, struct acm_msg *msg)
 
 	ret = send(client->sock, (char *) msg, len, 0);
 	if (ret != len)
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to send response\n");
+		ssa_log_err(0, "failed to send response\n");
 	else
 		ret = 0;
 
@@ -2325,7 +2325,7 @@ static void acm_svr_receive(struct acm_client *client)
 	}
 
 	if (msg.hdr.version != ACM_VERSION) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unsupported version %d\n", msg.hdr.version);
+		ssa_log_err(0, "unsupported version %d\n", msg.hdr.version);
 		goto out;
 	}
 
@@ -2338,7 +2338,7 @@ static void acm_svr_receive(struct acm_client *client)
 		ret = acm_svr_perf_query(client, &msg);
 		break;
 	default:
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unknown opcode 0x%x\n", msg.hdr.opcode);
+		ssa_log_err(0, "unknown opcode 0x%x\n", msg.hdr.opcode);
 		break;
 	}
 
@@ -2356,7 +2356,7 @@ static void acm_server(void)
 	acm_init_server();
 	ret = acm_listen();
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - server listen failed\n");
+		ssa_log_err(0, "server listen failed\n");
 		return;
 	}
 
@@ -2374,7 +2374,7 @@ static void acm_server(void)
 
 		ret = rselect(n + 1, &readfds, NULL, NULL, NULL);
 		if (ret == -1) {
-			ssa_log(SSA_LOG_DEFAULT, "ERROR - server select error\n");
+			ssa_log_err(0, "server select error\n");
 			continue;
 		}
 
@@ -2451,7 +2451,7 @@ static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		default: return IBV_RATE_MAX;
 		}
 	default:
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unknown link width 0x%x\n", width);
+		ssa_log_err(0, "unknown link width 0x%x\n", width);
 		return IBV_RATE_MAX;
 	}
 }
@@ -2491,14 +2491,14 @@ static int acm_post_recvs(struct acm_ep *ep)
 	size = recv_depth * ACM_RECV_SIZE;
 	ep->recv_bufs = malloc(size);
 	if (!ep->recv_bufs) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate receive buffer\n");
+		ssa_log_err(0, "unable to allocate receive buffer\n");
 		return ACM_STATUS_ENOMEM;
 	}
 
 	ep->mr = ibv_reg_mr(ep->port->dev->pd, ep->recv_bufs, size,
 		IBV_ACCESS_LOCAL_WRITE);
 	if (!ep->mr) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to register receive buffer\n");
+		ssa_log_err(0, "unable to register receive buffer\n");
 		goto err;
 	}
 
@@ -2521,7 +2521,7 @@ static FILE *acm_open_addr_file(void)
 
 	ssa_log(SSA_LOG_DEFAULT, "notice - generating %s file\n", addr_file);
 	if (!(f = popen(acme, "r"))) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - cannot generate %s\n", addr_file);
+		ssa_log_err(0, "cannot generate %s\n", addr_file);
 		return NULL;
 	}
 	pclose(f);
@@ -2544,7 +2544,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		dev_name, ep->port->port_num, ep->pkey);
 
 	if (!(faddr = acm_open_addr_file())) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - address file not found\n");
+		ssa_log_err(0, "address file not found\n");
 		return -1;
 	}
 
@@ -2565,7 +2565,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 
 		if (strcasecmp(pkey_str, "default")) {
 			if (sscanf(pkey_str, "%hx", &pkey) != 1) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR - bad pkey format %s\n", pkey_str);
+				ssa_log_err(0, "bad pkey format %s\n", pkey_str);
 				continue;
 			}
 		} else {
@@ -2611,7 +2611,7 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 			acm_format_name(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 					ep->addr_type[i], ep->addr[i].addr,
 					sizeof ep->addr[i].addr);
-			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create loopback dest %s\n", log_data);
+			ssa_log_err(0, "unable to create loopback dest %s\n", log_data);
 			return -1;
 		}
 
@@ -2705,7 +2705,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 
 	ret = acm_assign_ep_names(ep);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to assign EP name\n");
+		ssa_log_err(0, "unable to assign EP name\n");
 		goto err0;
 	}
 
@@ -2713,13 +2713,13 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	ep->cq = ibv_create_cq(port->dev->verbs, sq_size + recv_depth,
 		ep, port->dev->channel, 0);
 	if (!ep->cq) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to create CQ\n");
+		ssa_log_err(0, "failed to create CQ\n");
 		goto err0;
 	}
 
 	ret = ibv_req_notify_cq(ep->cq, 0);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to arm CQ\n");
+		ssa_log_err(0, "failed to arm CQ\n");
 		goto err1;
 	}
 
@@ -2735,7 +2735,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	init_attr.recv_cq = ep->cq;
 	ep->qp = ibv_create_qp(ep->port->dev->pd, &init_attr);
 	if (!ep->qp) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to create QP\n");
+		ssa_log_err(0, "failed to create QP\n");
 		goto err1;
 	}
 
@@ -2746,14 +2746,14 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	ret = ibv_modify_qp(ep->qp, &attr, IBV_QP_STATE | IBV_QP_PKEY_INDEX |
 		IBV_QP_PORT | IBV_QP_QKEY);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to modify QP to init\n");
+		ssa_log_err(0, "failed to modify QP to init\n");
 		goto err2;
 	}
 
 	attr.qp_state = IBV_QPS_RTR;
 	ret = ibv_modify_qp(ep->qp, &attr, IBV_QP_STATE);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to modify QP to rtr\n");
+		ssa_log_err(0, "failed to modify QP to rtr\n");
 		goto err2;
 	}
 
@@ -2761,7 +2761,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	attr.sq_psn = 0;
 	ret = ibv_modify_qp(ep->qp, &attr, IBV_QP_STATE | IBV_QP_SQ_PSN);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to modify QP to rts\n");
+		ssa_log_err(0, "failed to modify QP to rts\n");
 		goto err2;
 	}
 
@@ -2771,7 +2771,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 
 	ret = acm_init_ep_loopback(ep);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to init loopback\n");
+		ssa_log_err(0, "unable to init loopback\n");
 		goto err2;
 	}
 	pthread_mutex_lock(&port->lock);
@@ -2797,7 +2797,7 @@ static void acm_port_up(struct acm_port *port)
 	ssa_log(SSA_LOG_VERBOSE, "%s %d\n", port->dev->verbs->device->name, port->port_num);
 	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to get port state\n");
+		ssa_log_err(0, "unable to get port state\n");
 		return;
 	}
 	if (attr.state != IBV_PORT_ACTIVE) {
@@ -2940,14 +2940,14 @@ static void acm_open_port(struct acm_port *port, struct acm_device *dev, uint8_t
 
 	port->mad_portid = umad_open_port(dev->verbs->device->name, port->port_num);
 	if (port->mad_portid < 0) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to open MAD port\n");
+		ssa_log_err(0, "unable to open MAD port\n");
 		return;
 	}
 
 	port->mad_agentid = umad_register(port->mad_portid,
 		IB_MGMT_CLASS_SA, 1, 1, NULL);
 	if (port->mad_agentid < 0) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to register MAD client\n");
+		ssa_log_err(0, "unable to register MAD client\n");
 		goto err;
 	}
 
@@ -2968,13 +2968,13 @@ static void acm_open_dev(struct ibv_device *ibdev)
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", ibdev->name);
 	verbs = ibv_open_device(ibdev);
 	if (verbs == NULL) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - opening device %s\n", ibdev->name);
+		ssa_log_err(0, "opening device %s\n", ibdev->name);
 		return;
 	}
 
 	ret = ibv_query_device(verbs, &attr);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - ibv_query_device (%s) %d\n", ret, ibdev->name);
+		ssa_log_err(0, "ibv_query_device (%s) %d\n", ret, ibdev->name);
 		goto err1;
 	}
 
@@ -2989,13 +2989,13 @@ static void acm_open_dev(struct ibv_device *ibdev)
 
 	dev->pd = ibv_alloc_pd(dev->verbs);
 	if (!dev->pd) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to allocate PD\n");
+		ssa_log_err(0, "unable to allocate PD\n");
 		goto err2;
 	}
 
 	dev->channel = ibv_create_comp_channel(dev->verbs);
 	if (!dev->channel) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create comp channel\n");
+		ssa_log_err(0, "unable to create comp channel\n");
 		goto err3;
 	}
 
@@ -3024,7 +3024,7 @@ static int acm_open_devices(void)
 	ssa_log_func(SSA_LOG_VERBOSE);
 	ibdev = ibv_get_device_list(&dev_cnt);
 	if (!ibdev) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to get device list\n");
+		ssa_log_err(0, "unable to get device list\n");
 		return -1;
 	}
 
@@ -3033,7 +3033,7 @@ static int acm_open_devices(void)
 
 	ibv_free_device_list(ibdev);
 	if (DListEmpty(&device_list)) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - no devices\n");
+		ssa_log_err(0, "no devices\n");
 		return -1;
 	}
 
@@ -3167,20 +3167,20 @@ static void *acm_ctrl_handler(void *context)
 	ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
+		ssa_log_err(0, "opening devices\n");
 		return NULL;
 	}
 
 	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
 			    sizeof *svc, acm_process_msg);
 	if (!svc) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
+		ssa_log_err(0, "starting service\n");
 		goto close;
 	}
 
 	ret = ssa_ctrl_run(&ssa);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR processing control\n");
+		ssa_log_err(0, "processing control\n");
 		goto close;
 	}
 close:
@@ -3252,7 +3252,7 @@ int main(int argc, char **argv)
 	pthread_join(ctrl_thread, NULL);
 
 	if (acm_open_devices()) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to open any devices\n");
+		ssa_log_err(0, "unable to open any devices\n");
 		return -1;
 	}
 
