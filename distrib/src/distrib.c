@@ -349,11 +349,11 @@ static void distrib_destroy_svc(struct ssa_svc *svc)
 		tdestroy(distrib->member_map, distrib_free_member);
 }
 
-static void *distrib_construct()
+static void *distrib_construct(int node_type)
 {
 	int ret;
 
-	ret = ssa_init(&ssa, SSA_NODE_DISTRIBUTION, sizeof(struct ssa_device),
+	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
 			sizeof(struct ssa_port));
 	if (ret)
 		return NULL;
@@ -395,18 +395,29 @@ static void show_usage(char *program)
 {
 	printf("usage: %s\n", program);
 	printf("   [-P]             - run as a standard process\n");
+	printf("   [-N node_type]   - node type is either access or distrib (default is access)\n");
 }
 
 int main(int argc, char **argv)
 {
-	int op, daemon = 1;
+	int op, daemon = 1, node_type = SSA_NODE_ACCESS;
 	struct ssa_class *ssa;
 
-	while ((op = getopt(argc, argv, "P::")) != -1) {
+	while ((op = getopt(argc, argv, "N:P::")) != -1) {
 		switch (op) {
 		case 'P':
 			daemon = 0;
 			break;
+		case 'N':
+			if (optarg) {
+				if (!strcasecmp("distrib", optarg)) {
+					node_type = SSA_NODE_DISTRIBUTION;
+					break;
+				} else if (!strcasecmp("access", optarg)) {
+					node_type = SSA_NODE_ACCESS;
+					break;
+				}
+			}
 		default:
 			show_usage(argv[0]);
 			exit(1);
@@ -416,7 +427,7 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
-	ssa = distrib_construct();
+	ssa = distrib_construct(node_type);
 	if (!ssa)
 		return -1;
 
