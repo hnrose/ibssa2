@@ -163,6 +163,8 @@ void distrib_init_parent(struct ssa_distrib *distrib, struct ssa_mad_packet *mad
 
 static void distrib_process_parent_set(struct ssa_distrib *distrib, struct ssa_umad *umad)
 {
+	/* Initiate (r)socket client connection to parent */
+	/* if not connection to self ? */
 
 }
 
