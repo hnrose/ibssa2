@@ -43,6 +43,7 @@
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
+#ifdef INTEGRATION
 struct ssa_member {
 	struct ssa_member_record	rec;
 	struct ssa_member		*primary;
@@ -52,17 +53,21 @@ struct ssa_member {
 	DLIST_ENTRY			list;
 	DLIST_ENTRY			entry;
 };
+#endif
 
 struct ssa_distrib {
 	struct ssa_svc			svc;
+#ifdef INTEGRATION
 	void				*member_map;
 	DLIST_ENTRY			orphan_list;
+#endif
 };
 
 static struct ssa_class ssa;
 pthread_t ctrl_thread;
 
 
+#ifdef INTEGRATION
 /*
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
@@ -294,6 +299,52 @@ static void distrib_init_svc(struct ssa_svc *svc)
 	struct ssa_distrib *distrib= container_of(svc, struct ssa_distrib, svc);
 	DListInit(&distrib->orphan_list);
 }
+#else
+static void distrib_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	/* First, handle set of parent in SSA */
+	ssa_upstream_mad(svc, msg);
+
+	/* Now, initiate rsocket client connection to parent */
+	if (svc->state == SSA_STATE_HAVE_PARENT)
+		ssa_ctrl_conn(svc->port->dev->ssa, svc);
+}
+
+static int distrib_process_ssa_mad(struct ssa_svc *svc,
+				   struct ssa_ctrl_msg_buf *msg)
+{
+	struct ssa_umad *umad;
+
+	umad = &msg->data.umad;
+	if (umad->umad.status)
+		return 0;
+
+	switch (umad->packet.mad_hdr.method) {
+	case UMAD_METHOD_SET:
+		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
+			distrib_process_parent_set(svc, msg);
+			return 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
+	switch(msg->hdr.type) {
+	case SSA_CTRL_MAD:
+		return distrib_process_ssa_mad(svc, msg);
+	default:
+		break;
+	}
+	return 0;
+}
+#endif
 
 static void *distrib_ctrl_handler(void *context)
 {
@@ -317,7 +368,9 @@ static void *distrib_ctrl_handler(void *context)
 				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
 				goto close;
 			}
+#ifdef INTEGRATION
 			distrib_init_svc(svc);
+#endif
 		}
 	}
 
@@ -332,6 +385,7 @@ close:
 	return context;
 }
 
+#ifdef INTEGRATION
 static void distrib_free_member(void *gid)
 {
 	struct ssa_member *member;
@@ -340,7 +394,9 @@ static void distrib_free_member(void *gid)
 	member = container_of(rec, struct ssa_member, rec);
 	free(member);
 }
+#endif
 
+#ifdef INTEGRATION
 static void distrib_destroy_svc(struct ssa_svc *svc)
 {
 	struct ssa_distrib *distrib = container_of(svc, struct ssa_distrib, svc);
@@ -348,6 +404,7 @@ static void distrib_destroy_svc(struct ssa_svc *svc)
 	if (distrib->member_map)
 		tdestroy(distrib->member_map, distrib_free_member);
 }
+#endif
 
 static void *distrib_construct(int node_type)
 {
@@ -371,11 +428,14 @@ static void *distrib_construct(int node_type)
 
 static void distrib_destroy()
 {
+#ifdef INTEGRATION
 	int d, p, s;
+#endif
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	ssa_ctrl_stop(&ssa);
 
+#ifdef INTEGRATION
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
@@ -383,6 +443,7 @@ static void distrib_destroy()
 			}
 		}
 	}
+#endif
 
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
