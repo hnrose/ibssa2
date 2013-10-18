@@ -3503,8 +3503,8 @@ int main(int argc, char **argv)
 		atomic_init(&counter[i]);
 
 	pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
-	pthread_join(ctrl_thread, NULL);
 
+#if 0
 	if (acm_open_devices()) {
 		ssa_log_err(0, "unable to open any devices\n");
 		return -1;
@@ -3513,10 +3513,13 @@ int main(int argc, char **argv)
 	acm_activate_devices();
 	ssa_log(SSA_LOG_VERBOSE, "starting timeout/retry thread\n");
 	pthread_create(&retry_thread, NULL, acm_retry_handler, NULL);
+#endif
+
 	ssa_log(SSA_LOG_VERBOSE, "starting server\n");
 	acm_server();
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
+	pthread_join(ctrl_thread, NULL);
 	ssa_close_log();
 	ssa_cleanup(&ssa);
 	return 0;
