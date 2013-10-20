@@ -68,6 +68,23 @@ pthread_t ctrl_thread;
 
 
 #ifdef INTEGRATION
+static void distrib_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
+{
+	/*
+	 * For now, issue SA path query here.
+	 * DGID is from incoming join.
+	 * For now (prototype), SGID is from port join came in on.
+	 * Longer term, SGID needs to come from the tree
+	 * calculation code so rather than query PathRecord
+	 * here, this would inform the tree calculation
+	 * that a parent is needed for joining port and
+	 * when parent is determined, then the SA path
+	 * query would be issued.
+	 *
+	 */
+	ssa_svc_query_path(svc, &svc->port->gid, gid);
+}
+
 /*
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
@@ -108,20 +125,7 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 	umad_send(distrib->svc.port->mad_portid, distrib->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
 
-	/*
-	 * For now, issue SA path query here.
-	 * DGID is from incoming join.
-	 * For now (prototype), SGID is from port join came in on.
-	 * Longer term, SGID needs to come from the tree
-	 * calculation code so rather than query PathRecord
-	 * here, this would inform the tree calculation
-	 * that a parent is needed for joining port and
-	 * when parent is determined, then the SA path
-	 * query would be issued.
-	 * 
-	 */
-	ssa_svc_query_path(svc, &svc->port->gid,
-			   (union ibv_gid *) rec->port_gid);
+	distrib_build_tree(svc, (union ibv_gid *) rec->port_gid);
 }
 
 static void distrib_process_leave(struct ssa_distrib *distrib, struct ssa_umad *umad)
