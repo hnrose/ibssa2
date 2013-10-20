@@ -67,6 +67,23 @@ pthread_t ctrl_thread;
 static osm_opensm_t *osm;
 
 
+static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
+{
+	/*
+	 * For now, issue SA path query here.
+	 * DGID is from incoming join.
+	 * For now (prototype), SGID is from port join came in on.
+	 * Longer term, SGID needs to come from the tree
+	 * calculation code so rather than query PathRecord
+	 * here, this would inform the tree calculation
+	 * that a parent is needed for joining port and
+	 * when parent is determined, then the SA path
+	 * query would be issued.
+	 *
+	 */
+	ssa_svc_query_path(svc, &svc->port->gid, gid);
+}
+
 /*
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
@@ -117,20 +134,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad,
 		first = 0;
 	}
 
-	/*
-	 * For now, issue SA path query here.
-	 * DGID is from incoming join.
-	 * For now (prototype), SGID is from port join came in on.
-	 * Longer term, SGID needs to come from the tree
-	 * calculation code so rather than query PathRecord
-	 * here, this would inform the tree calculation
-	 * that a parent is needed for joining port and
-	 * when parent is determined, then the SA path
-	 * query would be issued.
-	 *
-	 */
-	ssa_svc_query_path(svc, &svc->port->gid,
-			   (union ibv_gid *) rec->port_gid);
+	core_build_tree(svc, (union ibv_gid *) rec->port_gid);
 }
 
 static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
@@ -177,7 +181,7 @@ void core_init_parent(struct ssa_core *core, struct ssa_mad_packet *mad,
 
 static void core_process_parent_set(struct ssa_core *core, struct ssa_umad *umad)
 {
-
+	/* Ignoring this for now */
 }
 
 static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
