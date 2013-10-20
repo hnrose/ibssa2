@@ -267,6 +267,7 @@ static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
 	rec = (struct ssa_member_record *) &mad->data;
 	memcpy(rec->port_gid, svc->port->gid.raw, 16);
 	rec->database_id = htonll(svc->database_id);
+	rec->node_guid = svc->port->dev->guid;
 	rec->node_type = svc->port->dev->ssa->node_type;
 }
 

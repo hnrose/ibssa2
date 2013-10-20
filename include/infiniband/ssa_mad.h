@@ -121,6 +121,7 @@ enum {
 struct ssa_member_record {
 	uint8_t		port_gid[16];
 	be64_t		database_id;
+	be64_t		node_guid;
 	uint8_t		node_type;
 	uint8_t		reserved[7];
 };
