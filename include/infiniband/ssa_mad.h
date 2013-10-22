@@ -111,7 +111,8 @@ enum {
 enum {
 	SSA_NODE_CORE		= 1,
 	SSA_NODE_DISTRIBUTION	= 2,
-	SSA_NODE_CONSUMER	= 3
+	SSA_NODE_ACCESS		= 3,
+	SSA_NODE_CONSUMER	= 4
 };
 
 enum {
