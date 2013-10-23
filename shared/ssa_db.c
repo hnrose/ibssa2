@@ -103,10 +103,10 @@ void ssa_db_table_def_insert(struct db_table_def * p_tbl,
 	db_table_def_rec.record_size	= htonl(record_size);
 	db_table_def_rec.ref_table_id	= htonl(ref_table_id);
 
-	memcpy(&p_tbl[p_dataset->set_count++], &db_table_def_rec,
+	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_table_def_rec,
 	       sizeof(*p_tbl));
-
-	p_dataset->set_size += sizeof(*p_tbl);
+	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
+	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
 }
 
 /** =========================================================================
@@ -131,8 +131,8 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
 	db_field_def_rec.field_size	= htonl(field_size);
 	db_field_def_rec.field_offset	= htonl(field_offset);
 
-	memcpy(&p_tbl[p_dataset->set_count++], &db_field_def_rec,
+	memcpy(&p_tbl[ntohll(p_dataset->set_count)], &db_field_def_rec,
 	       sizeof(*p_tbl));
-
-	p_dataset->set_size += sizeof(*p_tbl);
+	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
+	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
 }
