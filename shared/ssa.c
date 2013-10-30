@@ -535,12 +535,12 @@ static void *ssa_upstream_handler(void *context)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg;
 	msg.hdr.type = SSA_CTRL_ACK;
-	write(svc->sockup[1], (char *) &msg, sizeof msg.hdr);
+	write(svc->sock_upctrl[1], (char *) &msg, sizeof msg.hdr);
 
 	while (msg.hdr.type != SSA_CTRL_EXIT) {
-		read(svc->sockup[1], (char *) &msg, sizeof msg.hdr);
+		read(svc->sock_upctrl[1], (char *) &msg, sizeof msg.hdr);
 		if (msg.hdr.len > sizeof msg.hdr) {
-			read(svc->sockup[1], (char *) &msg.hdr.data,
+			read(svc->sock_upctrl[1], (char *) &msg.hdr.data,
 			     msg.hdr.len - sizeof msg.hdr);
 		}
 		if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -570,7 +570,7 @@ static void ssa_ctrl_port_send(struct ssa_port *port, struct ssa_ctrl_msg *msg)
 {
 	int i;
 	for (i = 0; i < port->svc_cnt; i++)
-		write(port->svc[i]->sockup[0], msg, msg->len);
+		write(port->svc[i]->sock_upctrl[0], msg, msg->len);
 }
 
 /*
@@ -683,7 +683,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	msg.hdr.len = sizeof msg;
 	/* set qkey for possible response */
 	msg.umad.umad.addr.qkey = htonl(UMAD_QKEY);
-	write(svc->sockup[0], (void *) &msg, msg.hdr.len);
+	write(svc->sock_upctrl[0], (void *) &msg, msg.hdr.len);
 
 	if (parent)
 		ssa_svc_listen(svc);
@@ -1054,7 +1054,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	if (!svc)
 		return NULL;
 
-	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sockup);
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_upctrl);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating upstream socketpair\n");
 		goto err1;
@@ -1078,7 +1078,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		goto err2;
 	}
 
-	ret = read(svc->sockup[0], (char *) &msg, sizeof msg);
+	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with upstream thread\n");
 		goto err3;
@@ -1091,8 +1091,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 err3:
 	pthread_join(svc->upstream, NULL);
 err2:
-	close(svc->sockup[0]);
-	close(svc->sockup[1]);
+	close(svc->sock_upctrl[0]);
+	close(svc->sock_upctrl[1]);
 err1:
 	free(svc);
 	return NULL;
@@ -1226,7 +1226,7 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
-	write(svc->sockup[0], (char *) &msg, sizeof msg);
+	write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	pthread_join(svc->upstream, NULL);
 
 	svc->port->svc[svc->index] = NULL;
@@ -1234,8 +1234,8 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 		rclose(svc->rsock);
 		svc->rsock = -1;
 	}
-	close(svc->sockup[0]);
-	close(svc->sockup[1]);
+	close(svc->sock_upctrl[0]);
+	close(svc->sock_upctrl[1]);
 	free(svc);
 }
 

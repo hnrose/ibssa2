@@ -171,7 +171,7 @@ struct ssa_svc {
 	uint64_t		database_id;
 	int			(*process_msg)(struct ssa_svc *svc,
 					       struct ssa_ctrl_msg_buf *msg);
-	int			sockup[2];
+	int			sock_upctrl[2];
 	int			rsock;
 	int			slot;
 	uint16_t		index;
