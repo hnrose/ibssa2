@@ -533,7 +533,7 @@ static void *ssa_upstream_handler(void *context)
 	struct ssa_ctrl_msg_buf msg;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
-	msg.hdr.len = sizeof msg;
+	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
 	write(svc->sock_upctrl[1], (char *) &msg, sizeof msg.hdr);
 
@@ -999,6 +999,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 		}
 	}
 out:
+	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
 	write(ssa->sock[1], (char *) &msg, sizeof msg.hdr);
 	free(ssa->fds);
