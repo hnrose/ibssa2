@@ -374,7 +374,7 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
  *         - p_num_recs_arr		an array containing number of records
  *                                      for each table in database.
  *
- *         - p_recs_size_ar		an array containing record sizes
+ *         - p_recs_size_arr		an array containing record sizes
  *                                      for each table in database.
  *
  *         - p_num_field_recs_arr       an array containing the number of
