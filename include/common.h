@@ -153,6 +153,32 @@ struct ssa_port {
 	struct ssa_svc		**svc;
 };
 
+enum ssa_conn_type {
+	SSA_CONN_TYPE_UPSTREAM,
+	SSA_CONN_TYPE_DOWNSTREAM
+};
+
+enum ssa_conn_state {
+	SSA_CONN_IDLE,
+	SSA_CONN_LISTENING,
+	SSA_CONN_CONNECTING,
+	SSA_CONN_CONNECTED
+};
+
+struct ssa_conn {
+	int			rsock;
+	int			slot;
+	enum ssa_conn_type	type;
+	enum ssa_conn_state	state;
+	union ibv_gid		remote_gid;
+	void			*rbuf;
+	int			rsize;
+	int			roffset;
+	void			*sbuf;
+	int			ssize;
+	int			soffset;
+};
+
 enum ssa_svc_state {
 	SSA_STATE_IDLE,
 	SSA_STATE_JOINING,
@@ -172,11 +198,17 @@ struct ssa_svc {
 	int			(*process_msg)(struct ssa_svc *svc,
 					       struct ssa_ctrl_msg_buf *msg);
 	int			sock_upctrl[2];
-	int			rsock;
-	int			slot;
+	int			sock_downctrl[2];
+	int			sock_accessctrl[2];
+	int			sock_accessup[2];
+	int			sock_accessdown[2];
+	struct ssa_conn		conn_listen;
+	struct ssa_conn		conn_data;
 	uint16_t		index;
 	uint16_t		tid;
 	pthread_t		upstream;
+	pthread_t		downstream;
+	pthread_t		access;
 	//pthread_mutex_t		lock;
 	int			timeout;
 	enum ssa_svc_state	state;

@@ -49,7 +49,9 @@ enum ssa_ctrl_msg_type {
 	SSA_CTRL_DEV_EVENT,
 	SSA_CTRL_MAD,		/* struct ssa_umad */
 	SSA_SA_MAD,		/* struct sa_umad */
-	SSA_CTRL_CONN		/* struct ssa_ctrl_conn_msg */
+	SSA_CONN_REQ,		/* struct ssa_conn_req_msg */
+	SSA_CONN_DONE,		/* struct ssa_conn_done_msg */
+	SSA_DB_UPDATE		/* struct ssa_db_update_msg */
 };
 
 struct ssa_ctrl_msg {
@@ -68,9 +70,26 @@ struct ssa_ctrl_umad_msg {
 	struct ssa_umad		umad;
 };
 
-struct ssa_ctrl_conn_msg {
+struct ssa_conn_req_msg {
 	struct ssa_ctrl_msg	hdr;
 	struct ssa_svc		*svc;
+};
+
+struct ssa_conn_done_msg {
+	struct ssa_ctrl_msg	hdr;
+	struct ssa_conn		*conn;
+};
+
+struct ssa_db_update {
+	struct ssa_db		*db;
+	int			client_id;
+	int			flags;
+	union ibv_gid		*remote_gid;
+};
+
+struct ssa_db_update_msg {
+	struct ssa_ctrl_msg	hdr;
+	struct ssa_db_update	db_upd;
 };
 
 struct ssa_ctrl_msg_buf {
@@ -80,6 +99,8 @@ struct ssa_ctrl_msg_buf {
 		struct ssa_umad		umad;
 		struct sa_umad		umad_sa;
 		struct ssa_svc		*svc;
+		struct ssa_conn		*conn;
+		struct ssa_db_update	db_upd;
 	} data;
 };
 
