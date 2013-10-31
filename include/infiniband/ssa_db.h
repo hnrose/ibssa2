@@ -131,6 +131,7 @@ enum {
  */
 #define DBT_DEF_VERSION 0
 #define DBT_DEF_NO_RELATED_TBL 0xFFFFFFFF
+#define DBT_DEF_DS_ID 0xFE
 struct db_table_def {
 	uint8_t		version;
 	uint8_t		size;
@@ -307,6 +308,109 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
 			     uint8_t db_id, uint8_t table_id,
 			     uint8_t field_id, const char * name,
 			     uint32_t field_size, uint32_t field_offset);
+
+/**
+ * ssa_db:
+ * @db_def - general database definitions
+ * @db_table_def - dataset of database table definitions
+ * @p_def_tbl - database table definitions
+ * @p_db_field_tables - datasets of field tables
+ * @pp_field_tables - database tables fields definitions
+ * @p_db_tables - datasets of database data tables
+ * @pp_tables - database data tables
+ *
+ * All data that belongs to a certain database is unified under
+ * a single "ssa_db" structure. It includes:
+ *    - database definitions
+ *    - dataset of table definitions
+ *    - datasets of field definitions
+ *    - datasets of data
+ *
+ * Creating new database should be done through the following steps:
+ *
+ * [1] The following structures have to be defined:
+ *
+ *        - struct db_table_def []	containing all database tables defs.
+ *          example:
+ *             static const struct db_table_def def_arr[] = {
+ *                 { table_1 definitions },
+ *                 { table_1 field definitions },
+ *                 ...
+ *                 { 0 }
+ *             };
+ *
+ *        - struct db_dataset []	containing all datasets, 1 for data
+ *                                      tables and 1 for field definition
+ *                                      tables.
+ *          example:
+ *             static const struct db_dataset dataset_arr[] = {
+ *                 { dataset_1 definitions },
+ *                 { dataset_2 definitions },
+ *                 ...
+ *                 { 0 }
+ *             };
+ *
+ *             static const struct db_dataset field_dataset_arr[] = {
+ *                 { dataset_1 field definitions },
+ *                 { dataset_2 field definitions },
+ *                 ...
+ *                 { 0 }
+ *             };
+ *
+ *        - struct db_field_def []	containing data tables field defs.
+ *          example:
+ *             static const struct db_field_def field_arr[] = {
+ *                { table_1 field_1 definitions },
+ *                { table_1 field_2 definitions },
+ *                ...
+ *                { table_2 field_1 definitions },
+ *                { table_2 field_2 definitions },
+ *                ...
+ *                { 0 }
+ *             };
+ *
+ * [2] ssa_db_create() has to be called with the following arguments:
+ *
+ *         - p_num_recs_arr		an array containing number of records
+ *                                      for each table in database.
+ *
+ *         - p_recs_size_ar		an array containing record sizes
+ *                                      for each table in database.
+ *
+ *         - p_num_field_recs_arr       an array containing the number of
+ *                                      fields contained in table records.
+ *
+ *         - len                        length of above arrays
+ *
+ * [3] ssa_db_init() method has to be called with the arguments that
+ *     were defined at stage 1.
+ *
+ */
+struct ssa_db {
+        struct db_def		db_def;
+
+        struct db_dataset	db_table_def;
+        struct db_table_def	*p_def_tbl;
+
+        struct db_dataset	*p_db_field_tables;
+        struct db_field_def	**pp_field_tables;
+
+        struct db_dataset	*p_db_tables;
+        void			**pp_tables;
+};
+
+struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
+			     size_t * p_recs_size_arr,
+			     uint64_t * p_num_field_recs_arr,
+			     int len);
+
+void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
+		 const struct db_table_def *def_tbl,
+		 const struct db_dataset *dataset_tbl,
+		 const struct db_dataset *field_dataset_tbl,
+		 const struct db_field_def *field_tbl);
+
+void ssa_db_destroy(struct ssa_db * p_ssa_db);
 #ifdef __cplusplus
 }
 #endif
