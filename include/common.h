@@ -100,8 +100,7 @@ struct ssa_svc;
 enum ssa_obj_type {
 	SSA_OBJ_CLASS,
 	SSA_OBJ_DEVICE,
-	SSA_OBJ_PORT,
-	SSA_OBJ_SVC
+	SSA_OBJ_PORT
 };
 
 struct ssa_obj {
@@ -109,7 +108,6 @@ struct ssa_obj {
 	union {
 		struct ssa_device	*dev;
 		struct ssa_port		*port;
-		struct ssa_svc		*svc;
 	};
 };
 
@@ -123,7 +121,6 @@ struct ssa_class {
 	struct pollfd		*fds;
 	nfds_t			nfds;
 	nfds_t			nsfds;
-	int			sfds_start;
 	uint8_t			node_type;
 };
 
@@ -167,7 +164,6 @@ enum ssa_conn_state {
 
 struct ssa_conn {
 	int			rsock;
-	int			slot;
 	enum ssa_conn_type	type;
 	enum ssa_conn_state	state;
 	union ibv_gid		remote_gid;

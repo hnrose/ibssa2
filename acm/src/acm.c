@@ -3327,7 +3327,7 @@ static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	case SSA_CTRL_MAD:
 		return acm_process_ssa_mad(svc, msg);
 	case SSA_CONN_DONE:
-ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on slot %d\n", ((struct ssa_conn_done_msg *)msg)->conn->slot);
+ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n", svc->conn_data.rsock);
 		/* Request ssa_db */
 		return 1;
 	default:
