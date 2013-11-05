@@ -713,9 +713,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: GID %s ssa_db %p\n", log_data, msg.data
 			/* Change when more than 1 data connection supported !!! */
 			if (fd >= 0) {
 				fds[3].fd = fd;
-#if 0
 				fds[3].events = POLLIN;
-#endif
 				if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS)
 					ssa_downstream_conn_done(svc, &svc->conn_data);
 			}
