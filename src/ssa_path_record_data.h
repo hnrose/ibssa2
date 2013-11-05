@@ -75,13 +75,13 @@
  */
 struct ssa_pr_smdb_index {
 	uint64_t epoch;
-	uint8_t is_switch_lookup[MAX_LOOKUP_LID];
-	uint16_t lft_top_lookup[MAX_LOOKUP_LID];
-	uint64_t* lft_block_lookup[MAX_LOOKUP_LID];
-	uint64_t ca_port_lookup[MAX_LOOKUP_LID];
-	uint64_t* switch_port_lookup[MAX_LOOKUP_LID];
-	uint64_t ca_link_lookup[MAX_LOOKUP_LID];
-	uint64_t* switch_link_lookup[MAX_LOOKUP_LID];
+	uint8_t is_switch_lookup[MAX_LOOKUP_LID + 1];
+	uint16_t lft_top_lookup[MAX_LOOKUP_LID + 1];
+	uint64_t* lft_block_lookup[MAX_LOOKUP_LID + 1];
+	uint64_t ca_port_lookup[MAX_LOOKUP_LID + 1];
+	uint64_t* switch_port_lookup[MAX_LOOKUP_LID +1 ];
+	uint64_t ca_link_lookup[MAX_LOOKUP_LID +1];
+	uint64_t* switch_link_lookup[MAX_LOOKUP_LID + 1];
 };
 
 /**
@@ -94,7 +94,7 @@ struct ssa_pr_smdb_index {
  * The function build a index for smdb database.
  **/
 extern int ssa_pr_build_indexes(struct ssa_pr_smdb_index *p_index,
-		const struct ssa_db_smdb *p_smdb);
+		const struct ssa_db *p_smdb);
 
 /**
  * ssa_pr_destroy_indexes - destroys a smdb index
@@ -115,7 +115,7 @@ extern void ssa_pr_destroy_indexes(struct ssa_pr_smdb_index *p_index);
  * is based on epoch of index and database.
  **/
 extern int ssa_pr_rebuild_indexes(struct ssa_pr_smdb_index *p_index,
-		const struct ssa_db_smdb *p_smdb);
+		const struct ssa_db *p_smdb);
 
 /**
  * find_guid_to_lid_rec_by_guid - search in SSA_TABLE_ID_GUID_TO_LID table
@@ -128,7 +128,7 @@ extern int ssa_pr_rebuild_indexes(struct ssa_pr_smdb_index *p_index,
  * record with given GUID 
  **/
 extern const struct ep_guid_to_lid_tbl_rec 
-*find_guid_to_lid_rec_by_guid(const struct ssa_db_smdb *p_smdb,
+*find_guid_to_lid_rec_by_guid(const struct ssa_db *p_smdb,
 		const be64_t port_guid);
 
 /**
@@ -142,7 +142,7 @@ extern const struct ep_guid_to_lid_tbl_rec
  *
  * The function searches for port record
  **/
-extern const struct ep_port_tbl_rec *find_port(const struct ssa_db_smdb *p_smdb,
+extern const struct ep_port_tbl_rec *find_port(const struct ssa_db *p_smdb,
 		const struct ssa_pr_smdb_index *p_index,
 		const be16_t lid,
 		const int port_num);
@@ -158,7 +158,7 @@ extern const struct ep_port_tbl_rec *find_port(const struct ssa_db_smdb *p_smdb,
  *
  * The function searches for link record in LFT table
  **/
-extern int find_destination_port(const struct ssa_db_smdb *p_smdb,
+extern int find_destination_port(const struct ssa_db *p_smdb,
 		const struct ssa_pr_smdb_index *p_index,
 		const be16_t source_lid,
 		const be16_t dest_lid);
@@ -175,7 +175,7 @@ extern int find_destination_port(const struct ssa_db_smdb *p_smdb,
  * The function searches for link record and if it's found returns pointer to
  * linked port
  **/
-extern const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db_smdb *p_smdb,
+extern const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 		const struct ssa_pr_smdb_index *p_index,
 		const be16_t from_lid,
 		const int from_port_num);

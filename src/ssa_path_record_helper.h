@@ -61,6 +61,17 @@ extern FILE *ssa_pr_log_fd;
 extern const char* get_time();
 
 extern  int rates_cmp_table[19][19];
+/*
+ * According to profiling results,ib_path_compare_rates takes about
+ * 7% of overall path record computation time.
+ * ib_path_compare_rates_fast is a fast version of ib_path_compare_rates that use static lookup
+ *  table with precomputed results. It used for performance optimization in 
+ * the path records algorithm.
+ */
+static inline int ib_path_compare_rates_fast(IN const int rate1, IN const int rate2)
+{
+	return rates_cmp_table[rate1][rate2];
+}
 
 #define _FILE strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__
 #define SSA_PR_LOG_FORMAT "%s | %-7s | %-15s:%d | %s |"

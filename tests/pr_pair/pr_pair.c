@@ -44,11 +44,12 @@
 
 #include <glib.h>
 
+#include <ssa_db.h>
 #include <ssa_smdb.h>
+#include <ssa_prdb.h>
 #include <ssa_db_helper.h>
 #include <ssa_path_record.h>
 
-#define GUIDS_CHUNK 1024
 
 static const char *log_verbosity_level[] = {"No log","Error","Info","Debug"};
 
@@ -56,9 +57,10 @@ static void print_usage(FILE *file,const char *name)
 {
 	int i = 0;
 
-	fprintf(file,"Usage: %s [-h] [-o output file] [-n number | -f file name | -a] [-l | -g] [-L file name] [-v number] input folder\n", name);
+	fprintf(file,"Usage: %s [-h] [-o output file | -O output folder] [-n number | -f file name | -a] [-l | -g] [-L file name] [-v number] input folder\n", name);
 	fprintf(file,"\t-h\t\t-Print this help\n");
 	fprintf(file,"\t-o\t\t-Output file location. If ommited, stdout is used\n");
+	fprintf(file,"\t-O\t\t-PRDB location\n");
 	fprintf(file,"\t-f\t\t-Input file location. One ID per line\n");
 	fprintf(file,"\t-n\t\t-Input ID\n");
 	fprintf(file,"\t-a\t\t-Use all possible IDs. It's a default parameter.\n");
@@ -115,17 +117,18 @@ static void print_memory_usage(const char* prefix)
 	pf = NULL;
 }
 
-static size_t get_dataset_count(const struct ssa_db_smdb *p_ssa_db_smdb,
+static size_t get_dataset_count(const struct ssa_db *p_ssa_db_smdb,
 		unsigned int table_id)
 {
-	const struct db_dataset *p_dataset = &p_ssa_db_smdb->db_tables[table_id];
+	const struct db_dataset *p_dataset = &p_ssa_db_smdb->p_db_tables[table_id];
 	return ntohll(p_dataset->set_count);
 }
 
 struct input_prm
 {
-	char db_path[PATH_MAX];
+	char smdb_path[PATH_MAX];
 	char dump_path[PATH_MAX];
+	char prdb_path[PATH_MAX];
 	char input_path[PATH_MAX];
 	char log_path[PATH_MAX];
 	uint64_t id;
@@ -143,14 +146,18 @@ static void print_input_prm(const struct input_prm *prm)
 	} else {
 		printf("Log verbosity: --- The parameter is wrong ---");
 	}
-	printf("Dump to : %s\n",strlen(prm->db_path)? prm->db_path: "stdout");
-	printf("SMDB database path: %s\n",prm->db_path);
+	if(strlen(prm->prdb_path)) 
+		printf("PRDB path : %s\n",prm->prdb_path);
+	else 
+		printf("Dump PR log to : %s\n",strlen(prm->dump_path)? prm->dump_path: "stdout");
+
+	printf("SMDB database path: %s\n",prm->smdb_path);
 	if(prm->id) {
 		if(prm->is_guid) {
-			printf("Input GUID: 0x%\n"PRIx64"",prm->id);
+			printf("Input GUID: 0x%"PRIx64"\n",prm->id);
 			return;
 		} else {
-			printf("Input LID: 0x%\n"PRIx16"",prm->id);
+			printf("Input LID: 0x%"PRIx16"\n",prm->id);
 			return;
 		}
 	} else if(strlen(prm->input_path)) {
@@ -183,12 +190,12 @@ static gint path_compare(gconstpointer a,gconstpointer b)
 	return diff_from ? diff_from : diff_to;
 }
 
-static const struct ep_port_tbl_rec* find_port(const struct ssa_db_smdb* p_ssa_db_smdb,
+static const struct ep_port_tbl_rec* find_port(const struct ssa_db* p_ssa_db_smdb,
 		const be16_t lid)
 {
 	size_t i = 0;
 	const struct ep_port_tbl_rec  *p_port_tbl = 
-		(const struct ep_port_tbl_rec*)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_PORT];
+		(const struct ep_port_tbl_rec*)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_PORT];
 	const size_t count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_PORT);
 
 	for (i = 0; i < count; i++){
@@ -198,12 +205,12 @@ static const struct ep_port_tbl_rec* find_port(const struct ssa_db_smdb* p_ssa_d
 	return NULL;
 }
 
-static const struct ep_guid_to_lid_tbl_rec *find_guid_to_lid_rec_by_lid(const struct ssa_db_smdb* p_ssa_db_smdb,
+static const struct ep_guid_to_lid_tbl_rec *find_guid_to_lid_rec_by_lid(const struct ssa_db* p_ssa_db_smdb,
 		const be16_t lid)
 {
 	size_t i =0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = 
-		(struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->p_tables[SSA_TABLE_ID_GUID_TO_LID];
+		(struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
 	const size_t count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_GUID_TO_LID);
 
 	for (i = 0; i < count; i++) {
@@ -212,7 +219,7 @@ static const struct ep_guid_to_lid_tbl_rec *find_guid_to_lid_rec_by_lid(const st
 	}
 	return NULL;
 }
-static void dump_pr(GPtrArray *path_arr,struct ssa_db_smdb *p_smdb,FILE *fd)
+static void dump_pr(GPtrArray *path_arr,struct ssa_db *p_smdb,FILE *fd)
 {
 	guint i = 0;
 	uint16_t prev_lid = 0;
@@ -255,9 +262,9 @@ static void ssa_pr_path_output(const ssa_path_parms_t *p_path_prm, void *prm)
 	g_ptr_array_add(path_arr,p_my_path);
 }
 
-static struct ssa_db_smdb *load_smdb(const char *path)
+static struct ssa_db *load_smdb(const char *path)
 {
-	struct ssa_db_smdb *db_diff = NULL; 
+	struct ssa_db *db_diff = NULL; 
 	clock_t start, end;
 	double cpu_time_used;
 
@@ -274,12 +281,13 @@ static struct ssa_db_smdb *load_smdb(const char *path)
 	} else {
 		fprintf(stderr,"Database loading is failed.\n");
 	}
+
 	return db_diff;
 }
 
-static void destroy_smdb(struct ssa_db_smdb *db_diff)
+static void destroy_smdb(struct ssa_db *db_diff)
 {
-	ssa_db_smdb_destroy(db_diff);
+	ssa_db_destroy(db_diff);
 	printf("smdb database is destroyed.\n");
 }
 
@@ -333,7 +341,7 @@ static int compare_ints(uint64_t a,uint64_t b)
 }
 
 static size_t get_input_guids(const struct input_prm *p_prm,
-		struct ssa_db_smdb *p_db,
+		struct ssa_db *p_db,
 		GArray* p_arr)
 {
 	assert(p_prm && p_arr && p_db);
@@ -346,7 +354,7 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 		size_t i = 0;
 
 		const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl =
-			(struct ep_guid_to_lid_tbl_rec *)p_db->p_tables[SSA_TABLE_ID_GUID_TO_LID];
+			(struct ep_guid_to_lid_tbl_rec *)p_db->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
 		const size_t count = get_dataset_count(p_db,SSA_TABLE_ID_GUID_TO_LID);
 
 		for (i = 0; i < count; i++) { 
@@ -370,11 +378,12 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 
 static int run_pr_calculation(struct input_prm* p_prm)
 {
-	short dump_to_stdout = 1;
+	short dump_to_stdout = 0;
+	short dump_to_prdb = 1;
 	FILE *fd_dump = NULL;
 	FILE *fd_log = NULL;
 	int close_log = 0;
-	struct ssa_db_smdb *p_db_diff = NULL;
+	struct ssa_db *p_db_diff = NULL;
 	void *p_context = NULL;
 	be64_t *p_guids = NULL;
 	size_t count_guids = 0;
@@ -383,6 +392,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 	guint i = 0;
 	int res = 0;
 	ssa_pr_status_t pr_res = SSA_PR_SUCCESS;
+	struct ssa_db *p_prdb = NULL;
 
 	if(!strlen(p_prm->log_path) || !strcmp(p_prm->log_path,"stderr"))
 		fd_log = stderr;
@@ -397,21 +407,24 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		close_log  = 1;
 	}
 
-	if(strlen(p_prm->dump_path) > 0) {
-		fd_dump = fopen(p_prm->dump_path,"w");
-		if(!fd_dump) {
-			fprintf(stderr,"Can't open file for writing: %s\n",p_prm->dump_path);
-			return -1;
+	dump_to_prdb = strlen(p_prm->prdb_path);
+	if(!dump_to_prdb) {
+		if(strlen(p_prm->dump_path) > 0) {
+			fd_dump = fopen(p_prm->dump_path,"w");
+			if(!fd_dump) {
+				fprintf(stderr,"Can't open file for writing: %s\n",p_prm->dump_path);
+				return -1;
+			}
+			dump_to_stdout = 0;
+		} else {
+			fd_dump = stdout;
+			dump_to_stdout = 1;
 		}
-		dump_to_stdout = 0;
-	} else {
-		fd_dump = stdout;
-		dump_to_stdout = 1;
 	}
 
-	p_db_diff = load_smdb(p_prm->db_path);
+	p_db_diff = load_smdb(p_prm->smdb_path);
 	if(NULL == p_db_diff){
-		fprintf(stderr,"Can't create smdb database from: %s .",p_prm->db_path);
+		fprintf(stderr,"Can't create smdb database from: %s .",p_prm->smdb_path);
 		res = -1;
 		goto Exit;
 	}
@@ -437,6 +450,21 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		goto Exit;
 	}
 
+	if(dump_to_prdb) {
+		get_input_guids(p_prm,p_db_diff,guids_arr);
+		if(guids_arr->len) {
+			be64_t guid = htonll(g_array_index(guids_arr,uint64_t,0));
+			p_prdb = ssa_pr_compute_half_world(p_db_diff,p_context,guid);
+			if(!p_prdb) {
+				fprintf(stderr,"Path record computation is failed. prdb database is not created\n");
+				goto Exit;
+			}
+		} else {
+			fprintf(stderr,"Path record computation is failed. There is no input GUID\n");
+			goto Exit;
+		}
+	}
+
 	if(!p_prm->whole_world) { 
 		get_input_guids(p_prm,p_db_diff,guids_arr);
 		for(i = 0; i < guids_arr->len && SSA_PR_SUCCESS == res; ++i) {
@@ -454,8 +482,15 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		goto Exit;
 	}
 
-	printf("%u path records found\n",path_arr->len);
-	dump_pr(path_arr,p_db_diff,fd_dump);
+	if(!dump_to_prdb) {
+		printf("%u path records found\n",path_arr->len);
+		dump_pr(path_arr,p_db_diff,fd_dump);
+	} else {
+		ssa_db_save(p_prm->prdb_path,p_prdb,SSA_DB_HELPER_DEBUG);
+		fprintf(stdout,"prdb database is created\n");
+		ssa_db_destroy(p_prdb);
+		p_prdb = NULL;
+	}
 
 Exit:
 	if(!p_context ) {
@@ -486,6 +521,10 @@ Exit:
 		fclose(fd_log);
 		fd_log = NULL;
 	}
+	if(p_prdb) {
+		ssa_db_destroy(p_prdb);
+		p_prdb = NULL;
+	}
 	return res;
 }
 
@@ -496,7 +535,8 @@ int main(int argc,char *argv[])
 	struct input_prm prm;
 	char dump_path[PATH_MAX] = {};
 	char input_path[PATH_MAX] = {};
-	char db_path[PATH_MAX] = {};
+	char smdb_path[PATH_MAX] = {};
+	char prdb_path[PATH_MAX] = {};
 	char log_path[PATH_MAX] = {};
 	short use_output_opt = 0;
 	short use_all_opt = 0;
@@ -506,6 +546,7 @@ int main(int argc,char *argv[])
 	short use_lid_opt = 0;
 	short use_log_opt = 0;
 	short use_verbosity_opt =0;
+	short use_prdb_dump = 0;
 	short err_opt = 0;
 	uint64_t id = 0; 
 	char id_string_val[PATH_MAX] = {};
@@ -513,8 +554,13 @@ int main(int argc,char *argv[])
 
 	memset(&prm,'\0',sizeof(prm));
 
-	while ((opt = getopt(argc, argv, "glan:f:o:hL:v:?")) != -1) {
+	while ((opt = getopt(argc, argv, "glan:f:o:O:hL:v:?")) != -1) {
 		switch (opt) {
+			case 'O':
+				use_prdb_dump  = 1;
+				strncpy(prdb_path,optarg,PATH_MAX);
+				err_opt = use_file_opt  || use_all_opt ;
+				break;
 			case 'o':
 				use_output_opt = 1;
 				strncpy(dump_path,optarg,PATH_MAX);
@@ -526,7 +572,7 @@ int main(int argc,char *argv[])
 			case 'a':
 				use_all_opt = 1;
 				prm.whole_world = 1;
-				err_opt = use_file_opt || use_single_id_opt;
+				err_opt = use_file_opt || use_single_id_opt || use_prdb_dump;
 				break;
 			case 'n':
 				use_single_id_opt = 1;
@@ -541,7 +587,7 @@ int main(int argc,char *argv[])
 				break;
 			case 'f':
 				use_file_opt = 1;
-				err_opt = use_single_id_opt || use_all_opt;
+				err_opt = use_single_id_opt || use_all_opt || use_prdb_dump;
 				strncpy(input_path,optarg,PATH_MAX);
 				break;
 			case 'l':
@@ -579,7 +625,7 @@ int main(int argc,char *argv[])
 		print_usage(stderr,argv[0]);
 		exit(EXIT_FAILURE);
 	}else if(argc == (optind+1)) {
-		strncpy(db_path,argv[optind],PATH_MAX);
+		strncpy(smdb_path,argv[optind],PATH_MAX);
 	}else{
 		fprintf(stderr,"Too mutch input arguments\n");
 		print_usage(stderr,argv[0]);
@@ -647,19 +693,30 @@ int main(int argc,char *argv[])
 		strncpy(prm.log_path,"stderr",PATH_MAX);
 	}
 
-	if(!is_dir_exist(db_path)) {
-		fprintf(stderr,"Directory does not exist: %s\n",db_path);
+	if(!is_dir_exist(smdb_path)) {
+		fprintf(stderr,"Directory does not exist: %s\n",smdb_path);
 		print_usage(stderr,argv[0]);
 		exit(EXIT_FAILURE);
 	} else {
-		strncpy(prm.db_path,db_path,PATH_MAX);
+		strncpy(prm.smdb_path,smdb_path,PATH_MAX);
 	}
 
 	prm.dump_path[0] = '\0';
-	if(use_output_opt && strcmp(dump_path,"stdout")) {
-		if(is_file_exist(dump_path))
-			fprintf(stderr,"Dump file will be replaced: %s\n",dump_path);
-		strncpy(prm.dump_path,dump_path,PATH_MAX);
+	prm.prdb_path[0] = '\0';
+	if(use_prdb_dump) {
+		if(!is_dir_exist(prdb_path)) {
+			fprintf(stderr,"Directory does not exist: %s\n",prdb_path);
+			print_usage(stderr,argv[0]);
+			exit(EXIT_FAILURE);
+		} else {
+			strncpy(prm.prdb_path,prdb_path,PATH_MAX);
+		}
+	} else {
+		if(use_output_opt && strcmp(dump_path,"stdout")) {
+			if(is_file_exist(dump_path))
+				fprintf(stderr,"Dump file will be replaced: %s\n",dump_path);
+			strncpy(prm.dump_path,dump_path,PATH_MAX);
+		}
 	}
 
 	if(use_file_opt)

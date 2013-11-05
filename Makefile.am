@@ -30,7 +30,7 @@
 #
 SUBDIRS = . tests 
 
-INCLUDES = -I. -I.. -I$(SSA_SRC)/ -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH)  
+INCLUDES = -I. -I.. -Isrc -I$(SSA_SRC)/ -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH)  
 
 
 # Support debug mode through config variable
@@ -62,7 +62,7 @@ lib_LTLIBRARIES = libssaaccesslayer.la
 
 # Quiter for the server
 libssaaccesslayer_la_SOURCES = ./src/ssa_path_record_helper.c ./src/ssa_path_record.c \
-							   ./src/ssa_path_record_data.c
+							   ./src/ssa_path_record_data.c ./src/ssa_prdb.c
 libssaaccesslayer_la_LDFLAGS = -export-dynamic -lm \
 									$(GLIB_LIBS) -lglib-2.0  
 libssaaccesslayer_la_CPPFLAGS =  $(INCLUDES) -I$(includedir) $(DEPS_CFLAGS) $(GLIB_CFLAGS) -g 
