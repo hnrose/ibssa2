@@ -995,6 +995,17 @@ static void ssa_ctrl_port(struct ssa_port *port)
 		ssa_ctrl_send_listen(svc);
 }
 
+static void ssa_upstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
+{
+	struct ssa_conn_done_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+	msg.hdr.type = SSA_CONN_DONE;
+	msg.hdr.len = sizeof(msg);
+	msg.conn = conn;
+	write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
+}
+
 static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 {
 	int ret, err;
@@ -1030,6 +1041,8 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 	       sizeof(union ibv_gid));
 	svc->conn_data.state = SSA_CONN_CONNECTED;
 	svc->state = SSA_STATE_CONNECTED;
+
+	ssa_upstream_conn_done(svc, &svc->conn_data);
 }
 
 static int ssa_downstream_svc_server(struct ssa_svc *svc)
