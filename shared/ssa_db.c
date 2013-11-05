@@ -142,7 +142,7 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
 struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 			     size_t * p_data_recs_size_arr,
 			     uint64_t * p_num_field_recs_arr,
-			     int len)
+			     uint64_t len)
 {
 	struct ssa_db *p_db = NULL;
 	int i, k;
@@ -200,6 +200,8 @@ struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 			goto err8;
 		}
 	}
+
+	p_db->data_tbl_cnt = len;
 
 	return p_db;
 err8:
@@ -306,14 +308,14 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
  */
 void ssa_db_destroy(struct ssa_db * p_ssa_db)
 {
-	int i, num_tbls;
+	uint64_t i, tbl_cnt;
 
 	if (!p_ssa_db)
 		return;
-	/* set_count is for data & field tables */
-	num_tbls = ntohll(p_ssa_db->db_table_def.set_count) / 2;
 
-	for (i = num_tbls; i >= 0; i--) {
+	tbl_cnt = p_ssa_db->data_tbl_cnt;
+
+	for (i = tbl_cnt - 1; i >= 0; i--) {
 		if (!p_ssa_db->pp_field_tables[i])
 			continue;
 		free(p_ssa_db->pp_field_tables[i]);
@@ -321,7 +323,7 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 	}
 	free(p_ssa_db->pp_field_tables);
 
-	for (i = num_tbls; i >= 0; i--) {
+	for (i = tbl_cnt - 1; i >= 0; i--) {
 		free(p_ssa_db->pp_tables[i]);
 		p_ssa_db->pp_tables[i] = NULL;
 	}
