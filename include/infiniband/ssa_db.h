@@ -387,16 +387,16 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
  *
  */
 struct ssa_db {
-        struct db_def		db_def;
+	struct db_def		db_def;
 
-        struct db_dataset	db_table_def;
-        struct db_table_def	*p_def_tbl;
+	struct db_dataset	db_table_def;
+	struct db_table_def	*p_def_tbl;
 
-        struct db_dataset	*p_db_field_tables;
-        struct db_field_def	**pp_field_tables;
+	struct db_dataset	*p_db_field_tables;
+	struct db_field_def	**pp_field_tables;
 
-        struct db_dataset	*p_db_tables;
-        void			**pp_tables;
+	struct db_dataset	*p_db_tables;
+	void			**pp_tables;
 	uint64_t		data_tbl_cnt;
 };
 
