@@ -2447,6 +2447,9 @@ static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_2_5_GBPS;
 		case 2: return IBV_RATE_5_GBPS;
 		case 4: return IBV_RATE_10_GBPS;
+		case 8: return IBV_RATE_10_GBPS;
+		case 16: return IBV_RATE_14_GBPS;
+		case 32: return IBV_RATE_25_GBPS;
 		default: return IBV_RATE_MAX;
 		}
 	case 2:
@@ -2454,6 +2457,9 @@ static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_10_GBPS;
 		case 2: return IBV_RATE_20_GBPS;
 		case 4: return IBV_RATE_40_GBPS;
+		case 8: return IBV_RATE_40_GBPS;
+		case 16: return IBV_RATE_56_GBPS;
+		case 32: return IBV_RATE_100_GBPS;
 		default: return IBV_RATE_MAX;
 		}
 	case 4:
@@ -2461,6 +2467,9 @@ static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_20_GBPS;
 		case 2: return IBV_RATE_40_GBPS;
 		case 4: return IBV_RATE_80_GBPS;
+		case 8: return IBV_RATE_80_GBPS;
+		case 16: return IBV_RATE_112_GBPS;
+		case 32: return IBV_RATE_200_GBPS;
 		default: return IBV_RATE_MAX;
 		}
 	case 8:
@@ -2468,6 +2477,9 @@ static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_30_GBPS;
 		case 2: return IBV_RATE_60_GBPS;
 		case 4: return IBV_RATE_120_GBPS;
+		case 8: return IBV_RATE_120_GBPS;
+		case 16: return IBV_RATE_168_GBPS;
+		case 32: return IBV_RATE_300_GBPS;
 		default: return IBV_RATE_MAX;
 		}
 	default:
@@ -2494,12 +2506,20 @@ static enum ibv_rate acm_convert_rate(int rate)
 	case 2:   return IBV_RATE_2_5_GBPS;
 	case 5:   return IBV_RATE_5_GBPS;
 	case 10:  return IBV_RATE_10_GBPS;
+	case 14:  return IBV_RATE_14_GBPS;
 	case 20:  return IBV_RATE_20_GBPS;
+	case 25:  return IBV_RATE_25_GBPS;
 	case 30:  return IBV_RATE_30_GBPS;
 	case 40:  return IBV_RATE_40_GBPS;
+	case 56:  return IBV_RATE_56_GBPS;
 	case 60:  return IBV_RATE_60_GBPS;
 	case 80:  return IBV_RATE_80_GBPS;
+	case 100: return IBV_RATE_100_GBPS;
+	case 112: return IBV_RATE_112_GBPS;
 	case 120: return IBV_RATE_120_GBPS;
+	case 168: return IBV_RATE_168_GBPS;
+	case 200: return IBV_RATE_200_GBPS;
+	case 300: return IBV_RATE_300_GBPS;
 	default:  return IBV_RATE_10_GBPS;
 	}
 }
