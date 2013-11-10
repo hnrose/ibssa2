@@ -372,15 +372,15 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
  * [2] ssa_db_create() has to be called with the following arguments:
  *
  *         - p_num_recs_arr		an array containing number of records
- *                                      for each table in database.
+ *					for each table in database.
  *
  *         - p_recs_size_arr		an array containing record sizes
- *                                      for each table in database.
+ *					for each table in database.
  *
- *         - p_num_field_recs_arr       an array containing the number of
- *                                      fields contained in table records.
+ *         - p_num_field_recs_arr	an array containing the number of
+ *					fields contained in table records.
  *
- *         - len                        length of above arrays
+ *         - tbl_cnt			the number of data tables.
  *
  * [3] ssa_db_init() method has to be called with the arguments that
  *     were defined at stage 1.
@@ -403,7 +403,7 @@ struct ssa_db {
 struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 			     size_t * p_recs_size_arr,
 			     uint64_t * p_num_field_recs_arr,
-			     uint64_t len);
+			     uint64_t tbl_cnt);
 
 void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 		 const struct db_table_def *def_tbl,

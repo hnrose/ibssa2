@@ -142,37 +142,38 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
 struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 			     size_t * p_data_recs_size_arr,
 			     uint64_t * p_num_field_recs_arr,
-			     uint64_t len)
+			     uint64_t tbl_cnt)
 {
-	struct ssa_db *p_db = NULL;
+	struct ssa_db *p_db;
 	int i, k;
 
-	p_db = (struct ssa_db *)malloc(sizeof(*p_db));
+	p_db = (struct ssa_db *) calloc(1, sizeof(*p_db));
 	if (!p_db)
 		goto err1;
 
-	/* magic number - data & field defs in single table */
+	/* number of data & field tables = tbl_cnt * 2 */
 	p_db->p_def_tbl = (struct db_table_def *)
-				malloc(sizeof(*p_db->p_def_tbl) * len * 2);
+				calloc(tbl_cnt * 2, sizeof(*p_db->p_def_tbl));
 	if (!p_db->p_def_tbl)
 		goto err2;
 
 	p_db->p_db_tables = (struct db_dataset *)
-				malloc(sizeof(*p_db->p_db_tables) * len);
+				calloc(tbl_cnt, sizeof(*p_db->p_db_tables));
 	if (!p_db->p_db_tables)
 		goto err3;
 
 	p_db->p_db_field_tables = (struct db_dataset *)
-				malloc(sizeof(*p_db->p_db_field_tables) * len);
+				calloc(tbl_cnt, sizeof(*p_db->p_db_field_tables));
 	if (!p_db->p_db_field_tables)
 		goto err4;
 
-	p_db->pp_tables = (void **)malloc(sizeof(*p_db->pp_tables) * len);
+	p_db->pp_tables = (void **) calloc(tbl_cnt, sizeof(*p_db->pp_tables));
 	if (!p_db->pp_tables)
 		goto err5;
 
-	for (i = 0; i < len; i++) {
-		p_db->pp_tables[i] = (void *)malloc(p_data_recs_size_arr[i] * p_num_recs_arr[i]);
+	for (i = 0; i < tbl_cnt; i++) {
+		p_db->pp_tables[i] =
+			(void *) calloc(p_data_recs_size_arr[i] * p_num_recs_arr[i], sizeof(char));
 		if (!p_db->pp_tables[i]) {
 			for (k = i - 1; k >= 0; k--)
 				free(p_db->pp_tables[k]);
@@ -181,19 +182,16 @@ struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 	}
 
 	p_db->pp_field_tables = (struct db_field_def **)
-				malloc(sizeof(*p_db->pp_field_tables) * len);
+				calloc(tbl_cnt, sizeof(*p_db->pp_field_tables));
 	if (!p_db->pp_field_tables)
 		goto err7;
 
-	for (i = 0; i < len; i++) {
-		if (p_num_field_recs_arr[i] == DB_VARIABLE_SIZE) {
-			/* in case of table with variable sized records */
-			p_db->pp_field_tables[i] = NULL;
+	for (i = 0; i < tbl_cnt; i++) {
+		if (p_num_field_recs_arr[i] == DB_VARIABLE_SIZE)
 			continue;
-		}
+
 		p_db->pp_field_tables[i] = (struct db_field_def *)
-				malloc(sizeof(**(p_db->pp_field_tables)) *
-				       p_num_field_recs_arr[i]);
+				calloc(p_num_field_recs_arr[i], sizeof(**(p_db->pp_field_tables)));
 		if (!p_db->pp_field_tables[i]) {
 			for (k = i - 1; k >= 0; k--)
 				free(p_db->pp_field_tables[k]);
@@ -201,13 +199,13 @@ struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 		}
 	}
 
-	p_db->data_tbl_cnt = len;
+	p_db->data_tbl_cnt = tbl_cnt;
 
 	return p_db;
 err8:
 	free(p_db->pp_field_tables);
 err7:
-	for (k = len - 1; k >= 0; k--)
+	for (k = tbl_cnt - 1; k >= 0; k--)
 		free(p_db->pp_tables[k]);
 err6:
 	free(p_db->pp_tables);
