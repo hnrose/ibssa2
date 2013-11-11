@@ -173,7 +173,7 @@ struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 
 	for (i = 0; i < tbl_cnt; i++) {
 		p_db->pp_tables[i] =
-			(void *) calloc(p_data_recs_size_arr[i] * p_num_recs_arr[i], sizeof(char));
+			(void *) malloc(p_data_recs_size_arr[i] * p_num_recs_arr[i]);
 		if (!p_db->pp_tables[i]) {
 			for (k = i - 1; k >= 0; k--)
 				free(p_db->pp_tables[k]);
