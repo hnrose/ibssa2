@@ -15,7 +15,7 @@ else
     libopensmssa_version_script =
 endif
 
-src_libopensmssa_la_SOURCES = src/core.c src/ssa.c
+src_libopensmssa_la_SOURCES = src/core.c src/ssa.c src/ssa_db.c
 src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
 		$(libopensmssa_version_script)
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map \

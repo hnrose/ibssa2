@@ -4,7 +4,7 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DSYSCONFDIR=\"$(sysconfdir)\" -DBINDIR=\"$(b
 
 bin_PROGRAMS = util/ib_acme
 sbin_PROGRAMS = svc/ibacm
-svc_ibacm_SOURCES = src/acm.c src/ssa.c
+svc_ibacm_SOURCES = src/acm.c src/ssa.c src/ssa_db.c
 util_ib_acme_SOURCES = src/acme.c src/libacm.c src/parse.c
 svc_ibacm_CFLAGS = $(AM_CFLAGS) -DACCESS_INTEGRATION
 util_ib_acme_CFLAGS = $(AM_CFLAGS)
