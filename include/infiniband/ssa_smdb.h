@@ -34,8 +34,8 @@
 #ifndef _SSA_SMDB_H_
 #define _SSA_SMDB_H_
 
-#include <infiniband/iba/ib_types.h>
 #include <infiniband/ssa_db.h>
+#include <infiniband/umad_sm.h>
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
@@ -46,6 +46,8 @@
 #endif                          /* __cplusplus */
 
 BEGIN_C_DECLS
+
+#define IB_NODE_DESCRIPTION_SIZE 64
 
 enum ssa_db_smdb_table_id {
 	SSA_TABLE_ID_SUBNET_OPTS = 0,
@@ -187,7 +189,7 @@ struct ep_lft_top_tbl_rec {
 struct ep_lft_block_tbl_rec {
 	be16_t		lid;
 	be16_t		block_num;
-	uint8_t		block[IB_SMP_DATA_SIZE];
+	uint8_t		block[UMAD_LEN_SMP_DATA];
 };
 
 #define SSA_DB_CHANGEMASK_SUBNET_PREFIX		(((uint16_t) 1) << 0)

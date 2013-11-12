@@ -34,7 +34,6 @@
 #ifndef _SSA_PR_DB_H_
 #define _SSA_PR_DB_H_
 
-#include <infiniband/iba/ib_types.h>
 #include <infiniband/ssa_db.h>
 
 #ifdef __cplusplus
