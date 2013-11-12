@@ -34,8 +34,8 @@
 #ifndef _SSA_SMDB_H_
 #define _SSA_SMDB_H_
 
-#include <iba/ib_types.h>
-#include <ssa_db.h>
+#include <infiniband/iba/ib_types.h>
+#include <infiniband/ssa_db.h>
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
