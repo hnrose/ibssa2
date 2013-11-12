@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -55,10 +55,10 @@ enum ssa_db_helper_mode {
 
 /****f* SSA DB helper
  * NAME
- *       ssa_db_save
+ *	ssa_db_save
  *
  * DESCRIPTION
- *       Save the distributed SMDB to file system
+ *	Save the distributed SMDB to file system
  *
  * SYNOPSIS
  * */
@@ -66,44 +66,44 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 		 enum ssa_db_helper_mode mode);
 /*
 * PARAMETERS
-*        path_dir
-*                [in] Path to the directory where the SMDB will be saved
+*	path_dir
+*		[in] Path to the directory where the SMDB will be saved
 *
-*        p_data
-*                [in] The pointer to SMDB that is supposed to be distributed
+*	p_data
+*		[in] The pointer to SMDB that is supposed to be distributed
 *
-*	 mode
-*		 [in] The mode of saving the data to disk
+*	mode
+*		[in] The mode of saving the data to disk
 *
-*  RETURN VALUE
-*        This function does not return a value.
+* RETURN VALUE
+*	This function does not return a value.
 *
-*  SEE ALSO
+* SEE ALSO
 *
 * *********/
 
 /****f* SSA DB helper
  * NAME
- *       ssa_db_load
+ *	ssa_db_load
  *
  * DESCRIPTION
- *       Load the distributed SMDB from file system
+ *	Load the distributed SMDB from file system
  *
  * SYNOPSIS
  * */
 struct ssa_db *ssa_db_load(const char * path_dir, enum ssa_db_helper_mode mode);
 /*
 * PARAMETERS
-*        path_dir
-*                [in] Path to the directory where the SMDB will be loaded from
+*	path_dir
+*		[in] Path to the directory where the SMDB will be loaded from
 *
-*        mode
-*                [in] The mode of data loaded from disk
+*	mode
+*		[in] The mode of data loaded from disk
 *
-*  RETURN VALUE
-*        This function returns ssa_db structure with loaded data
+* RETURN VALUE
+*	This function returns ssa_db structure with loaded data
 *
-*  SEE ALSO
+* SEE ALSO
 *
 * *********/
 END_C_DECLS
