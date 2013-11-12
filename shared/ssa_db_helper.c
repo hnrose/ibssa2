@@ -39,6 +39,9 @@
 #include <infiniband/ssa_db_helper.h>
 #include <infiniband/ssa_smdb.h>
 #include <limits.h>
+#include <assert.h>
+#include <string.h>
+#include <inttypes.h>
 
 #define SSA_DB_HELPER_PATH_MAX PATH_MAX
 
