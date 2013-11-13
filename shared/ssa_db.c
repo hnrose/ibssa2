@@ -253,7 +253,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 			    0 /* set_offset */, 0 /* set_count */);
 
 	/* adding table definitions */
-	for (p_tbl_def = def_tbl; p_tbl_def->version; p_tbl_def++)
+	for (p_tbl_def = def_tbl; p_tbl_def->version != DB_VERSION_INVALID; p_tbl_def++)
 		ssa_db_table_def_insert(p_ssa_db->p_def_tbl,
 					&p_ssa_db->db_table_def,
 					p_tbl_def->version, p_tbl_def->size,
@@ -264,7 +264,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 					ntohl(p_tbl_def->ref_table_id));
 
 	/* data tables datasets initialization */
-	for (p_dataset = dataset_tbl; p_dataset->version; p_dataset++)
+	for (p_dataset = dataset_tbl; p_dataset->version != DB_VERSION_INVALID; p_dataset++)
 		ssa_db_dataset_init(&p_ssa_db->p_db_tables[p_dataset->id.table],
 				    p_dataset->version, p_dataset->size,
 				    p_dataset->access, p_dataset->id.db,
@@ -274,7 +274,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 				    p_dataset->set_count);
 
 	/* field tables datasets initialization */
-	for (p_dataset = dataset_tbl; p_dataset->version; p_dataset++)
+	for (p_dataset = dataset_tbl; p_dataset->version != DB_VERSION_INVALID; p_dataset++)
 		ssa_db_dataset_init(&p_ssa_db->p_db_field_tables[p_dataset->id.table],
 				    p_dataset->version, p_dataset->size,
 				    p_dataset->access, p_dataset->id.db,
@@ -284,11 +284,11 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 				    p_dataset->set_count);
 
 	/* field tables initialization */
-	for (p_tbl_def = def_tbl; p_tbl_def->version; p_tbl_def++) {
+	for (p_tbl_def = def_tbl; p_tbl_def->version != DB_VERSION_INVALID; p_tbl_def++) {
 		uint8_t tbl_id = ntohl(p_tbl_def->ref_table_id);
 		if (p_tbl_def->type != DBT_TYPE_DEF)
 			continue;
-		for (p_field_def = field_tbl; p_field_def->version; p_field_def++) {
+		for (p_field_def = field_tbl; p_field_def->version != DB_VERSION_INVALID; p_field_def++) {
                         if (p_field_def->id.table == p_tbl_def->id.table) {
                                 ssa_db_field_def_insert(p_ssa_db->pp_field_tables[tbl_id],
                                                         &p_ssa_db->p_db_field_tables[tbl_id],

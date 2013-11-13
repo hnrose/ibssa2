@@ -56,6 +56,7 @@ extern "C" {
 #define DB_NAME_LEN		64
 #define DB_VARIABLE_SIZE	0xFFFFFFFF
 #define DB_ID_DEFS		0xFF
+#define DB_VERSION_INVALID	0xFF
 
 struct db_id {
 	uint8_t		db;
