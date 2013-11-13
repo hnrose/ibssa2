@@ -258,15 +258,23 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Supported preload values are:\n");
 	fprintf(f, "# none - The routing cache is not pre-built (default)\n");
 	fprintf(f, "# opensm_full_v1 - OpenSM 'full' path records dump file format (version 1)\n");
+	fprintf(f, "# access_v1 - SSA Access Layer path records dump (version 1)\n");
 	fprintf(f, "\n");
 	fprintf(f, "route_preload none\n");
 	fprintf(f, "\n");
 	fprintf(f, "# route_data_file:\n");
 	fprintf(f, "# Specifies the location of the route data file to use when preloading\n");
 	fprintf(f, "# the ACM cache.  This option is only valid if route_preload\n");
-	fprintf(f, "# indicates that routing data should be read from a file.\n");
+	fprintf(f, "# indicates that routing data should be read from a file (opensm_full_v1 option).\n");
 	fprintf(f, "# Default is ACM_CONF_DIR/ibacm_route.data\n");
 	fprintf(f, "# route_data_file /etc/rdma/ibacm_route.data\n");
+	fprintf(f, "\n");
+	fprintf(f, "# route_data_dir:\n");
+	fprintf(f, "# Specifies the location of the route data directory to use when preloading\n");
+	fprintf(f, "# the ACM cache.  This option is only valid if route_preload\n");
+	fprintf(f, "# indicates that routing data should be read from a directory (access_v1 option).\n");
+	fprintf(f, "# Default is ACM_CONF_DIR/ssa_db\n");
+	fprintf(f, "# route_data_dir /etc/rdma/ssa_db\n");
 	fprintf(f, "\n");
 }
 

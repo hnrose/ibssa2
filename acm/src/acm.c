@@ -49,6 +49,9 @@
 #include <search.h>
 #include <common.h>
 #include "acm_mad.h"
+#include <infiniband/ssa_db.h>
+#include <infiniband/ssa_db_helper.h>
+#include <infiniband/ssa_prdb.h>
 
 #define src_out     data[0]
 
@@ -81,7 +84,8 @@ enum acm_loopback_prot {
 
 enum acm_route_preload {
 	ACM_ROUTE_PRELOAD_NONE,
-	ACM_ROUTE_PRELOAD_OSM_FULL_V1
+	ACM_ROUTE_PRELOAD_OSM_FULL_V1,
+	ACM_ROUTE_PRELOAD_ACCESS_V1
 };
 
 /*
@@ -221,6 +225,7 @@ static char *acme = BINDIR "/ib_acme -A";
 static char *opts_file = RDMA_CONF_DIR "/" ACM_OPTS_FILE;
 static char *addr_file = RDMA_CONF_DIR "/" ACM_ADDR_FILE;
 static char route_data_file[128] = RDMA_CONF_DIR "/ibacm_route.data";
+static char route_data_dir[128] = RDMA_CONF_DIR "/ssa_db";
 static char log_file[128] = "/var/log/ibacm.log";
 static char lock_file[128] = "/var/run/ibacm.pid";
 static enum acm_addr_prot addr_prot = ACM_ADDR_PROT_ACM;
@@ -2434,6 +2439,8 @@ static enum acm_route_preload acm_convert_route_preload(char *param)
 		return ACM_ROUTE_PRELOAD_NONE;
 	else if (!strcasecmp("opensm_full_v1", param))
 		return ACM_ROUTE_PRELOAD_OSM_FULL_V1;
+	else if (!strcasecmp("access_v1", param))
+		return ACM_ROUTE_PRELOAD_ACCESS_V1;
 
 	return route_preload;
 }
@@ -2783,6 +2790,151 @@ err:
 	return ret;
 }
 
+/* Parse "access layer v1" file to build LID to GUID table */
+static void acm_parse_access_v1_lid2guid(struct ssa_db *p_ssa_db, uint64_t *lid2guid)
+{
+	struct ep_pr_tbl_rec *p_pr_tbl;
+	struct ep_pr_tbl_rec *p_pr_rec;
+	uint64_t guid;
+	uint64_t pr_cnt;
+	uint64_t i;
+	uint16_t lid;
+
+	p_pr_tbl = (struct ep_pr_tbl_rec *) p_ssa_db->pp_tables[SSA_PR_TABLE_ID];
+	pr_cnt = ntohll(p_ssa_db->p_db_tables[SSA_PR_TABLE_ID].set_count);
+
+	for (i = 0; i < pr_cnt; i++) {
+		p_pr_rec = p_pr_tbl + i;
+		guid = p_pr_rec->guid;
+		lid = ntohs(p_pr_rec->lid);
+
+		if (lid >= IB_LID_MCAST_START)
+			continue;
+		if (lid2guid[lid])
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - duplicate lid %u\n", lid);
+		else
+			lid2guid[lid] = guid;
+	}
+}
+
+/* Parse 'access layer v1' file to populate PR cache */
+static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid, struct acm_ep *ep)
+{
+	union ibv_gid sgid, dgid;
+	struct ibv_port_attr attr = { 0 };
+	struct acm_dest *dest;
+	struct ep_pr_tbl_rec *p_pr_tbl, *p_pr_rec;
+	uint64_t guid, i, k, pr_cnt;
+	uint16_t lid, dlid;
+	int sl, mtu, rate;
+	int ret = 1;
+	uint8_t addr[ACM_MAX_ADDRESS];
+	uint8_t addr_type;
+
+	ibv_query_gid(ep->port->dev->verbs, ep->port->port_num, 0, &sgid);
+
+	p_pr_tbl = (struct ep_pr_tbl_rec *) p_ssa_db->pp_tables[SSA_PR_TABLE_ID];
+	pr_cnt = ntohll(p_ssa_db->p_db_tables[SSA_PR_TABLE_ID].set_count);
+
+	/* Search for endpoint's SLID */
+	for (i = 0; i < pr_cnt; i++) {
+		p_pr_rec = p_pr_tbl + i;
+		guid = p_pr_rec->guid;
+		if (guid !=  sgid.global.interface_id)
+			continue;
+
+		lid = ntohs(p_pr_rec->lid);
+		if (lid != ep->port->lid)
+		        continue;
+
+		ibv_query_port(ep->port->dev->verbs, ep->port->port_num, &attr);
+		ret = 0;
+		break;
+	}
+
+	for (k = 0; k < pr_cnt; k++) {
+		p_pr_rec = p_pr_tbl + k;
+		dlid = ntohs(p_pr_rec->lid);
+		sl = p_pr_rec->sl;
+		mtu = p_pr_rec->mtu;
+		rate = p_pr_rec->rate;
+
+		if (!lid2guid[dlid]) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - dlid %u not found in lid2guid table\n", dlid);
+			continue;
+	        }
+
+	        dgid.global.subnet_prefix = sgid.global.subnet_prefix;
+	        dgid.global.interface_id = lid2guid[dlid];
+
+	        for (i = 0; i < 2; i++) {
+			memset(addr, 0, ACM_MAX_ADDRESS);
+			if (i == 0) {
+				addr_type = ACM_ADDRESS_LID;
+				*((uint16_t *) addr) = htons(dlid);
+			} else {
+				addr_type = ACM_ADDRESS_GID;
+				memcpy(addr, &dgid, sizeof(dgid));
+			}
+			dest = acm_acquire_dest(ep, addr_type, addr);
+			if (!dest) {
+				ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create dest\n");
+				break;
+			}
+
+			dest->path.sgid = sgid;
+			dest->path.slid = htons(ep->port->lid);
+			dest->path.dgid = dgid;
+			dest->path.dlid = htons(dlid);
+			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
+			dest->path.pkey = htons(ep->pkey);
+			dest->path.mtu = (uint8_t) mtu;
+			dest->path.rate = (uint8_t) rate;
+			dest->path.qosclass_sl = htons((uint16_t) sl & 0xF);
+			if (dlid == ep->port->lid) {
+				dest->path.packetlifetime = 0;
+				dest->addr_timeout = (uint64_t)~0ULL;
+				dest->route_timeout = (uint64_t)~0ULL;
+			} else {
+				dest->path.packetlifetime = attr.subnet_timeout;
+				dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
+				dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
+			}
+			dest->remote_qpn = 1;
+			dest->state = ACM_READY;
+			acm_put_dest(dest);
+			ssa_log(SSA_LOG_VERBOSE, "added cached dest %s\n", dest->name);
+	        }
+	}
+	return ret;
+}
+
+static int acm_parse_access_v1(struct acm_ep *ep)
+{
+	struct ssa_db *p_ssa_db;
+	uint64_t *lid2guid;
+	int ret = 1;
+
+	if (!(p_ssa_db = ssa_db_load(route_data_dir, SSA_DB_HELPER_DEBUG))) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't load PRDB from %s\n", route_data_dir);
+		return ret;
+	}
+
+	lid2guid = calloc(IB_LID_MCAST_START, sizeof(*lid2guid));
+	if (!lid2guid) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - no memory for path record parsing\n");
+		goto err;
+	}
+
+	acm_parse_access_v1_lid2guid(p_ssa_db, lid2guid);
+	ret = acm_parse_access_v1_paths(p_ssa_db, lid2guid, ep);
+	free(lid2guid);
+err:
+	ssa_db_destroy(p_ssa_db);
+	return ret;
+}
+
 static int acm_assign_ep_names(struct acm_ep *ep)
 {
 	FILE *faddr;
@@ -2856,6 +3008,10 @@ static void acm_ep_preload(struct acm_ep *ep)
 	switch (route_preload) {
 	case ACM_ROUTE_PRELOAD_OSM_FULL_V1:
 		if (acm_parse_osm_fullv1(ep))
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to preload EP\n");
+		break;
+	case ACM_ROUTE_PRELOAD_ACCESS_V1:
+		if (acm_parse_access_v1(ep))
 			ssa_log(SSA_LOG_DEFAULT, "ERROR - failed to preload EP\n");
 		break;
 	default:
@@ -3410,6 +3566,8 @@ static void acm_set_options(void)
 		        route_preload = acm_convert_route_preload(value);
 		else if (!strcasecmp("route_data_file", opt))
 		        strcpy(route_data_file, value);
+		else if (!strcasecmp("route_data_dir", opt))
+		        strcpy(route_data_dir, value);
 	}
 
 	fclose(f);
@@ -3435,6 +3593,7 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "minimum rate %d\n", min_rate);
 	ssa_log(SSA_LOG_DEFAULT, "route preload %d\n", route_preload);
 	ssa_log(SSA_LOG_DEFAULT, "routing data file %s\n", route_data_file);
+	ssa_log(SSA_LOG_DEFAULT, "routing data directory %s\n", route_data_dir);
 }
 
 static void *acm_ctrl_handler(void *context)
