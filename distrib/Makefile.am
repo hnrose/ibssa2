@@ -3,7 +3,7 @@ INCLUDES = -I$(srcdir)/include
 AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\"
 
 sbin_PROGRAMS = svc/ibssa
-svc_ibssa_SOURCES = src/distrib.c src/ssa.c src/ssa_db.c
+svc_ibssa_SOURCES = src/distrib.c src/ssa.c src/ssa_db.c src/ssa_db_helper.c
 svc_ibssa_CFLAGS = $(AM_CFLAGS) -DINTEGRATION -DACCESS_INTEGRATION
 svc_ibssa_LDADD = -lrdmacm
 
