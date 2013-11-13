@@ -87,7 +87,7 @@
 #define DB_LFT_TOP_TBL_FORMAT		"lid %" SCNu16 " lft_top %" SCNu16 "\n"
 #define DB_LFT_BLOCK_TBL_FORMAT		"lid %" SCNu16 " block_num %" SCNu16 "\n"
 
-void ssa_db_db_def_dump(FILE * fd, const struct db_def * p_db_def)
+static void ssa_db_db_def_dump(FILE * fd, const struct db_def * p_db_def)
 {
 	fprintf(fd, DB_DEF_FORMAT_WRITE,
 		p_db_def->version, p_db_def->size,
@@ -96,8 +96,8 @@ void ssa_db_db_def_dump(FILE * fd, const struct db_def * p_db_def)
 		ntohl(p_db_def->table_def_size), p_db_def->name);
 }
 
-void ssa_db_table_def_dump(FILE * fd, struct db_table_def * p_def_tbl,
-			   uint64_t offset)
+static void ssa_db_table_def_dump(FILE * fd, struct db_table_def * p_def_tbl,
+				  uint64_t offset)
 {
 	struct db_table_def db_table_def;
 
@@ -111,7 +111,7 @@ void ssa_db_table_def_dump(FILE * fd, struct db_table_def * p_def_tbl,
 		ntohl(db_table_def.ref_table_id), db_table_def.name);
 }
 
-void ssa_db_dataset_dump(FILE * fd, struct db_dataset * p_dataset)
+static void ssa_db_dataset_dump(FILE * fd, struct db_dataset * p_dataset)
 {
 	fprintf(fd, DATASET_DEF_FORMAT,
 		p_dataset->version, p_dataset->size,
@@ -121,8 +121,8 @@ void ssa_db_dataset_dump(FILE * fd, struct db_dataset * p_dataset)
 		ntohll(p_dataset->set_offset),  ntohll(p_dataset->set_count));
 }
 
-void ssa_db_field_tbl_dump(FILE * fd, struct db_dataset * p_dataset,
-			   struct db_field_def * p_data_tbl)
+static void ssa_db_field_tbl_dump(FILE * fd, struct db_dataset * p_dataset,
+				  struct db_field_def * p_data_tbl)
 {
 	struct db_field_def field_rec;
 	uint32_t i;
@@ -137,7 +137,7 @@ void ssa_db_field_tbl_dump(FILE * fd, struct db_dataset * p_dataset,
 	}
 }
 
-void ssa_db_db_def_load(FILE * fd, struct db_def * p_db_def)
+static void ssa_db_db_def_load(FILE * fd, struct db_def * p_db_def)
 {
 	uint32_t table_def_size = 0;
 	int res = 0;
@@ -153,7 +153,7 @@ void ssa_db_db_def_load(FILE * fd, struct db_def * p_db_def)
 	}
 }
 
-void ssa_db_table_def_load(FILE * fd, struct db_table_def * p_def_tbl)
+static void ssa_db_table_def_load(FILE * fd, struct db_table_def * p_def_tbl)
 {
 	int res = 0;
 
@@ -168,7 +168,7 @@ void ssa_db_table_def_load(FILE * fd, struct db_table_def * p_def_tbl)
 	p_def_tbl->ref_table_id = htonl(p_def_tbl->ref_table_id);
 }
 
-void ssa_db_dataset_load(FILE * fd, struct db_dataset * p_dataset)
+static void ssa_db_dataset_load(FILE * fd, struct db_dataset * p_dataset)
 {
 	int res = 0;
 
@@ -185,8 +185,8 @@ void ssa_db_dataset_load(FILE * fd, struct db_dataset * p_dataset)
 	p_dataset->set_count = htonll(p_dataset->set_count);
 }
 
-void ssa_db_field_tbl_load(FILE * fd, struct db_dataset * p_dataset,
-			   struct db_field_def * p_data_tbl)
+static void ssa_db_field_tbl_load(FILE * fd, struct db_dataset * p_dataset,
+				  struct db_field_def * p_data_tbl)
 {
 	struct db_field_def field_rec;
 	uint32_t i = 0;
@@ -307,12 +307,12 @@ static void ssa_db_rec_tbl_dump(FILE * fd, enum ssa_db_helper_mode mode,
 	}
 }
 
-void ssa_db_rec_tbl_load(FILE * fd, enum ssa_db_helper_mode mode,
-			 struct db_table_def *p_data_tbl_def,
-			 struct db_dataset * p_dataset,
-			 void * p_data_tbl,
-			 struct db_dataset *p_dataset_field,
-			 struct db_field_def *p_field_tbl)
+static void ssa_db_rec_tbl_load(FILE * fd, enum ssa_db_helper_mode mode,
+				struct db_table_def *p_data_tbl_def,
+				struct db_dataset * p_dataset,
+				void * p_data_tbl,
+				struct db_dataset *p_dataset_field,
+				struct db_field_def *p_field_tbl)
 {
 	struct db_field_def *p_field_rec;
 	uint64_t i, k, j;
@@ -474,7 +474,7 @@ static void ssa_db_rec_tbl_load_var_size(FILE * fd, enum ssa_db_helper_mode mode
 	}
 }
 
-uint32_t ssa_db_table_def_load_record_size(FILE * fd)
+static uint32_t ssa_db_table_def_load_record_size(FILE * fd)
 {
 	struct db_table_def table_def;
 
@@ -486,7 +486,7 @@ uint32_t ssa_db_table_def_load_record_size(FILE * fd)
 	return ntohl(table_def.record_size);
 }
 
-uint64_t ssa_db_dataset_load_record_count(FILE * fd)
+static uint64_t ssa_db_dataset_load_record_count(FILE * fd)
 {
 	struct db_dataset dataset;
 	ssa_db_dataset_load(fd, &dataset);
@@ -497,11 +497,11 @@ uint64_t ssa_db_dataset_load_record_count(FILE * fd)
 	return ntohll(dataset.set_count);
 }
 
-void ssa_db_tbl_dump(char * dir_path, const struct ssa_db *p_ssa_db,
-		     const size_t data_tbl_def_indx,
-		     const size_t fields_tbl_def_indx,
-		     const size_t dataset_indx,
-		     enum ssa_db_helper_mode mode)
+static void ssa_db_tbl_dump(char * dir_path, const struct ssa_db *p_ssa_db,
+			    const size_t data_tbl_def_indx,
+			    const size_t fields_tbl_def_indx,
+			    const size_t dataset_indx,
+			    enum ssa_db_helper_mode mode)
 {
 	FILE *fd = NULL;
 	char buffer[128] = {};
@@ -771,8 +771,8 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 	}
 }
 
-struct ssa_db *ssa_db_load_allocate_new(const char *path_dir, char *tbl_names,
-					uint64_t data_tbls_n)
+static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir, char *tbl_names,
+					       uint64_t data_tbls_n)
 {
 	FILE *fd = NULL;
 	struct ssa_db *p_ssa_db = NULL;
