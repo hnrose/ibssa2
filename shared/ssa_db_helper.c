@@ -37,7 +37,6 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <infiniband/ssa_db_helper.h>
-#include <infiniband/ssa_smdb.h>
 #include <limits.h>
 #include <assert.h>
 #include <string.h>
