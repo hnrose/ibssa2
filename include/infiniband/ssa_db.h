@@ -274,7 +274,9 @@ struct db_trans_log_entry {
 
 enum {
 	SSA_MSG_DB_QUERY_DEF,
-	SSA_MSG_DB_QUERY_DATASET,
+	SSA_MSG_DB_QUERY_TBL_DEF_DATASET,
+	SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,	/* issued multiple times */
+	SSA_MSG_DB_QUERY_DATA_DATASET,		/* issued multiple times */
 	SSA_MSG_DB_PUBLISH_EPOCH_BUF,
 };
 
