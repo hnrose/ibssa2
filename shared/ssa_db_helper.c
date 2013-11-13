@@ -498,11 +498,11 @@ uint64_t ssa_db_dataset_load_record_count(FILE * fd)
 	return ntohll(dataset.set_count);
 }
 
-void ssa_db_tbl_dump_v2(char * dir_path, const struct ssa_db *p_ssa_db,
-			const size_t data_tbl_def_indx,
-			const size_t fields_tbl_def_indx,
-			const size_t dataset_indx,
-			enum ssa_db_helper_mode mode)
+void ssa_db_tbl_dump(char * dir_path, const struct ssa_db *p_ssa_db,
+		     const size_t data_tbl_def_indx,
+		     const size_t fields_tbl_def_indx,
+		     const size_t dataset_indx,
+		     enum ssa_db_helper_mode mode)
 {
 	FILE *fd = NULL;
 	char buffer[128] = {};
@@ -591,8 +591,8 @@ void ssa_db_tbl_dump_v2(char * dir_path, const struct ssa_db *p_ssa_db,
 	fclose(fd); fd = NULL;
 }
 
-static int ssa_db_tbl_load_v2(char * dir_path, struct ssa_db * p_ssa_db,
-			      uint64_t tbl_idx, enum ssa_db_helper_mode mode)
+static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
+			   uint64_t tbl_idx, enum ssa_db_helper_mode mode)
 {
         FILE *fd = NULL;
         char buffer[SSA_DB_HELPER_PATH_MAX] = {};
@@ -767,7 +767,7 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 
 			/* dump dataset and its field dataset */
 			sprintf(buffer, "%s/%s", path_dir, p_ssa_db->p_def_tbl[i].name);
-			ssa_db_tbl_dump_v2(buffer, p_ssa_db, i, j, k, mode);
+			ssa_db_tbl_dump(buffer, p_ssa_db, i, j, k, mode);
 		}
 	}
 }
@@ -907,7 +907,7 @@ struct ssa_db *ssa_db_load(const char * path_dir, enum ssa_db_helper_mode mode)
 
 	for (i = 0; i < data_tbls_n; i++) {
 		sprintf(buffer, "%s/%s", path_dir, tbl_names + DB_NAME_LEN * i);
-		ssa_db_tbl_load_v2(buffer, p_ssa_db, i, mode);
+		ssa_db_tbl_load(buffer, p_ssa_db, i, mode);
 	}
 	free(tbl_names);
 
