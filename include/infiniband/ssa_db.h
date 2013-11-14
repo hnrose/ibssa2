@@ -339,7 +339,7 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
  *                 { table_1 definitions },
  *                 { table_1 field definitions },
  *                 ...
- *                 { 0 }
+ *                 { DB_VERSION_INVALID }
  *             };
  *
  *        - struct db_dataset []	containing all datasets, 1 for data
@@ -350,14 +350,14 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
  *                 { dataset_1 definitions },
  *                 { dataset_2 definitions },
  *                 ...
- *                 { 0 }
+ *                 { DB_VERSION_INVALID }
  *             };
  *
  *             static const struct db_dataset field_dataset_arr[] = {
  *                 { dataset_1 field definitions },
  *                 { dataset_2 field definitions },
  *                 ...
- *                 { 0 }
+ *                 { DB_VERSION_INVALID }
  *             };
  *
  *        - struct db_field_def []	containing data tables field defs.
@@ -369,7 +369,7 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
  *                { table_2 field_1 definitions },
  *                { table_2 field_2 definitions },
  *                ...
- *                { 0 }
+ *                { DB_VERSION_INVALID }
  *             };
  *
  * [2] ssa_db_create() has to be called with the following arguments:
