@@ -37,6 +37,7 @@
 #include <common.h>
 #include <infiniband/ssa_mad.h>
 #include <ssa_ctrl.h>
+#include <infiniband/ssa_path_record.h>
 
 #define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
 

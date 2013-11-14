@@ -44,6 +44,17 @@ AC_CHECK_HEADER(infiniband/umad.h, [],
     AC_MSG_ERROR([<infiniband/umad.h> not found.  Is libibumad installed?]))
 fi
 
+dnl Define an input config option to get access headers
+AC_ARG_WITH(access,
+[  --with-access=<dir> define access src directory],
+AC_MSG_NOTICE(Using access src from: $with_access),
+with_access="none")
+ACCESS_SRC=/usr
+if test "x$with_access" != xnone; then
+  ACCESS_SRC=$with_access
+fi
+AC_SUBST(ACCESS_SRC)
+
 dnl Check for gcc atomic intrinsics
 AC_MSG_CHECKING(compiler support for atomics)
 AC_TRY_LINK([int i = 0;],
