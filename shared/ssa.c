@@ -55,6 +55,8 @@
 #include <infiniband/ssa.h>
 #include <infiniband/ib.h>
 #include <infiniband/ssa_db.h>
+#include <infiniband/ssa_path_record.h>
+#include <infiniband/ssa_db_helper.h>
 #include <dlist.h>
 #include <search.h>
 #include <common.h>
@@ -64,8 +66,11 @@
 #define DEFAULT_TIMEOUT 1000
 #define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
 
+#define SMDB_PRELOAD_PATH "./smdb"
+
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
+static struct ssa_access_context access_context;
 
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
@@ -1519,6 +1524,7 @@ static void *ssa_access_handler(void *context)
 	struct ssa_svc *svc = context;
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[3];
+	struct ssa_db *prdb = NULL;
 	int ret;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
@@ -1535,6 +1541,25 @@ static void *ssa_access_handler(void *context)
 	fds[2].fd = svc->sock_accessdown[1];
 	fds[2].events = POLLIN;
 	fds[2].revents = 0;
+
+#ifdef ACCESS_INTEGRATION
+	if (!access_context.context) {
+		ssa_sprint_addr(SSA_LOG_CTRL, log_data, sizeof log_data,
+				SSA_ADDR_GID, svc->port->gid.raw,
+				sizeof svc->port->gid);
+		ssa_log_err(SSA_LOG_CTRL, "access context is empty. GID %s\n",
+			    log_data);
+		goto out;
+	}
+	if (!access_context.smdb) {
+		ssa_sprint_addr(SSA_LOG_CTRL, log_data, sizeof log_data,
+				SSA_ADDR_GID, svc->port->gid.raw,
+				sizeof svc->port->gid);
+		ssa_log_err(SSA_LOG_CTRL, "smdb database is empty. GID %s\n",
+			    log_data);
+		goto out;
+	}
+#endif
 
 	for (;;) {
 		ret = poll(&fds[0], 3, -1);
@@ -1616,8 +1641,27 @@ static void *ssa_access_handler(void *context)
 				/* ssa_calc_path_records(); */
 				/* Now, tell downstream where this ssa_db struct is */
 				/* Replace NULL with pointer to real struct ssa_db */
+#ifdef ACCESS_INTEGRATION
+				prdb = ssa_pr_compute_half_world(access_context.smdb,
+								 access_context.context,
+								 msg.data.conn->remote_gid.global.interface_id);
+				if (!prdb) {
+					ssa_log_err(SSA_LOG_CTRL,
+						    "prdb creation for GID %s\n",
+						    log_data);
+					continue;
+				}
+
+				ssa_access_send_db_update(svc, prdb, 0,
+							  &msg.data.conn->remote_gid);
+				/*
+				 * TODO: destroy prdb database
+				 * ssa_db_destroy(prdb);
+				 */
+#else
 				ssa_access_send_db_update(svc, NULL, 0,
 							  &msg.data.conn->remote_gid);
+#endif
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2399,6 +2443,35 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	if (dev->ssa->node_type == SSA_NODE_ACCESS) {
 		/* if configured, invoke SSA DB preloading */
 
+		/*
+		 * TODO:
+		 * 1. Pass required log verbosity. Now access layer has:
+		 *  SSA_PR_NO_LOG = 0,
+		 *  SSA_PR_EEROR_LEVEL = 1,
+		 *  SSA_PR_INFO_LEVEL = 2,
+		 *  SSA_PR_DEBUG_LEVEL = 3
+		 * 2. Change errno
+		 */
+		if (!access_context.context)
+			access_context.context = ssa_pr_create_context(flog, 0);
+		if (!access_context.context) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "unable to create access layer context\n");
+			goto ctx_create_err;
+		}
+
+		if (!access_context.smdb)
+			access_context.smdb = ssa_db_load(SMDB_PRELOAD_PATH,
+							  SSA_DB_HELPER_DEBUG);
+		if (!access_context.smdb) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "unable to preload smdb database. path:\"%s\"\n",
+				    SMDB_PRELOAD_PATH);
+			goto ctx_create_err;
+		}
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+			"access context is created, smdb is loaded from \"%s\"\n",
+			SMDB_PRELOAD_PATH);
 	}
 #endif
 
@@ -2408,12 +2481,32 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 err1:
 	ibv_close_device(dev->verbs);
 	dev->verbs = NULL;
+
+#ifdef ACCESS_INTEGRATION
+ctx_create_err:
+	if (access_context.context) {
+		ssa_pr_destroy_context(access_context.context);
+		access_context.context = NULL;
+	}
+	if (access_context.smdb) {
+		ssa_db_destroy(access_context.smdb);
+		access_context.smdb = NULL;
+	}
+	seterr(ENOMEM);
+#endif
 }
 
 int ssa_open_devices(struct ssa_class *ssa)
 {
 	struct ibv_device **ibdev;
 	int i, ret = 0;
+
+	/*
+	 * TODO:
+	 * Destroy old context if it exists: ssa_pr_destroy_context
+	 */
+	access_context.smdb = NULL;
+	access_context.context = NULL;
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	ibdev = ibv_get_device_list(&ssa->dev_cnt);
@@ -2514,6 +2607,17 @@ void ssa_close_devices(struct ssa_class *ssa)
 	}
 	free(ssa->dev);
 	ssa->dev_cnt = 0;
+
+#ifdef ACCESS_INTEGRATION
+	if (access_context.context) {
+		ssa_pr_destroy_context(access_context.context);
+		access_context.context = NULL;
+	}
+	if (access_context.smdb) {
+		ssa_db_destroy(access_context.smdb);
+		access_context.smdb = NULL;
+	}
+#endif
 }
 
 int ssa_open_lock_file(char *lock_file)

@@ -134,6 +134,11 @@ struct ssa_device {
 	struct ssa_port         *port;
 };
 
+struct ssa_access_context {
+	struct ssa_db *smdb;
+	void *context;
+};
+
 struct ssa_port {
 	struct ssa_device	*dev;
 	char			name[SSA_NAME_SIZE];
