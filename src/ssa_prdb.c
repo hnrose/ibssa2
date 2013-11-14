@@ -37,32 +37,32 @@
 #include <asm/byteorder.h>
 
 static const struct db_table_def def_tbl[] = {
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0,SSA_PR_TABLE_ID, 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0,SSA_PR_TABLE_ID, 0 },
 		"PR", __constant_htonl(sizeof(struct ep_pr_tbl_rec)), 0 },
-	{ 1, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF , 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF , 0 },
 		"PR fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_PR_TABLE_ID) },
-	{ 0 }
+	{ DB_VERSION_INVALID }
 };
 
 static const struct db_dataset dataset_tbl[] = {
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_PR_TABLE_ID, 0 }, 0, 0, 0, 0 },
-	{ 0 }
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_PR_TABLE_ID, 0 }, 0, 0, 0, 0 },
+	{ DB_VERSION_INVALID }
 };
 
 static const struct db_dataset field_dataset_tbl[] = {
-	{ 1, sizeof(struct db_dataset), 0, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF , 0 }, 0, 0, 0, 0 },
-	{0}
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF , 0 }, 0, 0, 0, 0 },
+	{ DB_VERSION_INVALID }
 };
 
 static const struct db_field_def field_tbl[] = {
-	{ 1, 0, DBF_TYPE_NET64, 0, { 0,SSA_PR_TABLE_ID_FIELD_DEF,SSA_PR_FIELD_ID_PR_DGUID}, "guid", __constant_htonl(64), 0 },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_DLID }, "lid", __constant_htonl(16), __constant_htonl(64) },
-	{ 1, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_PK }, "pk", __constant_htonl(16), __constant_htonl(80) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_MTU }, "mtu", __constant_htonl(8), __constant_htonl(96) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_RATE }, "rate", __constant_htonl(8), __constant_htonl(104) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_SL }, "sl", __constant_htonl(8), __constant_htonl(112) },
-	{ 1, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_REVERSIBLE }, "is_reversible", __constant_htonl(8), __constant_htonl(120) },
-	{ 0 }
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0,SSA_PR_TABLE_ID_FIELD_DEF,SSA_PR_FIELD_ID_PR_DGUID}, "guid", __constant_htonl(64), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_DLID }, "lid", __constant_htonl(16), __constant_htonl(64) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_PK }, "pk", __constant_htonl(16), __constant_htonl(80) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_MTU }, "mtu", __constant_htonl(8), __constant_htonl(96) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_RATE }, "rate", __constant_htonl(8), __constant_htonl(104) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_SL }, "sl", __constant_htonl(8), __constant_htonl(112) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_REVERSIBLE }, "is_reversible", __constant_htonl(8), __constant_htonl(120) },
+	{ DB_VERSION_INVALID }
 };
 
 

@@ -34,7 +34,10 @@
 
 #include <errno.h>
 #include <math.h>
-#include <ssa_smdb.h>
+#include <string.h>
+#include <inttypes.h>
+#include <iba/ib_types.h>
+#include <infiniband/ssa_smdb.h>
 #include "ssa_path_record_helper.h"
 #include "ssa_path_record_data.h"
 

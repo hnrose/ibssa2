@@ -33,8 +33,8 @@
 SUBDIRS = .
 
 
-INCLUDES = -I. -I$(SSA_SRC)/ -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH) \
-		 -I../../src  
+INCLUDES =-I$(srcdir)/include -I.  -I$(IBSSA_SRC)/include -I$(IBSSA_SRC)/include/infiniband -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH) \
+		 -I../../src -I../../include 
 
 
 # Support debug mode through config variable

@@ -33,16 +33,16 @@ AC_INIT([ssaaccesslayer],[1.0],[sashakot@mellanox.com])
 AC_CONFIG_SRCDIR([])
 AC_CONFIG_MACRO_DIR(config)
 
-dnl Define an input config option to get SSA plugin headers
-AC_ARG_WITH(ssa,
-[  --with-ssa=<dir> define SSA src directory],
-AC_MSG_NOTICE(Using SSA src from: $with_ssa),
-with_ssa="none")
-SSA_SRC=/usr
-if test "x$with_ssa" != xnone; then
-  SSA_SRC=$with_ssa
+dnl Define an input config option to get ibssa headers
+AC_ARG_WITH(ibssa,
+[  --with-ibssa=<dir> define ibssa src directory],
+AC_MSG_NOTICE(Using ibssa src from: $with_ibssa),
+with_ibssa="none")
+IBSSA_SRC=/usr
+if test "x$with_ibssa" != xnone; then
+  IBSSA_SRC=$with_ibssa
 fi
-AC_SUBST(SSA_SRC)
+AC_SUBST(IBSSA_SRC)
 
 dnl Define an input config option to control osm
 AC_ARG_WITH(osm,

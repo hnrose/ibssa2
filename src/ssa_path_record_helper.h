@@ -68,7 +68,7 @@ extern  int rates_cmp_table[19][19];
  *  table with precomputed results. It used for performance optimization in 
  * the path records algorithm.
  */
-static inline int ib_path_compare_rates_fast(IN const int rate1, IN const int rate2)
+static inline int ib_path_compare_rates_fast(const int rate1,const int rate2)
 {
 	return rates_cmp_table[rate1][rate2];
 }

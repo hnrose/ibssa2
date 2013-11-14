@@ -30,7 +30,7 @@
 #
 SUBDIRS = . tests 
 
-INCLUDES = -I. -I.. -Isrc -I$(SSA_SRC)/ -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH)  
+INCLUDES = -I$(srcdir)/include -I. -I.. -Isrc -I$(IBSSA_SRC)/include/ -I$(IBSSA_SRC)/include/infiniband -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH)  
 
 
 # Support debug mode through config variable

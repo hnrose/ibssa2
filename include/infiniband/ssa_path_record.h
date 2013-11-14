@@ -34,10 +34,11 @@
  * The file contains SSA Access Layer API. 
  */
 
+#include <stdio.h>
 #include <stdint.h>
 #include <byteswap.h>
 #include <infiniband/umad.h>
-#include <ssa_db.h>
+#include <infiniband/ssa_db.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,10 +65,10 @@ typedef struct ssa_path_parms {
 } ssa_path_parms_t;
 
 
-typedef void (*ssa_pr_path_dump_t)(const ssa_path_parms_t*,void*);
+typedef void (*ssa_pr_path_dump_t)(const struct ssa_path_parms*,void*);
 
 
-extern void * ssa_pr_create_context(FILE* log_fd, int log_level);
+extern void *ssa_pr_create_context(FILE* log_fd, int log_level);
 extern void ssa_pr_destroy_context(void * ctx);
 
 /* ssa_pr_compute_half_world function computes "half world" path records 
