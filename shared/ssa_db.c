@@ -306,7 +306,8 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
  */
 void ssa_db_destroy(struct ssa_db * p_ssa_db)
 {
-	uint64_t i, tbl_cnt;
+	uint64_t tbl_cnt;
+	int i;
 
 	if (!p_ssa_db)
 		return;
