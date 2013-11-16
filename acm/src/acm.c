@@ -3506,6 +3506,9 @@ static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n", svc->conn_data.rsock);
 		/* Request ssa_db */
 		return 1;
+	case SSA_DB_UPDATE:
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
+		return 1;
 	default:
 		break;
 	}

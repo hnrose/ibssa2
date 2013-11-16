@@ -162,17 +162,32 @@ enum ssa_conn_state {
 	SSA_CONN_CONNECTED
 };
 
+enum ssa_db_phase {
+	SSA_DB_IDLE,
+	SSA_DB_DEFS,
+	SSA_DB_TBL_DEFS,
+	SSA_DB_FIELD_DEFS,
+	SSA_DB_DATA
+};
+
 struct ssa_conn {
 	int			rsock;
 	enum ssa_conn_type	type;
 	enum ssa_conn_state	state;
+	enum ssa_db_phase	phase;
 	union ibv_gid		remote_gid;
 	void			*rbuf;
 	int			rsize;
 	int			roffset;
+	uint32_t		rid;
+	void			*rhdr;
 	void			*sbuf;
 	int			ssize;
 	int			soffset;
+	uint32_t		sid;
+	void			*sbuf2;
+	int			ssize2;
+	struct ssa_db		*ssa_db;
 };
 
 enum ssa_svc_state {
