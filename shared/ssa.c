@@ -1645,11 +1645,6 @@ static void *ssa_access_handler(void *context)
 								 access_context.context,
 								 msg.data.conn->remote_gid.global.interface_id);
 				if (!prdb) {
-					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
-							sizeof log_data,
-							SSA_ADDR_GID,
-							msg.data.conn->remote_gid.raw,
-							sizeof msg.data.conn->remote_gid);
 					ssa_log_err(SSA_LOG_CTRL,
 						    "prdb creation for GID %s\n",
 						    log_data);
