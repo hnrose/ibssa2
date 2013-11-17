@@ -1,4 +1,5 @@
-INCLUDES = -I$(srcdir)/include
+INCLUDES = -I$(srcdir)/include -I$(ACCESS_SRC)/include \
+	   -I$(ACCESS_SRC)/include/infiniband
 
 lib_LTLIBRARIES = src/libopensmssa.la
 
@@ -20,7 +21,8 @@ src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
 		$(libopensmssa_version_script)
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map \
 		$(GLIB_LIBS)
-src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp
+src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
+		-L$(ACCESS_SRC)/.libs -lssaaccesslayer
 
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h
