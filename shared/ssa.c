@@ -1542,7 +1542,6 @@ static void *ssa_access_handler(void *context)
 	fds[2].events = POLLIN;
 	fds[2].revents = 0;
 
-#ifdef ACCESS_INTEGRATION
 	if (!access_context.context) {
 		ssa_sprint_addr(SSA_LOG_CTRL, log_data, sizeof log_data,
 				SSA_ADDR_GID, svc->port->gid.raw,
@@ -1559,7 +1558,6 @@ static void *ssa_access_handler(void *context)
 			    log_data);
 		goto out;
 	}
-#endif
 
 	for (;;) {
 		ret = poll(&fds[0], 3, -1);
@@ -1641,7 +1639,8 @@ static void *ssa_access_handler(void *context)
 				/* ssa_calc_path_records(); */
 				/* Now, tell downstream where this ssa_db struct is */
 				/* Replace NULL with pointer to real struct ssa_db */
-#ifdef ACCESS_INTEGRATION
+#if 1
+				/* This pulls in access layer for all node types !!! */
 				prdb = ssa_pr_compute_half_world(access_context.smdb,
 								 access_context.context,
 								 msg.data.conn->remote_gid.global.interface_id);
@@ -2439,7 +2438,6 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	for (i = 1; i <= dev->port_cnt; i++)
 		ssa_open_port(ssa_dev_port(dev, i), dev, i);
 
-#ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type == SSA_NODE_ACCESS) {
 		/* if configured, invoke SSA DB preloading */
 
@@ -2473,7 +2471,6 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			"access context is created, smdb is loaded from \"%s\"\n",
 			SMDB_PRELOAD_PATH);
 	}
-#endif
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
@@ -2482,7 +2479,6 @@ err1:
 	ibv_close_device(dev->verbs);
 	dev->verbs = NULL;
 
-#ifdef ACCESS_INTEGRATION
 ctx_create_err:
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
@@ -2493,7 +2489,6 @@ ctx_create_err:
 		access_context.smdb = NULL;
 	}
 	seterr(ENOMEM);
-#endif
 }
 
 int ssa_open_devices(struct ssa_class *ssa)
@@ -2608,7 +2603,6 @@ void ssa_close_devices(struct ssa_class *ssa)
 	free(ssa->dev);
 	ssa->dev_cnt = 0;
 
-#ifdef ACCESS_INTEGRATION
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
@@ -2617,7 +2611,6 @@ void ssa_close_devices(struct ssa_class *ssa)
 		ssa_db_destroy(access_context.smdb);
 		access_context.smdb = NULL;
 	}
-#endif
 }
 
 int ssa_open_lock_file(char *lock_file)
