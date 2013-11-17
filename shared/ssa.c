@@ -2443,6 +2443,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	for (i = 1; i <= dev->port_cnt; i++)
 		ssa_open_port(ssa_dev_port(dev, i), dev, i);
 
+#ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type == SSA_NODE_ACCESS) {
 		/* if configured, invoke SSA DB preloading */
 
@@ -2476,6 +2477,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			"access context is created, smdb is loaded from \"%s\"\n",
 			SMDB_PRELOAD_PATH);
 	}
+#endif
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
@@ -2484,6 +2486,7 @@ err1:
 	ibv_close_device(dev->verbs);
 	dev->verbs = NULL;
 
+#ifdef ACCESS_INTEGRATION
 ctx_create_err:
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
@@ -2495,6 +2498,7 @@ ctx_create_err:
 	}
 	seterr(ENOMEM);
 }
+#endif
 
 int ssa_open_devices(struct ssa_class *ssa)
 {
