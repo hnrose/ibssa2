@@ -1,4 +1,5 @@
-INCLUDES = -I$(srcdir)/include -I$(ACCESS_SRC)/include/ -I$(ACCESS_SRC)/include/infiniband
+INCLUDES = -I$(srcdir)/include -I$(ACCESS_SRC)/include \
+	   -I$(ACCESS_SRC)/include/infiniband
 
 AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\"
 
