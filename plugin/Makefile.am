@@ -23,7 +23,7 @@ src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map \
 #src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
 #		-L$(ACCESS_SRC)/.libs -lssaaccesslayer
 src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
-		-L$(prefix)/lib -lssaaccesslayer
+		-L$(libdir) -lssaaccesslayer
 
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h

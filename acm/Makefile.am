@@ -9,7 +9,7 @@ util_ib_acme_SOURCES = src/acme.c src/libacm.c src/parse.c
 svc_ibacm_CFLAGS = $(AM_CFLAGS) -DACCESS_INTEGRATION
 util_ib_acme_CFLAGS = $(AM_CFLAGS)
 #svc_ibacm_LDADD = -lrdmacm -L$(ACCESS_SRC)/.libs -lssaaccesslayer
-svc_ibacm_LDADD = -lrdmacm -L$(prefix)/lib -lssaaccesslayer
+svc_ibacm_LDADD = -lrdmacm -L$(libdir) -lssaaccesslayer
 
 ibacmincludedir = $(includedir)/infiniband
 
