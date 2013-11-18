@@ -33,7 +33,7 @@
 SUBDIRS = .
 
 
-INCLUDES =-I$(srcdir)/include -I.  -I$(IBSSA_SRC)/include -I$(IBSSA_SRC)/include/infiniband -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH) \
+INCLUDES =-I$(srcdir)/include -I.  -I$(IBSSA_SRC)/include -I$(IBSSA_SRC)/include/infiniband -I$(OSM_PATH)/local/include \
 		 -I../../src -I../../include 
 
 
@@ -69,8 +69,6 @@ bin_PROGRAMS = pr_pair
 pr_pair_SOURCES = ./pr_pair.c
 pr_pair_CPPFLAGS =  $(INCLUDES) -I$(includedir)  $(DEPS_CFLAGS)  -g $(GLIB_CFLAGS)
 pr_pair_LDFLAGS = -L../../.libs -lssaaccesslayer \
-									-L$(OSM_DBHELPER_PATH)\.libs -lssadbhelper \
-									-L$(libdir) -lssa \
 									-L$(exec_prefix)\local\lib \
 									-losmcomp -lopensm -losmvendor  -libumad \
 									-lpthread \
