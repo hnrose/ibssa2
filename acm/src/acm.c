@@ -48,6 +48,7 @@
 #include <dlist.h>
 #include <search.h>
 #include <common.h>
+#include <inttypes.h>
 #include "acm_mad.h"
 #include <infiniband/ssa_db.h>
 #include <infiniband/ssa_db_helper.h>
@@ -3211,6 +3212,67 @@ err0:
 	free(ep);
 }
 
+static struct acm_port *acm_dev_port(struct acm_device *dev, uint8_t port_num)
+{
+        return (struct acm_port *)
+                ((void *) dev->port + sizeof(dev->port) * (port_num - 1));
+}
+
+static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
+{
+	struct acm_device *acm_dev;
+	struct acm_port *acm_port;
+	struct acm_ep *acm_ep;
+	DLIST_ENTRY *dev_entry = NULL;
+	uint64_t *lid2guid;
+	uint16_t pkey;
+	int ret = 1;
+
+	if (!p_ssa_db)
+		return ret;
+
+	for (dev_entry = device_list.Next; dev_entry != &device_list;
+		 dev_entry = dev_entry->Next) {
+		acm_dev = container_of(dev_entry, struct acm_device, entry);
+		if (acm_dev->guid == svc->port->dev->guid)
+			break;
+	}
+
+	if (!acm_dev || dev_entry == &device_list) {
+		ssa_log(SSA_LOG_DEFAULT,
+			"ERROR - no matching ACM device found (with guid: 0x%" PRIx64 ")\n",
+			ntohll(svc->port->dev->guid));
+		goto err;
+	}
+
+	acm_port = acm_dev_port(acm_dev, svc->port->port_num);
+
+	/* assume single pkey per port */
+	ret = ibv_query_pkey(acm_port->dev->verbs, acm_port->port_num, 0, &pkey);
+	if (ret)
+		goto err;
+
+	acm_ep = acm_find_ep(acm_port, pkey); 
+	if (!acm_ep) {
+		ret = 1;
+		goto err;
+	}
+
+	lid2guid = calloc(IB_LID_MCAST_START, sizeof(*lid2guid));
+	if (!lid2guid) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - no memory for path record parsing\n");
+		goto err;
+	}
+
+	acm_parse_access_v1_lid2guid(p_ssa_db, lid2guid);
+	ret = acm_parse_access_v1_paths(p_ssa_db, lid2guid, acm_ep);
+	free(lid2guid);
+err:
+	/* TODO: decide whether the destroy call is needed */
+	/* ssa_db_destroy(p_ssa_db); */
+	return ret;
+}
+
 static void acm_port_up(struct acm_port *port)
 {
 	struct ibv_port_attr attr;
@@ -3508,6 +3570,9 @@ ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n",
 		return 1;
 	case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
+		if (acm_parse_ssa_db((struct ssa_db *)
+			(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
+			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to preload ACM cache\n");
 		return 1;
 	default:
 		break;
@@ -3690,7 +3755,7 @@ int main(int argc, char **argv)
 
 	pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
 
-#if 0
+#if 1
 	if (acm_open_devices()) {
 		ssa_log_err(0, "unable to open any devices\n");
 		return -1;
