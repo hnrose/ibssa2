@@ -67,6 +67,9 @@
 #define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
 
 #define SMDB_PRELOAD_PATH "./smdb"
+#define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
+
+static struct ssa_db *prdb;
 
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -822,6 +825,19 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 	case SSA_DB_FIELD_DEFS:
 		if (svc->conn_data.rbuf == svc->conn_data.rhdr)
 			svc->conn_data.phase = SSA_DB_DATA;
+		else {
+			if (!svc->conn_data.ssa_db->p_db_field_tables) {
+				svc->conn_data.ssa_db->p_db_field_tables = svc->conn_data.rbuf;
+				svc->conn_data.ssa_db->pp_field_tables = malloc(ntohll(svc->conn_data.ssa_db->p_db_field_tables->set_size));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p len %d\n", svc->conn_data.ssa_db->pp_field_tables, ntohll(svc->conn_data.ssa_db->p_db_field_tables->set_size));
+				svc->conn_data.rindex = 0;
+			} else {
+				if (svc->conn_data.ssa_db->pp_field_tables)
+					svc->conn_data.ssa_db->pp_field_tables[svc->conn_data.rindex] = svc->conn_data.rbuf;
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p\n", svc->conn_data.rindex, svc->conn_data.rbuf);
+				svc->conn_data.rindex++;
+			}
+		}
 		svc->conn_data.roffset = 0;
 		free(svc->conn_data.rhdr);
 		svc->conn_data.rhdr = NULL;
@@ -835,6 +851,19 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 	case SSA_DB_DATA:
 		if (svc->conn_data.rbuf == svc->conn_data.rhdr)
 			svc->conn_data.phase = SSA_DB_IDLE;
+		else {
+			if (!svc->conn_data.ssa_db->p_db_tables) {
+				svc->conn_data.ssa_db->p_db_tables = svc->conn_data.rbuf;
+				svc->conn_data.ssa_db->pp_tables = malloc(ntohll(svc->conn_data.ssa_db->p_db_tables->set_size));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p len %d\n", svc->conn_data.ssa_db->pp_tables, ntohll(svc->conn_data.ssa_db->p_db_tables->set_size));
+				svc->conn_data.rindex = 0;
+			} else {
+				if (svc->conn_data.ssa_db->pp_tables)
+					svc->conn_data.ssa_db->pp_tables[svc->conn_data.rindex] = svc->conn_data.rbuf;
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p\n", svc->conn_data.rindex, svc->conn_data.rbuf);
+				svc->conn_data.rindex++;
+			}
+		}
 		svc->conn_data.roffset = 0;
 		free(svc->conn_data.rhdr);
 		svc->conn_data.rhdr = NULL;
@@ -1141,16 +1170,13 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 	return events;
 }
 
-#if 1
-#define TEST_SIZE 256 * 1024 * 1024
-
-static short ssa_downstream_test_send(struct ssa_conn *conn, uint16_t op,
-				      size_t len, short events)
+static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
+				 void *buf, size_t len, short events)
 {
 	int ret;
 
 	conn->sbuf = malloc(sizeof(struct ssa_msg_hdr));
-	conn->sbuf2 = malloc(len);
+	conn->sbuf2 = buf;
 	if (conn->sbuf && conn->sbuf2) {
 		conn->ssize = sizeof(struct ssa_msg_hdr);
 		conn->ssize2 = len;
@@ -1182,7 +1208,6 @@ static short ssa_downstream_test_send(struct ssa_conn *conn, uint16_t op,
 		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr or sbuf of length %d for response to op %u\n", len, op);
 	return events;
 }
-#endif
 
 static short ssa_downstream_handle_query_defs(struct ssa_conn *conn,
 					      struct ssa_msg_hdr *hdr,
@@ -1190,6 +1215,7 @@ static short ssa_downstream_handle_query_defs(struct ssa_conn *conn,
 {
 	short revents = events;
 
+#if 0		// for PRDB testing !!!
 	if (!conn->ssa_db) {
 ssa_log(SSA_LOG_DEFAULT, "No ssa_db %p as yet\n", conn->ssa_db);
 		conn->rid = ntohl(hdr->id);
@@ -1199,21 +1225,17 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db %p as yet\n", conn->ssa_db);
 						   events);
 		return revents;
 	}
+#endif
 
 	if (conn->phase == SSA_DB_IDLE) {
 		conn->phase = SSA_DB_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-#if 1
-		revents = ssa_downstream_test_send(conn,
-						   SSA_MSG_DB_QUERY_DEF,
-						   sizeof(struct db_def) + sizeof(struct db_dataset),
-						   events);
-#else
-		revents = ssa_downstream_send_resp(conn,
-						   SSA_MSG_DB_QUERY_DEF,
-						   events);
-#endif
+		revents = ssa_downstream_send(conn,
+					      SSA_MSG_DB_QUERY_DEF,
+					      &prdb->db_def,
+					      sizeof(struct db_def) + sizeof(struct db_dataset),
+					      events);
 	} else
 		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_IDLE for SSA_MSG_DB_QUERY_DEF\n", conn->rsock, conn->phase);
 
@@ -1230,16 +1252,11 @@ static short ssa_downstream_handle_query_tbl_defs(struct ssa_conn *conn,
 		conn->phase = SSA_DB_TBL_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-#if 1
-		revents = ssa_downstream_test_send(conn,
-						   SSA_MSG_DB_QUERY_TBL_DEF_DATASET,
-						   TEST_SIZE,
-						   events);
-#else
-		revents = ssa_downstream_send_resp(conn,
-						   SSA_MSG_DB_QUERY_TBL_DEF_DATASET,
-						   events);
-#endif
+		revents = ssa_downstream_send(conn,
+					      SSA_MSG_DB_QUERY_TBL_DEF_DATASET,
+                                              prdb->p_def_tbl,
+					      ntohll(prdb->db_table_def.set_size),
+					      events);
 	} else
 		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_TBL_DEF_DATASET\n", conn->rsock, conn->phase);
 	return revents;
@@ -1255,22 +1272,29 @@ static short ssa_downstream_handle_query_field_defs(struct ssa_conn *conn,
 		conn->phase = SSA_DB_FIELD_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-#if 1
-		revents = ssa_downstream_test_send(conn,
-						   SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
-						   TEST_SIZE,
-						   events);
-#else
-		revents = ssa_downstream_send_resp(conn,
-						   SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,                                               
-						   events);
-#endif
+		revents = ssa_downstream_send(conn,
+					      SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
+					      prdb->p_db_field_tables,
+					      prdb->data_tbl_cnt * sizeof(*prdb->p_db_field_tables),
+					      events);
+		conn->sindex = 0;
 	} else if (conn->phase == SSA_DB_FIELD_DEFS) {
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-		revents = ssa_downstream_send_resp(conn,
-						   SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
-						   events);
+		if (conn->sindex < prdb->data_tbl_cnt) {
+ssa_log(SSA_LOG_DEFAULT, "pp_field_tables index %d %p len %d\n", conn->sindex, prdb->pp_field_tables[conn->sindex], ntohll(prdb->p_db_field_tables[conn->sindex].set_size));
+			revents = ssa_downstream_send(conn,
+						      SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
+						      prdb->pp_field_tables[conn->sindex],
+						      ntohll(prdb->p_db_field_tables[conn->sindex].set_size),
+						      events);
+
+			conn->sindex++;
+		} else {
+			revents = ssa_downstream_send_resp(conn,
+							   SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
+							   events);
+		}
 	} else
 		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_TBL_DEFS for SSA_MSG_DB_QUERY_FIELD_DEF_DATASET\n", conn->rsock, conn->phase);
 	return revents;
@@ -1281,33 +1305,29 @@ static short ssa_downstream_handle_query_data(struct ssa_conn *conn,
 					      short events)
 {
 	short revents = events;
-	static int count = 0;
+
 	if (conn->phase == SSA_DB_FIELD_DEFS) {
 		conn->phase = SSA_DB_DATA;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-#if 1
-		revents = ssa_downstream_test_send(conn,
-						   SSA_MSG_DB_QUERY_DATA_DATASET,
-						   TEST_SIZE,
-						   events);
-#else
-		revents = ssa_downstream_send_resp(conn,
-						   SSA_MSG_DB_QUERY_DATA_DATASET,
-						   events);
-#endif
-		count++;
+		revents = ssa_downstream_send(conn,
+					      SSA_MSG_DB_QUERY_DATA_DATASET,
+					      prdb->p_db_tables,
+					      prdb->data_tbl_cnt * sizeof(*prdb->p_db_tables),
+					      events);
+		conn->sindex = 0;
 	} else if (conn->phase == SSA_DB_DATA) {
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-		if (count < 2) {
-			count++;
-			revents = ssa_downstream_test_send(conn,
-							   SSA_MSG_DB_QUERY_DATA_DATASET,
-							   TEST_SIZE,
-							   events);
+		if (conn->sindex < prdb->data_tbl_cnt) {
+ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d\n", conn->sindex, prdb->pp_tables[conn->sindex], ntohll(prdb->p_db_tables[conn->sindex].set_size));
+			revents = ssa_downstream_send(conn,
+						      SSA_MSG_DB_QUERY_DATA_DATASET,
+						      prdb->pp_tables[conn->sindex],
+						      ntohll(prdb->p_db_tables[conn->sindex].set_size),
+						      events);
+			conn->sindex++;
 		} else {
-			count = 0;
 			revents = ssa_downstream_send_resp(conn,
 							   SSA_MSG_DB_QUERY_DATA_DATASET,
 							   events);
@@ -2262,9 +2282,11 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	svc->conn_data.phase = SSA_DB_IDLE;
 	svc->conn_data.rbuf = NULL;
 	svc->conn_data.rid = 0;
+	svc->conn_data.rindex = 0;
 	svc->conn_data.rhdr = NULL;
 	svc->conn_data.sbuf = NULL;
 	svc->conn_data.sid = 0;
+	svc->conn_data.sindex = 0;
 	svc->conn_data.sbuf2 = NULL;
 	svc->conn_data.ssa_db = NULL;
 	svc->state = SSA_STATE_IDLE;
@@ -2441,6 +2463,17 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 #ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type == SSA_NODE_ACCESS) {
 		/* if configured, invoke SSA DB preloading */
+
+		prdb = ssa_db_load(PRDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
+		if (!prdb) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "unable to preload prdb database. path:\"%s\"\n",
+				    PRDB_PRELOAD_PATH);
+		} else {
+			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+				"prdb is loaded from \"%s\"\n",
+				PRDB_PRELOAD_PATH);
+		}
 
 		/*
 		 * TODO:

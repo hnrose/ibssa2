@@ -185,11 +185,13 @@ struct ssa_conn {
 	int			rsize;
 	int			roffset;
 	uint32_t		rid;
+	int			rindex;
 	void			*rhdr;
 	void			*sbuf;
 	int			ssize;
 	int			soffset;
 	uint32_t		sid;
+	int			sindex;
 	void			*sbuf2;
 	int			ssize2;
 	struct ssa_db		*ssa_db;
