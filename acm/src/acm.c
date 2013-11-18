@@ -3252,7 +3252,7 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	if (ret)
 		goto err;
 
-	acm_ep = acm_find_ep(acm_port, pkey); 
+	acm_ep = acm_find_ep(acm_port, pkey);
 	if (!acm_ep) {
 		ret = 1;
 		goto err;
@@ -3570,8 +3570,7 @@ ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n",
 		return 1;
 	case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
-		if (acm_parse_ssa_db((struct ssa_db *)
-			(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
+		if (acm_parse_ssa_db((struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
 			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to preload ACM cache\n");
 		return 1;
 	default:
@@ -3755,7 +3754,7 @@ int main(int argc, char **argv)
 
 	pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
 
-#if 1
+#if 1		/* for initial demo purposes */
 	if (acm_open_devices()) {
 		ssa_log_err(0, "unable to open any devices\n");
 		return -1;
