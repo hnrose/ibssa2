@@ -1568,19 +1568,11 @@ static void *ssa_access_handler(void *context)
 	fds[2].revents = 0;
 
 	if (!access_context.context) {
-		ssa_sprint_addr(SSA_LOG_CTRL, log_data, sizeof log_data,
-				SSA_ADDR_GID, svc->port->gid.raw,
-				sizeof svc->port->gid);
-		ssa_log_err(SSA_LOG_CTRL, "access context is empty. GID %s\n",
-			    log_data);
+		ssa_log_err(SSA_LOG_CTRL, "access context is empty\n");
 		goto out;
 	}
 	if (!access_context.smdb) {
-		ssa_sprint_addr(SSA_LOG_CTRL, log_data, sizeof log_data,
-				SSA_ADDR_GID, svc->port->gid.raw,
-				sizeof svc->port->gid);
-		ssa_log_err(SSA_LOG_CTRL, "smdb database is empty. GID %s\n",
-			    log_data);
+		ssa_log_err(SSA_LOG_CTRL, "smdb database is empty\n");
 		goto out;
 	}
 
