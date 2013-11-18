@@ -69,6 +69,11 @@
 #define SMDB_PRELOAD_PATH "./smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
 
+struct ssa_access_context {
+	struct ssa_db *smdb;
+	void *context;
+};
+
 static struct ssa_db *prdb;
 
 static FILE *flog;
