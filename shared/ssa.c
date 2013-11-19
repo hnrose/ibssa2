@@ -1214,15 +1214,24 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 	return events;
 }
 
+static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
+{
+	/* Use SSA DB if available; otherwise use PR DB */
+	if (conn->ssa_db)
+		return conn->ssa_db;
+	return prdb;
+}
+
 static short ssa_downstream_handle_query_defs(struct ssa_conn *conn,
 					      struct ssa_msg_hdr *hdr,
 					      short events)
 {
+	struct ssa_db *ssadb;
 	short revents = events;
 
-#if 0		// for PRDB testing !!!
-	if (!conn->ssa_db) {
-ssa_log(SSA_LOG_DEFAULT, "No ssa_db %p as yet\n", conn->ssa_db);
+	ssadb = ssa_downstream_db(conn);
+	if (!ssadb) {
+ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
 		revents = ssa_downstream_send_resp(conn,
@@ -1230,7 +1239,6 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db %p as yet\n", conn->ssa_db);
 						   events);
 		return revents;
 	}
-#endif
 
 	if (conn->phase == SSA_DB_IDLE) {
 		conn->phase = SSA_DB_DEFS;
@@ -1238,7 +1246,7 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db %p as yet\n", conn->ssa_db);
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_DEF,
-					      &prdb->db_def,
+					      &ssadb->db_def,
 					      sizeof(struct db_def) + sizeof(struct db_dataset),
 					      events);
 	} else
@@ -1251,16 +1259,18 @@ static short ssa_downstream_handle_query_tbl_defs(struct ssa_conn *conn,
 						  struct ssa_msg_hdr *hdr,
 						  short events)
 {
+	struct ssa_db *ssadb;
 	short revents = events;
 
+	ssadb = ssa_downstream_db(conn);
 	if (conn->phase == SSA_DB_DEFS) {
 		conn->phase = SSA_DB_TBL_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_TBL_DEF_DATASET,
-                                              prdb->p_def_tbl,
-					      ntohll(prdb->db_table_def.set_size),
+					      ssadb->p_def_tbl,
+					      ntohll(ssadb->db_table_def.set_size),
 					      events);
 	} else
 		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_TBL_DEF_DATASET\n", conn->rsock, conn->phase);
@@ -1271,27 +1281,29 @@ static short ssa_downstream_handle_query_field_defs(struct ssa_conn *conn,
 						    struct ssa_msg_hdr *hdr,
 						    short events)
 {
+	struct ssa_db *ssadb;
 	short revents = events;
 
+	ssadb = ssa_downstream_db(conn);
 	if (conn->phase == SSA_DB_TBL_DEFS) {
 		conn->phase = SSA_DB_FIELD_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
-					      prdb->p_db_field_tables,
-					      prdb->data_tbl_cnt * sizeof(*prdb->p_db_field_tables),
+					      ssadb->p_db_field_tables,
+					      ssadb->data_tbl_cnt * sizeof(*ssadb->p_db_field_tables),
 					      events);
 		conn->sindex = 0;
 	} else if (conn->phase == SSA_DB_FIELD_DEFS) {
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-		if (conn->sindex < prdb->data_tbl_cnt) {
-ssa_log(SSA_LOG_DEFAULT, "pp_field_tables index %d %p len %d\n", conn->sindex, prdb->pp_field_tables[conn->sindex], ntohll(prdb->p_db_field_tables[conn->sindex].set_size));
+		if (conn->sindex < ssadb->data_tbl_cnt) {
+ssa_log(SSA_LOG_DEFAULT, "pp_field_tables index %d %p len %d\n", conn->sindex, ssadb->pp_field_tables[conn->sindex], ntohll(ssadb->p_db_field_tables[conn->sindex].set_size));
 			revents = ssa_downstream_send(conn,
 						      SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
-						      prdb->pp_field_tables[conn->sindex],
-						      ntohll(prdb->p_db_field_tables[conn->sindex].set_size),
+						      ssadb->pp_field_tables[conn->sindex],
+						      ntohll(ssadb->p_db_field_tables[conn->sindex].set_size),
 						      events);
 
 			conn->sindex++;
@@ -1309,27 +1321,29 @@ static short ssa_downstream_handle_query_data(struct ssa_conn *conn,
 					      struct ssa_msg_hdr *hdr,
 					      short events)
 {
+	struct ssa_db *ssadb;
 	short revents = events;
 
+	ssadb = ssa_downstream_db(conn);
 	if (conn->phase == SSA_DB_FIELD_DEFS) {
 		conn->phase = SSA_DB_DATA;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_DATA_DATASET,
-					      prdb->p_db_tables,
-					      prdb->data_tbl_cnt * sizeof(*prdb->p_db_tables),
+					      ssadb->p_db_tables,
+					      ssadb->data_tbl_cnt * sizeof(*ssadb->p_db_tables),
 					      events);
 		conn->sindex = 0;
 	} else if (conn->phase == SSA_DB_DATA) {
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-		if (conn->sindex < prdb->data_tbl_cnt) {
-ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d\n", conn->sindex, prdb->pp_tables[conn->sindex], ntohll(prdb->p_db_tables[conn->sindex].set_size));
+		if (conn->sindex < ssadb->data_tbl_cnt) {
+ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d\n", conn->sindex, ssadb->pp_tables[conn->sindex], ntohll(ssadb->p_db_tables[conn->sindex].set_size));
 			revents = ssa_downstream_send(conn,
 						      SSA_MSG_DB_QUERY_DATA_DATASET,
-						      prdb->pp_tables[conn->sindex],
-						      ntohll(prdb->p_db_tables[conn->sindex].set_size),
+						      ssadb->pp_tables[conn->sindex],
+						      ntohll(ssadb->p_db_tables[conn->sindex].set_size),
 						      events);
 			conn->sindex++;
 		} else {
@@ -1474,6 +1488,7 @@ static void *ssa_downstream_handler(void *context)
 ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data, SSA_ADDR_GID, msg.data.db_upd.remote_gid->raw, sizeof msg.data.db_upd.remote_gid->raw);
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update: GID %s ssa_db %p\n", log_data, msg.data.db_upd.db);
 				/* Now ready to rsend to downstream client upon request */
+				svc->conn_data.ssa_db = msg.data.db_upd.db;
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -1656,7 +1671,6 @@ static void *ssa_access_handler(void *context)
 				/* ssa_calc_path_records(); */
 				/* Now, tell downstream where this ssa_db struct is */
 				/* Replace NULL with pointer to real struct ssa_db */
-#if 1
 				/* This pulls in access layer for all node types !!! */
 				prdb = ssa_pr_compute_half_world(access_context.smdb,
 								 access_context.context,
@@ -1674,10 +1688,6 @@ static void *ssa_access_handler(void *context)
 				 * TODO: destroy prdb database
 				 * ssa_db_destroy(prdb);
 				 */
-#else
-				ssa_access_send_db_update(svc, NULL, 0,
-							  &msg.data.conn->remote_gid);
-#endif
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2459,7 +2469,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 
 #ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type == SSA_NODE_ACCESS) {
-		/* if configured, invoke SSA DB preloading */
+		/* if configured, invoke PR and/or SSA DB preloading */
 
 		prdb = ssa_db_load(PRDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
 		if (!prdb) {
