@@ -804,6 +804,8 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 
 	switch (svc->conn_data.phase) {
 	case SSA_DB_IDLE:
+		/* Temporary workaround !!! */
+		usleep(10000);		/* 10 msec */
 		revents = ssa_upstream_query(svc, SSA_MSG_DB_QUERY_DEF, events);
 		break;
 	case SSA_DB_DEFS:
