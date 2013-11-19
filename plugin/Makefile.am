@@ -1,4 +1,4 @@
-INCLUDES = -I$(srcdir)/include -I$(prefix)/include
+INCLUDES = -I$(srcdir)/include
 
 lib_LTLIBRARIES = src/libopensmssa.la
 
@@ -7,7 +7,7 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -Wno-deprecated-declarations \
 		$(GLIB_CFLAGS) -DSYSCONFDIR=\"$(sysconfdir)\" \
 		-DRDMADIR=\"@rdmadir@\"
 
-src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DACCESS_INTEGRATION
+src_libopensmssa_la_CFLAGS = $(AM_CFLAGS)
 
 if HAVE_LD_VERSION_SCRIPT
     libopensmssa_version_script = -Wl,--version-script=$(srcdir)/libopensmssa.map
@@ -20,10 +20,7 @@ src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
 		$(libopensmssa_version_script)
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map \
 		$(GLIB_LIBS)
-#src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
-#		-L$(ACCESS_SRC)/.libs -lssaaccesslayer
-src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
-		-L$(libdir) -lssaaccesslayer
+src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp
 
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h

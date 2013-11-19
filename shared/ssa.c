@@ -1673,10 +1673,12 @@ static void *ssa_access_handler(void *context)
 				/* ssa_calc_path_records(); */
 				/* Now, tell downstream where this ssa_db struct is */
 				/* Replace NULL with pointer to real struct ssa_db */
-				/* This pulls in access layer for all node types !!! */
+#ifdef ACCESS
+				/* This call pulls in access layer for all node types !!! */
 				prdb = ssa_pr_compute_half_world(access_context.smdb,
 								 access_context.context,
 								 msg.data.conn->remote_gid.global.interface_id);
+#endif
 				if (!prdb) {
 					ssa_log_err(SSA_LOG_CTRL,
 						    "prdb creation for GID %s\n",
@@ -2534,8 +2536,8 @@ ctx_create_err:
 		access_context.smdb = NULL;
 	}
 	seterr(ENOMEM);
-}
 #endif
+}
 
 int ssa_open_devices(struct ssa_class *ssa)
 {
@@ -2649,6 +2651,7 @@ void ssa_close_devices(struct ssa_class *ssa)
 	free(ssa->dev);
 	ssa->dev_cnt = 0;
 
+#ifdef ACCESS_INTEGRATION
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
@@ -2657,6 +2660,7 @@ void ssa_close_devices(struct ssa_class *ssa)
 		ssa_db_destroy(access_context.smdb);
 		access_context.smdb = NULL;
 	}
+#endif
 }
 
 int ssa_open_lock_file(char *lock_file)
