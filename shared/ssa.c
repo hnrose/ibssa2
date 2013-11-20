@@ -374,7 +374,7 @@ static int ssa_downstream_listen(struct ssa_svc *svc)
 		return -1;
 
 	if (svc->conn_listen.rsock >= 0)
-		return -1;
+		return svc->conn_listen.rsock;
 
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "%s\n", svc->port->name);
 
