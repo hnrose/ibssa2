@@ -41,6 +41,10 @@
 
 #define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
 
+/*
+ * Service options - may be set through ibssa_opts.cfg file.
+ */
+static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
@@ -344,6 +348,39 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 	/* TODO: something amazing */
 }
 
+static void core_set_options(void)
+{
+	FILE *f;
+	char s[120];
+	char opt[32], value[32];
+
+	if (!(f = fopen(opts_file, "r")))
+		return;
+
+	while (fgets(s, sizeof s, f)) {
+		if (s[0] == '#')
+			continue;
+
+		if (sscanf(s, "%32s%32s", opt, value) != 2)
+			continue;
+
+		if (!strcasecmp("log_file", opt))
+			strcpy(log_file, value);
+		else if (!strcasecmp("log_level", opt))
+			ssa_set_log_level(atoi(value));
+		else if (!strcasecmp("lock_file", opt))
+			strcpy(lock_file, value);
+	}
+
+	fclose(f);
+}
+
+static void core_log_options(void)
+{
+	ssa_log_options();
+	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
+}
+
 static void *core_construct(osm_opensm_t *opensm)
 {
 	struct ssa_svc *svc;
@@ -354,14 +391,13 @@ static void *core_construct(osm_opensm_t *opensm)
 	if (ret)
 		return NULL;
 
-	/* TODO: ssa_set_options(); */
-	ssa_set_log_level(SSA_LOG_ALL);
+	core_set_options();
 	if (ssa_open_lock_file(lock_file))
 		goto err1;
 
 	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
-	ssa_log_options();
+	core_log_options();
 
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
@@ -425,4 +461,3 @@ osm_event_plugin_t osm_event_plugin = {
       delete:core_destroy,
       report:core_report
 };
-
