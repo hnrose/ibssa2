@@ -1,4 +1,4 @@
-INCLUDES = -I$(srcdir)/include
+INCLUDES = -I$(srcdir)/include -I$(includedir)
 
 AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DSYSCONFDIR=\"$(sysconfdir)\" -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\"
 
@@ -8,7 +8,7 @@ svc_ibacm_SOURCES = src/acm.c src/ssa.c src/ssa_db.c src/ssa_db_helper.c
 util_ib_acme_SOURCES = src/acme.c src/libacm.c src/parse.c
 svc_ibacm_CFLAGS = $(AM_CFLAGS)
 util_ib_acme_CFLAGS = $(AM_CFLAGS)
-svc_ibacm_LDADD = -lrdmacm
+svc_ibacm_LDADD = -lrdmacm -L$(libdir)
 
 ibacmincludedir = $(includedir)/infiniband
 
