@@ -40,6 +40,11 @@
 
 #define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
 
+/*
+ * Service options - may be set through ibssa_opts.cfg file.
+ */
+static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
+static int node_type = SSA_NODE_ACCESS;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
@@ -410,6 +415,61 @@ static void distrib_destroy_svc(struct ssa_svc *svc)
 }
 #endif
 
+static int distrib_convert_node_type(const char *node_type_string)
+{
+	int node_type = SSA_NODE_ACCESS;
+
+	if (!strcasecmp("distrib", node_type_string))
+		node_type = SSA_NODE_DISTRIBUTION;
+	return node_type;
+}
+
+static void distrib_set_options(void)
+{
+	FILE *f;
+	char s[120];
+	char opt[32], value[32];
+
+	if (!(f = fopen(opts_file, "r")))
+		return;
+
+	while (fgets(s, sizeof s, f)) {
+		if (s[0] == '#')
+			continue;
+
+		if (sscanf(s, "%32s%32s", opt, value) != 2)
+			continue;
+
+		if (!strcasecmp("log_file", opt))
+			strcpy(log_file, value);
+		else if (!strcasecmp("log_level", opt))
+			ssa_set_log_level(atoi(value));
+		else if (!strcasecmp("lock_file", opt))
+			strcpy(lock_file, value);
+		else if (!strcasecmp("node_type", opt))
+			node_type = distrib_convert_node_type(value);
+	}
+
+	fclose(f);
+}
+
+static const char *ssa_node_type_str(int node_type)
+{
+	if (node_type == SSA_NODE_ACCESS)
+		return "Access";
+	if (node_type == SSA_NODE_DISTRIBUTION)
+		return "Distribution";
+	return "Other";
+}
+
+static void distrib_log_options(void)
+{
+	ssa_log_options();
+	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
+	ssa_log(SSA_LOG_DEFAULT, "node type %d (%s)\n", node_type,
+		ssa_node_type_str(node_type));
+}
+
 static void *distrib_construct(int node_type)
 {
 	int ret;
@@ -419,14 +479,12 @@ static void *distrib_construct(int node_type)
 	if (ret)
 		return NULL;
 
-	/* TODO: ssa_set_options(); */
-	ssa_set_log_level(SSA_LOG_ALL);
 	if (ssa_open_lock_file(lock_file))
 		return NULL;
 
 	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
-	ssa_log_options();
+	distrib_log_options();
 	return &ssa;
 }
 
@@ -460,29 +518,23 @@ static void show_usage(char *program)
 {
 	printf("usage: %s\n", program);
 	printf("   [-P]             - run as a standard process\n");
-	printf("   [-N node_type]   - node type is either access or distrib (default is access)\n");
+	printf("   [-O option_file] - option configuration file\n");
+	printf("                      (default %s/%s)\n", RDMA_CONF_DIR, SSA_OPTS_FILE);
 }
 
 int main(int argc, char **argv)
 {
-	int op, daemon = 1, node_type = SSA_NODE_ACCESS;
+	int op, daemon = 1;
 	struct ssa_class *ssa;
 
-	while ((op = getopt(argc, argv, "N:P::")) != -1) {
+	while ((op = getopt(argc, argv, "PO:")) != -1) {
 		switch (op) {
 		case 'P':
 			daemon = 0;
 			break;
-		case 'N':
-			if (optarg) {
-				if (!strcasecmp("distrib", optarg)) {
-					node_type = SSA_NODE_DISTRIBUTION;
-					break;
-				} else if (!strcasecmp("access", optarg)) {
-					node_type = SSA_NODE_ACCESS;
-					break;
-				}
-			}
+		case 'O':
+			opts_file = optarg;
+			break;
 		default:
 			show_usage(argv[0]);
 			exit(1);
@@ -492,6 +544,7 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
+	distrib_set_options();
 	ssa = distrib_construct(node_type);
 	if (!ssa)
 		return -1;

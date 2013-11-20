@@ -64,6 +64,8 @@ extern "C" {
 #define ACM_FILE_PREFIX "ibacm"
 #define ACM_ADDR_FILE   ACM_FILE_PREFIX SSA_ADDR_FILE_SUFFIX
 #define ACM_OPTS_FILE   ACM_FILE_PREFIX SSA_OPTS_FILE_SUFFIX
+#define SSA_FILE_PREFIX "ibssa"
+#define SSA_OPTS_FILE	SSA_FILE_PREFIX SSA_OPTS_FILE_SUFFIX
 
 #ifndef container_of
 #define container_of(ptr, type, field) \
