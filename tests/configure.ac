@@ -109,4 +109,3 @@ AC_CONFIG_FILES([ssa_tests.spec])
 
 dnl Create the following Makefiles
 AC_OUTPUT(Makefile loadsave/Makefile)
-

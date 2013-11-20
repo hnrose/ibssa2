@@ -49,4 +49,3 @@ AM_CPPFLAGS = $(DBG) -Wall -Werror
 
 bin_PROGRAMS = loadsave
 loadsave_SOURCES = ./ssa_db.c ./ssa_db_helper.c ./loadsave.c
-

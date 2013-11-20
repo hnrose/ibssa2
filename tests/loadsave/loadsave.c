@@ -92,7 +92,7 @@ int main(int argc,char *argv[])
 	clock_t start, end;
 	double cpu_time_used;
 	enum ssa_db_helper_mode ssa_db_mode = SSA_DB_HELPER_STANDARD;
-	
+
 	while ((opt = getopt(argc, argv, "m:o:h?")) != -1) {
 		switch (opt) {
 			case 'm':
