@@ -828,7 +828,8 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 					     events);
 		break;
 	case SSA_DB_FIELD_DEFS:
-		if (svc->conn_data.rbuf == svc->conn_data.rhdr)
+		if (svc->conn_data.rbuf == svc->conn_data.rhdr &&
+		    ntohs(((struct ssa_msg_hdr *)svc->conn_data.rhdr)->flags) & SSA_MSG_FLAG_END)
 			svc->conn_data.phase = SSA_DB_DATA;
 		else {
 			if (!svc->conn_data.ssa_db->p_db_field_tables) {
@@ -854,7 +855,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p\n", svc->conn_data.rinde
 					     events);
 		break;
 	case SSA_DB_DATA:
-		if (svc->conn_data.rbuf == svc->conn_data.rhdr)
+		if (svc->conn_data.rbuf == svc->conn_data.rhdr &&
+		    ntohs(((struct ssa_msg_hdr *)svc->conn_data.rhdr)->flags) & SSA_MSG_FLAG_END)
 			svc->conn_data.phase = SSA_DB_IDLE;
 		else {
 			if (!svc->conn_data.ssa_db->p_db_tables) {
@@ -1182,18 +1184,19 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 
 	conn->sbuf = malloc(sizeof(struct ssa_msg_hdr));
 	conn->sbuf2 = buf;
-	if (conn->sbuf && conn->sbuf2) {
+	if (conn->sbuf) {
 		conn->ssize = sizeof(struct ssa_msg_hdr);
 		conn->ssize2 = len;
 		conn->soffset = 0;
 		ssa_init_ssa_msg_hdr(conn->sbuf, op, conn->ssize + len,
-				     SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
-				     conn->rid);
+				     SSA_MSG_FLAG_RESP, conn->rid);
 		ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
 		if (ret > 0) {
 			conn->soffset += ret;
 			if (conn->soffset == conn->ssize) {
 				free(conn->sbuf);
+				if (!conn->sbuf2 || conn->ssize2 == 0)
+					return POLLIN;
 				conn->sbuf = conn->sbuf2;
 				conn->ssize = conn->ssize2;
 				conn->soffset = 0;
@@ -1210,7 +1213,7 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 				return POLLOUT | POLLIN;
 		}
 	} else
-		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr or sbuf of length %d for response to op %u\n", len, op);
+		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr for response to op %u\n", len, op);
 	return events;
 }
 
