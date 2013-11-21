@@ -71,12 +71,29 @@ pthread_t ctrl_thread;
 static osm_opensm_t *osm;
 
 
-static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
+static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
+			    uint8_t node_type)
 {
+	static union ibv_gid *access_gid = NULL; 
+
 	/*
 	 * For now, issue SA path query here.
 	 * DGID is from incoming join.
-	 * For now (prototype), SGID is from port join came in on.
+	 *
+	 * Latest prototype is to support single
+	 * plugin/core <-> access <-> ACM. Also, it
+	 * is a current requirement (limitation) that
+	 * the access node needs to join prior to the
+	 * ACM.
+	 *
+	 * With those assumptions,
+	 * SGID depends on node type. If access node,
+	 * the SGID is the port join came in on.
+	 * If consumer (ACM) node, the SGID is the
+	 * port of the previous joined access node.
+	 * If there is no previous access node, this
+	 * is treated as an error. 
+	 *
 	 * Longer term, SGID needs to come from the tree
 	 * calculation code so rather than query PathRecord
 	 * here, this would inform the tree calculation
@@ -85,7 +102,24 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
 	 * query would be issued.
 	 *
 	 */
-	ssa_svc_query_path(svc, &svc->port->gid, gid);
+	switch (node_type) {
+	case SSA_NODE_ACCESS:
+		if (access_gid)
+			ssa_log_warn(SSA_LOG_CTRL, "access node previously joined\n");
+		access_gid = gid;
+	case SSA_NODE_CORE:
+		ssa_svc_query_path(svc, &svc->port->gid, gid);
+		break;
+	case SSA_NODE_CONSUMER:
+		if (access_gid)
+			ssa_svc_query_path(svc, access_gid, gid);
+		else
+			ssa_log_err(SSA_LOG_CTRL, "no access node joined as yet\n");
+		break;
+	case SSA_NODE_DISTRIBUTION:
+		ssa_log_warn(SSA_LOG_CTRL, "distribution nodes not yet supported\n");
+		break;
+	}
 }
 
 /*
@@ -138,7 +172,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad,
 		first = 0;
 	}
 
-	core_build_tree(svc, (union ibv_gid *) rec->port_gid);
+	core_build_tree(svc, (union ibv_gid *) rec->port_gid, rec->node_type);
 }
 
 static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
