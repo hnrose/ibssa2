@@ -102,6 +102,7 @@ static int log_level = SSA_LOG_DEFAULT;
 //static short server_port = 6125;
 
 /* Forward declarations */
+static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc);
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc);
 static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
@@ -440,9 +441,7 @@ static int ssa_downstream_listen(struct ssa_svc *svc)
 	return svc->conn_listen.rsock;
 
 err:
-	rclose(svc->conn_listen.rsock);
-	svc->conn_listen.rsock = -1;
-	svc->conn_listen.state = SSA_CONN_IDLE;
+	ssa_close_ssa_conn(&svc->conn_listen);
 	return -1;
 }
 
@@ -470,21 +469,12 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf 
 	switch (msg->data.event) {
 	case IBV_EVENT_CLIENT_REREGISTER:
 	case IBV_EVENT_PORT_ERR:
-		if (svc->conn_listen.rsock >= 0) {
-			rclose(svc->conn_listen.rsock);
-			svc->conn_listen.rsock = -1;
-			svc->conn_listen.state = SSA_CONN_IDLE;
-		}
-		if (svc->conn_dataup.rsock >= 0) {
-			rclose(svc->conn_dataup.rsock);
-			svc->conn_dataup.rsock = -1;
-			svc->conn_dataup.state = SSA_CONN_IDLE;
-		}
-		if (svc->conn_data.rsock >= 0) {
-			rclose(svc->conn_data.rsock);
-			svc->conn_data.rsock = -1;
-			svc->conn_data.state = SSA_CONN_IDLE;
-		}
+		if (svc->conn_listen.rsock >= 0)
+			ssa_close_ssa_conn(&svc->conn_listen);
+		if (svc->conn_dataup.rsock >= 0)
+			ssa_close_ssa_conn(&svc->conn_dataup);
+		if (svc->conn_data.rsock >= 0)
+			ssa_close_ssa_conn(&svc->conn_data);
 		svc->state = SSA_STATE_IDLE;
 		/* fall through to reactivate */
 	case IBV_EVENT_PORT_ACTIVE:
@@ -573,6 +563,15 @@ static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type)
 	conn->sindex = 0;
 	conn->sbuf2 = NULL;
 	conn->ssa_db = NULL;
+}
+
+static void ssa_close_ssa_conn(struct ssa_conn *conn)
+{
+	if (!conn)
+		return;
+	rclose(conn->rsock);
+	conn->rsock = -1;
+	conn->state = SSA_CONN_IDLE;
 }
 
 static int ssa_upstream_send_query(int rsock, struct ssa_msg_hdr *msg,
@@ -2604,27 +2603,18 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	}
 
 	svc->port->svc[svc->index] = NULL;
-	if (svc->conn_listen.rsock >= 0) {
-		rclose(svc->conn_listen.rsock);
-		svc->conn_listen.rsock = -1;
-		svc->conn_listen.state = SSA_CONN_IDLE;
-	}
+	if (svc->conn_listen.rsock >= 0)
+		ssa_close_ssa_conn(&svc->conn_listen);
 	if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS) {
 		close(svc->sock_accessdown[0]);
 		close(svc->sock_accessdown[1]);
 		close(svc->sock_accessctrl[0]);
 		close(svc->sock_accessctrl[1]);
 	}
-	if (svc->conn_dataup.rsock >= 0) {
-		rclose(svc->conn_dataup.rsock);
-		svc->conn_dataup.rsock = -1;
-		svc->conn_dataup.state = SSA_CONN_IDLE;
-	}
-	if (svc->conn_data.rsock >= 0) {
-		rclose(svc->conn_data.rsock);
-		svc->conn_data.rsock = -1;
-		svc->conn_data.state = SSA_CONN_IDLE;
-	}
+	if (svc->conn_dataup.rsock >= 0)
+		ssa_close_ssa_conn(&svc->conn_dataup);
+	if (svc->conn_data.rsock >= 0)
+		ssa_close_ssa_conn(&svc->conn_data);
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
 		close(svc->sock_downctrl[0]);
 		close(svc->sock_downctrl[1]);
