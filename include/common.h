@@ -217,7 +217,7 @@ struct ssa_svc {
 	int			sock_accessdown[2];
 	struct ssa_conn		conn_listen;
 	struct ssa_conn		conn_dataup;
-	struct ssa_conn		conn_data;
+	struct ssa_conn		*fd_to_conn[FD_SETSIZE];
 	uint16_t		index;
 	uint16_t		tid;
 	pthread_t		upstream;

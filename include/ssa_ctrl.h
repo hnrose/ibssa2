@@ -88,6 +88,7 @@ struct ssa_conn_done_msg {
 
 struct ssa_db_update {
 	struct ssa_db		*db;
+	int			rsock;
 	int			flags;
 	union ibv_gid		*remote_gid;
 };
