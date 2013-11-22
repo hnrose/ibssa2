@@ -558,6 +558,23 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	}
 }
 
+static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type)
+{
+	conn->rsock = -1;
+	conn->type = conn_type;
+	conn->state = SSA_CONN_IDLE;
+	conn->phase = SSA_DB_IDLE;
+	conn->rbuf = NULL;
+	conn->rid = 0;
+	conn->rindex = 0;
+	conn->rhdr = NULL;
+	conn->sbuf = NULL;
+	conn->sid = 0;
+	conn->sindex = 0;
+	conn->sbuf2 = NULL;
+	conn->ssa_db = NULL;
+}
+
 static int ssa_upstream_send_query(int rsock, struct ssa_msg_hdr *msg,
 				   uint16_t op, uint32_t id)
 {
@@ -2293,32 +2310,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	svc->conn_listen.type = SSA_CONN_TYPE_UPSTREAM;
 	svc->conn_listen.state = SSA_CONN_IDLE;
 	svc->conn_listen.phase = SSA_DB_IDLE;
-	svc->conn_dataup.rsock = -1;
-	svc->conn_dataup.type = SSA_CONN_TYPE_UPSTREAM;
-	svc->conn_dataup.state = SSA_CONN_IDLE;
-	svc->conn_dataup.phase = SSA_DB_IDLE;
-	svc->conn_dataup.rbuf = NULL;
-	svc->conn_dataup.rid = 0;
-	svc->conn_dataup.rindex = 0;
-	svc->conn_dataup.rhdr = NULL;
-	svc->conn_dataup.sbuf = NULL;
-	svc->conn_dataup.sid = 0;
-	svc->conn_dataup.sindex = 0;
-	svc->conn_dataup.sbuf2 = NULL;
-	svc->conn_dataup.ssa_db = NULL;
-	svc->conn_data.rsock = -1;
-	svc->conn_data.type = SSA_CONN_TYPE_DOWNSTREAM;
-	svc->conn_data.state = SSA_CONN_IDLE;
-	svc->conn_data.phase = SSA_DB_IDLE;
-	svc->conn_data.rbuf = NULL;
-	svc->conn_data.rid = 0;
-	svc->conn_data.rindex = 0;
-	svc->conn_data.rhdr = NULL;
-	svc->conn_data.sbuf = NULL;
-	svc->conn_data.sid = 0;
-	svc->conn_data.sindex = 0;
-	svc->conn_data.sbuf2 = NULL;
-	svc->conn_data.ssa_db = NULL;
+	ssa_init_ssa_conn(&svc->conn_dataup, SSA_CONN_TYPE_UPSTREAM);
+	ssa_init_ssa_conn(&svc->conn_data, SSA_CONN_TYPE_DOWNSTREAM);
 	svc->state = SSA_STATE_IDLE;
 	svc->process_msg = process_msg;
 	//pthread_mutex_init(&svc->lock, NULL);
