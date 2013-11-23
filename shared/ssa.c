@@ -475,11 +475,13 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf 
 			ssa_close_ssa_conn(&svc->conn_listen);
 		if (svc->conn_dataup.rsock >= 0)
 			ssa_close_ssa_conn(&svc->conn_dataup);
-		for (i = 0; i < FD_SETSIZE; i++) {
-			if (svc->fd_to_conn[i] &&
-			    svc->fd_to_conn[i]->rsock >= 0) {
-				ssa_close_ssa_conn(svc->fd_to_conn[i]);
-				svc->fd_to_conn[i] = NULL;
+		if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
+			for (i = 0; i < FD_SETSIZE; i++) {
+				if (svc->fd_to_conn[i] &&
+				    svc->fd_to_conn[i]->rsock >= 0) {
+					ssa_close_ssa_conn(svc->fd_to_conn[i]);
+					svc->fd_to_conn[i] = NULL;
+				}
 			}
 		}
 		svc->state = SSA_STATE_IDLE;
@@ -2675,11 +2677,13 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	}
 	if (svc->conn_dataup.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_dataup);
-	for (i = 0; i < FD_SETSIZE; i++) {
-		if (svc->fd_to_conn[i] &&
-		    svc->fd_to_conn[i]->rsock >= 0) {
-			ssa_close_ssa_conn(svc->fd_to_conn[i]);
-			svc->fd_to_conn[i] = NULL;
+	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
+		for (i = 0; i < FD_SETSIZE; i++) {
+			if (svc->fd_to_conn[i] &&
+			    svc->fd_to_conn[i]->rsock >= 0) {
+				ssa_close_ssa_conn(svc->fd_to_conn[i]);
+				svc->fd_to_conn[i] = NULL;
+			}
 		}
 	}
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
