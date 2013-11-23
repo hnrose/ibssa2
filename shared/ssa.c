@@ -1486,7 +1486,8 @@ static void *ssa_downstream_handler(void *context)
 	struct ssa_svc *svc = context;
 	struct ssa_ctrl_msg_buf msg;
 	struct ssa_conn *conn_data;
-	struct pollfd fds[FD_SETSIZE];		/* malloc this ? */
+	struct pollfd **fds;
+	struct pollfd *pfd, *pfd2;
 	int ret, fd, i, slot;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
@@ -1494,33 +1495,41 @@ static void *ssa_downstream_handler(void *context)
 	msg.hdr.type = SSA_CTRL_ACK;
 	write(svc->sock_downctrl[1], (char *) &msg, sizeof msg.hdr);
 
-	fds[0].fd = svc->sock_downctrl[1];
-	fds[0].events = POLLIN;
-	fds[0].revents = 0;
-	fds[1].fd = svc->sock_accessdown[0];
-	fds[1].events = POLLIN;
-	fds[1].revents = 0;
-	fds[2].fd = -1;		/* placeholder for listen rsock */
-	fds[2].events = POLLIN;
-	fds[2].revents = 0;
+	fds = calloc(FD_SETSIZE, sizeof(**fds));
+	if (!fds)
+		goto out;
+	pfd = (struct pollfd *)fds;
+	pfd->fd = svc->sock_downctrl[1];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+	pfd = (struct pollfd *)(fds + 1);
+	pfd->fd = svc->sock_accessdown[0];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+	pfd = (struct pollfd *)(fds + 2);
+	pfd->fd = -1;	/* placeholder for listen rsock */
+	pfd->events = POLLIN;
+	pfd->revents = 0;
 	for (i = 3; i < FD_SETSIZE; i++) {
-		fds[i].fd = -1;	/* placeholder for downstream connections */
-		fds[i].events = 0;
-		fds[i].revents = 0;
+		pfd = (struct pollfd *)(fds + i);
+		pfd->fd = -1;	/* placeholder for downstream connections */
+		pfd->events = 0;
+		pfd->revents = 0;
 	}
 
 	for (;;) {
-		ret = rpoll(&fds[0], FD_SETSIZE, -1);
+		ret = rpoll((struct pollfd *)fds, FD_SETSIZE, -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
 			continue;
 		}
-		if (fds[0].revents) {
-			fds[0].revents = 0;
+		pfd = (struct pollfd *)fds;
+		if (pfd->revents) {
+			pfd->revents = 0;
 			read(svc->sock_downctrl[1], (char *) &msg, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_downctrl[1],
+				ret = read(svc->sock_downctrl[1],
 				     (char *) &msg.hdr.data,
 				     msg.hdr.len - sizeof msg.hdr);
 			}
@@ -1531,7 +1540,8 @@ static void *ssa_downstream_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_LISTEN:
-				fds[2].fd = ssa_downstream_listen(svc);
+				pfd2 = (struct pollfd *)(fds + 2);
+				pfd2->fd = ssa_downstream_listen(svc);
 				break;
 			case SSA_CTRL_EXIT:
 				goto out;
@@ -1543,8 +1553,9 @@ static void *ssa_downstream_handler(void *context)
 			}
 		}
 
-		if (fds[1].revents) {
-			fds[1].revents = 0;
+		pfd = (struct pollfd *)(fds + 1);
+		if (pfd->revents) {
+			pfd->revents = 0;
 			read(svc->sock_accessdown[0], (char *) &msg, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
 				read(svc->sock_accessdown[0],
@@ -1574,8 +1585,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p\n", msg.data.
 			}
 		}
 
-		if (fds[2].revents) {
-			fds[2].revents = 0;
+		pfd = (struct pollfd *)(fds + 2);
+		if (pfd->revents) {
+			pfd->revents = 0;
 			conn_data = malloc(sizeof(*conn_data));
 			if (conn_data) {
 				ssa_init_ssa_conn(conn_data,
@@ -1584,10 +1596,12 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p\n", msg.data.
 				if (fd >= 0) {
 					if (!svc->fd_to_conn[fd]) {
 						svc->fd_to_conn[fd] = conn_data;
-						slot = ssa_find_pollfd_slot(&fds[0], FD_SETSIZE);
+						pfd2 = (struct  pollfd *)fds;
+						slot = ssa_find_pollfd_slot(pfd2, FD_SETSIZE);
 						if (slot >= 0) {
-							fds[slot].fd = fd;
-							fds[slot].events = POLLIN;
+							pfd2 = (struct  pollfd *)(fds + slot);
+							pfd2->fd = fd;
+							pfd2->events = POLLIN;
 							if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS)
 								ssa_downstream_conn_done(svc, conn_data);
 						} else
@@ -1600,13 +1614,14 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p\n", msg.data.
 		}
 
 		for (i = 3; i < FD_SETSIZE; i++) {
-			if (fds[i].revents) {
-				if (svc->fd_to_conn[fds[i].fd]) {
-					fds[i].events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[fds[i].fd], fds[i].revents);
+			pfd = (struct pollfd *)(fds + i);
+			if (pfd->revents) {
+				if (svc->fd_to_conn[pfd->fd]) {
+					pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents);
 				} else
 					ssa_log_warn(SSA_LOG_CTRL, "event 0x%x but no data rsock for pollfd slot %d\n", 3);
 			}
-			fds[i].revents = 0;
+			pfd->revents = 0;
 		}
 
 	}
