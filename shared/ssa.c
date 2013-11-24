@@ -75,6 +75,7 @@ struct ssa_access_context {
 };
 
 static struct ssa_db *prdb;
+static struct ssa_db *smdb;
 
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -1249,10 +1250,14 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 
 static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 {
+#ifdef CORE_INTEGRATION
+	return smdb;
+#else
 	/* Use SSA DB if available; otherwise use PR DB */
 	if (conn->ssa_db)
 		return conn->ssa_db;
 	return prdb;
+#endif
 }
 
 static short ssa_downstream_handle_query_defs(struct ssa_conn *conn,
@@ -2544,6 +2549,23 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 
 	for (i = 1; i <= dev->port_cnt; i++)
 		ssa_open_port(ssa_dev_port(dev, i), dev, i);
+
+#ifdef CORE_INTEGRATION
+	if (dev->ssa->node_type == SSA_NODE_CORE) {
+		/* if configured, invoke SMDB preloading */
+
+		smdb = ssa_db_load(SMDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
+		if (!smdb) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "unable to preload smdb database. path:\"%s\"\n",
+				    SMDB_PRELOAD_PATH);
+		} else {
+			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+				"smdb is loaded from \"%s\"\n",
+				SMDB_PRELOAD_PATH);
+		}
+	}
+#endif
 
 #ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type == SSA_NODE_ACCESS) {

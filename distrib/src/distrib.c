@@ -48,6 +48,11 @@ static int node_type = SSA_NODE_ACCESS;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
+#ifdef CORE_INTEGRATION
+/* The directory has to be created and be empty before run */
+#define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
+#endif
+
 #ifdef INTEGRATION
 struct ssa_member {
 	struct ssa_member_record	rec;
@@ -297,6 +302,14 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 		return distrib_process_ssa_mad(svc, msg);
 	case SSA_SA_MAD:
 		return distrib_process_sa_mad(svc, msg);
+#ifdef CORE_INTEGRATION
+	case SSA_DB_UPDATE:
+		ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
+		ssa_db_save(SMDB_DUMP_PATH,
+			    (struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db),
+			    SSA_DB_HELPER_DEBUG);
+		return 1;
+#endif
 	default:
 		break;
 	}
