@@ -75,7 +75,9 @@ struct ssa_access_context {
 };
 
 static struct ssa_db *prdb;
+#ifdef CORE_INTEGRATION
 static struct ssa_db *smdb;
+#endif
 
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
