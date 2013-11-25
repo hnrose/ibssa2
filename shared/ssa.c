@@ -708,7 +708,7 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 			    sizeof(*hdr) + sizeof(struct db_def) + sizeof(struct db_dataset))
 				ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF response length %d is not the expected length %d\n", ntohl(hdr->len), sizeof(*hdr) + sizeof(struct db_def) + sizeof(struct db_dataset));
 			else {
-				conn->rbuf = conn->ssa_db;
+				conn->rbuf = &conn->ssa_db->db_def;
 				conn->rsize = ntohl(hdr->len) - sizeof(*hdr);
 				conn->roffset = 0;
 				ret = rrecv(conn->rsock, conn->rbuf,
