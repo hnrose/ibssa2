@@ -724,6 +724,23 @@ Error:
         return -1;
 }
 
+static int is_dir_exist(const char* path)
+{
+	DIR *dir = opendir(path);
+
+	if (dir) {
+		/* remove all directory content */
+		char command[1024] = {};
+		sprintf(command, "rm -rf %s/*", path);
+		system(command);
+
+		closedir(dir);
+		dir = NULL;
+		return 1;
+	}
+	return 0;
+}
+
 void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 		 enum ssa_db_helper_mode mode)
 {
@@ -732,6 +749,11 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 	int i = 0, tbls_n = 0;
 
 	assert(p_ssa_db);
+
+	if (!is_dir_exist(path_dir)) {
+		sprintf(buffer, "mkdir %s", path_dir);
+		system(buffer);
+	}
 
 	tbls_n = ntohll(p_ssa_db->db_table_def.set_count);
 
