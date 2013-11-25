@@ -74,8 +74,9 @@ struct ssa_access_context {
 	void *context;
 };
 
+#ifndef CORE_INTEGRATION
 static struct ssa_db *prdb;
-#ifdef CORE_INTEGRATION
+#else
 static struct ssa_db *smdb;
 #endif
 
