@@ -914,7 +914,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p\n", svc->conn_dataup.rindex, s
 						     events);
 		} else {
 			svc->conn_dataup.ssa_db->data_tbl_cnt = svc->conn_dataup.rindex;
-ssa_log(SSA_LOG_DEFAULT, "ssa_db %p complete\n", svc->conn_dataup.ssa_db);
+ssa_log(SSA_LOG_DEFAULT, "ssa_db %p complete with num tables %d\n", svc->conn_dataup.ssa_db, svc->conn_dataup.ssa_db->data_tbl_cnt);
 			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db, 0, NULL);
 		}
 		break;
