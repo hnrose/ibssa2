@@ -358,6 +358,7 @@ static int validate_ssa_msg_hdr(struct ssa_msg_hdr *hdr)
 		return 0;
 	switch (ntohs(hdr->op)) {
 	case SSA_MSG_DB_QUERY_DEF:
+	case SSA_MSG_DB_QUERY_TBL_DEF:
 	case SSA_MSG_DB_QUERY_TBL_DEF_DATASET:
 	case SSA_MSG_DB_QUERY_FIELD_DEF_DATASET:
 	case SSA_MSG_DB_QUERY_DATA_DATASET:
@@ -600,6 +601,8 @@ static void ssa_upstream_update_phase(struct ssa_conn *conn, uint16_t op)
 	case SSA_MSG_DB_QUERY_DEF:
 		conn->phase = SSA_DB_DEFS;
 		break;
+	case SSA_MSG_DB_QUERY_TBL_DEF:
+		break;
 	case SSA_MSG_DB_QUERY_TBL_DEF_DATASET:
 		conn->phase = SSA_DB_TBL_DEFS;
 		break;
@@ -698,18 +701,24 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 					   struct ssa_msg_hdr *hdr)
 {
-	int ret;
+	int ret, size;
 
 	if (conn->phase == SSA_DB_DEFS) {
 		if (conn->sid != ntohl(hdr->id)) {
-			ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF ids 0x%x 0x%x don't match\n", conn->sid, ntohl(hdr->id));
+			ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF/TBL_DEF ids 0x%x 0x%x don't match\n", conn->sid, ntohl(hdr->id));
 		} else {
 			conn->rhdr = hdr;
-			if (ntohl(hdr->len) !=
-			    sizeof(*hdr) + sizeof(struct db_def) + sizeof(struct db_dataset))
-				ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF response length %d is not the expected length %d\n", ntohl(hdr->len), sizeof(*hdr) + sizeof(struct db_def) + sizeof(struct db_dataset));
+			if (conn->rindex)
+				size = sizeof(struct db_dataset);
+			else
+				size = sizeof(struct db_def);
+			if (ntohl(hdr->len) != sizeof(*hdr) + size)
+				ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF/TBL_DEF response length %d is not the expected length %d\n", ntohl(hdr->len), sizeof(*hdr) + size);
 			else {
-				conn->rbuf = &conn->ssa_db->db_def;
+				if (conn->rindex)
+					conn->rbuf = &conn->ssa_db->db_table_def;
+				else
+					conn->rbuf = &conn->ssa_db->db_def;
 				conn->rsize = ntohl(hdr->len) - sizeof(*hdr);
 				conn->roffset = 0;
 				ret = rrecv(conn->rsock, conn->rbuf,
@@ -839,16 +848,24 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 		/* Temporary workaround !!! */
 		usleep(10000);		/* 10 msec */
 		revents = ssa_upstream_query(svc, SSA_MSG_DB_QUERY_DEF, events);
+		svc->conn_dataup.rindex = 0;
 		break;
 	case SSA_DB_DEFS:
-		svc->conn_dataup.phase = SSA_DB_TBL_DEFS;
+		if (svc->conn_dataup.rindex)
+			svc->conn_dataup.phase = SSA_DB_TBL_DEFS;
 		svc->conn_dataup.roffset = 0;
 		free(svc->conn_dataup.rhdr);
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
 		revents = ssa_upstream_query(svc,
+					     svc->conn_dataup.rindex == 0 ?
+					     SSA_MSG_DB_QUERY_TBL_DEF :
 					     SSA_MSG_DB_QUERY_TBL_DEF_DATASET,
 					     events);
+		if (svc->conn_dataup.phase == SSA_DB_DEFS)
+			svc->conn_dataup.rindex++;
+		else
+			svc->conn_dataup.rindex = 0;
 		break;
 	case SSA_DB_TBL_DEFS:
 		svc->conn_dataup.phase = SSA_DB_FIELD_DEFS;
@@ -937,6 +954,7 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 		ssa_log(SSA_LOG_DEFAULT, "Ignoring SSA_MSG_FLAG_RESP not set in op %u response in phase %d\n", op, svc->conn_dataup.phase);
 	switch (op) {
 	case SSA_MSG_DB_QUERY_DEF:
+	case SSA_MSG_DB_QUERY_TBL_DEF:
 		ssa_upstream_handle_query_defs(&svc->conn_dataup, hdr);
 		if (svc->conn_dataup.phase == SSA_DB_DEFS) {
 			if (ntohl(hdr->id) == svc->conn_dataup.sid) {	/* duplicate check !!! */
@@ -1289,10 +1307,32 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_DEF,
 					      &ssadb->db_def,
-					      sizeof(struct db_def) + sizeof(struct db_dataset),
+					      sizeof(ssadb->db_def),
 					      events);
 	} else
 		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_IDLE for SSA_MSG_DB_QUERY_DEF\n", conn->rsock, conn->phase);
+
+	return revents;
+}
+
+static short ssa_downstream_handle_query_tbl_def(struct ssa_conn *conn,
+						 struct ssa_msg_hdr *hdr,
+						 short events)
+{
+	struct ssa_db *ssadb;
+	short revents = events;
+
+	ssadb = ssa_downstream_db(conn);
+	if (conn->phase == SSA_DB_DEFS) {
+		conn->rid = ntohl(hdr->id);
+		conn->roffset = 0;
+		revents = ssa_downstream_send(conn,
+					      SSA_MSG_DB_QUERY_TBL_DEF,
+					      &ssadb->db_table_def,
+					      sizeof(ssadb->db_table_def),
+					      events);
+	} else
+		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_TBL_DEF\n", conn->rsock, conn->phase);
 
 	return revents;
 }
@@ -1410,6 +1450,9 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 	switch (op) {
 	case SSA_MSG_DB_QUERY_DEF:
 		revents = ssa_downstream_handle_query_defs(conn, hdr, events);
+		break;
+	case SSA_MSG_DB_QUERY_TBL_DEF:
+		revents = ssa_downstream_handle_query_tbl_def(conn, hdr, events);
 		break;
 	case SSA_MSG_DB_QUERY_TBL_DEF_DATASET:
 		revents = ssa_downstream_handle_query_tbl_defs(conn, hdr,
@@ -1540,7 +1583,7 @@ static void *ssa_downstream_handler(void *context)
 			pfd->revents = 0;
 			read(svc->sock_downctrl[1], (char *) &msg, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				ret = read(svc->sock_downctrl[1],
+				read(svc->sock_downctrl[1],
 				     (char *) &msg.hdr.data,
 				     msg.hdr.len - sizeof msg.hdr);
 			}
