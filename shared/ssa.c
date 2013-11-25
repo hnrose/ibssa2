@@ -1208,7 +1208,7 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 				return POLLOUT | POLLIN;
 		}
 	} else
-		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr for response to SSA_MSG_DB_QUERY_DEF\n");
+		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr for response to op %d\n", op);
 	return events;
 }
 
