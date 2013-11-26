@@ -1,7 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies LTD. All rights reserved.
- * Copyright (c) 2012 Intel Corporation. All rights reserved.
- * Copyright (c) 2012 Lawrence Livermore National Securities.  All rights reserved.
+ * Copyright (c) 2011-2013 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -33,24 +31,46 @@
  *
  */
 
-/**
- * All opensm headers should be declared here
- * and all source which needs opensm headers should use this file.
- * This is due to the osm_config.h hack for plugins
- */
+#ifndef _SSA_EXTRACT_H_
+#define _SSA_EXTRACT_H_
 
+#include <infiniband/osm_headers.h>
+#include <infiniband/ssa_database.h>
 
-#ifndef __OSM_HEADERS_H__
-#define __OSM_HEADERS_H__
+#ifdef __cplusplus
+#  define BEGIN_C_DECLS extern "C" {
+#  define END_C_DECLS   }
+#else                           /* !__cplusplus */
+#  define BEGIN_C_DECLS
+#  define END_C_DECLS
+#endif                          /* __cplusplus */
 
-/* This must be first!!! */
-#include <opensm/osm_config.h>
+BEGIN_C_DECLS
 
-#include <opensm/osm_opensm.h>
-#include <opensm/osm_version.h>
-#include <opensm/osm_log.h>
+enum ssa_db_ctrl_msg_type {
+	SSA_DB_START_EXTRACT = 1,
+	SSA_DB_LFT_CHANGE,
+	SSA_DB_EXIT
+};
 
-#include <complib/cl_thread.h>
-#include <complib/cl_byteswap.h>
+struct ssa_db_ctrl_msg {
+	int				len;
+	enum ssa_db_ctrl_msg_type	type;
+	uint8_t				data[0];
+};
 
-#endif /* __OSM_HEADERS_H__ */
+struct ssa_db_lft_change_rec {
+       cl_list_item_t                  list_item;
+       osm_epi_lft_change_event_t      lft_change;
+       be16_t                          lid;
+       uint8_t                         block[0];
+};
+
+struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm);
+void ssa_db_validate(struct ssa_db_extract *p_ssa_db);
+void ssa_db_validate_lft();
+void ssa_db_remove(struct ssa_db_extract *p_ssa_db);
+void ssa_db_update(struct ssa_database *ssa_db);
+void ssa_db_lft_handle(void);
+END_C_DECLS
+#endif				/* _SSA_EXTRACT_H_ */
