@@ -66,7 +66,7 @@
 #define DEFAULT_TIMEOUT 1000
 #define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
 
-#define SMDB_PRELOAD_PATH "./smdb"
+#define SMDB_PRELOAD_PATH RDMA_CONF_DIR "/smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
 
 struct ssa_access_context {
