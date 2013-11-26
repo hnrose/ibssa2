@@ -636,13 +636,14 @@ static void *core_construct(osm_opensm_t *opensm)
 
        ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
        if (ret) {
-               ssa_log(SSA_LOG_ALL, "ERROR %d: error creating socketpair \n", ret);
+               ssa_log(SSA_LOG_ALL, "ERROR %d (%s): creating socketpair\n",
+		       errno, strerror(errno));
                goto err2;
        }
 
        ret = pthread_create(&smdb_extract_thread, NULL, ssa_db_run, (void *) opensm);
        if (ret) {
-               ssa_log(SSA_LOG_ALL, "ERROR %d: error creating smdb extract thread \n", ret);
+               ssa_log(SSA_LOG_ALL, "ERROR %d (%s): error creating smdb extract thread\n", ret, strerror(ret));
                close(fd[0]);
                close(fd[1]);
                goto err2;
