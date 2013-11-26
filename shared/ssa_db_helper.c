@@ -726,22 +726,31 @@ Error:
         return -1;
 }
 
-static int is_dir_exist(const char* path)
+static void removedir(const char* dirname)
 {
-	DIR *dir = opendir(path);
+	DIR *dp;
+	struct dirent *ep;
 
-	if (dir) {
-		/* remove all directory content */
-		/* TODO: replace by explicit code */
-		char command[SSA_DB_HELPER_PATH_MAX + 8] = {};
-		sprintf(command, "rm -rf %s/*", path);
-		system(command);
+	char abs_filename[SSA_DB_HELPER_PATH_MAX];
 
-		closedir(dir);
-		dir = NULL;
-		return 1;
+	dp = opendir(dirname);
+	if (dp != NULL) {
+		while ((ep = readdir(dp))) {
+			snprintf(abs_filename, SSA_DB_HELPER_PATH_MAX, "%s/%s", dirname, ep->d_name);
+
+			if (ep->d_type == DT_DIR) {
+				if (strcmp(ep->d_name, ".") && strcmp(ep->d_name, ".."))
+					removedir(abs_filename);
+			} else {
+				remove(abs_filename);
+			}
+		}
+		closedir(dp);
+	} else {
+		printf("Couldn't open '%s' directory\n", dirname);
 	}
-	return 0;
+
+	remove(dirname);
 }
 
 void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
@@ -753,8 +762,8 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 
 	assert(p_ssa_db);
 
-	if (!is_dir_exist(path_dir))
-		mkdir(path_dir, S_IRWXU | S_IRWXG | S_IRWXO);
+	removedir(path_dir);
+	mkdir(path_dir, S_IRWXU | S_IRWXG | S_IRWXO);
 
 	tbls_n = ntohll(p_ssa_db->db_table_def.set_count);
 
