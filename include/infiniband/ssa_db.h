@@ -90,6 +90,7 @@ struct db_def {
 	struct db_id	id;
 	char		name[DB_NAME_LEN];
 	be32_t		table_def_size;
+	uint8_t		reserved2[4];
 };
 
 enum {
