@@ -144,16 +144,6 @@ int main(int argc,char *argv[])
 
 	if (!strlen(output_path)) {
 		sprintf(output_path, "%s.output",input_path);
-	} else if (is_dir_exist(output_path)) {
-		char command[1024] ={};
-		sprintf(command, "rm -rf %s", output_path);
-		system(command);
-	}
-
-	if (mkdir(output_path, S_IRWXU|S_IRGRP|S_IXGRP ) != 0 && errno != EEXIST) {
-		fprintf(stderr, "Directory creation is failed: %s\n", output_path);
-		print_usage(stderr, argv[0]);
-		exit(EXIT_FAILURE);
 	}
 
 	printf("Input path: %s\n", input_path);
