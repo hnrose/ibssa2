@@ -41,6 +41,8 @@
 #include <assert.h>
 #include <string.h>
 #include <inttypes.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define SSA_DB_HELPER_PATH_MAX PATH_MAX
 
@@ -730,7 +732,8 @@ static int is_dir_exist(const char* path)
 
 	if (dir) {
 		/* remove all directory content */
-		char command[1024] = {};
+		/* TODO: replace by explicit code */
+		char command[SSA_DB_HELPER_PATH_MAX + 8] = {};
 		sprintf(command, "rm -rf %s/*", path);
 		system(command);
 
@@ -750,10 +753,8 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 
 	assert(p_ssa_db);
 
-	if (!is_dir_exist(path_dir)) {
-		sprintf(buffer, "mkdir %s", path_dir);
-		system(buffer);
-	}
+	if (!is_dir_exist(path_dir))
+		mkdir(path_dir, S_IRWXU | S_IRWXG | S_IRWXO);
 
 	tbls_n = ntohll(p_ssa_db->db_table_def.set_count);
 
