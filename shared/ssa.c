@@ -106,8 +106,8 @@ static const char * month_str[] = {
 
 static int log_level = SSA_LOG_DEFAULT;
 //static short server_port = 6125;
-static short smdb_port = 7470;
-static short prdb_port = 7471;
+short smdb_port = 7470;
+short prdb_port = 7471;
 
 /* Forward declarations */
 static void ssa_close_ssa_conn(struct ssa_conn *conn);

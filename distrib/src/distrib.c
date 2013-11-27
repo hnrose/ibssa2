@@ -49,6 +49,9 @@ static int node_type = SSA_NODE_ACCESS;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
+extern short smdb_port;
+extern short prdb_port;
+
 #ifdef CORE_INTEGRATION
 /* The directory has to be created and be empty before run */
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
@@ -462,6 +465,10 @@ static void distrib_set_options(void)
 			strcpy(lock_file, value);
 		else if (!strcasecmp("node_type", opt))
 			node_type = distrib_convert_node_type(value);
+		else if (!strcasecmp("smdb_port", opt))
+			smdb_port = (short) atoi(value);
+		else if (!strcasecmp("prdb_port", opt))
+			prdb_port = (short) atoi(value);
 	}
 
 	fclose(f);
@@ -482,6 +489,8 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
 	ssa_log(SSA_LOG_DEFAULT, "node type %d (%s)\n", node_type,
 		ssa_node_type_str(node_type));
+	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 }
 
 static void *distrib_construct(int node_type)

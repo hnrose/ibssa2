@@ -55,6 +55,9 @@ static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
+extern short smdb_port;
+extern short prdb_port;
+
 int first = 1;
 
 struct ssa_member {
@@ -582,6 +585,10 @@ static void core_set_options(void)
 			ssa_set_log_level(atoi(value));
 		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
+		else if (!strcasecmp("smdb_port", opt))
+			smdb_port = (short) atoi(value);
+		else if (!strcasecmp("prdb_port", opt))
+			prdb_port = (short) atoi(value);	
 	}
 
 	fclose(f);
@@ -591,6 +598,8 @@ static void core_log_options(void)
 {
 	ssa_log_options();
 	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
+	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 }
 
 static void *core_construct(osm_opensm_t *opensm)

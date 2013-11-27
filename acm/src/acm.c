@@ -245,6 +245,8 @@ static uint8_t min_mtu = IBV_MTU_2048;
 static uint8_t min_rate = IBV_RATE_10_GBPS;
 static enum acm_route_preload route_preload;
 
+extern short prdb_port;
+
 static void
 acm_format_name(int level, char *name, size_t name_size,
 		uint8_t addr_type, uint8_t *addr, size_t addr_size)
@@ -3565,7 +3567,7 @@ static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	case SSA_CTRL_MAD:
 		return acm_process_ssa_mad(svc, msg);
 	case SSA_CONN_DONE:
-ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n", svc->conn_data.rsock);
+ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n", ((struct ssa_conn_done_msg *)msg)->conn->rsock);
 		/* Request ssa_db */
 		return 1;
 	case SSA_DB_UPDATE:
@@ -3613,6 +3615,8 @@ static void acm_set_options(void)
 			loopback_prot = acm_convert_loopback_prot(value);
 		else if (!strcasecmp("server_port", opt))
 			server_port = (short) atoi(value);
+		else if (!strcasecmp("prdb_port", opt))
+			prdb_port = (short) atoi(value);
 		else if (!strcasecmp("timeout", opt))
 			timeout = atoi(value);
 		else if (!strcasecmp("retries", opt))
@@ -3649,7 +3653,8 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "route resolution %d\n", route_prot);
 	ssa_log(SSA_LOG_DEFAULT, "route timeout %d\n", route_timeout);
 	ssa_log(SSA_LOG_DEFAULT, "loopback resolution %d\n", loopback_prot);
-	ssa_log(SSA_LOG_DEFAULT, "server_port %d\n", server_port);
+	ssa_log(SSA_LOG_DEFAULT, "server port %d\n", server_port);
+	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "timeout %d ms\n", timeout);
 	ssa_log(SSA_LOG_DEFAULT, "retries %d\n", retries);
 	ssa_log(SSA_LOG_DEFAULT, "resolve depth %d\n", resolve_depth);
