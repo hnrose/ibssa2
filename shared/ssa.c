@@ -104,11 +104,12 @@ static const char * month_str[] = {
 
 static int log_level = SSA_LOG_DEFAULT;
 //static short server_port = 6125;
+static short ssadb_port = 7470;
 
 /* Forward declarations */
 static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn);
-static int ssa_upstream_initiate_conn(struct ssa_svc *svc);
+static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 
 void ssa_set_log_level(int level)
@@ -369,9 +370,8 @@ static int validate_ssa_msg_hdr(struct ssa_msg_hdr *hdr)
 	}
 }
 
-static int ssa_downstream_listen(struct ssa_svc *svc)
+static int ssa_downstream_listen(struct ssa_svc *svc, short sport)
 {
-	int sport = 7470;
 	struct sockaddr_ib src_addr;
 	int ret, val;
 
@@ -1098,7 +1098,7 @@ static void *ssa_upstream_handler(void *context)
 				break;
 			case SSA_CONN_REQ:
 				conn_req = (struct ssa_conn_req_msg *) &msg;
-				fds[2].fd = ssa_upstream_initiate_conn(conn_req->svc);
+				fds[2].fd = ssa_upstream_initiate_conn(conn_req->svc, ssadb_port);
 				/* Change when more than 1 data connection supported !!! */
 				if (fds[2].fd >= 0) {
 					if (conn_req->svc->conn_dataup.state != SSA_CONN_CONNECTED)
@@ -1595,7 +1595,7 @@ static void *ssa_downstream_handler(void *context)
 			switch (msg.hdr.type) {
 			case SSA_LISTEN:
 				pfd2 = (struct pollfd *)(fds + 2);
-				pfd2->fd = ssa_downstream_listen(svc);
+				pfd2->fd = ssa_downstream_listen(svc, ssadb_port);
 				break;
 			case SSA_CTRL_EXIT:
 				goto out;
@@ -2097,9 +2097,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	return fd;
 }
 
-static int ssa_upstream_initiate_conn(struct ssa_svc *svc)
+static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 {
-	int dport = 7470;
 	struct sockaddr_ib dst_addr;
 	int ret, val;
 
