@@ -388,177 +388,176 @@ static void core_destroy_svc(struct ssa_svc *svc)
 
 static const char *sm_state_str(int state)
 {
-       switch (state) {
-       case IB_SMINFO_STATE_DISCOVERING:
-               return "Discovering";
-       case IB_SMINFO_STATE_STANDBY:
-               return "Standby";
-       case IB_SMINFO_STATE_NOTACTIVE:
-               return "Not Active";
-       case IB_SMINFO_STATE_MASTER:
-               return "Master";
-       }
-       return "UNKNOWN";
+	switch (state) {
+	case IB_SMINFO_STATE_DISCOVERING:
+		return "Discovering";
+	case IB_SMINFO_STATE_STANDBY:
+		return "Standby";
+	case IB_SMINFO_STATE_NOTACTIVE:
+		return "Not Active";
+	case IB_SMINFO_STATE_MASTER:
+		return "Master";
+	}
+	return "UNKNOWN";
 }
 
 static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 {
-       if (ib_notice_is_generic(p_ntc)) {
-               ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
-                       "Generic trap type %d event %d from LID %u\n",
-                       ib_notice_get_type(p_ntc),
-                       ntohs(p_ntc->g_or_v.generic.trap_num),
-                       ntohs(p_ntc->issuer_lid));
-       } else {
-               ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
-                       "Vendor trap type %d from LID %u\n",
-                       ib_notice_get_type(p_ntc),
-                       ntohs(p_ntc->issuer_lid));
-       }
+	if (ib_notice_is_generic(p_ntc)) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
+			"Generic trap type %d event %d from LID %u\n",
+			ib_notice_get_type(p_ntc),
+			ntohs(p_ntc->g_or_v.generic.trap_num),
+			ntohs(p_ntc->issuer_lid));
+	} else {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
+			"Vendor trap type %d from LID %u\n",
+			ib_notice_get_type(p_ntc),
+			ntohs(p_ntc->issuer_lid));
+	}
 }
 
 static void *ssa_db_run(void *data)
 {
-       osm_opensm_t *p_osm = (osm_opensm_t *) data;
-       struct pollfd pfds[1];
-       struct ssa_db_ctrl_msg msg;
-       struct ssa_db_diff *p_ssa_db_diff;
-       int ret;
+	osm_opensm_t *p_osm = (osm_opensm_t *) data;
+	struct pollfd pfds[1];
+	struct ssa_db_ctrl_msg msg;
+	struct ssa_db_diff *p_ssa_db_diff;
+	int ret;
 
-       pfds[0].fd      = fd[1];
-       pfds[0].events  = POLLIN;
-       pfds[0].revents = 0;
+	pfds[0].fd	= fd[1];
+	pfds[0].events	= POLLIN;
+	pfds[0].revents = 0;
 
-       ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
+	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
 
-       for (;;) {
-               ret = poll(pfds, 1, -1);
-               if (ret < 0) {
-                       ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
-                       continue;
-               }
+	for (;;) {
+		ret = poll(pfds, 1, -1);
+		if (ret < 0) {
+			ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
+			continue;
+		}
 
-               if (pfds[0].revents) {
-                       read(fd[1], (char *) &msg, sizeof(msg));
-                       if (msg.type == SSA_DB_START_EXTRACT) {
-                               CL_PLOCK_ACQUIRE(&p_osm->lock);
-                               ssa_db->p_dump_db = ssa_db_extract(p_osm);
-                               ssa_db_lft_handle();
-                               CL_PLOCK_RELEASE(&p_osm->lock);
+		if (pfds[0].revents) {
+			read(fd[1], (char *) &msg, sizeof(msg));
+			if (msg.type == SSA_DB_START_EXTRACT) {
+				CL_PLOCK_ACQUIRE(&p_osm->lock);
+				ssa_db->p_dump_db = ssa_db_extract(p_osm);
+				ssa_db_lft_handle();
+				CL_PLOCK_RELEASE(&p_osm->lock);
 
-                               /* For verification */
-                               ssa_db_validate(ssa_db->p_dump_db);
-                               ssa_db_validate_lft();
+				/* For verification */
+				ssa_db_validate(ssa_db->p_dump_db);
+				ssa_db_validate_lft();
 
-                               /* Updating SMDB versions */
-                               ssa_db_update(ssa_db);
-                               p_ssa_db_diff =
-                                       ssa_db_compare(ssa_db);
-                               if (p_ssa_db_diff) {
-                                       ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
+				/* Updating SMDB versions */
+				ssa_db_update(ssa_db);
+				p_ssa_db_diff = ssa_db_compare(ssa_db);
+				if (p_ssa_db_diff) {
+					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
 #ifdef CORE_INTEGRATION
-				ssa_db_save(SMDB_DUMP_PATH, p_ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
-			       /* TODO: Here the changes are pushed down through distribution tree */
+					ssa_db_save(SMDB_DUMP_PATH, p_ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
+					/* TODO: Here the changes are pushed down through distribution tree */
 #endif
-                                       ssa_db_diff_destroy(p_ssa_db_diff);
-                               }
-                               first = 0;
-                       } else if (msg.type == SSA_DB_LFT_CHANGE) {
-                               ssa_log(SSA_LOG_VERBOSE, "Start handling LFT change events\n");
-                               ssa_db_lft_handle();
-                       } else if (msg.type == SSA_DB_EXIT) {
-                               break;
-                       } else {
-                               ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown type of message\n");
-                       }
-                       pfds[0].revents = 0;
-                }
-        }
+					ssa_db_diff_destroy(p_ssa_db_diff);
+				}
+				first = 0;
+			} else if (msg.type == SSA_DB_LFT_CHANGE) {
+				ssa_log(SSA_LOG_VERBOSE, "Start handling LFT change events\n");
+				ssa_db_lft_handle();
+			} else if (msg.type == SSA_DB_EXIT) {
+				break;
+			} else {
+				ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown msg type %d\n", msg.type);
+			}
+			pfds[0].revents = 0;
+		}
+	}
 
-       ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
-       pthread_exit(NULL);
+	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
+	pthread_exit(NULL);
 }
 
 static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
 {
-       osm_epi_lft_change_event_t *p_lft_change;
-       osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
-       struct ssa_db_lft_change_rec *p_lft_change_rec;
-       struct ssa_db_ctrl_msg msg;
-       size_t size;
+	osm_epi_lft_change_event_t *p_lft_change;
+	osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
+	struct ssa_db_lft_change_rec *p_lft_change_rec;
+	struct ssa_db_ctrl_msg msg;
+	size_t size;
 
-       switch (event_id) {
-       case OSM_EVENT_ID_TRAP:
-               handle_trap_event((ib_mad_notice_attr_t *) event_data);
-               break;
-       case OSM_EVENT_ID_LFT_CHANGE:
-               p_lft_change = (osm_epi_lft_change_event_t *) event_data;
-               if (p_lft_change && p_lft_change->p_sw) {
-                       ssa_log(SSA_LOG_VERBOSE, "LFT change event for SW 0x%" PRIx64"\n",
-                               ntohll(osm_node_get_node_guid(p_lft_change->p_sw->p_node)));
+	switch (event_id) {
+	case OSM_EVENT_ID_TRAP:
+		handle_trap_event((ib_mad_notice_attr_t *) event_data);
+		break;
+	case OSM_EVENT_ID_LFT_CHANGE:
+		p_lft_change = (osm_epi_lft_change_event_t *) event_data;
+		if (p_lft_change && p_lft_change->p_sw) {
+			ssa_log(SSA_LOG_VERBOSE, "LFT change event for SW 0x%" PRIx64"\n",
+				ntohll(osm_node_get_node_guid(p_lft_change->p_sw->p_node)));
 
-                       size = sizeof(*p_lft_change_rec);
-                       if (p_lft_change->flags == LFT_CHANGED_BLOCK)
-                               size += sizeof(p_lft_change_rec->block[0]) * IB_SMP_DATA_SIZE;
+			size = sizeof(*p_lft_change_rec);
+			if (p_lft_change->flags == LFT_CHANGED_BLOCK)
+				size += sizeof(p_lft_change_rec->block[0]) * IB_SMP_DATA_SIZE;
 
-                       p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
-                       if (!p_lft_change_rec) {
-                               /* TODO: handle failure in memory allocation */
-                       }
+			p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
+			if (!p_lft_change_rec) {
+				/* TODO: handle failure in memory allocation */
+			}
 
-                       memcpy(&p_lft_change_rec->lft_change, p_lft_change,
-                              sizeof(p_lft_change_rec->lft_change));
-                       p_lft_change_rec->lid = osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0);
+			memcpy(&p_lft_change_rec->lft_change, p_lft_change,
+			       sizeof(p_lft_change_rec->lft_change));
+			p_lft_change_rec->lid = osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0);
 
-                       if (p_lft_change->flags == LFT_CHANGED_BLOCK)
-                               memcpy(p_lft_change_rec->block, p_lft_change->p_sw->lft +
-                                      p_lft_change->block_num * IB_SMP_DATA_SIZE,
-                                      IB_SMP_DATA_SIZE);
+			if (p_lft_change->flags == LFT_CHANGED_BLOCK)
+				memcpy(p_lft_change_rec->block, p_lft_change->p_sw->lft +
+				       p_lft_change->block_num * IB_SMP_DATA_SIZE,
+				       IB_SMP_DATA_SIZE);
 
-                       pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
-                       cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
-                       pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
+			pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
+			cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
+			pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
 
-                       msg.len = sizeof(msg);
-                       msg.type = SSA_DB_LFT_CHANGE;
-                       write(fd[0], (char *) &msg, sizeof(msg));
-               }
-               break;
-       case OSM_EVENT_ID_UCAST_ROUTING_DONE:
-               p_ucast_routing_flag = (osm_epi_ucast_routing_flags_t *) event_data;
-               if (p_ucast_routing_flag &&
-                   *p_ucast_routing_flag == UCAST_ROUTING_REROUTE) {
-                       /* We get here in case of subnet re-routing not followed by SUBNET_UP */
-                       /* TODO: notify the distribution thread and push the LFT changes */
-               }
-               break;
-       case OSM_EVENT_ID_SUBNET_UP:
-               /* For now, ignore SUBNET UP events when there is subnet init error */
-               if (osm->subn.subnet_initialization_error)
-                       break;
+			msg.len = sizeof(msg);
+			msg.type = SSA_DB_LFT_CHANGE;
+			write(fd[0], (char *) &msg, sizeof(msg));
+		}
+		break;
+	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
+		p_ucast_routing_flag = (osm_epi_ucast_routing_flags_t *) event_data;
+		if (p_ucast_routing_flag &&
+		    *p_ucast_routing_flag == UCAST_ROUTING_REROUTE) {
+			/* We get here in case of subnet re-routing not followed by SUBNET_UP */
+			/* TODO: notify the distribution thread and push the LFT changes */
+		}
+		break;
+	case OSM_EVENT_ID_SUBNET_UP:
+		/* For now, ignore SUBNET UP events when there is subnet init error */
+		if (osm->subn.subnet_initialization_error)
+			break;
 
-               ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
+		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
 
-               msg.len = sizeof(msg);
-               msg.type = SSA_DB_START_EXTRACT;
-               write(fd[0], (char *) &msg, sizeof(msg));
+		msg.len = sizeof(msg);
+		msg.type = SSA_DB_START_EXTRACT;
+		write(fd[0], (char *) &msg, sizeof(msg));
 
-               break;
-       case OSM_EVENT_ID_STATE_CHANGE:
-               ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
-                       "SM state (%u: %s) change event\n",
-                       osm->subn.sm_state,
-                       sm_state_str(osm->subn.sm_state));
-               break;
-       default:
-               /* Ignoring all other events for now... */
-               if (event_id >= OSM_EVENT_ID_MAX) {
-                       ssa_log(SSA_LOG_ALL, "Unknown event (%d)\n", event_id);
-                       osm_log(&osm->log, OSM_LOG_ERROR,
-                               "Unknown event (%d) reported to SSA plugin\n",
-                               event_id);
-               }
-       }
+		break;
+	case OSM_EVENT_ID_STATE_CHANGE:
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
+			"SM state (%u: %s) change event\n",
+			osm->subn.sm_state,
+			sm_state_str(osm->subn.sm_state));
+		break;
+	default:
+		/* Ignoring all other events for now... */
+		if (event_id >= OSM_EVENT_ID_MAX) {
+			ssa_log(SSA_LOG_ALL, "Unknown event (%d)\n", event_id);
+			osm_log(&osm->log, OSM_LOG_ERROR,
+				"Unknown event (%d) reported to SSA plugin\n",
+				event_id);
+		}
+	}
 }
 
 static void core_set_options(void)
@@ -612,42 +611,42 @@ static void *core_construct(osm_opensm_t *opensm)
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
 	core_log_options();
 
-       ssa_db = ssa_database_init();
-       if (!ssa_db) {
-               ssa_log(SSA_LOG_ALL, "SSA database init failed\n");
-               goto err1;
-       }
+	ssa_db = ssa_database_init();
+	if (!ssa_db) {
+		ssa_log(SSA_LOG_ALL, "SSA database init failed\n");
+		goto err1;
+	}
 
-       ssa_db->p_previous_db = ssa_db_extract_init();
-       if (!ssa_db->p_previous_db) {
-               ssa_log(SSA_LOG_ALL, "ssa_db_init failed (previous SMDB)\n");
-               goto err2;
-       }
-       ssa_db->p_current_db = ssa_db_extract_init();
-       if (!ssa_db->p_current_db) {
-               ssa_log(SSA_LOG_ALL, "ssa_db_init failed (current SMDB)\n");
-               goto err2;
-       }
-       ssa_db->p_dump_db = ssa_db_extract_init();
-       if (!ssa_db->p_dump_db) {
-               ssa_log(SSA_LOG_ALL, "ssa_db_init failed (dump SMDB)\n");
-               goto err2;
-       }
+	ssa_db->p_previous_db = ssa_db_extract_init();
+	if (!ssa_db->p_previous_db) {
+		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (previous SMDB)\n");
+		goto err2;
+	}
+	ssa_db->p_current_db = ssa_db_extract_init();
+	if (!ssa_db->p_current_db) {
+		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (current SMDB)\n");
+		goto err2;
+	}
+	ssa_db->p_dump_db = ssa_db_extract_init();
+	if (!ssa_db->p_dump_db) {
+		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (dump SMDB)\n");
+		goto err2;
+	}
 
-       ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
-       if (ret) {
-               ssa_log(SSA_LOG_ALL, "ERROR %d (%s): creating socketpair\n",
-		       errno, strerror(errno));
-               goto err2;
-       }
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
+	if (ret) {
+		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): creating socketpair\n",
+			errno, strerror(errno));
+		goto err2;
+	}
 
-       ret = pthread_create(&smdb_extract_thread, NULL, ssa_db_run, (void *) opensm);
-       if (ret) {
-               ssa_log(SSA_LOG_ALL, "ERROR %d (%s): error creating smdb extract thread\n", ret, strerror(ret));
-               close(fd[0]);
-               close(fd[1]);
-               goto err2;
-       }
+	ret = pthread_create(&smdb_extract_thread, NULL, ssa_db_run, (void *) opensm);
+	if (ret) {
+		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): error creating smdb extract thread\n", ret, strerror(ret));
+		close(fd[0]);
+		close(fd[1]);
+		goto err2;
+	}
 
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
@@ -675,7 +674,7 @@ static void *core_construct(osm_opensm_t *opensm)
 err3:
 	ssa_close_devices(&ssa);
 err2:
-       ssa_database_delete(ssa_db);
+	ssa_database_delete(ssa_db);
 err1:
 	ssa_cleanup(&ssa);
 	return NULL;
