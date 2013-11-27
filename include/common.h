@@ -155,6 +155,12 @@ enum ssa_conn_type {
 	SSA_CONN_TYPE_DOWNSTREAM
 };
 
+enum ssa_conn_dbtype {
+	SSA_CONN_NODB_TYPE,
+	SSA_CONN_SMDB_TYPE,
+	SSA_CONN_PRDB_TYPE
+};
+
 enum ssa_conn_state {
 	SSA_CONN_IDLE,
 	SSA_CONN_LISTENING,
@@ -173,6 +179,7 @@ enum ssa_db_phase {
 struct ssa_conn {
 	int			rsock;
 	enum ssa_conn_type	type;
+	enum ssa_conn_dbtype	dbtype;
 	enum ssa_conn_state	state;
 	enum ssa_db_phase	phase;
 	union ibv_gid		remote_gid;
@@ -215,7 +222,8 @@ struct ssa_svc {
 	int			sock_accessctrl[2];
 	int			sock_accessup[2];
 	int			sock_accessdown[2];
-	struct ssa_conn		conn_listen;
+	struct ssa_conn		conn_listen_smdb;
+	struct ssa_conn		conn_listen_prdb;
 	struct ssa_conn		conn_dataup;
 	struct ssa_conn		*fd_to_conn[FD_SETSIZE];
 	uint16_t		index;
