@@ -78,6 +78,7 @@ struct ssa_core {
 
 static struct ssa_class ssa;
 struct ssa_database *ssa_db;
+static struct ssa_db_diff *ssa_db_diff = NULL;
 pthread_t ctrl_thread, extract_thread;
 static osm_opensm_t *osm;
 
@@ -425,7 +426,6 @@ static void *ssa_extract_handler(void *context)
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
 	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
-	struct ssa_db_diff *p_ssa_db_diff;
 	int ret;
 
 	pfds[0].fd	= sock_coreextract[1];
@@ -455,14 +455,16 @@ static void *ssa_extract_handler(void *context)
 
 				/* Updating SMDB versions */
 				ssa_db_update(ssa_db);
-				p_ssa_db_diff = ssa_db_compare(ssa_db);
-				if (p_ssa_db_diff) {
+
+				/* Clear previous version */
+				ssa_db_diff_destroy(ssa_db_diff);
+
+				ssa_db_diff = ssa_db_compare(ssa_db);
+				if (ssa_db_diff) {
 					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
 #ifdef CORE_INTEGRATION
-					ssa_db_save(SMDB_DUMP_PATH, p_ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
-					/* TODO: Here the changes are pushed down through distribution tree */
+					ssa_db_save(SMDB_DUMP_PATH, ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
 #endif
-					ssa_db_diff_destroy(p_ssa_db_diff);
 				}
 				first = 0;
 			} else if (msg.type == SSA_DB_LFT_CHANGE) {
@@ -708,6 +710,8 @@ static void core_destroy(void *context)
 
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
+
+	ssa_db_diff_destroy(ssa_db_diff);
 
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
 	msg.len = sizeof(msg);
