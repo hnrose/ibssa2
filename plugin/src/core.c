@@ -78,10 +78,10 @@ struct ssa_core {
 
 static struct ssa_class ssa;
 struct ssa_database *ssa_db;
-pthread_t ctrl_thread, smdb_extract_thread;
+pthread_t ctrl_thread, extract_thread;
 static osm_opensm_t *osm;
 
-static int fd[2];
+static int sock_coreextract[2];
 
 static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			    uint8_t node_type)
@@ -420,15 +420,15 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 	}
 }
 
-static void *ssa_db_run(void *data)
+static void *ssa_extract_handler(void *context)
 {
-	osm_opensm_t *p_osm = (osm_opensm_t *) data;
+	osm_opensm_t *p_osm = (osm_opensm_t *) context;
 	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
 	struct ssa_db_diff *p_ssa_db_diff;
 	int ret;
 
-	pfds[0].fd	= fd[1];
+	pfds[0].fd	= sock_coreextract[1];
 	pfds[0].events	= POLLIN;
 	pfds[0].revents = 0;
 
@@ -442,7 +442,7 @@ static void *ssa_db_run(void *data)
 		}
 
 		if (pfds[0].revents) {
-			read(fd[1], (char *) &msg, sizeof(msg));
+			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			if (msg.type == SSA_DB_START_EXTRACT) {
 				CL_PLOCK_ACQUIRE(&p_osm->lock);
 				ssa_db->p_dump_db = ssa_db_extract(p_osm);
@@ -523,7 +523,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 
 			msg.len = sizeof(msg);
 			msg.type = SSA_DB_LFT_CHANGE;
-			write(fd[0], (char *) &msg, sizeof(msg));
+			write(sock_coreextract[0], (char *) &msg, sizeof(msg));
 		}
 		break;
 	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
@@ -543,7 +543,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 
 		msg.len = sizeof(msg);
 		msg.type = SSA_DB_START_EXTRACT;
-		write(fd[0], (char *) &msg, sizeof(msg));
+		write(sock_coreextract[0], (char *) &msg, sizeof(msg));
 
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
@@ -642,18 +642,18 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err2;
 	}
 
-	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_coreextract);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): creating socketpair\n",
 			errno, strerror(errno));
 		goto err2;
 	}
 
-	ret = pthread_create(&smdb_extract_thread, NULL, ssa_db_run, (void *) opensm);
+	ret = pthread_create(&extract_thread, NULL, ssa_extract_handler, (void *) opensm);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): error creating smdb extract thread\n", ret, strerror(ret));
-		close(fd[0]);
-		close(fd[1]);
+		close(sock_coreextract[0]);
+		close(sock_coreextract[1]);
 		goto err2;
 	}
 
@@ -712,10 +712,10 @@ static void core_destroy(void *context)
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
 	msg.len = sizeof(msg);
 	msg.type = SSA_DB_EXIT;
-	write(fd[0], (char *) &msg, sizeof(msg));
-	pthread_join(smdb_extract_thread, NULL);
-	close(fd[0]);
-	close(fd[1]);
+	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
+	pthread_join(extract_thread, NULL);
+	close(sock_coreextract[0]);
+	close(sock_coreextract[1]);
 
 	ssa_log(SSA_LOG_CTRL, "destroying SMDB\n");
 	ssa_database_delete(ssa_db);
