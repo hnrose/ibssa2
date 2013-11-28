@@ -53,7 +53,6 @@ extern short smdb_port;
 extern short prdb_port;
 
 #ifdef CORE_INTEGRATION
-/* The directory has to be created and be empty before run */
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 #endif
 
