@@ -186,6 +186,12 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "server_port 6125\n");
 	fprintf(f, "\n");
+	fprintf(f, "# prdb_port:\n");
+	fprintf(f, "# Indicates port used for rsocket connection for PRDB\n");
+	fprintf(f, "# default is 7471\n");
+	fprintf(f, "\n");
+	fprintf(f, "# prdb_port 7471\n");
+	fprintf(f, "\n");
 	fprintf(f, "# timeout:\n");
 	fprintf(f, "# Additional time, in milliseconds, that the ACM service will wait for a\n");
 	fprintf(f, "# response from a remote ACM service or the IB SA.  The actual request\n");
