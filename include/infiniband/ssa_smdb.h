@@ -41,10 +41,10 @@
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
 #  define END_C_DECLS   }
-#else                           /* !__cplusplus */
+#else				/* !__cplusplus */
 #  define BEGIN_C_DECLS
 #  define END_C_DECLS
-#endif                          /* __cplusplus */
+#endif				/* __cplusplus */
 
 BEGIN_C_DECLS
 
@@ -202,19 +202,19 @@ struct ep_lft_block_tbl_rec {
 #define SSA_TABLE_BLOCK_SIZE			1024
 
 struct ssa_db *ssa_db_smdb_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs,
-                                uint64_t link_num_recs, uint64_t port_num_recs,
-                                uint64_t pkey_num_recs, uint64_t lft_top_num_recs,
-                                uint64_t lft_block_num_recs);
+				uint64_t link_num_recs, uint64_t port_num_recs,
+				uint64_t pkey_num_recs, uint64_t lft_top_num_recs,
+				uint64_t lft_block_num_recs);
 
 void ssa_db_smdb_destroy(struct ssa_db * p_smdb);
 
 /**********************SUBNET OPTS records*******************************/
 void ep_subnet_opts_tbl_rec_init(osm_subn_t *p_subn,
-                                 struct ep_subnet_opts_tbl_rec * p_rec);
+				 struct ep_subnet_opts_tbl_rec * p_rec);
 
 /**********************GUID to LID records*******************************/
 void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
-                                 struct ep_guid_to_lid_tbl_rec * p_rec);
+				 struct ep_guid_to_lid_tbl_rec * p_rec);
 
 /**********************NODE records**************************************/
 void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec * p_rec);
@@ -227,10 +227,10 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec * p_rec);
 
 /********************** LFT Block records*******************************/
 void ep_lft_block_tbl_rec_init(osm_switch_t *p_sw, uint16_t lid, uint16_t block,
-                               struct ep_lft_block_tbl_rec * p_rec);
+			       struct ep_lft_block_tbl_rec * p_rec);
 
 /********************** LFT Top records*********************************/
 void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top,
-                             struct ep_lft_top_tbl_rec *p_rec);
+			     struct ep_lft_top_tbl_rec *p_rec);
 END_C_DECLS
 #endif				/* _SSA_SMDB_H_ */
