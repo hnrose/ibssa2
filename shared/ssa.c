@@ -1573,7 +1573,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 					pfd2 = (struct  pollfd *)(fds + slot);
 					pfd2->fd = fd;
 					pfd2->events = POLLIN;
-					if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS)
+					if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
 						ssa_downstream_conn_done(svc, conn_data);
 				} else
 					ssa_log_warn(SSA_LOG_CTRL, "no pollfd slot available\n");
@@ -1646,10 +1646,13 @@ static void *ssa_downstream_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_LISTEN:
-				if (svc->port->dev->ssa->node_type != SSA_NODE_ACCESS) {
+				if (svc->port->dev->ssa->node_type &
+				    (SSA_NODE_CORE | SSA_NODE_DISTRIBUTION)) {
 					pfd2 = (struct pollfd *)(fds + 2);
 					pfd2->fd = ssa_downstream_listen(svc, &svc->conn_listen_smdb, smdb_port);
-				} else {
+				}
+				if (svc->port->dev->ssa->node_type &
+				    SSA_NODE_ACCESS) {
 					pfd2 = (struct pollfd *)(fds + 3);
 					pfd2->fd = ssa_downstream_listen(svc, &svc->conn_listen_prdb, prdb_port);
 				}
@@ -2438,7 +2441,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		svc->sock_downctrl[1] = -1;
 	}
 
-	if (port->dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessctrl);
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating access/ctrl socketpair\n");
@@ -2513,7 +2516,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		}
 	}
 
-	if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		ret = pthread_create(&svc->access, NULL, ssa_access_handler, svc);
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
@@ -2538,17 +2541,17 @@ err8:
 err7:
 	pthread_join(svc->upstream, NULL);
 err6:
-	if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		close(svc->sock_accessdown[0]);
 		close(svc->sock_accessdown[1]);
 	}
 err5:
-	if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		close(svc->sock_accessup[0]);
 		close(svc->sock_accessup[1]);
 	}
 err4:
-	if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		close(svc->sock_accessctrl[0]);
 		close(svc->sock_accessctrl[1]);
 	}
@@ -2652,7 +2655,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 		ssa_open_port(ssa_dev_port(dev, i), dev, i);
 
 #ifdef CORE_INTEGRATION
-	if (dev->ssa->node_type == SSA_NODE_CORE) {
+	if (dev->ssa->node_type & SSA_NODE_CORE) {
 		/* if configured, invoke SMDB preloading */
 
 		smdb = ssa_db_load(SMDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
@@ -2669,7 +2672,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 #endif
 
 #ifdef ACCESS_INTEGRATION
-	if (dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
 		/* if configured, invoke PR and/or SSA DB preloading */
 
 		prdb = ssa_db_load(PRDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
@@ -2780,7 +2783,7 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	msg.type = SSA_CTRL_EXIT;
 	write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	pthread_join(svc->upstream, NULL);
-	if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		write(svc->sock_accessctrl[0], (char *) &msg, sizeof msg);
 		pthread_join(svc->access, NULL);
 	}
@@ -2794,7 +2797,7 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 		ssa_close_ssa_conn(&svc->conn_listen_smdb);
 	if (svc->conn_listen_prdb.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_listen_prdb);
-	if (svc->port->dev->ssa->node_type == SSA_NODE_ACCESS) {
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		close(svc->sock_accessdown[0]);
 		close(svc->sock_accessdown[1]);
 		close(svc->sock_accessctrl[0]);
