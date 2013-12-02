@@ -43,11 +43,11 @@
 #include <poll.h>
 
 const char *port_state_str[] = {
-        "No change",
-        "Down",
-        "Initialize",
-        "Armed",
-        "Active"
+	"No change",
+	"Down",
+	"Initialize",
+	"Armed",
+	"Active"
 };
 
 extern struct ssa_database *ssa_db;
