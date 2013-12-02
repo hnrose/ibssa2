@@ -128,6 +128,8 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db_extract * p_previous_d
 			&p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	uint8_t dirty = p_ssa_db_diff->dirty;
 
+	p_subnet_opts->change_mask = 0;
+
 	if (!p_previous_db->initialized && p_current_db->initialized) {
 		p_subnet_opts->subnet_prefix = p_current_db->subnet_prefix;
 		p_subnet_opts->sm_state = p_current_db->sm_state;
