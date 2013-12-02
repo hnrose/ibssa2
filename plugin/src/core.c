@@ -87,7 +87,7 @@ static int sock_coreextract[2];
 static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			    uint8_t node_type)
 {
-	static union ibv_gid *access_gid = NULL; 
+	static union ibv_gid *access_gid = NULL;
 
 	/*
 	 * For now, issue SA path query here.
@@ -105,7 +105,7 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 	 * If consumer (ACM) node, the SGID is the
 	 * port of the previous joined access node.
 	 * If there is no previous access node, this
-	 * is treated as an error. 
+	 * is treated as an error.
 	 *
 	 * Longer term, SGID needs to come from the tree
 	 * calculation code so rather than query PathRecord
@@ -590,7 +590,7 @@ static void core_set_options(void)
 		else if (!strcasecmp("smdb_port", opt))
 			smdb_port = (short) atoi(value);
 		else if (!strcasecmp("prdb_port", opt))
-			prdb_port = (short) atoi(value);	
+			prdb_port = (short) atoi(value);
 	}
 
 	fclose(f);

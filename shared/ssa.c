@@ -616,7 +616,7 @@ static void ssa_upstream_update_phase(struct ssa_conn *conn, uint16_t op)
 		conn->phase = SSA_DB_TBL_DEFS;
 		break;
 	case SSA_MSG_DB_QUERY_FIELD_DEF_DATASET:
-		conn->phase = SSA_DB_FIELD_DEFS;		
+		conn->phase = SSA_DB_FIELD_DEFS;
 		break;
 	case SSA_MSG_DB_QUERY_DATA_DATASET:
 		conn->phase = SSA_DB_DATA;
