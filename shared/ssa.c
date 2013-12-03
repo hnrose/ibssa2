@@ -2800,6 +2800,8 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		close(svc->sock_accessdown[0]);
 		close(svc->sock_accessdown[1]);
+		close(svc->sock_accessup[0]);
+		close(svc->sock_accessup[1]);
 		close(svc->sock_accessctrl[0]);
 		close(svc->sock_accessctrl[1]);
 	}
