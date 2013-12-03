@@ -87,7 +87,8 @@ static int sock_coreextract[2];
 static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			    uint8_t node_type)
 {
-	static union ibv_gid *access_gid = NULL;
+	static int access_init = 0;
+	static union ibv_gid access_gid;
 
 	/*
 	 * For now, issue SA path query here.
@@ -117,15 +118,20 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 	 */
 	switch (node_type) {
 	case SSA_NODE_ACCESS:
-		if (access_gid)
+		if (access_init)
 			ssa_log_warn(SSA_LOG_CTRL, "access node previously joined\n");
-		access_gid = gid;
+		access_init = 1;
+		memcpy(&access_gid, gid, 16);
+		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
+				sizeof log_data, SSA_ADDR_GID,
+				access_gid.raw, sizeof access_gid.raw);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
 	case SSA_NODE_CORE:
 		ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_CONSUMER:
-		if (access_gid)
-			ssa_svc_query_path(svc, access_gid, gid);
+		if (access_init)
+			ssa_svc_query_path(svc, &access_gid, gid);
 		else
 			ssa_log_err(SSA_LOG_CTRL, "no access node joined as yet\n");
 		break;
