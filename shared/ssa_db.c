@@ -339,3 +339,20 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 	free(p_ssa_db);
 	p_ssa_db = NULL;
 }
+
+/** =========================================================================
+ */
+uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db)
+{
+	uint64_t i, data_tbl_cnt = 0;
+
+	if (!p_ssa_db || !p_ssa_db->p_def_tbl)
+		goto out;
+
+	for (i = 0; i < ntohll(p_ssa_db->db_table_def.set_count); i++)
+		if (p_ssa_db->p_def_tbl[i].type == DBT_TYPE_DATA)
+			data_tbl_cnt++;
+
+out:
+	return data_tbl_cnt;
+}

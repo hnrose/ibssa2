@@ -417,6 +417,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 		 const struct db_field_def *field_tbl);
 
 void ssa_db_destroy(struct ssa_db * p_ssa_db);
+uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db);
 #ifdef __cplusplus
 }
 #endif
