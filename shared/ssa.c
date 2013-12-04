@@ -851,6 +851,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 {
 	short revents = events;
+	int data_tbl_cnt;
 
 	switch (svc->conn_dataup.phase) {
 	case SSA_DB_IDLE:
@@ -894,8 +895,9 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 		} else {
 			if (!svc->conn_dataup.ssa_db->p_db_field_tables) {
 				svc->conn_dataup.ssa_db->p_db_field_tables = svc->conn_dataup.rbuf;
-				svc->conn_dataup.ssa_db->pp_field_tables = malloc(ntohll(svc->conn_dataup.ssa_db->p_db_field_tables->set_size));
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p len %d\n", svc->conn_dataup.ssa_db->pp_field_tables, ntohll(svc->conn_dataup.ssa_db->p_db_field_tables->set_size));
+				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
+				svc->conn_dataup.ssa_db->pp_field_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_field_tables));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p num tables %d\n", svc->conn_dataup.ssa_db->pp_field_tables, data_tbl_cnt);
 				svc->conn_dataup.rindex = 0;
 			} else {
 				if (svc->conn_dataup.ssa_db->pp_field_tables)
@@ -921,8 +923,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p\n", svc->conn_dataup.rin
 		} else {
 			if (!svc->conn_dataup.ssa_db->p_db_tables) {
 				svc->conn_dataup.ssa_db->p_db_tables = svc->conn_dataup.rbuf;
-				svc->conn_dataup.ssa_db->pp_tables = malloc(ntohll(svc->conn_dataup.ssa_db->p_db_tables->set_size));
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p len %d\n", svc->conn_dataup.ssa_db->pp_tables, ntohll(svc->conn_dataup.ssa_db->p_db_tables->set_size));
+				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
+				svc->conn_dataup.ssa_db->pp_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_tables));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %d\n", svc->conn_dataup.ssa_db->pp_tables, data_tbl_cnt);
 				svc->conn_dataup.rindex = 0;
 			} else {
 				if (svc->conn_dataup.ssa_db->pp_tables)
@@ -940,7 +943,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p\n", svc->conn_dataup.rindex, s
 						     SSA_MSG_DB_QUERY_DATA_DATASET,
 						     events);
 		} else {
-			svc->conn_dataup.ssa_db->data_tbl_cnt = svc->conn_dataup.rindex;
+			svc->conn_dataup.ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
 ssa_log(SSA_LOG_DEFAULT, "ssa_db %p complete with num tables %d\n", svc->conn_dataup.ssa_db, svc->conn_dataup.ssa_db->data_tbl_cnt);
 			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db, 0, NULL);
 		}
