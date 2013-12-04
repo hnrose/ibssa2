@@ -850,8 +850,8 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 {
+	uint64_t data_tbl_cnt;
 	short revents = events;
-	int data_tbl_cnt;
 
 	switch (svc->conn_dataup.phase) {
 	case SSA_DB_IDLE:
