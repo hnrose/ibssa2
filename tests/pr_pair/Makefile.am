@@ -33,8 +33,7 @@
 SUBDIRS = .
 
 
-INCLUDES =-I$(srcdir)/include -I.  -I$(IBSSA_SRC)/include -I$(IBSSA_SRC)/include/infiniband -I$(OSM_PATH)/local/include \
-		 -I../../src -I../../include 
+INCLUDES = -I$(srcdir)/include -I$(IBSSA_SRC)/include/ -I$(IBSSA_SRC)/include/infiniband -I$(prefix)/include -I$(prefix)/include/infiniband
 
 
 # Support debug mode through config variable
