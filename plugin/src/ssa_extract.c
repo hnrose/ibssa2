@@ -565,7 +565,7 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 			port_tbl_rec.neighbor_mtu, port_tbl_rec.rate & SSA_DB_PORT_RATE_MASK);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			(port_tbl_rec.rate & SSA_DB_PORT_IS_FDR10_ACTIVE_MASK) ? "" : "not");
-		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n", ntohs(port_tbl_rec.pkey_tbl_size) *
+		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n", ntohs(port_tbl_rec.pkey_tbl_size) /
 			sizeof(*p_ssa_db->p_pkey_tbl));
 	}
 
