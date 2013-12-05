@@ -356,14 +356,14 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	switch(msg->hdr.type) {
 	case SSA_CTRL_MAD:
 		return distrib_process_ssa_mad(svc, msg);
-#ifdef CORE_INTEGRATION
 	case SSA_DB_UPDATE:
 		ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
+#ifdef CORE_INTEGRATION
 		ssa_db_save(SMDB_DUMP_PATH,
 			    (struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db),
 			    SSA_DB_HELPER_DEBUG);
-		return 1;
 #endif
+		return 1;
 	default:
 		break;
 	}
