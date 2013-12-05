@@ -258,8 +258,6 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 Error:
 	if(p_prdb) {
 		ssa_db_destroy(p_prdb);
-		free(p_prdb);
-		p_prdb = NULL;
 		return NULL;
 	}
 }
