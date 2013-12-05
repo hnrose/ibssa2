@@ -88,23 +88,31 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			    uint8_t node_type)
 {
 	static int access_init = 0;
+	static int distrib_init = 0;
 	static union ibv_gid access_gid;
+	static union ibv_gid distrib_gid;
 
 	/*
 	 * For now, issue SA path query here.
 	 * DGID is from incoming join.
 	 *
-	 * Latest prototype is to support single
-	 * plugin/core <-> access <-> ACM. Also, it
+	 * Latest prototype is to support either
+	 * plugin/core <-> distribution <-> access <-> ACM 
+	 * or plugin/core <-> access <-> ACM. Also, it
 	 * is a current requirement (limitation) that
 	 * the access node needs to join prior to the
-	 * ACM.
+	 * ACM. Similarly, the distribution node should
+	 * join prior to the access node.
 	 *
-	 * With those assumptions,
-	 * SGID depends on node type. If access node,
-	 * the SGID is the port join came in on.
-	 * If consumer (ACM) node, the SGID is the
-	 * port of the previous joined access node.
+	 * With those assumptions, the SGID depends on the
+	 * node type. If it's a distribution node, the SGID
+	 * is the port GID that the join came in on. 
+	 * If it's an access node, the SGID is the port GID of
+	 * the previously joined distribution node, and if no
+	 * distribution nodes have yet joined, then it's
+	 * the port GID that the join came in on.
+	 * If it's a consumer (ACM) node, the SGID is the
+	 * port GID of the previous joined access node.
 	 * If there is no previous access node, this
 	 * is treated as an error.
 	 *
@@ -117,6 +125,16 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 	 *
 	 */
 	switch (node_type) {
+	case SSA_NODE_DISTRIBUTION:
+		if (distrib_init)
+			ssa_log_warn(SSA_LOG_CTRL, "distribution node previously joined\n");
+		distrib_init =1;
+		memcpy(&distrib_gid, gid, 16);
+		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
+				sizeof log_data, SSA_ADDR_GID,
+				distrib_gid.raw, sizeof distrib_gid.raw);
+		ssa_svc_query_path(svc, &svc->port->gid, gid);
+		break;
 	case SSA_NODE_ACCESS:
 		if (access_init)
 			ssa_log_warn(SSA_LOG_CTRL, "access node previously joined\n");
@@ -126,6 +144,11 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 				sizeof log_data, SSA_ADDR_GID,
 				access_gid.raw, sizeof access_gid.raw);
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
+		if (distrib_init) {
+			ssa_svc_query_path(svc, &distrib_gid, gid);
+		} else
+			ssa_svc_query_path(svc, &svc->port->gid, gid);
+		break;
 	case SSA_NODE_CORE:
 		ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
@@ -134,9 +157,6 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			ssa_svc_query_path(svc, &access_gid, gid);
 		else
 			ssa_log_err(SSA_LOG_CTRL, "no access node joined as yet\n");
-		break;
-	case SSA_NODE_DISTRIBUTION:
-		ssa_log_warn(SSA_LOG_CTRL, "distribution nodes not yet supported\n");
 		break;
 	}
 }
