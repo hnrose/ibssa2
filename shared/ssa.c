@@ -844,6 +844,8 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	msg.db_upd.db = db;
 	msg.db_upd.flags = flags;
 	msg.db_upd.remote_gid = gid;
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
+		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
 	if (svc->process_msg)
 		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg);
 }
@@ -1776,10 +1778,12 @@ static void *ssa_access_handler(void *context)
 		ssa_log_err(SSA_LOG_CTRL, "access context is empty\n");
 		goto out;
 	}
+#ifdef ACCESS_INTEGRATION
 	if (!access_context.smdb) {
 		ssa_log_err(SSA_LOG_CTRL, "smdb database is empty\n");
 		goto out;
 	}
+#endif
 
 	for (;;) {
 		ret = poll(&fds[0], 3, -1);
@@ -1826,6 +1830,10 @@ static void *ssa_access_handler(void *context)
 #endif
 
 			switch (msg.hdr.type) {
+			case SSA_DB_UPDATE:
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update: ssa_db %p\n", msg.data.db_upd.db);
+				access_context.smdb = msg.data.db_upd.db;
+				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "ignoring unexpected message type %d from upstream\n",
@@ -1862,24 +1870,30 @@ static void *ssa_access_handler(void *context)
 				/* Now, tell downstream where this ssa_db struct is */
 				/* Replace NULL with pointer to real struct ssa_db */
 #ifdef ACCESS
-				/* This call pulls in access layer for all node types !!! */
-				prdb = ssa_pr_compute_half_world(access_context.smdb,
-								 access_context.context,
-								 msg.data.conn->remote_gid.global.interface_id);
+				if (access_context.smdb) {
+					/* This call pulls in access layer for all node types !!! */
+					prdb = ssa_pr_compute_half_world(access_context.smdb,
+									 access_context.context,
+									 msg.data.conn->remote_gid.global.interface_id);
 #endif
-				if (!prdb) {
+					if (!prdb) {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "prdb creation for GID %s\n",
+							    log_data);
+						continue;
+					}
+					ssa_access_send_db_update(svc, prdb,
+								  msg.data.conn->rsock, 0,
+								  &msg.data.conn->remote_gid);
+					/*
+					 * TODO: destroy prdb database
+					 * ssa_db_destroy(prdb);
+					 */
+#ifdef ACCESS
+				} else
 					ssa_log_err(SSA_LOG_CTRL,
-						    "prdb creation for GID %s\n",
-						    log_data);
-					continue;
-				}
-				ssa_access_send_db_update(svc, prdb,
-							  msg.data.conn->rsock, 0,
-							  &msg.data.conn->remote_gid);
-				/*
-				 * TODO: destroy prdb database
-				 * ssa_db_destroy(prdb);
-				 */
+						    "smdb database is empty\n");
+#endif
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2674,8 +2688,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	}
 #endif
 
-#ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
+#ifdef ACCESS_INTEGRATION
 		/* if configured, invoke PR and/or SSA DB preloading */
 
 		prdb = ssa_db_load(PRDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
@@ -2688,7 +2702,9 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 				"prdb is loaded from \"%s\"\n",
 				PRDB_PRELOAD_PATH);
 		}
+#endif
 
+#ifdef ACCESS
 		/*
 		 * TODO:
 		 * 1. Pass required log verbosity. Now access layer has:
@@ -2705,7 +2721,9 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 				    "unable to create access layer context\n");
 			goto ctx_create_err;
 		}
+#endif
 
+#ifdef ACCESS_INTEGRATION
 		if (!access_context.smdb)
 			access_context.smdb = ssa_db_load(SMDB_PRELOAD_PATH,
 							  SSA_DB_HELPER_DEBUG);
@@ -2718,8 +2736,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 			"access context is created, smdb is loaded from \"%s\"\n",
 			SMDB_PRELOAD_PATH);
-	}
 #endif
+	}
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
@@ -2728,18 +2746,20 @@ err1:
 	ibv_close_device(dev->verbs);
 	dev->verbs = NULL;
 
-#ifdef ACCESS_INTEGRATION
+#ifdef ACCESS
 ctx_create_err:
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
 	}
+#endif
+#ifdef ACCESS_INTEGRATION
 	if (access_context.smdb) {
 		ssa_db_destroy(access_context.smdb);
 		access_context.smdb = NULL;
 	}
-	seterr(ENOMEM);
 #endif
+	seterr(ENOMEM);
 }
 
 int ssa_open_devices(struct ssa_class *ssa)
@@ -2862,11 +2882,13 @@ void ssa_close_devices(struct ssa_class *ssa)
 	free(ssa->dev);
 	ssa->dev_cnt = 0;
 
-#ifdef ACCESS_INTEGRATION
+#ifdef ACCESS
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
 	}
+#endif
+#ifdef ACCESS_INTEGRATION
 	if (access_context.smdb) {
 		ssa_db_destroy(access_context.smdb);
 		access_context.smdb = NULL;
