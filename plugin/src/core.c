@@ -133,6 +133,7 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
 				distrib_gid.raw, sizeof distrib_gid.raw);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "distribution node GID %s\n", log_data);
 		ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_ACCESS:
