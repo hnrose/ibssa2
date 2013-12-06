@@ -1295,10 +1295,7 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 
 static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 {
-#ifdef CORE_INTEGRATION
-	return smdb;
-#else
-	/* Use SSA DB if available; otherwise use PR DB */
+	/* Use SSA DB if available; otherwise use preloaded DB */
 	if (conn->ssa_db)
 		return conn->ssa_db;
 #ifdef ACCESS_INTEGRATION
@@ -1307,7 +1304,6 @@ static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
 		return smdb;
 	return NULL;
-#endif
 #endif
 }
 
