@@ -437,6 +437,8 @@ static int distrib_convert_node_type(const char *node_type_string)
 
 	if (!strcasecmp("distrib", node_type_string))
 		node_type = SSA_NODE_DISTRIBUTION;
+	if (!strcasecmp("combined", node_type_string))
+		node_type |= SSA_NODE_DISTRIBUTION;
 	return node_type;
 }
 
@@ -479,6 +481,8 @@ static const char *ssa_node_type_str(int node_type)
 		return "Access";
 	if (node_type == SSA_NODE_DISTRIBUTION)
 		return "Distribution";
+	if (node_type == (SSA_NODE_ACCESS | SSA_NODE_DISTRIBUTION))
+		return "Combined";
 	return "Other";
 }
 
