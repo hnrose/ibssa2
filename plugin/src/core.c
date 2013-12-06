@@ -468,7 +468,7 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 	}
 }
 
-static void *ssa_extract_handler(void *context)
+static void *core_extract_handler(void *context)
 {
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
 	struct pollfd pfds[1];
@@ -698,7 +698,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err2;
 	}
 
-	ret = pthread_create(&extract_thread, NULL, ssa_extract_handler, (void *) opensm);
+	ret = pthread_create(&extract_thread, NULL, core_extract_handler, (void *) opensm);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): error creating smdb extract thread\n", ret, strerror(ret));
 		close(sock_coreextract[0]);
