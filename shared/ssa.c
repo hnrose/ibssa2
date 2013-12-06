@@ -2152,7 +2152,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	}
 
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-		"new connection accepted on fd %d\n", fd);
+		"new connection accepted on fd %d dbtype %d\n", fd, conn->dbtype);
 
 	peer_len = sizeof(peer_addr);
 	if (!rgetpeername(fd, (struct sockaddr *) &peer_addr, &peer_len)) {
