@@ -620,7 +620,8 @@ static void ssa_upstream_update_phase(struct ssa_conn *conn, uint16_t op)
 		conn->phase = SSA_DB_DATA;
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
-		ssa_log_warn(SSA_LOG_CTRL, "SSA_MSG_DB_PUBLISH_EPOCH_BUF not currently supported\n");
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "SSA_MSG_DB_PUBLISH_EPOCH_BUF not currently supported\n");
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL, "unknown op %u\n", op);
@@ -653,11 +654,15 @@ static short ssa_upstream_query(struct ssa_svc *svc, uint16_t op, short events)
 				return POLLOUT | POLLIN;
 			}
 		} else {
-			ssa_log_err(SSA_LOG_CTRL, "ssa_upstream_send_query for op %u failed\n", op);
+			ssa_log_err(SSA_LOG_CTRL,
+				    "ssa_upstream_send_query for op %u failed\n",
+				    op);
 			return 0;
 		}
 	} else
-		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr for ssa_upstream_send_query for op %u\n", op);
+		ssa_log_err(SSA_LOG_CTRL,
+			    "failed to allocate ssa_msg_hdr for ssa_upstream_send_query for op %u\n",
+			    op);
 	return events;
 }
 
@@ -712,7 +717,9 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 
 	if (conn->phase == SSA_DB_DEFS) {
 		if (conn->sid != ntohl(hdr->id)) {
-			ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF/TBL_DEF ids 0x%x 0x%x don't match\n", conn->sid, ntohl(hdr->id));
+			ssa_log(SSA_LOG_DEFAULT,
+				"SSA_MSG_DB_QUERY_DEF/TBL_DEF ids 0x%x 0x%x don't match\n",
+				conn->sid, ntohl(hdr->id));
 		} else {
 			conn->rhdr = hdr;
 			if (conn->rindex)
@@ -720,7 +727,9 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 			else
 				size = sizeof(struct db_def);
 			if (ntohl(hdr->len) != sizeof(*hdr) + size)
-				ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF/TBL_DEF response length %d is not the expected length %d\n", ntohl(hdr->len), sizeof(*hdr) + size);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA_MSG_DB_QUERY_DEF/TBL_DEF response length %d is not the expected length %d\n",
+					ntohl(hdr->len), sizeof(*hdr) + size);
 			else {
 				if (conn->rindex)
 					conn->rbuf = &conn->ssa_db->db_table_def;
@@ -736,7 +745,9 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 			}
 		}
 	} else
-		ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DEF phase %d not SSA_DB_DEFS\n", conn->phase);
+		ssa_log(SSA_LOG_DEFAULT,
+			"SSA_MSG_DB_QUERY_DEF phase %d not SSA_DB_DEFS\n",
+			conn->phase);
 }
 
 static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
@@ -747,13 +758,16 @@ static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
 
 	if (conn->phase == SSA_DB_TBL_DEFS) {
 		if (conn->sid != ntohl(hdr->id)) {
-			ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_TBL_DEF ids 0x%x 0x%x don't match\n", conn->sid, ntohl(hdr->id));
+			ssa_log(SSA_LOG_DEFAULT,
+				"SSA_MSG_DB_QUERY_TBL_DEF ids 0x%x 0x%x don't match\n",
+				conn->sid, ntohl(hdr->id));
 		} else {
 			conn->rhdr = hdr;
 			if (ntohl(hdr->len) > sizeof(*hdr)) {
 				buf = malloc(ntohl(hdr->len) - sizeof(*hdr));
 				if (!buf)
-					ssa_log(SSA_LOG_DEFAULT, "no rrecv buffer available\n");
+					ssa_log(SSA_LOG_DEFAULT,
+						"no rrecv buffer available\n");
 				else {
 					conn->rbuf = buf;
 					conn->rsize = ntohl(hdr->len) - sizeof(*hdr);
@@ -767,7 +781,9 @@ static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
 			}
 		}
 	} else
-		ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_TBL_DEF phase %d not SSA_DB_TBL_DEFS\n", conn->phase);
+		ssa_log(SSA_LOG_DEFAULT,
+			"SSA_MSG_DB_QUERY_TBL_DEF phase %d not SSA_DB_TBL_DEFS\n",
+			conn->phase);
 }
 
 static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
@@ -778,13 +794,16 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 
 	if (conn->phase == SSA_DB_FIELD_DEFS) {
 		if (conn->sid != ntohl(hdr->id)) {
-			ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_FIELD_DEF ids 0x%x 0x%x don't match\n", conn->sid, ntohl(hdr->id));
+			ssa_log(SSA_LOG_DEFAULT,
+				"SSA_MSG_DB_QUERY_FIELD_DEF ids 0x%x 0x%x don't match\n",
+				conn->sid, ntohl(hdr->id));
 		} else {
 			conn->rhdr = hdr;
 			if (ntohl(hdr->len) > sizeof(*hdr)) {
 				buf = malloc(ntohl(hdr->len) - sizeof(*hdr));
 				if (!buf)
-					ssa_log(SSA_LOG_DEFAULT, "no rrecv buffer available\n");
+					ssa_log(SSA_LOG_DEFAULT,
+						"no rrecv buffer available\n");
 				else {
 					conn->rbuf = buf;
 					conn->rsize = ntohl(hdr->len) - sizeof(*hdr);
@@ -798,7 +817,9 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 			}
 		}
 	} else
-		ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_FIELD_DEF phase %d not SSA_DB_FIELD_DEFS\n", conn->phase);
+		ssa_log(SSA_LOG_DEFAULT,
+			"SSA_MSG_DB_QUERY_FIELD_DEF phase %d not SSA_DB_FIELD_DEFS\n",
+			conn->phase);
 }
 
 static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
@@ -809,13 +830,16 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 
 	if (conn->phase == SSA_DB_DATA) {
 		if (conn->sid != ntohl(hdr->id)) {
-			ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DATA_DATASET ids 0x%x 0x%x don't match\n", conn->sid, ntohl(hdr->id));
+			ssa_log(SSA_LOG_DEFAULT,
+				"SSA_MSG_DB_QUERY_DATA_DATASET ids 0x%x 0x%x don't match\n",
+				conn->sid, ntohl(hdr->id));
 		} else {
 			conn->rhdr = hdr;
 			if (ntohl(hdr->len) > sizeof(*hdr)) {
 				buf = malloc(ntohl(hdr->len) - sizeof(*hdr));
 				if (!buf)
-					ssa_log(SSA_LOG_DEFAULT, "no rrecv buffer available\n");
+					ssa_log(SSA_LOG_DEFAULT,
+						"no rrecv buffer available\n");
 				else {
 					conn->rbuf = buf;
 					conn->rsize = ntohl(hdr->len) - sizeof(*hdr);
@@ -829,7 +853,9 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 			}
 		}
 	} else
-		ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_QUERY_DATA_DATASET phase %d not SSA_DB_DATA\n", conn->phase);
+		ssa_log(SSA_LOG_DEFAULT,
+			"SSA_MSG_DB_QUERY_DATA_DATASET phase %d not SSA_DB_DATA\n",
+			conn->phase);
 }
 
 static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
@@ -947,11 +973,13 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p\n", svc->conn_dataup.rindex, s
 		} else {
 			svc->conn_dataup.ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
 ssa_log(SSA_LOG_DEFAULT, "ssa_db %p complete with num tables %d\n", svc->conn_dataup.ssa_db, svc->conn_dataup.ssa_db->data_tbl_cnt);
-			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db, 0, NULL);
+			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db,
+						    0, NULL);
 		}
 		break;
 	default:
-		ssa_log(SSA_LOG_DEFAULT, "unknown phase %d\n", svc->conn_dataup.phase);
+		ssa_log(SSA_LOG_DEFAULT, "unknown phase %d\n",
+			svc->conn_dataup.phase);
 		break;
 	}
 	return revents;
@@ -965,7 +993,9 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 
 	op = ntohs(hdr->op);
 	if (!(ntohs(hdr->flags) & SSA_MSG_FLAG_RESP))
-		ssa_log(SSA_LOG_DEFAULT, "Ignoring SSA_MSG_FLAG_RESP not set in op %u response in phase %d\n", op, svc->conn_dataup.phase);
+		ssa_log(SSA_LOG_DEFAULT,
+			"Ignoring SSA_MSG_FLAG_RESP not set in op %u response in phase %d\n",
+			op, svc->conn_dataup.phase);
 	switch (op) {
 	case SSA_MSG_DB_QUERY_DEF:
 	case SSA_MSG_DB_QUERY_TBL_DEF:
@@ -977,9 +1007,13 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 									   events);
 				}
 			} else
-				ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DEFS received id 0x%x expected id 0x%x\n", ntohl(hdr->id), svc->conn_dataup.sid);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA_DB_DEFS received id 0x%x expected id 0x%x\n",
+					ntohl(hdr->id), svc->conn_dataup.sid);
 		} else
-			ssa_log(SSA_LOG_DEFAULT, "phase %d is not SSA_DB_DEFS\n", svc->conn_dataup.phase);
+			ssa_log(SSA_LOG_DEFAULT,
+				"phase %d is not SSA_DB_DEFS\n",
+				svc->conn_dataup.phase);
 		break;
 	case SSA_MSG_DB_QUERY_TBL_DEF_DATASET:
 		ssa_upstream_handle_query_tbl_defs(&svc->conn_dataup, hdr);
@@ -990,9 +1024,13 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 									   events);
 				}
 			} else
-				ssa_log(SSA_LOG_DEFAULT, "SSA_DB_TBL_DEFS received id 0x%x expected id 0x%x\n", ntohl(hdr->id), svc->conn_dataup.sid);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA_DB_TBL_DEFS received id 0x%x expected id 0x%x\n",
+					ntohl(hdr->id), svc->conn_dataup.sid);
 		} else
-			ssa_log(SSA_LOG_DEFAULT, "phase %d is not SSA_DB_TBL_DEFS\n", svc->conn_dataup.phase);
+			ssa_log(SSA_LOG_DEFAULT,
+				"phase %d is not SSA_DB_TBL_DEFS\n",
+				svc->conn_dataup.phase);
 		break;
 	case SSA_MSG_DB_QUERY_FIELD_DEF_DATASET:
 		ssa_upstream_handle_query_field_defs(&svc->conn_dataup, hdr);
@@ -1003,9 +1041,13 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 									   events);
 				}
 			} else
-				ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS received id 0x%x expected id 0x%x\n", ntohl(hdr->id), svc->conn_dataup.sid);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA_DB_FIELD_DEFS received id 0x%x expected id 0x%x\n",
+					ntohl(hdr->id), svc->conn_dataup.sid);
 		} else
-			ssa_log(SSA_LOG_DEFAULT, "phase %d is not SSA_DB_FIELD_DEFS\n", svc->conn_dataup.phase);
+			ssa_log(SSA_LOG_DEFAULT,
+				"phase %d is not SSA_DB_FIELD_DEFS\n",
+				svc->conn_dataup.phase);
 		break;
 	case SSA_MSG_DB_QUERY_DATA_DATASET:
 		ssa_upstream_handle_query_data(&svc->conn_dataup, hdr);
@@ -1017,12 +1059,17 @@ cate check !!! */
 									   events);
 				}
 			} else
-				ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA received id 0x%x expected id 0x%x\n", ntohl(hdr->id), svc->conn_dataup.sid);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA_DB_DATA received id 0x%x expected id 0x%x\n",
+					ntohl(hdr->id), svc->conn_dataup.sid);
 		} else
-			ssa_log(SSA_LOG_DEFAULT, "phase %d is not SSA_DB_DATA\n", svc->conn_dataup.phase);
+			ssa_log(SSA_LOG_DEFAULT,
+				"phase %d is not SSA_DB_DATA\n",
+				svc->conn_dataup.phase);
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
-		ssa_log_warn(SSA_LOG_CTRL, "SSA_MSG_DB_PUBLISH_EPOCH_BUF not supported yet\n");
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "SSA_MSG_DB_PUBLISH_EPOCH_BUF not supported yet\n");
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL, "unknown op %u\n", op);
@@ -1049,10 +1096,17 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events)
 				if (validate_ssa_msg_hdr(hdr)) {
 					op = ntohs(hdr->op);
 					if (!(ntohs(hdr->flags) & SSA_MSG_FLAG_RESP))
-						ssa_log(SSA_LOG_DEFAULT, "Ignoring SSA_MSG_FLAG_RESP not set in op %u response in phase %d\n", op, svc->conn_dataup.phase);
+						ssa_log(SSA_LOG_DEFAULT,
+							"Ignoring SSA_MSG_FLAG_RESP not set in op %u response in phase %d\n",
+							op,
+							svc->conn_dataup.phase);
 					revents = ssa_upstream_handle_op(svc, hdr, events);
 				} else
-					ssa_log_warn(SSA_LOG_CTRL, "validate_ssa_msg_hdr failed: version %d class %d op %u id 0x%x\n", hdr->version, hdr->class, ntohs(hdr->op), ntohl(hdr->id));
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "validate_ssa_msg_hdr failed: version %d class %d op %u id 0x%x\n",
+						     hdr->version, hdr->class,
+						     ntohs(hdr->op),
+						     ntohl(hdr->id));
 			} else {
 				revents = ssa_upstream_update_conn(svc, events);
 			}
@@ -1131,7 +1185,8 @@ static void *ssa_upstream_handler(void *context)
 						if (conn_req->svc->conn_dataup.ssa_db) {
 							fds[2].events = ssa_upstream_update_conn(conn_req->svc, fds[2].events);
 						} else {
-							ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ssa_db struct\n");
+							ssa_log_err(SSA_LOG_DEFAULT,
+								    "could not allocate ssa_db struct\n");
 						}
 					}
 				}
@@ -1200,7 +1255,10 @@ static void *ssa_upstream_handler(void *context)
 				}
 			}
 			if (fds[2].revents & ~(POLLOUT | POLLIN)) {
-				ssa_log(SSA_LOG_DEFAULT, "unexpected event 0x%x on upstream rsock %d\n", fds[2].revents & ~(POLLOUT | POLLIN), fds[2].fd);
+				ssa_log(SSA_LOG_DEFAULT,
+					"unexpected event 0x%x on upstream rsock %d\n",
+					fds[2].revents & ~(POLLOUT | POLLIN),
+					fds[2].fd);
 			}
 
 			fds[2].revents = 0;
@@ -1249,7 +1307,9 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 				return POLLOUT | POLLIN;
 		}
 	} else
-		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr for response to op %d\n", op);
+		ssa_log_err(SSA_LOG_CTRL,
+			    "failed to allocate ssa_msg_hdr for response to op %d\n",
+			    op);
 	return events;
 }
 
@@ -1289,7 +1349,9 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 				return POLLOUT | POLLIN;
 		}
 	} else
-		ssa_log_err(SSA_LOG_CTRL, "failed to allocate ssa_msg_hdr for response to op %u\n", len, op);
+		ssa_log_err(SSA_LOG_CTRL,
+			    "failed to allocate ssa_msg_hdr for response to op %u\n",
+			    len, op);
 	return events;
 }
 
@@ -1335,7 +1397,9 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 					      sizeof(ssadb->db_def),
 					      events);
 	} else
-		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_IDLE for SSA_MSG_DB_QUERY_DEF\n", conn->rsock, conn->phase);
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "rsock %d phase %d not SSA_DB_IDLE for SSA_MSG_DB_QUERY_DEF\n",
+			     conn->rsock, conn->phase);
 
 	return revents;
 }
@@ -1357,7 +1421,9 @@ static short ssa_downstream_handle_query_tbl_def(struct ssa_conn *conn,
 					      sizeof(ssadb->db_table_def),
 					      events);
 	} else
-		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_TBL_DEF\n", conn->rsock, conn->phase);
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_TBL_DEF\n",
+			     conn->rsock, conn->phase);
 
 	return revents;
 }
@@ -1380,7 +1446,9 @@ static short ssa_downstream_handle_query_tbl_defs(struct ssa_conn *conn,
 					      ntohll(ssadb->db_table_def.set_size),
 					      events);
 	} else
-		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_TBL_DEF_DATASET\n", conn->rsock, conn->phase);
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_TBL_DEF_DATASET\n",
+			     conn->rsock, conn->phase);
 	return revents;
 }
 
@@ -1420,7 +1488,9 @@ ssa_log(SSA_LOG_DEFAULT, "pp_field_tables index %d %p len %d\n", conn->sindex, s
 							   events);
 		}
 	} else
-		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_TBL_DEFS for SSA_MSG_DB_QUERY_FIELD_DEF_DATASET\n", conn->rsock, conn->phase);
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "rsock %d phase %d not SSA_DB_TBL_DEFS for SSA_MSG_DB_QUERY_FIELD_DEF_DATASET\n",
+			     conn->rsock, conn->phase);
 	return revents;
 }
 
@@ -1459,7 +1529,9 @@ ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d\n", conn->sindex, ssadb->
 							   events);
 		}
 	} else
-		ssa_log_warn(SSA_LOG_CTRL, "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_DATA_DATASET\n", conn->rsock, conn->phase);
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "rsock %d phase %d not SSA_DB_DEFS for SSA_MSG_DB_QUERY_DATA_DATASET\n",
+			     conn->rsock, conn->phase);
 	return revents;
 }
 
@@ -1471,7 +1543,9 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 
 	op = ntohs(hdr->op);
 	if (ntohs(hdr->flags) & SSA_MSG_FLAG_RESP)
-		ssa_log(SSA_LOG_DEFAULT, "Ignoring SSA_MSG_FLAG_RESP set in op %u request in phase %d\n", op, conn->phase);
+		ssa_log(SSA_LOG_DEFAULT,
+			"Ignoring SSA_MSG_FLAG_RESP set in op %u request in phase %d\n",
+			op, conn->phase);
 	switch (op) {
 	case SSA_MSG_DB_QUERY_DEF:
 		revents = ssa_downstream_handle_query_defs(conn, hdr, events);
@@ -1491,7 +1565,8 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 		revents = ssa_downstream_handle_query_data(conn, hdr, events);
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
-		ssa_log_warn(SSA_LOG_CTRL, "SSA_MSG_DB_PUBLISH_EPOCH_BUF not supported yet\n");
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "SSA_MSG_DB_PUBLISH_EPOCH_BUF not supported yet\n");
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL, "unknown op %u\n", op);
@@ -1515,7 +1590,10 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events)
 			if (validate_ssa_msg_hdr(hdr)) {
 				revents = ssa_downstream_handle_op(conn, hdr, events);
 			} else
-				ssa_log_warn(SSA_LOG_CTRL, "validate_ssa_msg_hdr failed: version %d class %d op %u id 0x%x\n", hdr->version, hdr->class, ntohs(hdr->op), ntohl(hdr->id));
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "validate_ssa_msg_hdr failed: version %d class %d op %u id 0x%x\n",
+					     hdr->version, hdr->class,
+					     ntohs(hdr->op), ntohl(hdr->id));
 		}
 	}
 	return revents;
@@ -1544,7 +1622,9 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 		revents = ssa_rsend_continue(conn, events);
 	}
 	if (events & ~(POLLOUT | POLLIN)) {
-		ssa_log(SSA_LOG_DEFAULT, "unexpected event 0x%x on data rsock %d\n", events & ~(POLLOUT | POLLIN), conn->rsock);
+		ssa_log(SSA_LOG_DEFAULT,
+			"unexpected event 0x%x on data rsock %d\n",
+			events & ~(POLLOUT | POLLIN), conn->rsock);
 	}
 
 	return revents;
@@ -1569,7 +1649,8 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 
 	conn_data = malloc(sizeof(*conn_data));
 	if (conn_data) {
-		ssa_init_ssa_conn(conn_data, SSA_CONN_TYPE_DOWNSTREAM, conn_dbtype);
+		ssa_init_ssa_conn(conn_data, SSA_CONN_TYPE_DOWNSTREAM,
+				  conn_dbtype);
 		fd = ssa_downstream_svc_server(svc, conn_data);
 		if (fd >= 0) {
 			if (!svc->fd_to_conn[fd]) {
@@ -1583,12 +1664,16 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 					if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
 						ssa_downstream_conn_done(svc, conn_data);
 				} else
-					ssa_log_warn(SSA_LOG_CTRL, "no pollfd slot available\n");
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "no pollfd slot available\n");
 			} else
-				ssa_log_warn(SSA_LOG_CTRL, "fd %d in fd_to_conn array already occupied\n");
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "fd %d in fd_to_conn array already occupied\n",
+					     fd);
 		}
 	} else
-		ssa_log_err(SSA_LOG_DEFAULT, "struct ssa_conn allocation failed\n");
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "struct ssa_conn allocation failed\n");
 }
 
 static void *ssa_downstream_handler(void *context)
@@ -1701,7 +1786,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p\n", msg.data.
 				if (svc->fd_to_conn[msg.data.db_upd.rsock])
 					svc->fd_to_conn[msg.data.db_upd.rsock]->ssa_db = msg.data.db_upd.db;
 				else
-					ssa_log_warn(SSA_LOG_CTRL, "DB update for rsock %d but no ssa_conn struct available\n");
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "DB update for rsock %d but no ssa_conn struct available\n");
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -1758,7 +1844,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 				if (svc->fd_to_conn[pfd->fd]) {
 					pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents);
 				} else
-					ssa_log_warn(SSA_LOG_CTRL, "event 0x%x but no data rsock for pollfd slot %d\n", pfd->fd);
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "event 0x%x but no data rsock for pollfd slot %d\n",
+						     pfd->revents, i);
 			}
 			pfd->revents = 0;
 		}
@@ -2103,7 +2191,8 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 	}
 
 	len = sizeof err;
-	ret = rgetsockopt(svc->conn_dataup.rsock, SOL_SOCKET, SO_ERROR, &err, &len);
+	ret = rgetsockopt(svc->conn_dataup.rsock, SOL_SOCKET, SO_ERROR,
+			  &err, &len);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rgetsockopt fd %d ERROR %d (%s)\n",
@@ -2148,14 +2237,18 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	}
 
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-		"new connection accepted on fd %d dbtype %d\n", fd, conn->dbtype);
+		"new connection accepted on fd %d dbtype %d\n",
+		fd, conn->dbtype);
 
 	peer_len = sizeof(peer_addr);
 	if (!rgetpeername(fd, (struct sockaddr *) &peer_addr, &peer_len)) {
 		if (peer_addr.sib_family == AF_IB) {
-			ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
-				SSA_ADDR_GID, (uint8_t *) &peer_addr.sib_addr, peer_len);
-			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "peer GID %s\n", log_data);
+			ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+					log_data, sizeof log_data, SSA_ADDR_GID,
+					(uint8_t *) &peer_addr.sib_addr,
+					peer_len);
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"peer GID %s\n", log_data);
 		} else {
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 				"rgetpeername fd %d family %d not AF_IB\n",
@@ -2260,8 +2353,8 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 			sizeof dst_addr.sib_addr);
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "dest GID %s\n", log_data);
 
-	ret = rconnect(svc->conn_dataup.rsock, (const struct sockaddr *) &dst_addr,
-		       sizeof(dst_addr));
+	ret = rconnect(svc->conn_dataup.rsock,
+		       (const struct sockaddr *) &dst_addr, sizeof(dst_addr));
 	if (ret && (errno != EINPROGRESS)) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rconnect ERROR %d (%s)\n",
@@ -2465,7 +2558,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	struct ssa_ctrl_msg msg;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%llu\n", port->name, database_id);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%llu\n",
+		port->name, database_id);
 	list = realloc(port->svc, (port->svc_cnt + 1) * sizeof(svc));
 	if (!list)
 		return NULL;
@@ -2484,7 +2578,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	if (port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_downctrl);
 		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL, "creating downstream/ctrl socketpair\n");
+			ssa_log_err(SSA_LOG_CTRL,
+				    "creating downstream/ctrl socketpair\n");
 			goto err2;
 		}
 	} else {
@@ -2495,17 +2590,20 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	if (port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessctrl);
 		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL, "creating access/ctrl socketpair\n");
+			ssa_log_err(SSA_LOG_CTRL,
+				    "creating access/ctrl socketpair\n");
 			goto err3;
 		}
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessup);
 		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL, "creating access/upstream socketpair\n");
+			ssa_log_err(SSA_LOG_CTRL,
+				    "creating access/upstream socketpair\n");
 			goto err4;
 		}
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessdown);
 		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL, "creating access/downstream socketpair\n");
+			ssa_log_err(SSA_LOG_CTRL,
+				    "creating access/downstream socketpair\n");
 			goto err5;
 		}
 	} else {
@@ -2520,7 +2618,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	if (port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_updown);
 		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL, "creating upstream/downstream socketpair\n");
+			ssa_log_err(SSA_LOG_CTRL,
+				    "creating upstream/downstream socketpair\n");
 			goto err6;
 		}
 	} else {
@@ -2564,7 +2663,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	}
 
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
-		ret = pthread_create(&svc->downstream, NULL, ssa_downstream_handler, svc);
+		ret = pthread_create(&svc->downstream, NULL,
+				     ssa_downstream_handler, svc);
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating downstream thread\n");
 			errno = ret;
@@ -2635,7 +2735,8 @@ err1:
 	return NULL;
 }
 
-static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev, uint8_t port_num)
+static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
+			  uint8_t port_num)
 {
 	long methods[16 / sizeof(long)];
 	int ret;
