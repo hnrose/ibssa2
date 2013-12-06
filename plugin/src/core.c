@@ -52,6 +52,7 @@
  * Service options - may be set through ibssa_opts.cfg file.
  */
 static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
+static int node_type = SSA_NODE_CORE;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
@@ -612,6 +613,15 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 	}
 }
 
+static int core_convert_node_type(const char *node_type_string)
+{
+	int node_type = SSA_NODE_CORE;
+
+	if (!strcasecmp("combined", node_type_string))
+		node_type |= SSA_NODE_ACCESS;
+	return node_type;
+}
+
 static void core_set_options(void)
 {
 	FILE *f;
@@ -634,6 +644,8 @@ static void core_set_options(void)
 			ssa_set_log_level(atoi(value));
 		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
+		else if (!strcasecmp("node_type", opt))
+			node_type = core_convert_node_type(value);
 		else if (!strcasecmp("smdb_port", opt))
 			smdb_port = (short) atoi(value);
 		else if (!strcasecmp("prdb_port", opt))
@@ -643,10 +655,21 @@ static void core_set_options(void)
 	fclose(f);
 }
 
+static const char *core_node_type_str(int node_type)
+{
+	if (node_type == SSA_NODE_CORE)
+		return "Core";
+	if (node_type == (SSA_NODE_CORE | SSA_NODE_ACCESS))
+		return "Combined";
+	return "Other";
+}
+
 static void core_log_options(void)
 {
 	ssa_log_options();
 	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
+	ssa_log(SSA_LOG_DEFAULT, "node type %d (%s)\n", node_type,
+		core_node_type_str(node_type));
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 }
@@ -656,12 +679,12 @@ static void *core_construct(osm_opensm_t *opensm)
 	struct ssa_svc *svc;
 	int d, p, ret;
 
-	ret = ssa_init(&ssa, SSA_NODE_CORE, sizeof(struct ssa_device),
+	core_set_options();
+	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
 			sizeof(struct ssa_port));
 	if (ret)
 		return NULL;
 
-	core_set_options();
 	if (ssa_open_lock_file(lock_file))
 		goto err1;
 
