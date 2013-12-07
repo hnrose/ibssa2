@@ -2833,7 +2833,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 				    SMDB_PRELOAD_PATH);
 		} else {
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-				"smdb is loaded from \"%s\"\n",
+				"smdb is preloaded from \"%s\"\n",
 				SMDB_PRELOAD_PATH);
 		}
 	}
@@ -2850,7 +2850,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 				    PRDB_PRELOAD_PATH);
 		} else {
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-				"prdb is loaded from \"%s\"\n",
+				"prdb is preloaded from \"%s\"\n",
 				PRDB_PRELOAD_PATH);
 		}
 #endif
@@ -2885,7 +2885,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			goto ctx_create_err;
 		}
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"access context is created, smdb is loaded from \"%s\"\n",
+			"access context is created, smdb is preloaded from \"%s\"\n",
 			SMDB_PRELOAD_PATH);
 #endif
 	}
