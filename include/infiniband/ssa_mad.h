@@ -108,11 +108,15 @@ enum {
 	SSA_PROTOCOL_VERSION	= 1,
 };
 
+/*
+ * Certain combinations of node types are supported
+ * Currently, Distribution + Access, and Core + Access
+ */
 enum {
-	SSA_NODE_CORE		= 1,
-	SSA_NODE_DISTRIBUTION	= 2,
-	SSA_NODE_ACCESS		= 3,
-	SSA_NODE_CONSUMER	= 4
+	SSA_NODE_CORE		= (1 << 0),
+	SSA_NODE_DISTRIBUTION	= (1 << 1),
+	SSA_NODE_ACCESS		= (1 << 2),
+	SSA_NODE_CONSUMER	= (1 << 3) 
 };
 
 enum {
