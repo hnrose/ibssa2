@@ -470,27 +470,61 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 	}
 }
 
+static void ssa_extract_send_db_update(struct ssa_db *db, int fd,
+				       int flags)
+{
+	struct ssa_db_update_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+	msg.hdr.type = SSA_DB_UPDATE;
+	msg.hdr.len = sizeof(msg);
+	msg.db_upd.db = db;
+	msg.db_upd.flags = flags;
+	write(fd, (char *) &msg, sizeof(msg));
+}
+
 static void *core_extract_handler(void *context)
 {
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
-	struct pollfd pfds[1];
+	struct ssa_svc *svc;
+	struct pollfd **fds;
+	struct pollfd *pfd;
 	struct ssa_db_ctrl_msg msg;
-	int ret;
+	int d, p, s, i, ret;
 
-	pfds[0].fd	= sock_coreextract[1];
-	pfds[0].events	= POLLIN;
-	pfds[0].revents = 0;
+	fds = calloc(FD_SETSIZE, sizeof(**fds));
+	if (!fds)
+		goto out;
+
+	pfd = (struct pollfd *)fds;
+	pfd->fd = sock_coreextract[1];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+	i = 1;
+	for (d = 0; d < ssa.dev_cnt; d++) {
+		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
+			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
+				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
+				pfd = (struct pollfd *)(fds + i);
+				pfd->fd = svc->sock_extractdown[1];
+				pfd->events = POLLIN;
+				pfd->revents = 0;
+				i++;
+			}
+		}
+	}
 
 	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
 
 	for (;;) {
-		ret = poll(pfds, 1, -1);
+		ret = poll((struct pollfd *)fds, FD_SETSIZE, -1);
 		if (ret < 0) {
 			ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
 			continue;
 		}
 
-		if (pfds[0].revents) {
+		pfd = (struct pollfd *) fds;
+		if (pfd->revents) {
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			if (msg.type == SSA_DB_START_EXTRACT) {
 				CL_PLOCK_ACQUIRE(&p_osm->lock);
@@ -515,6 +549,16 @@ static void *core_extract_handler(void *context)
 #ifdef CORE_INTEGRATION
 					ssa_db_save(SMDB_DUMP_PATH, ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
 #endif
+					for (d = 0; d < ssa.dev_cnt; d++) {
+						for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
+							for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
+								svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
+								ssa_extract_send_db_update(ssa_db_diff->p_smdb,
+											   svc->sock_extractdown[1], 0);
+							}
+						}
+					}
+
 				}
 				pthread_mutex_unlock(&ssa_db_diff_lock);
 				first = 0;
@@ -526,10 +570,11 @@ static void *core_extract_handler(void *context)
 			} else {
 				ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown msg type %d\n", msg.type);
 			}
-			pfds[0].revents = 0;
+			pfd->revents = 0;
 		}
 	}
 
+out:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	pthread_exit(NULL);
 }
@@ -724,20 +769,12 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err2;
 	}
 
-	ret = pthread_create(&extract_thread, NULL, core_extract_handler, (void *) opensm);
-	if (ret) {
-		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): error creating smdb extract thread\n", ret, strerror(ret));
-		close(sock_coreextract[0]);
-		close(sock_coreextract[1]);
-		goto err2;
-	}
-
 	pthread_mutex_init(&ssa_db_diff_lock, NULL);
 
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
-		goto err2;
+		goto err3;
 	}
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
@@ -747,18 +784,30 @@ static void *core_construct(osm_opensm_t *opensm)
 					    core_process_msg);
 			if (!svc) {
 				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
-				goto err3;
+				goto err4;
 			}
 			core_init_svc(svc);
 		}
+	}
+
+	ret = pthread_create(&extract_thread, NULL, core_extract_handler,
+			     (void *) opensm);
+	if (ret) {
+		ssa_log(SSA_LOG_ALL,
+			"ERROR %d (%s): error creating smdb extract thread\n",
+			ret, strerror(ret));
+		goto err4;
 	}
 
 	pthread_create(&ctrl_thread, NULL, core_ctrl_handler, NULL);
 	osm = opensm;
 	return &ssa;
 
-err3:
+err4:
 	ssa_close_devices(&ssa);
+err3:
+	close(sock_coreextract[0]);
+	close(sock_coreextract[1]);
 err2:
 	ssa_database_delete(ssa_db);
 err1:
@@ -775,6 +824,12 @@ static void core_destroy(void *context)
 	ssa_ctrl_stop(&ssa);
 	pthread_join(ctrl_thread, NULL);
 
+	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
+	msg.len = sizeof(msg);
+	msg.type = SSA_DB_EXIT;
+	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
+	pthread_join(extract_thread, NULL);
+
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
@@ -783,6 +838,9 @@ static void core_destroy(void *context)
 		}
 	}
 
+	close(sock_coreextract[0]);
+	close(sock_coreextract[1]);
+
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
 
@@ -790,14 +848,6 @@ static void core_destroy(void *context)
 	ssa_db_diff_destroy(ssa_db_diff);
 	pthread_mutex_unlock(&ssa_db_diff_lock);
 	pthread_mutex_destroy(&ssa_db_diff_lock);
-
-	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
-	msg.len = sizeof(msg);
-	msg.type = SSA_DB_EXIT;
-	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
-	pthread_join(extract_thread, NULL);
-	close(sock_coreextract[0]);
-	close(sock_coreextract[1]);
 
 	ssa_log(SSA_LOG_CTRL, "destroying SMDB\n");
 	ssa_database_delete(ssa_db);

@@ -66,7 +66,7 @@
 #define DEFAULT_TIMEOUT 1000
 #define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
 
-#define FIRST_DATA_FD_SLOT	5
+#define FIRST_DATA_FD_SLOT	6
 
 #define SMDB_PRELOAD_PATH RDMA_CONF_DIR "/smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
@@ -1712,6 +1712,10 @@ static void *ssa_downstream_handler(void *context)
 	pfd->fd = -1;	/* placeholder for PRDB listen rsock */
 	pfd->events = POLLIN;
 	pfd->revents = 0;
+	pfd = (struct pollfd *)(fds + 5);
+	pfd->fd = svc->sock_extractdown[0];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
 	for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
 		pfd = (struct pollfd *)(fds + i);
 		pfd->fd = -1;	/* placeholder for downstream connections */
@@ -1836,6 +1840,33 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 			pfd->revents = 0;
 			ssa_check_listen_events(svc, pfd, fds,
 						SSA_CONN_PRDB_TYPE);
+		}
+
+		pfd = (struct pollfd *)(fds + 5);
+		if (pfd->revents) {
+			pfd->revents = 0;
+			read(svc->sock_extractdown[0], (char *) &msg, sizeof msg.hdr);
+			if (msg.hdr.len > sizeof msg.hdr) {
+				read(svc->sock_extractdown[0],
+				     (char *) &msg.hdr.data,
+				     msg.hdr.len - sizeof msg.hdr);
+			}
+#if 0
+			if (svc->process_msg && svc->process_msg(svc, &msg))
+				continue;
+#endif
+			switch (msg.hdr.type) {
+			case SSA_DB_UPDATE:
+				ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): "
+					"ssa_db %p\n", msg.data.db_upd.db);
+				smdb = msg.data.db_upd.db;
+				break;
+			default:
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "ignoring unexpected message type %d from upstream\n",
+					     msg.hdr.type);
+				break;
+			}
 		}
 
 		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
@@ -2627,6 +2658,17 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		svc->sock_updown[1] = -1;
 	}
 
+	if (port->dev->ssa->node_type & SSA_NODE_CORE) {
+		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_extractdown);
+		if (ret) {
+			ssa_log_err(SSA_LOG_CTRL, "creating extract/downstream socketpair\n");
+			goto err7;
+		}
+	} else {
+		svc->sock_extractdown[0] = -1;
+		svc->sock_extractdown[1] = -1;
+	}
+
 	svc->index = port->svc_cnt;
 	svc->port = port;
 	snprintf(svc->name, sizeof svc->name, "%s:%llu", port->name,
@@ -2652,13 +2694,13 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating upstream thread\n");
 		errno = ret;
-		goto err7;
+		goto err8;
 	}
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with upstream thread\n");
-		goto err8;
+		goto err9;
 
 	}
 
@@ -2668,13 +2710,13 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating downstream thread\n");
 			errno = ret;
-			goto err8;
+			goto err9;
 		}
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 			ssa_log_err(SSA_LOG_CTRL, "with downstream thread\n");
-			goto err9;
+			goto err10;
 		}
 	}
 
@@ -2683,25 +2725,30 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
 			errno = ret;
-			goto err9;
+			goto err10;
 		}
 
 		ret = read(svc->sock_accessctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 			ssa_log_err(SSA_LOG_CTRL, "with access thread\n");
-			goto err10;
+			goto err11;
 		}
 	}
 
 	port->svc[port->svc_cnt++] = svc;
 	return svc;
 
-err10:
+err11:
 	pthread_join(svc->access, NULL);
-err9:
+err10:
 	pthread_join(svc->downstream, NULL);
-err8:
+err9:
 	pthread_join(svc->upstream, NULL);
+err8:
+	if (svc->port->dev->ssa->node_type & SSA_NODE_CORE) {
+		close(svc->sock_extractdown[0]);
+		close(svc->sock_extractdown[1]);
+	}
 err7:
 	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
 		close(svc->sock_updown[0]);
@@ -2971,6 +3018,10 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 		ssa_close_ssa_conn(&svc->conn_listen_smdb);
 	if (svc->conn_listen_prdb.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_listen_prdb);
+	if (svc->port->dev->ssa->node_type & SSA_NODE_CORE) {
+		close(svc->sock_extractdown[0]);
+		close(svc->sock_extractdown[1]);
+	}
 	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
 		close(svc->sock_updown[0]);
 		close(svc->sock_updown[1]);
