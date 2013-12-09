@@ -80,6 +80,7 @@ struct ssa_core {
 static struct ssa_class ssa;
 struct ssa_database *ssa_db;
 static struct ssa_db_diff *ssa_db_diff = NULL;
+pthread_mutex_t ssa_db_diff_lock;
 pthread_t ctrl_thread, extract_thread;
 static osm_opensm_t *osm;
 
@@ -504,6 +505,7 @@ static void *core_extract_handler(void *context)
 				/* Updating SMDB versions */
 				ssa_db_update(ssa_db);
 
+				pthread_mutex_lock(&ssa_db_diff_lock);
 				/* Clear previous version */
 				ssa_db_diff_destroy(ssa_db_diff);
 
@@ -514,6 +516,7 @@ static void *core_extract_handler(void *context)
 					ssa_db_save(SMDB_DUMP_PATH, ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
 #endif
 				}
+				pthread_mutex_unlock(&ssa_db_diff_lock);
 				first = 0;
 			} else if (msg.type == SSA_DB_LFT_CHANGE) {
 				ssa_log(SSA_LOG_VERBOSE, "Start handling LFT change events\n");
@@ -729,6 +732,8 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err2;
 	}
 
+	pthread_mutex_init(&ssa_db_diff_lock, NULL);
+
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
@@ -781,7 +786,10 @@ static void core_destroy(void *context)
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
 
+	pthread_mutex_lock(&ssa_db_diff_lock);
 	ssa_db_diff_destroy(ssa_db_diff);
+	pthread_mutex_unlock(&ssa_db_diff_lock);
+	pthread_mutex_destroy(&ssa_db_diff_lock);
 
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
 	msg.len = sizeof(msg);
