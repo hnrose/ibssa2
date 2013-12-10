@@ -473,6 +473,7 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 static void ssa_extract_send_db_update(struct ssa_db *db, int fd,
 				       int flags)
 {
+#ifndef CORE_INTEGRATION
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -481,6 +482,7 @@ static void ssa_extract_send_db_update(struct ssa_db *db, int fd,
 	msg.db_upd.db = db;
 	msg.db_upd.flags = flags;
 	write(fd, (char *) &msg, sizeof(msg));
+#endif
 }
 
 static void *core_extract_handler(void *context)
