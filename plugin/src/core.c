@@ -487,44 +487,24 @@ static void *core_extract_handler(void *context)
 {
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
 	struct ssa_svc *svc;
-	struct pollfd **fds;
-	struct pollfd *pfd;
+	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
-	int d, p, s, i, ret;
+	int d, p, s, ret;
 
-	fds = calloc(FD_SETSIZE, sizeof(**fds));
-	if (!fds)
-		goto out;
-
-	pfd = (struct pollfd *)fds;
-	pfd->fd = sock_coreextract[1];
-	pfd->events = POLLIN;
-	pfd->revents = 0;
-	i = 1;
-	for (d = 0; d < ssa.dev_cnt; d++) {
-		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
-				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
-				pfd = (struct pollfd *)(fds + i);
-				pfd->fd = svc->sock_extractdown[1];
-				pfd->events = POLLIN;
-				pfd->revents = 0;
-				i++;
-			}
-		}
-	}
+	pfds[0].fd	= sock_coreextract[1];
+	pfds[0].events	= POLLIN;
+	pfds[0].revents = 0;
 
 	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
 
 	for (;;) {
-		ret = poll((struct pollfd *)fds, FD_SETSIZE, -1);
+		ret = poll(pfds, 1, -1);
 		if (ret < 0) {
 			ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
 			continue;
 		}
 
-		pfd = (struct pollfd *) fds;
-		if (pfd->revents) {
+		if (pfds[0].revents) {
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			if (msg.type == SSA_DB_START_EXTRACT) {
 				CL_PLOCK_ACQUIRE(&p_osm->lock);
@@ -570,11 +550,10 @@ static void *core_extract_handler(void *context)
 			} else {
 				ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown msg type %d\n", msg.type);
 			}
-			pfd->revents = 0;
+			pfds[0].revents = 0;
 		}
 	}
 
-out:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	pthread_exit(NULL);
 }
