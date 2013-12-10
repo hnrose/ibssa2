@@ -51,12 +51,12 @@
  */
 static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
 static int node_type = SSA_NODE_CORE;
+static int smdb_dump = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
 extern short smdb_port;
 extern short prdb_port;
-int smdb_dump = 0;
 
 int first = 1;
 
