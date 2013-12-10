@@ -7,7 +7,7 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -Wno-deprecated-declarations \
 		$(GLIB_CFLAGS) -DSYSCONFDIR=\"$(sysconfdir)\" \
 		-DRDMADIR=\"@rdmadir@\"
 
-src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DACCESS -DFORCE_FULL_DUMP
+src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DACCESS
 #src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DCORE_INTEGRATION
 #src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DCORE_INTEGRATION -DACCESS
 #src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DSSA_PLUGIN_VERBOSE_LOGGING

@@ -38,6 +38,7 @@
 #include <infiniband/ssa_comparison.h>
 
 extern int first;
+extern int smdb_deltas;
 
 /** =========================================================================
  */
@@ -1268,7 +1269,9 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
 					ssa_db->p_current_db, p_ssa_db_diff);
 	ssa_db_diff_compare_subnet_tables(ssa_db->p_previous_db,
 					  ssa_db->p_current_db, p_ssa_db_diff);
-#ifndef FORCE_FULL_DUMP
+
+	if (!smdb_deltas)
+		goto force_full;
 	if (first) {
 		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
 				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
@@ -1313,7 +1316,9 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
 		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
 	}
-#else
+	goto force_done;
+
+force_full:
 	ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
 			     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
 			     ssa_db->p_lft_db->p_db_lft_block_tbl);
@@ -1355,8 +1360,8 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
 	/* Clear LFT dump data */
 	ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 	ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
-#endif
 
+force_done:
 	if (!p_ssa_db_diff->dirty) {
                 ssa_log(SSA_LOG_VERBOSE, "SMDB was not changed\n");
                 ssa_db_diff_destroy(p_ssa_db_diff);
