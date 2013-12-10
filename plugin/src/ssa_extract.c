@@ -648,12 +648,14 @@ void ssa_db_update(struct ssa_database *ssa_db)
                 return;
         }
 
+#ifndef FORCE_FULL_DUMP
 	/* Updating previous SMDB with current one */
 	if (ssa_db->p_current_db->initialized) {
 		ssa_db_remove(ssa_db->p_previous_db);
 		ssa_db_extract_delete(ssa_db->p_previous_db);
 		ssa_db->p_previous_db = ssa_db->p_current_db;
 	}
+#endif
 	ssa_db->p_current_db = ssa_db->p_dump_db;
 	ssa_db->p_dump_db = ssa_db_extract_init();
 
