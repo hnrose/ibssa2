@@ -41,10 +41,8 @@
 #include <infiniband/ssa_comparison.h>
 #include <ssa_ctrl.h>
 
-#ifdef CORE_INTEGRATION
 #include <infiniband/ssa_db_helper.h>
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
-#endif
 
 #define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
 
@@ -58,6 +56,7 @@ static char lock_file[128] = "/var/run/ibssa.pid";
 
 extern short smdb_port;
 extern short prdb_port;
+int smdb_dump = 0;
 
 int first = 1;
 
@@ -528,9 +527,7 @@ static void *core_extract_handler(void *context)
 				ssa_db_diff = ssa_db_compare(ssa_db);
 				if (ssa_db_diff) {
 					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
-#ifdef CORE_INTEGRATION
 					ssa_db_save(SMDB_DUMP_PATH, ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
-#endif
 					for (d = 0; d < ssa.dev_cnt; d++) {
 						for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 							for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
@@ -679,6 +676,8 @@ static void core_set_options(void)
 			smdb_port = (short) atoi(value);
 		else if (!strcasecmp("prdb_port", opt))
 			prdb_port = (short) atoi(value);
+		else if (!strcasecmp("smdb_dump", opt))
+			smdb_dump = atoi(value);
 	}
 
 	fclose(f);
@@ -701,6 +700,7 @@ static void core_log_options(void)
 		core_node_type_str(node_type));
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);
 }
 
 static void *core_construct(osm_opensm_t *opensm)
