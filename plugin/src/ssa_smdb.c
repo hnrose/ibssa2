@@ -164,14 +164,14 @@ struct ssa_db *ssa_db_smdb_init(uint64_t guid_to_lid_num_recs,
 	num_field_recs_arr[SSA_TABLE_ID_NODE] = SSA_FIELD_ID_NODE_MAX;
 	num_field_recs_arr[SSA_TABLE_ID_LINK] = SSA_FIELD_ID_LINK_MAX;
 	num_field_recs_arr[SSA_TABLE_ID_PORT] = SSA_FIELD_ID_PORT_MAX;
-	num_field_recs_arr[SSA_TABLE_ID_PKEY] = DB_VARIABLE_SIZE; /* variabled size records */
+	num_field_recs_arr[SSA_TABLE_ID_PKEY] = DB_VARIABLE_SIZE; /* variable size records */
 	num_field_recs_arr[SSA_TABLE_ID_LFT_TOP] = SSA_FIELD_ID_LFT_TOP_MAX;
 	num_field_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = SSA_FIELD_ID_LFT_BLOCK_MAX;
 
 	p_ssa_db = ssa_db_create(num_recs_arr, recs_size_arr, num_field_recs_arr, SSA_TABLE_ID_MAX);
 
-	ssa_db_init(p_ssa_db, "SMDB", 12 /*just some db_id */, def_tbl, dataset_tbl,
-		    field_dataset_tbl, field_tbl);
+	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, def_tbl,
+		    dataset_tbl, field_dataset_tbl, field_tbl);
 
 	return p_ssa_db;
 }
