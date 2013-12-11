@@ -509,7 +509,8 @@ static void *core_extract_handler(void *context)
 		if (pfds[0].revents) {
 			pfds[0].revents = 0;
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
-			if (msg.type == SSA_DB_START_EXTRACT) {
+			switch (msg.type) {
+			case SSA_DB_START_EXTRACT:
 				CL_PLOCK_ACQUIRE(&p_osm->lock);
 				ssa_db->p_dump_db = ssa_db_extract(p_osm);
 				ssa_db_lft_handle();
@@ -543,17 +544,20 @@ static void *core_extract_handler(void *context)
 				}
 				pthread_mutex_unlock(&ssa_db_diff_lock);
 				first = 0;
-			} else if (msg.type == SSA_DB_LFT_CHANGE) {
+				break;
+			case SSA_DB_LFT_CHANGE:
 				ssa_log(SSA_LOG_VERBOSE, "Start handling LFT change events\n");
 				ssa_db_lft_handle();
-			} else if (msg.type == SSA_DB_EXIT) {
 				break;
-			} else {
+			case SSA_DB_EXIT:
+				goto out;
+			default:
 				ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown msg type %d\n", msg.type);
+				break;
 			}
 		}
 	}
-
+out:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	pthread_exit(NULL);
 }
