@@ -530,7 +530,10 @@ static void *core_extract_handler(void *context)
 				ssa_db_diff = ssa_db_compare(ssa_db);
 				if (ssa_db_diff) {
 					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
-					ssa_db_save(SMDB_DUMP_PATH, ssa_db_diff->p_smdb, SSA_DB_HELPER_DEBUG);
+					if (smdb_dump)
+						ssa_db_save(SMDB_DUMP_PATH,
+							    ssa_db_diff->p_smdb,
+							    SSA_DB_HELPER_DEBUG);
 					for (d = 0; d < ssa.dev_cnt; d++) {
 						for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 							for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
