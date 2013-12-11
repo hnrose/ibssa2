@@ -1991,7 +1991,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: ssa_db %p\n", msg.data.db_upd.db);
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "ignoring unexpected message type %d from upstream\n",
 					     msg.hdr.type);
-                        	break;
+				break;
 			}
 		}
 
@@ -2263,7 +2263,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			return -1;	/* ignore these errors */
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"raccept fd %d ERROR %d (%s)\n",
-			conn_listen->rsock, errno, strerror(errno)); 
+			conn_listen->rsock, errno, strerror(errno));
 		return -1;
 	}
 
