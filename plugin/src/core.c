@@ -786,10 +786,20 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err4;
 	}
 
-	pthread_create(&ctrl_thread, NULL, core_ctrl_handler, NULL);
+	ret = pthread_create(&ctrl_thread, NULL, core_ctrl_handler, NULL);
+	if (ret) {
+		ssa_log(SSA_LOG_ALL,
+			"ERROR %d (%s): error creating core ctrl thread\n",
+			ret, strerror(ret));
+		goto err5;
+	}
+
 	osm = opensm;
 	return &ssa;
 
+err5:
+	core_send(SSA_DB_EXIT);
+	pthread_join(extract_thread, NULL);
 err4:
 	ssa_close_devices(&ssa);
 err3:
