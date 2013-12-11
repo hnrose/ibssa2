@@ -570,47 +570,53 @@ static void ssa_core_send(enum ssa_db_ctrl_msg_type type)
 	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
 }
 
-static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
+static void ssa_core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 {
-	osm_epi_lft_change_event_t *p_lft_change;
-	osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
 	struct ssa_db_lft_change_rec *p_lft_change_rec;
 	size_t size;
+
+	if (!p_lft_change || !p_lft_change->p_sw)
+		return;
+
+	ssa_log(SSA_LOG_VERBOSE, "LFT change event for SW 0x%" PRIx64"\n",
+		ntohll(osm_node_get_node_guid(p_lft_change->p_sw->p_node)));
+
+	size = sizeof(*p_lft_change_rec);
+	if (p_lft_change->flags == LFT_CHANGED_BLOCK)
+		size += sizeof(p_lft_change_rec->block[0]) * IB_SMP_DATA_SIZE;
+
+	p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
+	if (!p_lft_change_rec) {
+		/* TODO: handle failure in memory allocation */
+	}
+
+	memcpy(&p_lft_change_rec->lft_change, p_lft_change,
+	       sizeof(p_lft_change_rec->lft_change));
+	p_lft_change_rec->lid = osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0);
+
+	if (p_lft_change->flags == LFT_CHANGED_BLOCK)
+		memcpy(p_lft_change_rec->block, p_lft_change->p_sw->lft +
+		       p_lft_change->block_num * IB_SMP_DATA_SIZE,
+		       IB_SMP_DATA_SIZE);
+
+	pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
+	cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
+	pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
+
+	ssa_core_send(SSA_DB_LFT_CHANGE);
+}
+
+static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
+{
+	osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
 
 	switch (event_id) {
 	case OSM_EVENT_ID_TRAP:
 		handle_trap_event((ib_mad_notice_attr_t *) event_data);
 		break;
 	case OSM_EVENT_ID_LFT_CHANGE:
-		p_lft_change = (osm_epi_lft_change_event_t *) event_data;
-		if (p_lft_change && p_lft_change->p_sw) {
-			ssa_log(SSA_LOG_VERBOSE, "LFT change event for SW 0x%" PRIx64"\n",
-				ntohll(osm_node_get_node_guid(p_lft_change->p_sw->p_node)));
-
-			size = sizeof(*p_lft_change_rec);
-			if (p_lft_change->flags == LFT_CHANGED_BLOCK)
-				size += sizeof(p_lft_change_rec->block[0]) * IB_SMP_DATA_SIZE;
-
-			p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
-			if (!p_lft_change_rec) {
-				/* TODO: handle failure in memory allocation */
-			}
-
-			memcpy(&p_lft_change_rec->lft_change, p_lft_change,
-			       sizeof(p_lft_change_rec->lft_change));
-			p_lft_change_rec->lid = osm_node_get_base_lid(p_lft_change->p_sw->p_node, 0);
-
-			if (p_lft_change->flags == LFT_CHANGED_BLOCK)
-				memcpy(p_lft_change_rec->block, p_lft_change->p_sw->lft +
-				       p_lft_change->block_num * IB_SMP_DATA_SIZE,
-				       IB_SMP_DATA_SIZE);
-
-			pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
-			cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
-			pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
-
-			ssa_core_send(SSA_DB_LFT_CHANGE);
-		}
+		ssa_log(SSA_LOG_VERBOSE, "LFT change event\n");
+		ssa_core_process_lft_change((osm_epi_lft_change_event_t *) event_data);
 		break;
 	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
 		p_ucast_routing_flag = (osm_epi_ucast_routing_flags_t *) event_data;
