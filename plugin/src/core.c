@@ -507,6 +507,7 @@ static void *core_extract_handler(void *context)
 		}
 
 		if (pfds[0].revents) {
+			pfds[0].revents = 0;
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			if (msg.type == SSA_DB_START_EXTRACT) {
 				CL_PLOCK_ACQUIRE(&p_osm->lock);
@@ -550,7 +551,6 @@ static void *core_extract_handler(void *context)
 			} else {
 				ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown msg type %d\n", msg.type);
 			}
-			pfds[0].revents = 0;
 		}
 	}
 
