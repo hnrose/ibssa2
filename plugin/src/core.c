@@ -558,12 +558,23 @@ static void *core_extract_handler(void *context)
 	pthread_exit(NULL);
 }
 
+static void ssa_core_send(enum ssa_db_ctrl_msg_type type)
+{
+	struct ssa_db_ctrl_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+	ssa_log(SSA_LOG_VERBOSE, "Sending msg type %d from core "
+		"to extract thread\n", type);
+	msg.len = sizeof(msg);
+	msg.type = type;
+	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
+}
+
 static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
 {
 	osm_epi_lft_change_event_t *p_lft_change;
 	osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
 	struct ssa_db_lft_change_rec *p_lft_change_rec;
-	struct ssa_db_ctrl_msg msg;
 	size_t size;
 
 	switch (event_id) {
@@ -598,9 +609,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 			cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
 			pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
 
-			msg.len = sizeof(msg);
-			msg.type = SSA_DB_LFT_CHANGE;
-			write(sock_coreextract[0], (char *) &msg, sizeof(msg));
+			ssa_core_send(SSA_DB_LFT_CHANGE);
 		}
 		break;
 	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
@@ -618,9 +627,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 
 		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
 
-		msg.len = sizeof(msg);
-		msg.type = SSA_DB_START_EXTRACT;
-		write(sock_coreextract[0], (char *) &msg, sizeof(msg));
+		ssa_core_send(SSA_DB_START_EXTRACT);
 
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
@@ -802,7 +809,6 @@ err1:
 
 static void core_destroy(void *context)
 {
-	struct ssa_db_ctrl_msg msg;
 	int d, p, s;
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down control thread\n");
@@ -810,9 +816,7 @@ static void core_destroy(void *context)
 	pthread_join(ctrl_thread, NULL);
 
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
-	msg.len = sizeof(msg);
-	msg.type = SSA_DB_EXIT;
-	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
+	ssa_core_send(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
