@@ -562,7 +562,7 @@ out:
 	pthread_exit(NULL);
 }
 
-static void ssa_core_send(enum ssa_db_ctrl_msg_type type)
+static void core_send(enum ssa_db_ctrl_msg_type type)
 {
 	struct ssa_db_ctrl_msg msg;
 
@@ -574,7 +574,7 @@ static void ssa_core_send(enum ssa_db_ctrl_msg_type type)
 	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
 }
 
-static void ssa_core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
+static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 {
 	struct ssa_db_lft_change_rec *p_lft_change_rec;
 	size_t size;
@@ -607,7 +607,7 @@ static void ssa_core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change
 	cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
 	pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
 
-	ssa_core_send(SSA_DB_LFT_CHANGE);
+	core_send(SSA_DB_LFT_CHANGE);
 }
 
 static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
@@ -620,7 +620,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 		break;
 	case OSM_EVENT_ID_LFT_CHANGE:
 		ssa_log(SSA_LOG_VERBOSE, "LFT change event\n");
-		ssa_core_process_lft_change((osm_epi_lft_change_event_t *) event_data);
+		core_process_lft_change((osm_epi_lft_change_event_t *) event_data);
 		break;
 	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
 		p_ucast_routing_flag = (osm_epi_ucast_routing_flags_t *) event_data;
@@ -636,9 +636,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 			break;
 
 		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
-
-		ssa_core_send(SSA_DB_START_EXTRACT);
-
+		core_send(SSA_DB_START_EXTRACT);
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
@@ -826,7 +824,7 @@ static void core_destroy(void *context)
 	pthread_join(ctrl_thread, NULL);
 
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
-	ssa_core_send(SSA_DB_EXIT);
+	core_send(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
