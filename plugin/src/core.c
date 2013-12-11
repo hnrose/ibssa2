@@ -746,22 +746,6 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err1;
 	}
 
-	ssa_db->p_previous_db = ssa_db_extract_init();
-	if (!ssa_db->p_previous_db) {
-		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (previous SMDB)\n");
-		goto err2;
-	}
-	ssa_db->p_current_db = ssa_db_extract_init();
-	if (!ssa_db->p_current_db) {
-		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (current SMDB)\n");
-		goto err2;
-	}
-	ssa_db->p_dump_db = ssa_db_extract_init();
-	if (!ssa_db->p_dump_db) {
-		ssa_log(SSA_LOG_ALL, "ssa_db_init failed (dump SMDB)\n");
-		goto err2;
-	}
-
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_coreextract);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): creating socketpair\n",

@@ -52,11 +52,32 @@ struct ssa_database *ssa_database_init(void)
 			cl_qmap_init(&p_ssa_database->p_lft_db->ep_dump_lft_block_tbl);
 			cl_qmap_init(&p_ssa_database->p_lft_db->ep_dump_lft_top_tbl);
 		} else {
-			free(p_ssa_database);
-			p_ssa_database = NULL;
+			goto err1;
 		}
+
+		p_ssa_database->p_current_db = ssa_db_extract_init();
+		if (!p_ssa_database->p_current_db)
+			goto err2;
+
+		p_ssa_database->p_previous_db = ssa_db_extract_init();
+		if (!p_ssa_database->p_previous_db)
+			goto err3;
+
+		p_ssa_database->p_dump_db = ssa_db_extract_init();
+		if (!p_ssa_database->p_dump_db)
+			goto err4;
 	}
+
 	return p_ssa_database;
+err4:
+	ssa_db_extract_delete(p_ssa_database->p_previous_db);
+err3:
+	ssa_db_extract_delete(p_ssa_database->p_current_db);
+err2:
+	free(p_ssa_database->p_lft_db);
+err1:
+	free(p_ssa_database);
+	return NULL;
 }
 
 void ssa_database_delete(struct ssa_database *p_ssa_db)
