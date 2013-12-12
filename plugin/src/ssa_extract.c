@@ -582,62 +582,6 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 
 /** =========================================================================
  */
-void ssa_db_remove(struct ssa_db_extract *p_ssa_db)
-{
-	struct ep_map_rec *p_map_rec, *p_map_rec_next;
-
-	if (!p_ssa_db || !p_ssa_db->initialized)
-		return;
-
-	ssa_log(SSA_LOG_VERBOSE, "[\n");
-
-
-	p_map_rec_next = (struct ep_map_rec *)cl_qmap_head(&p_ssa_db->ep_guid_to_lid_tbl);
-	while (p_map_rec_next !=
-	       (struct ep_map_rec *)cl_qmap_end(&p_ssa_db->ep_guid_to_lid_tbl)) {
-		p_map_rec = p_map_rec_next;
-		p_map_rec_next = (struct ep_map_rec *)cl_qmap_next(&p_map_rec->map_item);
-		cl_qmap_remove_item(&p_ssa_db->ep_guid_to_lid_tbl,
-				    &p_map_rec->map_item);
-		ep_map_rec_delete(p_map_rec);
-	}
-
-	p_map_rec_next = (struct ep_map_rec *)cl_qmap_head(&p_ssa_db->ep_node_tbl);
-	while (p_map_rec_next !=
-	       (struct ep_map_rec *)cl_qmap_end(&p_ssa_db->ep_node_tbl)) {
-		p_map_rec = p_map_rec_next;
-		p_map_rec_next = (struct ep_map_rec *)cl_qmap_next(&p_map_rec->map_item);
-		cl_qmap_remove_item(&p_ssa_db->ep_node_tbl,
-				    &p_map_rec->map_item);
-		ep_map_rec_delete(p_map_rec);
-	}
-
-	p_map_rec_next = (struct ep_map_rec *)cl_qmap_head(&p_ssa_db->ep_port_tbl);
-	while (p_map_rec_next !=
-	       (struct ep_map_rec *)cl_qmap_end(&p_ssa_db->ep_port_tbl)) {
-		p_map_rec = p_map_rec_next;
-		p_map_rec_next = (struct ep_map_rec *)cl_qmap_next(&p_map_rec->map_item);
-		cl_qmap_remove_item(&p_ssa_db->ep_port_tbl,
-				    &p_map_rec->map_item);
-		ep_map_rec_delete(p_map_rec);
-	}
-
-	p_map_rec_next = (struct ep_map_rec *)cl_qmap_head(&p_ssa_db->ep_link_tbl);
-	while (p_map_rec_next !=
-	       (struct ep_map_rec *)cl_qmap_end(&p_ssa_db->ep_link_tbl)) {
-		p_map_rec = p_map_rec_next;
-		p_map_rec_next = (struct ep_map_rec *)cl_qmap_next(&p_map_rec->map_item);
-		cl_qmap_remove_item(&p_ssa_db->ep_link_tbl,
-				    &p_map_rec->map_item);
-		ep_map_rec_delete(p_map_rec);
-	}
-
-	p_ssa_db->initialized = 0;
-	ssa_log(SSA_LOG_VERBOSE, "]\n");
-}
-
-/** =========================================================================
- */
 /* TODO:: Add meaningfull return value */
 void ssa_db_update(struct ssa_database *ssa_db)
 {
@@ -651,7 +595,6 @@ void ssa_db_update(struct ssa_database *ssa_db)
 
 	/* Updating previous SMDB with current one */
 	if (ssa_db->p_current_db->initialized && smdb_deltas) {
-		ssa_db_remove(ssa_db->p_previous_db);
 		ssa_db_extract_delete(ssa_db->p_previous_db);
 		ssa_db->p_previous_db = ssa_db->p_current_db;
 	}
