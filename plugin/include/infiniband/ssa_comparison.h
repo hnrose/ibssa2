@@ -77,10 +77,7 @@ struct ssa_db_diff {
 	uint8_t dirty;
 };
 
-struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs, uint64_t node_num_recs,
-				     uint64_t link_num_recs, uint64_t port_num_recs,
-				     uint64_t pkey_num_recs, uint64_t lft_top_num_recs,
-				     uint64_t lft_block_num_recs);
+struct ssa_db_diff *ssa_db_diff_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX]);
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
 struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db);
 END_C_DECLS

@@ -42,22 +42,13 @@ extern int smdb_deltas;
 
 /** =========================================================================
  */
-struct ssa_db_diff *ssa_db_diff_init(uint64_t guid_to_lid_num_recs,
-				     uint64_t node_num_recs,
-				     uint64_t link_num_recs,
-				     uint64_t port_num_recs,
-				     uint64_t pkey_num_recs,
-				     uint64_t lft_top_num_recs,
-				     uint64_t lft_block_num_recs)
+struct ssa_db_diff *ssa_db_diff_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
 {
 	struct ssa_db_diff *p_ssa_db_diff;
 
 	p_ssa_db_diff = (struct ssa_db_diff *) calloc(1, sizeof(*p_ssa_db_diff));
 	if (p_ssa_db_diff) {
-		p_ssa_db_diff->p_smdb = ssa_db_smdb_init(guid_to_lid_num_recs, node_num_recs,
-							 link_num_recs, port_num_recs,
-							 pkey_num_recs, lft_top_num_recs,
-							 lft_block_num_recs);
+		p_ssa_db_diff->p_smdb = ssa_db_smdb_init(data_rec_cnt);
 
 		cl_qmap_init(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_added);
@@ -1227,9 +1218,7 @@ static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old, cl_qmap_t * p_m
 struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
-	uint64_t guid_to_lid_num_recs, node_num_recs;
-	uint64_t link_num_recs, port_num_recs, pkey_num_recs;
-	uint64_t lft_top_num_recs, lft_block_num_recs;
+	uint64_t data_rec_cnt[SSA_TABLE_ID_MAX];
 	uint64_t new_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
@@ -1242,23 +1231,29 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
 		goto Exit;
 	}
 
-	guid_to_lid_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_guid_to_lid_tbl) +
-			cl_qmap_count(&ssa_db->p_previous_db->ep_guid_to_lid_tbl);
-	node_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_node_tbl) +
-			cl_qmap_count(&ssa_db->p_previous_db->ep_node_tbl);
-	link_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_link_tbl) +
-			cl_qmap_count(&ssa_db->p_previous_db->ep_link_tbl);
-	port_num_recs = cl_qmap_count(&ssa_db->p_current_db->ep_port_tbl) +
-			cl_qmap_count(&ssa_db->p_previous_db->ep_port_tbl);
-	pkey_num_recs = ssa_db->p_current_db->pkey_tbl_rec_num;
-	lft_top_num_recs = cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl) +
-			cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
-	lft_block_num_recs = cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) +
-			cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+	data_rec_cnt[SSA_TABLE_ID_SUBNET_OPTS] = 1;
+	data_rec_cnt[SSA_TABLE_ID_GUID_TO_LID] =
+		cl_qmap_count(&ssa_db->p_current_db->ep_guid_to_lid_tbl) +
+		cl_qmap_count(&ssa_db->p_previous_db->ep_guid_to_lid_tbl);
+	data_rec_cnt[SSA_TABLE_ID_NODE] =
+		cl_qmap_count(&ssa_db->p_current_db->ep_node_tbl) +
+		cl_qmap_count(&ssa_db->p_previous_db->ep_node_tbl);
+	data_rec_cnt[SSA_TABLE_ID_LINK] =
+		cl_qmap_count(&ssa_db->p_current_db->ep_link_tbl) +
+		cl_qmap_count(&ssa_db->p_previous_db->ep_link_tbl);
+	data_rec_cnt[SSA_TABLE_ID_PORT] =
+		cl_qmap_count(&ssa_db->p_current_db->ep_port_tbl) +
+		cl_qmap_count(&ssa_db->p_previous_db->ep_port_tbl);
+	data_rec_cnt[SSA_TABLE_ID_PKEY] =
+		ssa_db->p_current_db->pkey_tbl_rec_num;
+	data_rec_cnt[SSA_TABLE_ID_LFT_TOP] =
+		cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl) +
+		cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+	data_rec_cnt[SSA_TABLE_ID_LFT_BLOCK] =
+		cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) +
+		cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 
-	p_ssa_db_diff = ssa_db_diff_init(guid_to_lid_num_recs, node_num_recs,
-					 link_num_recs, port_num_recs, pkey_num_recs,
-					 lft_top_num_recs, lft_block_num_recs);
+	p_ssa_db_diff = ssa_db_diff_init(data_rec_cnt);
 	if (!p_ssa_db_diff) {
 		/* error handling */
 		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");

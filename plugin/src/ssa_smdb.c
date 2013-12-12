@@ -128,27 +128,11 @@ static const struct db_field_def field_tbl[] = {
 
 /** =========================================================================
  */
-struct ssa_db *ssa_db_smdb_init(uint64_t guid_to_lid_num_recs,
-				uint64_t node_num_recs,
-				uint64_t link_num_recs,
-				uint64_t port_num_recs,
-				uint64_t pkey_num_recs,
-				uint64_t lft_top_num_recs,
-				uint64_t lft_block_num_recs)
+struct ssa_db *ssa_db_smdb_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
 {
 	struct ssa_db *p_ssa_db;
-	uint64_t num_recs_arr[SSA_TABLE_ID_MAX];
 	uint64_t num_field_recs_arr[SSA_TABLE_ID_MAX];
 	size_t recs_size_arr[SSA_TABLE_ID_MAX];
-
-	num_recs_arr[SSA_TABLE_ID_SUBNET_OPTS] = 1; /* subnet options - single record */
-	num_recs_arr[SSA_TABLE_ID_GUID_TO_LID] = guid_to_lid_num_recs;
-	num_recs_arr[SSA_TABLE_ID_NODE] = node_num_recs;
-	num_recs_arr[SSA_TABLE_ID_LINK] = link_num_recs;
-	num_recs_arr[SSA_TABLE_ID_PORT] = port_num_recs;
-	num_recs_arr[SSA_TABLE_ID_PKEY] = pkey_num_recs;
-	num_recs_arr[SSA_TABLE_ID_LFT_TOP] = lft_top_num_recs;
-	num_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = lft_block_num_recs;
 
 	recs_size_arr[SSA_TABLE_ID_SUBNET_OPTS] = sizeof(struct ep_subnet_opts_tbl_rec);
 	recs_size_arr[SSA_TABLE_ID_GUID_TO_LID] = sizeof(struct ep_guid_to_lid_tbl_rec);
@@ -168,7 +152,7 @@ struct ssa_db *ssa_db_smdb_init(uint64_t guid_to_lid_num_recs,
 	num_field_recs_arr[SSA_TABLE_ID_LFT_TOP] = SSA_FIELD_ID_LFT_TOP_MAX;
 	num_field_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = SSA_FIELD_ID_LFT_BLOCK_MAX;
 
-	p_ssa_db = ssa_db_create(num_recs_arr, recs_size_arr, num_field_recs_arr, SSA_TABLE_ID_MAX);
+	p_ssa_db = ssa_db_create(data_rec_cnt, recs_size_arr, num_field_recs_arr, SSA_TABLE_ID_MAX);
 
 	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);
