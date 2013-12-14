@@ -1277,6 +1277,8 @@ static void ssa_downstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
 {
 	struct ssa_conn_done_msg msg;
 
+	if (conn->dbtype != SSA_CONN_PRDB_TYPE)
+		return;
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
