@@ -67,6 +67,8 @@
 #define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
 
 #define FIRST_DATA_FD_SLOT	6
+#define PRDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 1
+#define SMDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 2
 
 #define SMDB_PRELOAD_PATH RDMA_CONF_DIR "/smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
@@ -1707,15 +1709,15 @@ static void *ssa_downstream_handler(void *context)
 	pfd->events = POLLIN;
 	pfd->revents = 0;
 	pfd = (struct pollfd *)(fds + 3);
+	pfd->fd = svc->sock_extractdown[0];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+	pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
 	pfd->fd = -1;	/* placeholder for SMDB listen rsock */
 	pfd->events = POLLIN;
 	pfd->revents = 0;
-	pfd = (struct pollfd *)(fds + 4);
+	pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
 	pfd->fd = -1;	/* placeholder for PRDB listen rsock */
-	pfd->events = POLLIN;
-	pfd->revents = 0;
-	pfd = (struct pollfd *)(fds + 5);
-	pfd->fd = svc->sock_extractdown[0];
 	pfd->events = POLLIN;
 	pfd->revents = 0;
 	for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
@@ -1750,13 +1752,13 @@ static void *ssa_downstream_handler(void *context)
 			case SSA_LISTEN:
 				if (svc->port->dev->ssa->node_type &
 				    (SSA_NODE_CORE | SSA_NODE_DISTRIBUTION)) {
-					pfd2 = (struct pollfd *)(fds + 3);
+					pfd2 = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
 					pfd2->fd = ssa_downstream_listen(svc, &svc->conn_listen_smdb, smdb_port);
 				}
 
 				if (svc->port->dev->ssa->node_type &
 				    SSA_NODE_ACCESS) {
-					pfd2 = (struct pollfd *)(fds + 4);
+					pfd2 = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
 					pfd2->fd = ssa_downstream_listen(svc, &svc->conn_listen_prdb, prdb_port);
 				}
 				break;
@@ -1833,20 +1835,6 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 		pfd = (struct pollfd *)(fds + 3);
 		if (pfd->revents) {
 			pfd->revents = 0;
-			ssa_check_listen_events(svc, pfd, fds,
-						SSA_CONN_SMDB_TYPE);
-		}
-
-		pfd = (struct pollfd *)(fds + 4);
-		if (pfd->revents) {
-			pfd->revents = 0;
-			ssa_check_listen_events(svc, pfd, fds,
-						SSA_CONN_PRDB_TYPE);
-		}
-
-		pfd = (struct pollfd *)(fds + 5);
-		if (pfd->revents) {
-			pfd->revents = 0;
 			read(svc->sock_extractdown[0], (char *) &msg, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
 				read(svc->sock_extractdown[0],
@@ -1869,6 +1857,20 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 					     msg.hdr.type);
 				break;
 			}
+		}
+
+		pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
+		if (pfd->revents) {
+			pfd->revents = 0;
+			ssa_check_listen_events(svc, pfd, fds,
+						SSA_CONN_SMDB_TYPE);
+		}
+
+		pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
+		if (pfd->revents) {
+			pfd->revents = 0;
+			ssa_check_listen_events(svc, pfd, fds,
+						SSA_CONN_PRDB_TYPE);
 		}
 
 		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
