@@ -470,8 +470,7 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 	}
 }
 
-static void ssa_extract_send_db_update(struct ssa_db *db, int fd,
-				       int flags)
+static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 {
 #ifndef CORE_INTEGRATION
 	struct ssa_db_update_msg msg;
