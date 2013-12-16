@@ -540,6 +540,9 @@ static void *core_extract_handler(void *context)
 								svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
 								ssa_extract_send_db_update(ssa_db_diff->p_smdb,
 											   svc->sock_extractdown[1], 0);
+								if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
+									ssa_extract_send_db_update(ssa_db_diff->p_smdb,
+												   svc->sock_accessextract[0], 0);
 							}
 						}
 					}
