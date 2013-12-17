@@ -31,11 +31,10 @@
  *
  */
 
-#include <infiniband/osm_headers.h>
+#include <infiniband/ssa_smdb_api.h>
 #include <infiniband/ssa_database.h>
 #include <infiniband/ssa_comparison.h>
 #include <infiniband/ssa_extract.h>
-#include <infiniband/ssa_smdb.h>
 #include <common.h>
 #include <sys/types.h>
 #include <sys/socket.h>

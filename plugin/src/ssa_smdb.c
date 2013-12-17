@@ -31,7 +31,7 @@
  *
  */
 
-#include <infiniband/ssa_smdb.h>
+#include <infiniband/ssa_smdb_api.h>
 #include <asm/byteorder.h>
 
 static const struct db_table_def def_tbl[] = {
