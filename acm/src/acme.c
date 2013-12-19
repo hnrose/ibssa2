@@ -282,6 +282,15 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Default is ACM_CONF_DIR/ssa_db\n");
 	fprintf(f, "# route_data_dir /etc/rdma/ssa_db\n");
 	fprintf(f, "\n");
+	fprintf(f, "# acm_mode:\n");
+	fprintf(f, "# Specifies backend mode of operation for ACM: whether it is\n");
+	fprintf(f, "# ACM version 1 (multicast) or SSA.\n");
+	fprintf(f, "# Supported acm_mode values are:\n");
+	fprintf(f, "# acm (default)\n");
+	fprintf(f, "# ssa\n");
+	fprintf(f, "\n");
+	fprintf(f, "acm_mode acm\n");
+	fprintf(f, "\n");
 }
 
 static int open_dir(void)

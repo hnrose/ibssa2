@@ -89,6 +89,11 @@ enum acm_route_preload {
 	ACM_ROUTE_PRELOAD_ACCESS_V1
 };
 
+enum acm_mode {
+	ACM_MODE_ACM,
+	ACM_MODE_SSA
+};
+
 /*
  * Nested locking order: dest -> ep, dest -> port
  */
@@ -244,6 +249,7 @@ static int recv_depth = 1024;
 static uint8_t min_mtu = IBV_MTU_2048;
 static uint8_t min_rate = IBV_RATE_10_GBPS;
 static enum acm_route_preload route_preload;
+static enum acm_mode acm_mode = ACM_MODE_ACM;
 
 extern short prdb_port;
 
@@ -2448,6 +2454,15 @@ static enum acm_route_preload acm_convert_route_preload(char *param)
 	return route_preload;
 }
 
+static enum acm_mode acm_convert_mode(char *param)
+{
+	if (!strcasecmp("acm", param))
+		return ACM_MODE_ACM;
+	else if (!strcasecmp("ssa", param))
+		return ACM_MODE_SSA;
+
+	return acm_mode;
+}
 
 static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 {
@@ -3639,6 +3654,8 @@ static void acm_set_options(void)
 		        strcpy(route_data_file, value);
 		else if (!strcasecmp("route_data_dir", opt))
 		        strcpy(route_data_dir, value);
+		else if (!strcasecmp("acm_mode", opt))
+			acm_mode = acm_convert_mode(value);
 	}
 
 	fclose(f);
@@ -3666,6 +3683,7 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "route preload %d\n", route_preload);
 	ssa_log(SSA_LOG_DEFAULT, "routing data file %s\n", route_data_file);
 	ssa_log(SSA_LOG_DEFAULT, "routing data directory %s\n", route_data_dir);
+	ssa_log(SSA_LOG_DEFAULT, "acm mode %d\n", acm_mode);
 }
 
 static void *acm_ctrl_handler(void *context)
