@@ -86,6 +86,7 @@ static osm_opensm_t *osm;
 
 static int sock_coreextract[2];
 
+#ifndef SIM_SUPPORT
 static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			    uint8_t node_type)
 {
@@ -438,6 +439,7 @@ static void core_destroy_svc(struct ssa_svc *svc)
 	if (core->member_map)
 		tdestroy(core->member_map, core_free_member);
 }
+#endif
 
 static const char *sm_state_str(int state)
 {
@@ -469,7 +471,7 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 			ntohs(p_ntc->issuer_lid));
 	}
 }
-
+#ifndef SIM_SUPPORT
 static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 {
 #ifndef CORE_INTEGRATION
@@ -483,14 +485,20 @@ static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 	write(fd, (char *) &msg, sizeof(msg));
 #endif
 }
+#endif
 
 static void *core_extract_handler(void *context)
 {
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
+#ifndef SIM_SUPPORT
 	struct ssa_svc *svc;
+#endif
 	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
-	int d, p, s, ret;
+	int ret;
+#ifndef SIM_SUPPORT
+	int d, p, s;
+#endif
 
 	pfds[0].fd	= sock_coreextract[1];
 	pfds[0].events	= POLLIN;
@@ -533,6 +541,7 @@ static void *core_extract_handler(void *context)
 						ssa_db_save(SMDB_DUMP_PATH,
 							    ssa_db_diff->p_smdb,
 							    SSA_DB_HELPER_DEBUG);
+#ifndef SIM_SUPPORT
 					for (d = 0; d < ssa.dev_cnt; d++) {
 						for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 							for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
@@ -545,6 +554,7 @@ static void *core_extract_handler(void *context)
 							}
 						}
 					}
+#endif
 
 				}
 				pthread_mutex_unlock(&ssa_db_diff_lock);
@@ -729,8 +739,11 @@ static void core_log_options(void)
 
 static void *core_construct(osm_opensm_t *opensm)
 {
+#ifndef SIM_SUPPORT
 	struct ssa_svc *svc;
-	int d, p, ret;
+	int d, p;
+#endif
+	int ret;
 
 	core_set_options();
 	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
@@ -760,6 +773,7 @@ static void *core_construct(osm_opensm_t *opensm)
 
 	pthread_mutex_init(&ssa_db_diff_lock, NULL);
 
+#ifndef SIM_SUPPORT
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
@@ -778,6 +792,7 @@ static void *core_construct(osm_opensm_t *opensm)
 			core_init_svc(svc);
 		}
 	}
+#endif
 
 	ret = pthread_create(&extract_thread, NULL, core_extract_handler,
 			     (void *) opensm);
@@ -788,6 +803,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err4;
 	}
 
+#ifndef SIM_SUPPORT
 	ret = pthread_create(&ctrl_thread, NULL, core_ctrl_handler, NULL);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL,
@@ -795,16 +811,21 @@ static void *core_construct(osm_opensm_t *opensm)
 			ret, strerror(ret));
 		goto err5;
 	}
+#endif
 
 	osm = opensm;
 	return &ssa;
 
+#ifndef SIM_SUPPORT
 err5:
 	core_send(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
+#endif
 err4:
+#ifndef SIM_SUPPORT
 	ssa_close_devices(&ssa);
 err3:
+#endif
 	close(sock_coreextract[0]);
 	close(sock_coreextract[1]);
 err2:
@@ -816,16 +837,19 @@ err1:
 
 static void core_destroy(void *context)
 {
+#ifndef SIM_SUPPORT
 	int d, p, s;
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down control thread\n");
 	ssa_ctrl_stop(&ssa);
 	pthread_join(ctrl_thread, NULL);
+#endif
 
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
 	core_send(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 
+#ifndef SIM_SUPPORT
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
@@ -833,12 +857,15 @@ static void core_destroy(void *context)
 			}
 		}
 	}
+#endif
 
 	close(sock_coreextract[0]);
 	close(sock_coreextract[1]);
 
+#ifndef SIM_SUPPORT
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
+#endif
 
 	pthread_mutex_lock(&ssa_db_diff_lock);
 	ssa_db_diff_destroy(ssa_db_diff);

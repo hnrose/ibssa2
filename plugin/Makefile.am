@@ -11,6 +11,7 @@ src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DACCESS
 #src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DCORE_INTEGRATION
 #src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DCORE_INTEGRATION -DACCESS
 #src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DSSA_PLUGIN_VERBOSE_LOGGING
+#src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DSSA_PLUGIN_VERBOSE_LOGGING -DSIM_SUPPORT
 
 if HAVE_LD_VERSION_SCRIPT
     libopensmssa_version_script = -Wl,--version-script=$(srcdir)/libopensmssa.map
