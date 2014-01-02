@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2013-2014 Mellanox Technologies LTD. All rights reserved.
  * Copyright (c) 2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2013 Lawrence Livermore National Securities.  All rights reserved.
  *
