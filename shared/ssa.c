@@ -73,18 +73,12 @@
 #define SMDB_PRELOAD_PATH RDMA_CONF_DIR "/smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
 
-struct ssa_access_context {
-	struct ssa_db *smdb;
-	void *context;
-};
-
 #ifdef ACCESS_INTEGRATION
 static struct ssa_db *prdb;
 #endif
 static struct ssa_db *smdb;
 static FILE *flog;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
-static struct ssa_access_context access_context;
 
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
@@ -1934,12 +1928,12 @@ static void *ssa_access_handler(void *context)
 	fds[3].events = POLLIN;
 	fds[3].revents = 0;
 
-	if (!access_context.context) {
+	if (!svc->access_context.context) {
 		ssa_log_err(SSA_LOG_CTRL, "access context is empty\n");
 		goto out;
 	}
 #ifdef ACCESS_INTEGRATION
-	if (!access_context.smdb) {
+	if (!svc->access_context.smdb) {
 		ssa_log_err(SSA_LOG_CTRL, "smdb database is empty\n");
 		goto out;
 	}
@@ -1992,7 +1986,7 @@ static void *ssa_access_handler(void *context)
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.data.db_upd.db);
-				access_context.smdb = msg.data.db_upd.db;
+				svc->access_context.smdb = msg.data.db_upd.db;
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2030,10 +2024,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 				/* Now, tell downstream where this ssa_db struct is */
 				/* Replace NULL with pointer to real struct ssa_db */
 #ifdef ACCESS
-				if (access_context.smdb) {
+				if (svc->access_context.smdb) {
 					/* This call pulls in access layer for all node types !!! */
-					prdb = ssa_pr_compute_half_world(access_context.smdb,
-									 access_context.context,
+					prdb = ssa_pr_compute_half_world(svc->access_context.smdb,
+									 svc->access_context.context,
 									 msg.data.conn->remote_gid.global.interface_id);
 #endif
 					if (!prdb) {
@@ -2079,7 +2073,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract thread: ssa_db %p\n", msg.data.db_upd.db);
-				access_context.smdb = msg.data.db_upd.db;
+				svc->access_context.smdb = msg.data.db_upd.db;
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2713,6 +2707,29 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		svc->sock_accessextract[1] = -1;
 	}
 
+#ifdef ACCESS
+	/*
+	 * TODO:
+	 * 1. Pass required log verbosity. Access layer now has:
+	 *  SSA_PR_NO_LOG = 0,
+	 *  SSA_PR_EEROR_LEVEL = 1,
+	 *  SSA_PR_INFO_LEVEL = 2,
+	 *  SSA_PR_DEBUG_LEVEL = 3
+	 * 2. Change errno
+	 *
+	 */
+	svc->access_context.context = ssa_pr_create_context(flog, 0);
+	if (!svc->access_context.context) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "unable to create access layer context\n");
+		goto err9;
+	}
+#endif
+
+#ifdef ACCESS_INTEGRATION
+	svc->access_context.smdb = smdb;
+#endif
+
 	svc->index = port->svc_cnt;
 	svc->port = port;
 	snprintf(svc->name, sizeof svc->name, "%s:%llu", port->name,
@@ -2738,13 +2755,13 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating upstream thread\n");
 		errno = ret;
-		goto err9;
+		goto err10;
 	}
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with upstream thread\n");
-		goto err10;
+		goto err11;
 
 	}
 
@@ -2754,13 +2771,13 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating downstream thread\n");
 			errno = ret;
-			goto err10;
+			goto err11;
 		}
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 			ssa_log_err(SSA_LOG_CTRL, "with downstream thread\n");
-			goto err11;
+			goto err12;
 		}
 	}
 
@@ -2769,26 +2786,34 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
 			errno = ret;
-			goto err11;
+			goto err12;
 		}
 
 		ret = read(svc->sock_accessctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 			ssa_log_err(SSA_LOG_CTRL, "with access thread\n");
-			goto err12;
+			goto err13;
 		}
 	}
 
 	port->svc[port->svc_cnt++] = svc;
 	return svc;
 
-err12:
+err13:
 	pthread_join(svc->access, NULL);
-err11:
+err12:
 	pthread_join(svc->downstream, NULL);
-err10:
+err11:
 	pthread_join(svc->upstream, NULL);
+err10:
+#ifdef ACCESS
+	if (svc->access_context.context) {
+		ssa_pr_destroy_context(svc->access_context.context);
+		svc->access_context.context = NULL;
+		svc->access_context.smdb = NULL;
+	}
 err9:
+#endif
 	if (svc->port->dev->ssa->node_type == (SSA_NODE_CORE | SSA_NODE_ACCESS)) {
 		close(svc->sock_accessextract[0]);
 		close(svc->sock_accessextract[1]);
@@ -2935,8 +2960,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	}
 #endif
 
-	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
 #ifdef ACCESS_INTEGRATION
+	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
 		/* if configured, invoke PR and/or SSA DB preloading */
 
 		prdb = ssa_db_load(PRDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
@@ -2949,42 +2974,21 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 				"prdb is preloaded from \"%s\"\n",
 				PRDB_PRELOAD_PATH);
 		}
-#endif
 
-#ifdef ACCESS
-		/*
-		 * TODO:
-		 * 1. Pass required log verbosity. Now access layer has:
-		 *  SSA_PR_NO_LOG = 0,
-		 *  SSA_PR_EEROR_LEVEL = 1,
-		 *  SSA_PR_INFO_LEVEL = 2,
-		 *  SSA_PR_DEBUG_LEVEL = 3
-		 * 2. Change errno
-		 */
-		if (!access_context.context)
-			access_context.context = ssa_pr_create_context(flog, 0);
-		if (!access_context.context) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "unable to create access layer context\n");
-			goto ctx_create_err;
-		}
-#endif
-
-#ifdef ACCESS_INTEGRATION
-		if (!access_context.smdb)
-			access_context.smdb = ssa_db_load(SMDB_PRELOAD_PATH,
-							  SSA_DB_HELPER_DEBUG);
-		if (!access_context.smdb) {
+		if (!smdb)
+			smdb = ssa_db_load(SMDB_PRELOAD_PATH,
+					   SSA_DB_HELPER_DEBUG);
+		if (!smdb) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "unable to preload smdb database. path:\"%s\"\n",
 				    SMDB_PRELOAD_PATH);
 			goto ctx_create_err;
 		}
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"access context is created, smdb is preloaded from \"%s\"\n",
+			"smdb is preloaded from \"%s\"\n",
 			SMDB_PRELOAD_PATH);
-#endif
 	}
+#endif
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
@@ -2993,17 +2997,15 @@ err1:
 	ibv_close_device(dev->verbs);
 	dev->verbs = NULL;
 
-#ifdef ACCESS
-ctx_create_err:
-	if (access_context.context) {
-		ssa_pr_destroy_context(access_context.context);
-		access_context.context = NULL;
-	}
-#endif
 #ifdef ACCESS_INTEGRATION
-	if (access_context.smdb) {
-		ssa_db_destroy(access_context.smdb);
-		access_context.smdb = NULL;
+ctx_create_err:
+	if (prdb) {
+		ssa_db_destroy(prdb);
+		prdb = NULL;
+	}
+	if (smdb) {
+		ssa_db_destroy(smdb);
+		smdb = NULL;
 	}
 #endif
 	seterr(ENOMEM);
@@ -3013,13 +3015,6 @@ int ssa_open_devices(struct ssa_class *ssa)
 {
 	struct ibv_device **ibdev;
 	int i, ret = 0;
-
-	/*
-	 * TODO:
-	 * Destroy old context if it exists: ssa_pr_destroy_context
-	 */
-	access_context.smdb = NULL;
-	access_context.context = NULL;
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	ibdev = ibv_get_device_list(&ssa->dev_cnt);
@@ -3063,6 +3058,15 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	}
 
 	svc->port->svc[svc->index] = NULL;
+#ifdef ACCESS
+	if (svc->access_context.context) {
+		ssa_pr_destroy_context(svc->access_context.context);
+		svc->access_context.context = NULL;
+	}
+	if (svc->access_context.smdb != smdb)
+		ssa_db_destroy(svc->access_context.smdb);
+	svc->access_context.smdb = NULL;
+#endif
 	if (svc->conn_listen_smdb.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_listen_smdb);
 	if (svc->conn_listen_prdb.rsock >= 0)
@@ -3141,18 +3145,16 @@ void ssa_close_devices(struct ssa_class *ssa)
 	free(ssa->dev);
 	ssa->dev_cnt = 0;
 
-#ifdef ACCESS
-	if (access_context.context) {
-		ssa_pr_destroy_context(access_context.context);
-		access_context.context = NULL;
-	}
-#endif
 #ifdef ACCESS_INTEGRATION
-	if (access_context.smdb) {
-		ssa_db_destroy(access_context.smdb);
-		access_context.smdb = NULL;
+	if (prdb) {
+		ssa_db_destroy(prdb);
+		prdb = NULL;
 	}
 #endif
+	if (smdb) {
+		ssa_db_destroy(smdb);
+		smdb = NULL;
+	}
 }
 
 int ssa_open_lock_file(char *lock_file)

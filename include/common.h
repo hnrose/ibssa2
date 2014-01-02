@@ -199,6 +199,11 @@ struct ssa_conn {
 	struct ssa_db		*ssa_db;
 };
 
+struct ssa_access_context {
+	struct ssa_db *smdb;
+	void *context;
+};
+
 enum ssa_svc_state {
 	SSA_STATE_IDLE,
 	SSA_STATE_JOINING,
@@ -225,6 +230,7 @@ struct ssa_svc {
 	int			sock_updown[2];
 	int			sock_extractdown[2];
 	int			sock_accessextract[2];
+	struct ssa_access_context access_context;
 	struct ssa_conn		conn_listen_smdb;
 	struct ssa_conn		conn_listen_prdb;
 	struct ssa_conn		conn_dataup;
