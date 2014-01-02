@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright 2004-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the terms of the
  * OpenIB.org BSD license included below:
@@ -31,7 +31,7 @@
 #define __SSA_PATH_RECORD_H__
 
 /*
- * The file contains SSA Access Layer API. 
+ * The file contains SSA Access Layer API.
  */
 
 #include <stdio.h>
@@ -45,8 +45,8 @@ extern "C" {
 #endif
 
 typedef enum _ssa_pr_status_t {
-    SSA_PR_SUCCESS,
-    SSA_PR_ERROR,
+	SSA_PR_SUCCESS,
+	SSA_PR_ERROR,
 	SSA_PR_NO_PATH
 } ssa_pr_status_t;
 
@@ -71,8 +71,8 @@ typedef void (*ssa_pr_path_dump_t)(const struct ssa_path_parms*,void*);
 extern void *ssa_pr_create_context(FILE* log_fd, int log_level);
 extern void ssa_pr_destroy_context(void * ctx);
 
-/* ssa_pr_compute_half_world function computes "half world" path records 
- * 					for given GUID. As result the function creates prdb 
+/* ssa_pr_compute_half_world function computes "half world" path records
+ * 					for given GUID. As result the function creates prdb
  * 					database. A caller is responsible for destroy the
  * 					database.
  * @return value	- pointer to prdb database. NULL in vase of failure.
@@ -81,9 +81,9 @@ extern void ssa_pr_destroy_context(void * ctx);
  * 						functions call. A caller has to create a context before first call
  * 						and destroy it at end.
  * @port_guid		- input GUID
- * 
- * */
-extern struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb, 
+ *
+ */
+extern struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 		void *p_ctnx,
 		be64_t port_guid);
 
