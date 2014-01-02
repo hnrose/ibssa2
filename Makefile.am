@@ -68,7 +68,7 @@ libssaaccesslayer_la_LDFLAGS = -export-dynamic -lm \
 									$(GLIB_LIBS) -lglib-2.0  
 libssaaccesslayer_la_CPPFLAGS =  $(INCLUDES) -I$(includedir) $(DEPS_CFLAGS) $(GLIB_CFLAGS) -g 
 libssaaccesslayerincludedir = $(includedir)/
-libssaaccesslayerinclude_HEADERS = $(srcdir)/include/infiniband/ssa_path_record.h
+libssaaccesslayerinclude_HEADERS = $(IBSSA_SRC)/include/infiniband/ssa_path_record.h
 
 
 
