@@ -471,6 +471,7 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 			ntohs(p_ntc->issuer_lid));
 	}
 }
+
 #ifndef SIM_SUPPORT
 static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 {
