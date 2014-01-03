@@ -56,6 +56,7 @@ int smdb_deltas = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
+extern int prdb_dump;
 extern short smdb_port;
 extern short prdb_port;
 
@@ -710,6 +711,8 @@ static void core_set_options(void)
 			prdb_port = (short) atoi(value);
 		else if (!strcasecmp("smdb_dump", opt))
 			smdb_dump = atoi(value);
+		else if (!strcasecmp("prdb_dump", opt))
+			prdb_dump = atoi(value);
 		else if (!strcasecmp("smdb_deltas", opt))
 			smdb_deltas = atoi(value);
 	}
@@ -735,6 +738,7 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);
+	ssa_log(SSA_LOG_DEFAULT, "prdb dump %d\n", prdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 }
 
