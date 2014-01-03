@@ -61,6 +61,7 @@
 #include <search.h>
 #include <common.h>
 #include <ssa_ctrl.h>
+#include <inttypes.h>
 
 
 #define DEFAULT_TIMEOUT 1000
@@ -72,6 +73,7 @@
 
 #define SMDB_PRELOAD_PATH RDMA_CONF_DIR "/smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
+#define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
 
 #ifdef ACCESS_INTEGRATION
 static struct ssa_db *prdb;
@@ -99,6 +101,7 @@ static const char * month_str[] = {
 };
 
 static int log_level = SSA_LOG_DEFAULT;
+int prdb_dump = 0;
 //static short server_port = 6125;
 short smdb_port = 7470;
 short prdb_port = 7471;
@@ -1908,7 +1911,9 @@ static void *ssa_access_handler(void *context)
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[4];
 	struct ssa_db *prdb = NULL;
-	int ret;
+	int ret, n;
+	char dump_dir[1024];
+	struct stat dstat;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
@@ -2036,6 +2041,30 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 							    log_data);
 						continue;
 					}
+					if (prdb_dump) {
+						n = snprintf(dump_dir,
+							     sizeof(dump_dir),
+							     "%s.",
+							     PRDB_DUMP_PATH);
+						snprintf(dump_dir + n,
+							 sizeof(dump_dir) - n,
+							 "%" PRIx64,
+							 ntohll(msg.data.conn->remote_gid.global.interface_id));
+						if (lstat(dump_dir, &dstat)) {
+							if (mkdir(dump_dir, 0755)) {
+								ssa_log_err(SSA_LOG_CTRL,
+									    "prdb dump for GID %s: %d (%s)\n",
+									    log_data,
+									    errno,
+									    strerror(errno));
+								goto skip_save;
+							}
+						}
+						ssa_db_save(dump_dir,
+							    prdb,
+							    SSA_DB_HELPER_DEBUG);
+					}
+skip_save:
 					ssa_access_send_db_update(svc, prdb,
 								  msg.data.conn->rsock, 0,
 								  &msg.data.conn->remote_gid);
