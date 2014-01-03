@@ -46,15 +46,14 @@
  */
 static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
 static int node_type = SSA_NODE_ACCESS;
+static int smdb_dump = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
 extern short smdb_port;
 extern short prdb_port;
 
-#ifdef CORE_INTEGRATION
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
-#endif
 
 #ifdef INTEGRATION
 struct ssa_member {
@@ -358,11 +357,10 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 		return distrib_process_ssa_mad(svc, msg);
 	case SSA_DB_UPDATE:
 		ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
-#ifdef CORE_INTEGRATION
-		ssa_db_save(SMDB_DUMP_PATH,
-			    (struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db),
-			    SSA_DB_HELPER_DEBUG);
-#endif
+		if (smdb_dump)
+			ssa_db_save(SMDB_DUMP_PATH,
+				    (struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db),
+				    SSA_DB_HELPER_DEBUG);
 		return 1;
 	default:
 		break;
@@ -466,6 +464,8 @@ static void distrib_set_options(void)
 			strcpy(lock_file, value);
 		else if (!strcasecmp("node_type", opt))
 			node_type = distrib_convert_node_type(value);
+		else if (!strcasecmp("smdb_dump", opt))
+			smdb_dump = atoi(value);
 		else if (!strcasecmp("smdb_port", opt))
 			smdb_port = (short) atoi(value);
 		else if (!strcasecmp("prdb_port", opt))
@@ -492,6 +492,7 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
 	ssa_log(SSA_LOG_DEFAULT, "node type %d (%s)\n", node_type,
 		distrib_node_type_str(node_type));
+	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 }
