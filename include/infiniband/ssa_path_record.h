@@ -64,12 +64,10 @@ typedef struct ssa_path_parms {
 	uint8_t hops;
 } ssa_path_parms_t;
 
+typedef void (*ssa_pr_path_dump_t)(const struct ssa_path_parms *, void *);
 
-typedef void (*ssa_pr_path_dump_t)(const struct ssa_path_parms*,void*);
-
-
-extern void *ssa_pr_create_context(FILE* log_fd, int log_level);
-extern void ssa_pr_destroy_context(void * ctx);
+extern void *ssa_pr_create_context(FILE *log_fd, int log_level);
+extern void ssa_pr_destroy_context(void *ctx);
 
 /* ssa_pr_compute_half_world function computes "half world" path records
  * 					for given GUID. As result the function creates prdb
@@ -84,19 +82,17 @@ extern void ssa_pr_destroy_context(void * ctx);
  *
  */
 extern struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
-		void *p_ctnx,
-		be64_t port_guid);
+						void *p_ctnx, be64_t port_guid);
 
-extern ssa_pr_status_t ssa_pr_half_world(struct ssa_db* p_ssa_db_smdb, 
-		void * context,
-		be64_t port_guid,
-		ssa_pr_path_dump_t dump_clbk,
-		void* clbk_prm);
+extern ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, 
+					 void *context, be64_t port_guid,
+					 ssa_pr_path_dump_t dump_clbk,
+					 void *clbk_prm);
 
-extern ssa_pr_status_t ssa_pr_whole_world(struct ssa_db* p_ssa_db_smdb, 
-		void * context,
-		ssa_pr_path_dump_t dump_clbk,
-		void* clbk_prm);
+extern ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb, 
+					  void *context,
+					  ssa_pr_path_dump_t dump_clbk,
+					  void *clbk_prm);
 
 #ifdef __cplusplus
 }
