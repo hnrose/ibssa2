@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2013-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -50,12 +50,12 @@
 #define DBT_DEF_NO_RELATED_TBL 0xFFFFFFFF
 #endif
 
-#define SSA_DB_HELPER_DB_DEF_NAME	"db_def"
-#define SSA_DB_HELPER_TABLE_DEF_NAME	"table_def"
-#define SSA_DB_HELPER_FIELD_DEF_NAME	"field_def"
-#define SSA_DB_HELPER_DATA_NAME		"data"
-#define SSA_DB_HELPER_FIELDS_NAME	"fields"
-#define SSA_DB_HELPER_DATASET_NAME	"dataset"
+#define SSA_DB_HELPER_DB_DEF_NAME		"db_def"
+#define SSA_DB_HELPER_TABLE_DEF_NAME		"table_def"
+#define SSA_DB_HELPER_FIELD_DEF_NAME		"field_def"
+#define SSA_DB_HELPER_DATA_NAME			"data"
+#define SSA_DB_HELPER_FIELDS_NAME		"fields"
+#define SSA_DB_HELPER_DATASET_NAME		"dataset"
 #define SSA_DB_HELPER_FIELDS_DATASET_NAME	"fields_dataset"
 
 
@@ -89,42 +89,39 @@
 #define DB_LFT_TOP_TBL_FORMAT		"lid %" SCNu16 " lft_top %" SCNu16 "\n"
 #define DB_LFT_BLOCK_TBL_FORMAT		"lid %" SCNu16 " block_num %" SCNu16 "\n"
 
-static void ssa_db_db_def_dump(FILE * fd, const struct db_def * p_db_def)
+static void ssa_db_db_def_dump(FILE *fd, const struct db_def *p_db_def)
 {
-	fprintf(fd, DB_DEF_FORMAT_WRITE,
-		p_db_def->version, p_db_def->size,
-		p_db_def->id.db, p_db_def->id.table,
-		p_db_def->id.field,
+	fprintf(fd, DB_DEF_FORMAT_WRITE, p_db_def->version, p_db_def->size,
+		p_db_def->id.db, p_db_def->id.table, p_db_def->id.field,
 		ntohl(p_db_def->table_def_size), p_db_def->name);
 }
 
-static void ssa_db_table_def_dump(FILE * fd, struct db_table_def * p_def_tbl,
+static void ssa_db_table_def_dump(FILE *fd, struct db_table_def *p_def_tbl,
 				  uint64_t offset)
 {
 	struct db_table_def db_table_def;
 
 	memcpy(&db_table_def, &p_def_tbl[offset], sizeof(db_table_def));
-	fprintf(fd, TABLE_DEF_FORMAT_WRITE ,
+	fprintf(fd, TABLE_DEF_FORMAT_WRITE,
 		db_table_def.version, db_table_def.size,
 		db_table_def.type, db_table_def.access,
 		db_table_def.id.db, db_table_def.id.table,
-		db_table_def.id.field,
-		ntohl(db_table_def.record_size),
+		db_table_def.id.field, ntohl(db_table_def.record_size),
 		ntohl(db_table_def.ref_table_id), db_table_def.name);
 }
 
-static void ssa_db_dataset_dump(FILE * fd, struct db_dataset * p_dataset)
+static void ssa_db_dataset_dump(FILE *fd, struct db_dataset *p_dataset)
 {
 	fprintf(fd, DATASET_DEF_FORMAT,
 		p_dataset->version, p_dataset->size,
 		p_dataset->access, p_dataset->id.db,
 		p_dataset->id.table, p_dataset->id.field,
-		ntohll(p_dataset->epoch),  ntohll(p_dataset->set_size),
-		ntohll(p_dataset->set_offset),  ntohll(p_dataset->set_count));
+		ntohll(p_dataset->epoch), ntohll(p_dataset->set_size),
+		ntohll(p_dataset->set_offset), ntohll(p_dataset->set_count));
 }
 
-static void ssa_db_field_tbl_dump(FILE * fd, struct db_dataset * p_dataset,
-				  struct db_field_def * p_data_tbl)
+static void ssa_db_field_tbl_dump(FILE *fd, struct db_dataset *p_dataset,
+				  struct db_field_def *p_data_tbl)
 {
 	struct db_field_def field_rec;
 	uint32_t i;
@@ -139,7 +136,7 @@ static void ssa_db_field_tbl_dump(FILE * fd, struct db_dataset * p_dataset,
 	}
 }
 
-static void ssa_db_db_def_load(FILE * fd, struct db_def * p_db_def)
+static void ssa_db_db_def_load(FILE *fd, struct db_def *p_db_def)
 {
 	uint32_t table_def_size = 0;
 	int res = 0;
@@ -149,13 +146,13 @@ static void ssa_db_db_def_load(FILE * fd, struct db_def * p_db_def)
 		res = sscanf(line, DB_DEF_FORMAT_READ,
 			     &p_db_def->version, &p_db_def->size,
 			     &p_db_def->id.db, &p_db_def->id.table,
-			     &p_db_def->id.field,
-			     &table_def_size, p_db_def->name);
+			     &p_db_def->id.field, &table_def_size,
+			     p_db_def->name);
 		p_db_def->table_def_size = htonl(table_def_size);
 	}
 }
 
-static void ssa_db_table_def_load(FILE * fd, struct db_table_def * p_def_tbl)
+static void ssa_db_table_def_load(FILE *fd, struct db_table_def *p_def_tbl)
 {
 	int res = 0;
 
@@ -170,7 +167,7 @@ static void ssa_db_table_def_load(FILE * fd, struct db_table_def * p_def_tbl)
 	p_def_tbl->ref_table_id = htonl(p_def_tbl->ref_table_id);
 }
 
-static void ssa_db_dataset_load(FILE * fd, struct db_dataset * p_dataset)
+static void ssa_db_dataset_load(FILE *fd, struct db_dataset *p_dataset)
 {
 	int res = 0;
 
@@ -187,8 +184,8 @@ static void ssa_db_dataset_load(FILE * fd, struct db_dataset * p_dataset)
 	p_dataset->set_count = htonll(p_dataset->set_count);
 }
 
-static void ssa_db_field_tbl_load(FILE * fd, struct db_dataset * p_dataset,
-				  struct db_field_def * p_data_tbl)
+static void ssa_db_field_tbl_load(FILE *fd, struct db_dataset *p_dataset,
+				  struct db_field_def *p_data_tbl)
 {
 	struct db_field_def field_rec;
 	uint32_t i = 0;
@@ -210,17 +207,16 @@ static void ssa_db_field_tbl_load(FILE * fd, struct db_dataset * p_dataset,
 	}
 }
 
-static void ssa_db_rec_tbl_dump(FILE * fd, enum ssa_db_helper_mode mode,
+static void ssa_db_rec_tbl_dump(FILE *fd, enum ssa_db_helper_mode mode,
 				struct db_table_def *p_data_tbl_def,
-				struct db_dataset * p_dataset,
-				void * p_data_tbl,
+				struct db_dataset *p_dataset, void *p_data_tbl,
 				struct db_dataset *p_dataset_field,
 				struct db_field_def *p_field_tbl)
 {
 	struct db_field_def *p_field_rec;
-	char buffer[64];
 	uint8_t *p_data_rec, *p_data_field;
 	uint64_t i, k, j;
+	char buffer[64];
 
 	for (i = 0; i < ntohll(p_dataset->set_count); i++) {
 		p_data_rec = (uint8_t *)((uint8_t *)p_data_tbl + i * ntohl(p_data_tbl_def->record_size));
@@ -232,7 +228,8 @@ static void ssa_db_rec_tbl_dump(FILE * fd, enum ssa_db_helper_mode mode,
 				p_field_rec = &p_field_tbl[k];
 				p_data_field = p_data_rec + ntohl(p_field_rec->field_offset) / 8;
 
-				sprintf(buffer, "%s", (mode == SSA_DB_HELPER_HUMAN) ? p_field_rec->name : "\0");
+				sprintf(buffer, "%s",
+					(mode == SSA_DB_HELPER_HUMAN) ? p_field_rec->name : "\0");
 				if (mode == SSA_DB_HELPER_HUMAN)
 					sprintf(buffer, "%s ", buffer);
 				fprintf(fd, "%s", buffer);
@@ -242,56 +239,64 @@ static void ssa_db_rec_tbl_dump(FILE * fd, enum ssa_db_helper_mode mode,
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 8; j++) {
 						if (j > 0)
 							fprintf(fd, SSA_DB_HELPER_ARRAY_DELIMITER);
-						fprintf(fd, "%" SCNu8 "", *((uint8_t *)(p_data_field + j)));
+						fprintf(fd, "%" SCNu8 "",
+							*((uint8_t *)(p_data_field + j)));
 					}
 					break;
 				case DBF_TYPE_U16:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 16; j++) {
 						if (j > 0)
 							fprintf(fd, SSA_DB_HELPER_ARRAY_DELIMITER);
-						fprintf(fd, "%" SCNu16 "", *((uint16_t *)(p_data_field + (j * 2))));
+						fprintf(fd, "%" SCNu16 "",
+							*((uint16_t *)(p_data_field + (j * 2))));
 					}
 					break;
 				case DBF_TYPE_U32:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 32; j++) {
 						if (j > 0)
 							fprintf(fd, SSA_DB_HELPER_ARRAY_DELIMITER);
-						fprintf(fd, "%" PRIx32 "", *((uint32_t *)(p_data_field + (j * 4))));
+						fprintf(fd, "%" PRIx32 "",
+							*((uint32_t *)(p_data_field + (j * 4))));
 					}
 					break;
 				case DBF_TYPE_U64:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 64; j++) {
 						if (j > 0)
 							fprintf(fd, SSA_DB_HELPER_ARRAY_DELIMITER);
-						fprintf(fd, "0x%" PRIx64 "", *((uint64_t *)(p_data_field + (j * 8))));
+						fprintf(fd, "0x%" PRIx64 "",
+							*((uint64_t *)(p_data_field + (j * 8))));
 					}
 					break;
 				case DBF_TYPE_NET16:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 16; j++) {
 						if (j > 0)
 							fprintf(fd, SSA_DB_HELPER_ARRAY_DELIMITER);
-						fprintf(fd, "%" SCNu16 "", ntohs(*((uint16_t *)(p_data_field + (j * 2)))));
+						fprintf(fd, "%" SCNu16 "",
+							ntohs(*((uint16_t *)(p_data_field + (j * 2)))));
 					}
 					break;
 				case DBF_TYPE_NET32:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 32; j++) {
 						if (j > 0)
 							fprintf(fd, SSA_DB_HELPER_ARRAY_DELIMITER);
-						fprintf(fd, "%" PRIx32 "", ntohl(*((uint32_t *)(p_data_field + (j * 4)))));
+						fprintf(fd, "%" PRIx32 "",
+							ntohl(*((uint32_t *)(p_data_field + (j * 4)))));
 					}
 					break;
 				case DBF_TYPE_NET64:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 64; j++) {
 						if (j > 0)
 							fprintf(fd, SSA_DB_HELPER_ARRAY_DELIMITER);
-						fprintf(fd, "0x%" PRIx64 "", ntohll(*((uint64_t *)(p_data_field + (j * 8)))));
+						fprintf(fd, "0x%" PRIx64 "",
+							ntohll(*((uint64_t *)(p_data_field + (j * 8)))));
 					}
 					break;
 				case DBF_TYPE_NET128:
 					/* TODO: add 128 bit handling */
 					break;
 				case DBF_TYPE_STRING:
-					fprintf(fd, "%s", ((char *)(p_data_field)));
+					fprintf(fd, "%s",
+						((char *)(p_data_field)));
 					break;
 				default:
 					fprintf(stderr,"SSA DB Helper: Unknown field type\n");
@@ -309,10 +314,9 @@ static void ssa_db_rec_tbl_dump(FILE * fd, enum ssa_db_helper_mode mode,
 	}
 }
 
-static void ssa_db_rec_tbl_load(FILE * fd, enum ssa_db_helper_mode mode,
+static void ssa_db_rec_tbl_load(FILE *fd, enum ssa_db_helper_mode mode,
 				struct db_table_def *p_data_tbl_def,
-				struct db_dataset * p_dataset,
-				void * p_data_tbl,
+				struct db_dataset *p_dataset, void *p_data_tbl,
 				struct db_dataset *p_dataset_field,
 				struct db_field_def *p_field_tbl)
 {
@@ -340,86 +344,86 @@ static void ssa_db_rec_tbl_load(FILE * fd, enum ssa_db_helper_mode mode,
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 8; j++) {
 						if (j == (ntohl(p_field_rec->field_size) / 8) - 1)
 							fscanf(fd, "%" SCNu8 SSA_DB_HELPER_DELIMITER,
-							       ((uint8_t *) p_data_field + j));
+							       ((uint8_t *)p_data_field + j));
 						else
 							fscanf(fd, "%" SCNu8 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint8_t *) p_data_field + j));
+							       ((uint8_t *)p_data_field + j));
 					}
 					break;
 				case DBF_TYPE_U16:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 16; j++) {
 						if (j == (ntohl(p_field_rec->field_size) / 16) - 1)
 							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_DELIMITER,
-							       ((uint16_t *) p_data_field + (j * 2)));
+							       ((uint16_t *)p_data_field + (j * 2)));
 						else
 							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint16_t *) p_data_field + (j * 2)));
+							       ((uint16_t *)p_data_field + (j * 2)));
 					}
 					break;
 				case DBF_TYPE_U32:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 32; j++) {
 						if (j == (ntohl(p_field_rec->field_size) / 32) - 1)
 							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_DELIMITER,
-							       ((uint32_t *) p_data_field + (j * 4)));
+							       ((uint32_t *)p_data_field + (j * 4)));
 						else
 							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint32_t *) p_data_field + (j * 4)));
+							       ((uint32_t *)p_data_field + (j * 4)));
 					}
 					break;
 				case DBF_TYPE_U64:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 64; j++) {
 						if (j == (ntohl(p_field_rec->field_size) / 64) - 1)
 							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_DELIMITER,
-							       ((uint64_t *) p_data_field + (j * 8)));
+							       ((uint64_t *)p_data_field + (j * 8)));
 						else
 							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint64_t *) p_data_field + (j * 8)));
+							       ((uint64_t *)p_data_field + (j * 8)));
 					}
 					break;
 				case DBF_TYPE_NET16:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 16; j++) {
 						if (j == (ntohl(p_field_rec->field_size) / 16) - 1)
 							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_DELIMITER,
-							       ((uint16_t *) p_data_field + (j * 2)));
+							       ((uint16_t *)p_data_field + (j * 2)));
 						else
 							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint16_t *) p_data_field + (j * 2)));
-						*((uint16_t *) p_data_field + (j * 2)) =
-								htons(*((uint16_t *) p_data_field + (j * 2)));
+							       ((uint16_t *)p_data_field + (j * 2)));
+						*((uint16_t *)p_data_field + (j * 2)) =
+								htons(*((uint16_t *)p_data_field + (j * 2)));
 					}
 					break;
 				case DBF_TYPE_NET32:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 32; j++) {
 						if (j == (ntohl(p_field_rec->field_size) / 32) - 1)
 							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_DELIMITER,
-							       ((uint32_t *) p_data_field + (j * 4)));
+							       ((uint32_t *)p_data_field + (j * 4)));
 						else
 							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint32_t *) p_data_field + (j * 4)));
-						*((uint32_t *) p_data_field + (j * 4)) =
-								htonl(*((uint32_t *) p_data_field + (j * 4)));
+							       ((uint32_t *)p_data_field + (j * 4)));
+						*((uint32_t *)p_data_field + (j * 4)) =
+								htonl(*((uint32_t *)p_data_field + (j * 4)));
 					}
 					break;
 				case DBF_TYPE_NET64:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 64; j++) {
 						if (j == (ntohl(p_field_rec->field_size) / 64) - 1)
 							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_DELIMITER,
-							       ((uint64_t *) p_data_field + (j * 8)));
+							       ((uint64_t *)p_data_field + (j * 8)));
 						else
 							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint64_t *) p_data_field + (j * 8)));
-						*((uint64_t *) p_data_field + (j * 8)) =
-								htonll(*((uint64_t *) p_data_field + (j * 8)));
+							       ((uint64_t *)p_data_field + (j * 8)));
+						*((uint64_t *)p_data_field + (j * 8)) =
+								htonll(*((uint64_t *)p_data_field + (j * 8)));
 					}
 					break;
 				case DBF_TYPE_NET128:
 					/* TODO: add 128 bit handling */
 					break;
 				case DBF_TYPE_STRING:
-					fscanf(fd, "%s"SSA_DB_HELPER_DELIMITER, ((char *) p_data_field));
+					fscanf(fd, "%s" SSA_DB_HELPER_DELIMITER, ((char *) p_data_field));
 					break;
 				default:
-					fprintf(stderr,"SSA DB Helper: Unknown field type\n");
+					fprintf(stderr, "SSA DB Helper: Unknown field type\n");
 					break;
 				}
 			}
@@ -430,10 +434,10 @@ static void ssa_db_rec_tbl_load(FILE * fd, enum ssa_db_helper_mode mode,
 	}
 }
 
-static void ssa_db_rec_tbl_dump_var_size(FILE * fd, enum ssa_db_helper_mode mode,
+static void ssa_db_rec_tbl_dump_var_size(FILE *fd, enum ssa_db_helper_mode mode,
 					 struct db_table_def *p_data_tbl_def,
-					 struct db_dataset * p_dataset,
-					 void * p_data_tbl)
+					 struct db_dataset *p_dataset,
+					 void *p_data_tbl)
 {
 	uint64_t i;
 	uint8_t *p_data_rec;
@@ -443,16 +447,17 @@ static void ssa_db_rec_tbl_dump_var_size(FILE * fd, enum ssa_db_helper_mode mode
 		if (mode == SSA_DB_HELPER_STANDARD)
 			fprintf(fd, "%c", *(char *)p_data_rec);
 		else
-			fprintf(fd, "%" SCNu8 SSA_DB_HELPER_DELIMITER, *((uint8_t *)(p_data_rec)));
+			fprintf(fd, "%" SCNu8 SSA_DB_HELPER_DELIMITER,
+				*((uint8_t *)(p_data_rec)));
 		/* fprintf(fd, "\n"); */
 	}
 	fprintf(fd, "\n");
 }
 
-static void ssa_db_rec_tbl_load_var_size(FILE * fd, enum ssa_db_helper_mode mode,
+static void ssa_db_rec_tbl_load_var_size(FILE *fd, enum ssa_db_helper_mode mode,
 					 struct db_table_def *p_data_tbl_def,
-					 struct db_dataset * p_dataset,
-					 void * p_data_tbl)
+					 struct db_dataset *p_dataset,
+					 void *p_data_tbl)
 {
 	uint64_t i;
 	uint8_t *p_data_rec;
@@ -476,7 +481,7 @@ static void ssa_db_rec_tbl_load_var_size(FILE * fd, enum ssa_db_helper_mode mode
 	}
 }
 
-static uint32_t ssa_db_table_def_load_record_size(FILE * fd)
+static uint32_t ssa_db_table_def_load_record_size(FILE *fd)
 {
 	struct db_table_def table_def;
 
@@ -488,7 +493,7 @@ static uint32_t ssa_db_table_def_load_record_size(FILE * fd)
 	return ntohl(table_def.record_size);
 }
 
-static uint64_t ssa_db_dataset_load_record_count(FILE * fd)
+static uint64_t ssa_db_dataset_load_record_count(FILE *fd)
 {
 	struct db_dataset dataset;
 	ssa_db_dataset_load(fd, &dataset);
@@ -499,15 +504,15 @@ static uint64_t ssa_db_dataset_load_record_count(FILE * fd)
 	return ntohll(dataset.set_count);
 }
 
-static void ssa_db_tbl_dump(char * dir_path, const struct ssa_db *p_ssa_db,
+static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 			    const size_t data_tbl_def_indx,
 			    const size_t fields_tbl_def_indx,
 			    const size_t dataset_indx,
 			    enum ssa_db_helper_mode mode)
 {
 	FILE *fd = NULL;
-	char buffer[128] = {};
 	short contains_var_sized_records = 0;
+	char buffer[128] = {};
 
 	if (p_ssa_db->p_def_tbl[data_tbl_def_indx].record_size ==
 						htonl(DB_VARIABLE_SIZE))
@@ -516,64 +521,68 @@ static void ssa_db_tbl_dump(char * dir_path, const struct ssa_db *p_ssa_db,
 	sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_TABLE_DEF_NAME);
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
 	if (!fd) {
-		printf("SSA DB Helper: Failed opening %s file (1).\n", buffer);
+		printf("SSA DB Helper: Failed opening %s file (1)\n", buffer);
 		return;
 	}
 
 	ssa_db_table_def_dump(fd, p_ssa_db->p_def_tbl, data_tbl_def_indx);
 	fclose(fd); fd = NULL;
 
-	sprintf(buffer, "%s/"SSA_DB_HELPER_DATASET_NAME, dir_path);
+	sprintf(buffer, "%s/" SSA_DB_HELPER_DATASET_NAME, dir_path);
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
 	if (!fd) {
-		printf("SSA DB Helper: Failed opening %s file (2).\n", buffer);
+		printf("SSA DB Helper: Failed opening %s file (2)\n", buffer);
 		return;
 	}
 
 	ssa_db_dataset_dump(fd, &p_ssa_db->p_db_tables[dataset_indx]);
-	fclose(fd); fd = NULL;
+	fclose(fd);
+	fd = NULL;
 
 	if (!contains_var_sized_records) {
-		sprintf(buffer, "%s/%s",dir_path, SSA_DB_HELPER_FIELD_DEF_NAME);
+		sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELD_DEF_NAME);
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
 		if (!fd) {
-			printf("SSA DB Helper: Failed opening %s file (4).\n", buffer);
+			printf("SSA DB Helper: Failed opening %s file (4)\n", buffer);
 			return;
 		}
 
 		ssa_db_table_def_dump(fd, p_ssa_db->p_def_tbl, fields_tbl_def_indx);
-		fclose(fd); fd = NULL;
+		fclose(fd);
+		fd = NULL;
 
-		sprintf(buffer, "%s/"SSA_DB_HELPER_FIELDS_DATASET_NAME, dir_path);
+		sprintf(buffer, "%s/" SSA_DB_HELPER_FIELDS_DATASET_NAME, dir_path);
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
 		if (!fd) {
-			printf("SSA DB Helper: Failed opening %s file (5).\n", buffer);
+			printf("SSA DB Helper: Failed opening %s file (5)\n", buffer);
 			return;
 		}
 
 		ssa_db_dataset_dump(fd, &p_ssa_db->p_db_field_tables[dataset_indx]);
-		fclose(fd); fd = NULL;
+		fclose(fd);
+		fd = NULL;
 
-		sprintf(buffer, "%s/"SSA_DB_HELPER_FIELDS_NAME, dir_path);
+		sprintf(buffer, "%s/" SSA_DB_HELPER_FIELDS_NAME, dir_path);
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
 		if (!fd) {
-			printf("SSA DB Helper: Failed opening %s file (6).\n", buffer);
+			printf("SSA DB Helper: Failed opening %s file (6)\n", buffer);
 			return;
 		}
 
 		ssa_db_field_tbl_dump(fd, &p_ssa_db->p_db_field_tables[dataset_indx],
-				      (struct db_field_def *) p_ssa_db->pp_field_tables[dataset_indx]);
-		fclose(fd); fd = NULL;
+				      (struct db_field_def *)p_ssa_db->pp_field_tables[dataset_indx]);
+		fclose(fd);
+		fd = NULL;
 	}
 
-	sprintf(buffer, "%s/"SSA_DB_HELPER_DATA_NAME, dir_path);
+	sprintf(buffer, "%s/" SSA_DB_HELPER_DATA_NAME, dir_path);
 	if (mode == SSA_DB_HELPER_STANDARD)
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_BIN);
 	else
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
 
 	if (!fd) {
-		printf("SSA DB Helper: Failed opening %s file (3).\n", buffer);
+		printf("SSA DB Helper: Failed opening %s file (3)\n", buffer);
 		return;
 	}
 	/* TODO (optional): add distinguish between added and removed records */
@@ -587,29 +596,31 @@ static void ssa_db_tbl_dump(char * dir_path, const struct ssa_db *p_ssa_db,
 				    &p_ssa_db->p_db_tables[dataset_indx],
 				    p_ssa_db->pp_tables[dataset_indx],
 				    &p_ssa_db->p_db_field_tables[dataset_indx],
-				    (struct db_field_def *) p_ssa_db->pp_field_tables[dataset_indx]);
+				    (struct db_field_def *)p_ssa_db->pp_field_tables[dataset_indx]);
 
-	fclose(fd); fd = NULL;
+	fclose(fd);
+	fd = NULL;
 }
 
-static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
+static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 			   uint64_t tbl_idx, enum ssa_db_helper_mode mode)
 {
         FILE *fd = NULL;
-        char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 	struct db_table_def table_def, field_table_def;
 	struct db_dataset dataset, field_dataset;
 	int var_size_recs = 0;
+	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	/* table definition loading */
         sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_TABLE_DEF_NAME);
         fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
         if (!fd) {
-                fprintf(stderr, "SSA DB Helper: Failed opening %s file.\n", buffer);
+                fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
                 goto Error;
         }
         ssa_db_table_def_load(fd, &table_def);
-        fclose(fd); fd = NULL;
+        fclose(fd);
+	fd = NULL;
 
 	ssa_db_table_def_insert(p_ssa_db->p_def_tbl,
 				&p_ssa_db->db_table_def,
@@ -617,7 +628,8 @@ static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
 				table_def.type, table_def.access,
 				table_def.id.db, table_def.id.table,
 				table_def.id.field, table_def.name,
-				ntohl(table_def.record_size), ntohl(table_def.ref_table_id));
+				ntohl(table_def.record_size),
+				ntohl(table_def.ref_table_id));
 
 	if (table_def.record_size == DB_VARIABLE_SIZE)
 		var_size_recs = 1;
@@ -626,7 +638,7 @@ static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
         sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_DATASET_NAME);
         fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
         if (!fd) {
-                fprintf(stderr,"SSA DB Helper: Failed opening %s file.\n", buffer);
+                fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
                 goto Error;
         }
         ssa_db_dataset_load(fd, &dataset);
@@ -637,18 +649,20 @@ static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
 			    dataset.access, dataset.id.db,
 			    dataset.id.table, dataset.id.field,
 			    ntohll(dataset.epoch), ntohll(dataset.set_size),
-			    ntohll(dataset.set_offset), ntohll(dataset.set_count));
+			    ntohll(dataset.set_offset),
+			    ntohll(dataset.set_count));
 
 	if (!var_size_recs) {
 		/* field table definition loading */
 	        sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELD_DEF_NAME);
 	        fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 	        if (!fd) {
-	                fprintf(stderr, "SSA DB Helper: Failed opening %s file.\n", buffer);
+	                fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
 	                goto Error;
 	        }
 	        ssa_db_table_def_load(fd, &field_table_def);
-	        fclose(fd); fd = NULL;
+	        fclose(fd);
+		fd = NULL;
 
 		ssa_db_table_def_insert(p_ssa_db->p_def_tbl,
 					&p_ssa_db->db_table_def,
@@ -667,7 +681,7 @@ static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
 		sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELDS_DATASET_NAME);
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 		if (!fd) {
-			fprintf(stderr,"SSA DB Helper: Failed opening %s file.\n", buffer);
+			fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
 			goto Error;
 		}
 		ssa_db_dataset_load(fd, &field_dataset);
@@ -685,7 +699,7 @@ static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
                 sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELDS_NAME);
                 fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
                 if (!fd) {
-                        fprintf(stderr,"SSA DB Helper: Failed opening %s file.\n", buffer);
+                        fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
                         goto Error;
                 }
                 ssa_db_field_tbl_load(fd, &field_dataset,
@@ -701,7 +715,7 @@ static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
         else
                 fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
         if (!fd) {
-                fprintf(stderr,"SSA DB Helper: Failed opening %s file.\n", buffer);
+                fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
                 goto Error;
         }
         if (var_size_recs)
@@ -710,8 +724,8 @@ static int ssa_db_tbl_load(char * dir_path, struct ssa_db * p_ssa_db,
         else
                 ssa_db_rec_tbl_load(fd, mode, &table_def,
                                     &dataset, p_ssa_db->pp_tables[tbl_idx],
-                                    &field_dataset, (struct db_field_def *)
-				    p_ssa_db->pp_field_tables[tbl_idx]);
+                                    &field_dataset,
+				    (struct db_field_def *)p_ssa_db->pp_field_tables[tbl_idx]);
 
         fclose(fd);
         fd = NULL;
@@ -726,7 +740,7 @@ Error:
         return -1;
 }
 
-static void removedir(const char* dirname)
+static void removedir(const char *dirname)
 {
 	DIR *dp;
 	struct dirent *ep;
@@ -736,10 +750,12 @@ static void removedir(const char* dirname)
 	dp = opendir(dirname);
 	if (dp != NULL) {
 		while ((ep = readdir(dp))) {
-			snprintf(abs_filename, SSA_DB_HELPER_PATH_MAX, "%s/%s", dirname, ep->d_name);
+			snprintf(abs_filename, SSA_DB_HELPER_PATH_MAX, "%s/%s",
+				 dirname, ep->d_name);
 
 			if (ep->d_type == DT_DIR) {
-				if (strcmp(ep->d_name, ".") && strcmp(ep->d_name, ".."))
+				if (strcmp(ep->d_name, ".") &&
+				    strcmp(ep->d_name, ".."))
 					removedir(abs_filename);
 			} else {
 				remove(abs_filename);
@@ -753,12 +769,12 @@ static void removedir(const char* dirname)
 	remove(dirname);
 }
 
-void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
+void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 		 enum ssa_db_helper_mode mode)
 {
 	FILE *fd = NULL;
-	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 	int i = 0, tbls_n = 0;
+	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	assert(p_ssa_db);
 
@@ -771,11 +787,12 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 	sprintf(buffer, "%s/%s", path_dir, SSA_DB_HELPER_DB_DEF_NAME);
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
 	if (!fd) {
-		printf("SSA DB Helper: Failed opening %s file.\n", buffer);
+		printf("SSA DB Helper: Failed opening %s file\n", buffer);
 		return;
 	}
 	ssa_db_db_def_dump(fd, &p_ssa_db->db_def);
-	fclose(fd); fd = NULL;
+	fclose(fd);
+	fd = NULL;
 	/************************************************************/
 
 	for (i = 0; i < tbls_n; ++i) {
@@ -793,24 +810,27 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 					break;
 
 			/* creating a directory for each dataset */
-			sprintf(buffer, "mkdir \"%s/%s\"", path_dir, p_ssa_db->p_def_tbl[i].name);
+			sprintf(buffer, "mkdir \"%s/%s\"",
+				path_dir, p_ssa_db->p_def_tbl[i].name);
 			system(buffer);
 
 			/* dump dataset and its field dataset */
-			sprintf(buffer, "%s/%s", path_dir, p_ssa_db->p_def_tbl[i].name);
+			sprintf(buffer, "%s/%s",
+				path_dir, p_ssa_db->p_def_tbl[i].name);
 			ssa_db_tbl_dump(buffer, p_ssa_db, i, j, k, mode);
 		}
 	}
 }
 
-static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir, char *tbl_names,
+static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir,
+					       char *tbl_names,
 					       uint64_t data_tbls_n)
 {
 	FILE *fd = NULL;
 	struct ssa_db *p_ssa_db = NULL;
 	uint64_t *num_recs_arr, *num_fields_arr, *recs_size_arr;
-	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 	uint64_t i;
+	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	num_recs_arr = (uint64_t *) malloc(sizeof(*num_recs_arr) * data_tbls_n);
 	num_fields_arr = (uint64_t *) malloc(sizeof(*num_fields_arr) * data_tbls_n);
@@ -867,21 +887,20 @@ static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir, char *tbl_n
 	return p_ssa_db;
 }
 
-struct ssa_db *ssa_db_load(const char * path_dir, enum ssa_db_helper_mode mode)
+struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 {
 	DIR *d;
 	FILE *fd = NULL;
-	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 	struct dirent *dir;
 	struct ssa_db *p_ssa_db = NULL;
 	struct db_table_def table_def;
-
 	char *tbl_names;
 	uint64_t data_tbls_n = 0;
 	uint64_t i = 0;
+	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	if (mode != SSA_DB_HELPER_STANDARD && mode != SSA_DB_HELPER_DEBUG) {
-		printf("SSA DB helper: not supported mode (%d) for loading.\n", mode);
+		printf("SSA DB helper: mode (%d) not supported for loading\n", mode);
 		return NULL;
 	}
 
@@ -908,11 +927,12 @@ struct ssa_db *ssa_db_load(const char * path_dir, enum ssa_db_helper_mode mode)
 			SSA_DB_HELPER_TABLE_DEF_NAME);
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 		if (!fd) {
-			fprintf(stderr,"SSA DB Helper: Failed opening %s file.\n", buffer);
+			fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
 			goto Error;
 		}
 		ssa_db_table_def_load(fd, &table_def);
-		fclose(fd); fd = NULL;
+		fclose(fd);
+		fd = NULL;
 
 		strcpy((tbl_names + DB_NAME_LEN * table_def.id.table),
 		       dir->d_name);
@@ -924,16 +944,17 @@ struct ssa_db *ssa_db_load(const char * path_dir, enum ssa_db_helper_mode mode)
 	sprintf(buffer, "%s/%s", path_dir, SSA_DB_HELPER_DB_DEF_NAME);
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 	if (!fd) {
-		fprintf(stderr,"SSA DB Helper: Failed opening %s file.\n", buffer);
+		fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
 		goto Error;
 	}
 	ssa_db_db_def_load(fd, &p_ssa_db->db_def);
-	fclose(fd); fd = NULL;
+	fclose(fd);
+	fd = NULL;
 
 	ssa_db_dataset_init(&p_ssa_db->db_table_def, DB_DS_VERSION,
 			    sizeof(p_ssa_db->db_table_def),
-			    DBT_ACCESS_NET_ORDER, p_ssa_db->db_def.id.db, DBT_DEF_DS_ID,
-			    0, 0 /* epoch */, 0 /* set_size */,
+			    DBT_ACCESS_NET_ORDER, p_ssa_db->db_def.id.db,
+			    DBT_DEF_DS_ID, 0, 0 /* epoch */, 0 /* set_size */,
 			    0 /* set_offset */, 0 /* set_count */);
 
 	for (i = 0; i < data_tbls_n; i++) {

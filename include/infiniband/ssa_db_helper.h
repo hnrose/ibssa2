@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2013-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -62,7 +62,7 @@ enum ssa_db_helper_mode {
  *
  * SYNOPSIS
  * */
-void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
+void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 		 enum ssa_db_helper_mode mode);
 /*
 * PARAMETERS
@@ -76,7 +76,7 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
 *		[in] The mode of saving the data to disk
 *
 * RETURN VALUE
-*	This function does not return a value.
+*	This function does not return a value
 *
 * SEE ALSO
 *
@@ -91,7 +91,7 @@ void ssa_db_save(const char * path_dir, const struct ssa_db *p_ssa_db,
  *
  * SYNOPSIS
  * */
-struct ssa_db *ssa_db_load(const char * path_dir, enum ssa_db_helper_mode mode);
+struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode);
 /*
 * PARAMETERS
 *	path_dir
