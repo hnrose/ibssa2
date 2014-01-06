@@ -88,14 +88,15 @@ static osm_opensm_t *osm;
 static int sock_coreextract[2];
 
 #ifndef SIM_SUPPORT
+static int access_init = 0;
+static int distrib_init = 0;
+static union ibv_gid access_gid;
+static union ibv_gid distrib_gid;
+
+
 static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			    uint8_t node_type)
 {
-	static int access_init = 0;
-	static int distrib_init = 0;
-	static union ibv_gid access_gid;
-	static union ibv_gid distrib_gid;
-
 	/*
 	 * For now, issue SA path query here.
 	 * DGID is from incoming join.
@@ -186,6 +187,24 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 	}
 }
 
+static void core_update_tree(struct ssa_svc *svc, union ibv_gid *gid)
+{
+	/* TODO: update any parented nodes */
+	if (distrib_init) {
+		if (!ssa_compare_gid(&distrib_gid, gid)) {
+			memset(&distrib_gid, 0, 16);
+			distrib_init = 0;
+		}
+	}
+
+	if (access_init) {
+		if (!ssa_compare_gid(&distrib_gid, gid)) {
+			memset(&access_gid, 0, 16);
+			access_init = 0;
+		}
+	}
+}
+
 /*
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
@@ -246,6 +265,8 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
+
+	core_update_tree(&core->svc, (union ibv_gid *) rec->port_gid);
 
 	tgid = tdelete(rec->port_gid, &core->member_map, ssa_compare_gid);
 	if (tgid) {
