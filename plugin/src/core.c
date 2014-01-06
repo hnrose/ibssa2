@@ -190,8 +190,7 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
  */
-static void core_process_join(struct ssa_core *core, struct ssa_umad *umad,
-			      struct ssa_svc *svc)
+static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 {
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
@@ -234,7 +233,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad,
 		first = 0;
 	}
 
-	core_build_tree(svc, (union ibv_gid *) rec->port_gid, rec->node_type);
+	core_build_tree(&core->svc, (union ibv_gid *) rec->port_gid, rec->node_type);
 }
 
 static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
@@ -368,7 +367,7 @@ static int core_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *ms
 	switch (umad->packet.mad_hdr.method) {
 	case UMAD_METHOD_SET:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
-			core_process_join(core, umad, svc);
+			core_process_join(core, umad);
 			return 1;
 		}
 		break;
