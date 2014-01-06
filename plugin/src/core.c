@@ -226,9 +226,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad,
 		  (void *) umad, sizeof umad->packet, 0, 0);
 
 	/*
-	 * TODO: Really need to wait for first
-	 * SUBNET UP event.
-	 *
+	 * TODO: Really need to wait for first SUBNET UP event.
 	 * Just a one time artificial delay for now.
 	 */
 	if (first) {
