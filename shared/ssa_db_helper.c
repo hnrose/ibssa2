@@ -73,7 +73,7 @@
 					" record_size %"SCNu32" ref_table_id %u name %s\n"
 #define TABLE_DEF_FORMAT_READ		"version %"SCNu8" size %"SCNu8" type %"SCNu8" access %"SCNu8" id %"SCNu8"-%"SCNu8"-%"SCNu8 \
 					" record_size %"SCNu32" ref_table_id %u name %[^\n]s"
-#define DATASET_DEF_FORMAT		"version %"SCNu8" size %"SCNu8" access %"SCNu8" db_id %"SCNu8" table id %"SCNu8" field id %"SCNu8""\
+#define DATASET_DEF_FORMAT		"version %"SCNu8" size %"SCNu8" access %"SCNu8" db_id %"SCNu8" table_id %"SCNu8" field_id %"SCNu8""\
 					" epoch %lu set_size %lu ""set_offset %lu set_count %lu\n"
 #define DB_FIELD_DEF_FORMAT_WRITE	"version %"SCNu8" type %"SCNu8" db_id %"SCNu8" table_id %"SCNu8" field_id %"SCNu8" field_size %u field_offset %u name %s\n"
 #define DB_FIELD_DEF_FORMAT_READ	"version %"SCNu8" type %"SCNu8" db_id %"SCNu8" table_id %"SCNu8" field_id %"SCNu8" field_size %u field_offset %u name %[^\n]s"
