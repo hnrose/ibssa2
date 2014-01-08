@@ -58,7 +58,6 @@
 #define SSA_DB_HELPER_DATASET_NAME		"dataset"
 #define SSA_DB_HELPER_FIELDS_DATASET_NAME	"fields_dataset"
 
-
 #define SSA_DB_HELPER_FILE_WRITE_MODE_TXT	"w"
 #define SSA_DB_HELPER_FILE_READ_MODE_TXT	"r"
 #define SSA_DB_HELPER_FILE_WRITE_MODE_BIN	"wb"
@@ -303,10 +302,12 @@ static void ssa_db_rec_tbl_dump(FILE *fd, enum ssa_db_helper_mode mode,
 					break;
 				}
 
-				if (k < ntohll(p_dataset_field->set_count) && mode == SSA_DB_HELPER_DEBUG)
+				if (k < ntohll(p_dataset_field->set_count) &&
+				    mode == SSA_DB_HELPER_DEBUG)
 					fprintf(fd, SSA_DB_HELPER_DELIMITER);
 
-				if (k < ntohll(p_dataset_field->set_count) - 1 && mode == SSA_DB_HELPER_HUMAN)
+				if (k < ntohll(p_dataset_field->set_count) - 1 &&
+				    mode == SSA_DB_HELPER_HUMAN)
 					fprintf(fd, " ");
 			}
 		}
@@ -496,6 +497,7 @@ static uint32_t ssa_db_table_def_load_record_size(FILE *fd)
 static uint64_t ssa_db_dataset_load_record_count(FILE *fd)
 {
 	struct db_dataset dataset;
+
 	ssa_db_dataset_load(fd, &dataset);
 
 	if (ntohll(dataset.set_count) == 0)
@@ -515,7 +517,7 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 	char buffer[128] = {};
 
 	if (p_ssa_db->p_def_tbl[data_tbl_def_indx].record_size ==
-						htonl(DB_VARIABLE_SIZE))
+	    htonl(DB_VARIABLE_SIZE))
 		contains_var_sized_records = 1;
 
 	sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_TABLE_DEF_NAME);
@@ -600,21 +602,21 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 			   uint64_t tbl_idx, enum ssa_db_helper_mode mode)
 {
-        FILE *fd;
+	FILE *fd;
 	struct db_table_def table_def, field_table_def;
 	struct db_dataset dataset, field_dataset;
 	int var_size_recs = 0;
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	/* table definition loading */
-        sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_TABLE_DEF_NAME);
-        fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
-        if (!fd) {
-                fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
-                goto Error;
-        }
-        ssa_db_table_def_load(fd, &table_def);
-        fclose(fd);
+	sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_TABLE_DEF_NAME);
+	fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
+	if (!fd) {
+		fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
+		goto Error;
+	}
+	ssa_db_table_def_load(fd, &table_def);
+	fclose(fd);
 
 	ssa_db_table_def_insert(p_ssa_db->p_def_tbl,
 				&p_ssa_db->db_table_def,
@@ -629,14 +631,14 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 		var_size_recs = 1;
 
 	/* data dataset loading */
-        sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_DATASET_NAME);
-        fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
-        if (!fd) {
-                fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
-                goto Error;
-        }
-        ssa_db_dataset_load(fd, &dataset);
-        fclose(fd);
+	sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_DATASET_NAME);
+	fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
+	if (!fd) {
+		fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
+		goto Error;
+	}
+	ssa_db_dataset_load(fd, &dataset);
+	fclose(fd);
 
 	ssa_db_dataset_init(&p_ssa_db->p_db_tables[tbl_idx],
 			    dataset.version, dataset.size,
@@ -648,14 +650,14 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 
 	if (!var_size_recs) {
 		/* field table definition loading */
-	        sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELD_DEF_NAME);
-	        fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
-	        if (!fd) {
-	                fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
-	                goto Error;
-	        }
-	        ssa_db_table_def_load(fd, &field_table_def);
-	        fclose(fd);
+		sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELD_DEF_NAME);
+		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
+		if (!fd) {
+			fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
+			goto Error;
+		}
+		ssa_db_table_def_load(fd, &field_table_def);
+		fclose(fd);
 
 		ssa_db_table_def_insert(p_ssa_db->p_def_tbl,
 					&p_ssa_db->db_table_def,
@@ -689,48 +691,47 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 				    ntohll(field_dataset.set_offset),
 				    ntohll(field_dataset.set_count));
 
-                sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELDS_NAME);
-                fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
-                if (!fd) {
-                        fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
-                        goto Error;
-                }
-                ssa_db_field_tbl_load(fd, &field_dataset,
-                                      p_ssa_db->pp_field_tables[tbl_idx]);
-                fclose(fd);
-        }
+		sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELDS_NAME);
+		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
+		if (!fd) {
+			fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
+			goto Error;
+		}
+		ssa_db_field_tbl_load(fd, &field_dataset,
+				      p_ssa_db->pp_field_tables[tbl_idx]);
+		fclose(fd);
+	}
 
-        /* TODO (optional): add distinguish between added and removed records */
-        sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_DATA_NAME);
-        if (mode == SSA_DB_HELPER_STANDARD)
-                fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_BIN);
-        else
-                fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
-        if (!fd) {
-                fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
-                goto Error;
-        }
-        if (var_size_recs)
-                ssa_db_rec_tbl_load_var_size(fd, mode, &table_def,&dataset,
-                                             p_ssa_db->pp_tables[tbl_idx]);
-        else
-                ssa_db_rec_tbl_load(fd, mode, &table_def,
-                                    &dataset, p_ssa_db->pp_tables[tbl_idx],
-                                    &field_dataset,
+	/* TODO (optional): add distinguish between added and removed records */
+	sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_DATA_NAME);
+	if (mode == SSA_DB_HELPER_STANDARD)
+		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_BIN);
+	else
+		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
+	if (!fd) {
+		fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
+		goto Error;
+	}
+	if (var_size_recs)
+		ssa_db_rec_tbl_load_var_size(fd, mode, &table_def,&dataset,
+					     p_ssa_db->pp_tables[tbl_idx]);
+	else
+		ssa_db_rec_tbl_load(fd, mode, &table_def,
+				    &dataset, p_ssa_db->pp_tables[tbl_idx],
+				    &field_dataset,
 				    (struct db_field_def *)p_ssa_db->pp_field_tables[tbl_idx]);
 
-        fclose(fd);
+	fclose(fd);
 
-        return 0;
+	return 0;
 Error:
-        return -1;
+	return -1;
 }
 
 static void removedir(const char *dirname)
 {
 	DIR *dp;
 	struct dirent *ep;
-
 	char abs_filename[SSA_DB_HELPER_PATH_MAX];
 
 	dp = opendir(dirname);
@@ -878,10 +879,10 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	FILE *fd;
 	struct dirent *dir;
 	struct ssa_db *p_ssa_db;
-	struct db_table_def table_def;
 	char *tbl_names;
 	uint64_t data_tbls_n = 0;
 	uint64_t i = 0;
+	struct db_table_def table_def;
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	if (mode != SSA_DB_HELPER_STANDARD && mode != SSA_DB_HELPER_DEBUG) {
@@ -900,7 +901,7 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 			continue;
 		data_tbls_n++;
 	}
-	rewinddir (d);
+	rewinddir(d);
 	tbl_names = (char *) malloc(data_tbls_n * sizeof(*tbl_names) * DB_NAME_LEN);
 	while ((dir = readdir(d)) != NULL) {
 		if (dir->d_type != DT_DIR ||
