@@ -763,6 +763,7 @@ void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 	int i = 0, tbls_n = 0;
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
+	ssa_log_func(SSA_LOG_DEFAULT);
 	assert(p_ssa_db);
 
 	removedir(path_dir);
@@ -804,6 +805,8 @@ void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 			sprintf(buffer, "%s/%s",
 				path_dir, p_ssa_db->p_def_tbl[i].name);
 			ssa_db_tbl_dump(buffer, p_ssa_db, i, j, k, mode);
+			ssa_log(SSA_LOG_DEFAULT, "%s table was saved\n",
+				p_ssa_db->p_def_tbl[i].name);
 		}
 	}
 }
@@ -902,6 +905,7 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	struct db_table_def table_def;
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
+	ssa_log_func(SSA_LOG_DEFAULT);
 	if (mode != SSA_DB_HELPER_STANDARD && mode != SSA_DB_HELPER_DEBUG) {
 		ssa_log_err(SSA_LOG_DEFAULT, "mode (%d) not supported for loading\n", mode);
 		return NULL;
@@ -973,6 +977,8 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	for (i = 0; i < data_tbls_n; i++) {
 		sprintf(buffer, "%s/%s", path_dir, tbl_names + DB_NAME_LEN * i);
 		ssa_db_tbl_load(buffer, p_ssa_db, i, mode);
+		ssa_log(SSA_LOG_DEFAULT, "%s table was loaded\n",
+			p_ssa_db->p_def_tbl[i].name);
 	}
 	free(tbl_names);
 
