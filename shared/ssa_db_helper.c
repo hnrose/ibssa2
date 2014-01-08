@@ -510,7 +510,7 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 			    const size_t dataset_indx,
 			    enum ssa_db_helper_mode mode)
 {
-	FILE *fd = NULL;
+	FILE *fd;
 	short contains_var_sized_records = 0;
 	char buffer[128] = {};
 
@@ -526,7 +526,7 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 	}
 
 	ssa_db_table_def_dump(fd, p_ssa_db->p_def_tbl, data_tbl_def_indx);
-	fclose(fd); fd = NULL;
+	fclose(fd);
 
 	sprintf(buffer, "%s/" SSA_DB_HELPER_DATASET_NAME, dir_path);
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
@@ -537,7 +537,6 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 
 	ssa_db_dataset_dump(fd, &p_ssa_db->p_db_tables[dataset_indx]);
 	fclose(fd);
-	fd = NULL;
 
 	if (!contains_var_sized_records) {
 		sprintf(buffer, "%s/%s", dir_path, SSA_DB_HELPER_FIELD_DEF_NAME);
@@ -549,7 +548,6 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 
 		ssa_db_table_def_dump(fd, p_ssa_db->p_def_tbl, fields_tbl_def_indx);
 		fclose(fd);
-		fd = NULL;
 
 		sprintf(buffer, "%s/" SSA_DB_HELPER_FIELDS_DATASET_NAME, dir_path);
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
@@ -560,7 +558,6 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 
 		ssa_db_dataset_dump(fd, &p_ssa_db->p_db_field_tables[dataset_indx]);
 		fclose(fd);
-		fd = NULL;
 
 		sprintf(buffer, "%s/" SSA_DB_HELPER_FIELDS_NAME, dir_path);
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_WRITE_MODE_TXT);
@@ -572,7 +569,6 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 		ssa_db_field_tbl_dump(fd, &p_ssa_db->p_db_field_tables[dataset_indx],
 				      (struct db_field_def *)p_ssa_db->pp_field_tables[dataset_indx]);
 		fclose(fd);
-		fd = NULL;
 	}
 
 	sprintf(buffer, "%s/" SSA_DB_HELPER_DATA_NAME, dir_path);
@@ -599,13 +595,12 @@ static void ssa_db_tbl_dump(char *dir_path, const struct ssa_db *p_ssa_db,
 				    (struct db_field_def *)p_ssa_db->pp_field_tables[dataset_indx]);
 
 	fclose(fd);
-	fd = NULL;
 }
 
 static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 			   uint64_t tbl_idx, enum ssa_db_helper_mode mode)
 {
-        FILE *fd = NULL;
+        FILE *fd;
 	struct db_table_def table_def, field_table_def;
 	struct db_dataset dataset, field_dataset;
 	int var_size_recs = 0;
@@ -620,7 +615,6 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
         }
         ssa_db_table_def_load(fd, &table_def);
         fclose(fd);
-	fd = NULL;
 
 	ssa_db_table_def_insert(p_ssa_db->p_def_tbl,
 				&p_ssa_db->db_table_def,
@@ -662,7 +656,6 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 	        }
 	        ssa_db_table_def_load(fd, &field_table_def);
 	        fclose(fd);
-		fd = NULL;
 
 		ssa_db_table_def_insert(p_ssa_db->p_def_tbl,
 					&p_ssa_db->db_table_def,
@@ -705,7 +698,6 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
                 ssa_db_field_tbl_load(fd, &field_dataset,
                                       p_ssa_db->pp_field_tables[tbl_idx]);
                 fclose(fd);
-                fd = NULL;
         }
 
         /* TODO (optional): add distinguish between added and removed records */
@@ -728,15 +720,9 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 				    (struct db_field_def *)p_ssa_db->pp_field_tables[tbl_idx]);
 
         fclose(fd);
-        fd = NULL;
 
         return 0;
 Error:
-        if (NULL != fd) {
-                fclose(fd);
-                fd = NULL;
-        }
-
         return -1;
 }
 
@@ -772,7 +758,7 @@ static void removedir(const char *dirname)
 void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 		 enum ssa_db_helper_mode mode)
 {
-	FILE *fd = NULL;
+	FILE *fd;
 	int i = 0, tbls_n = 0;
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
@@ -792,7 +778,6 @@ void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 	}
 	ssa_db_db_def_dump(fd, &p_ssa_db->db_def);
 	fclose(fd);
-	fd = NULL;
 	/************************************************************/
 
 	for (i = 0; i < tbls_n; ++i) {
@@ -826,7 +811,7 @@ static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir,
 					       char *tbl_names,
 					       uint64_t data_tbls_n)
 {
-	FILE *fd = NULL;
+	FILE *fd;
 	struct ssa_db *p_ssa_db = NULL;
 	uint64_t *num_recs_arr, *num_fields_arr, *recs_size_arr;
 	uint64_t i;
@@ -890,7 +875,7 @@ static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir,
 struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 {
 	DIR *d;
-	FILE *fd = NULL;
+	FILE *fd;
 	struct dirent *dir;
 	struct ssa_db *p_ssa_db = NULL;
 	struct db_table_def table_def;
@@ -932,7 +917,6 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 		}
 		ssa_db_table_def_load(fd, &table_def);
 		fclose(fd);
-		fd = NULL;
 
 		strcpy((tbl_names + DB_NAME_LEN * table_def.id.table),
 		       dir->d_name);
@@ -949,7 +933,6 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	}
 	ssa_db_db_def_load(fd, &p_ssa_db->db_def);
 	fclose(fd);
-	fd = NULL;
 
 	ssa_db_dataset_init(&p_ssa_db->db_table_def, DB_DS_VERSION,
 			    sizeof(p_ssa_db->db_table_def),
@@ -966,10 +949,5 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	return p_ssa_db;
 
 Error:
-	if (fd) {
-		fclose(fd);
-		fd = NULL;
-	}
-
 	return NULL;
 }
