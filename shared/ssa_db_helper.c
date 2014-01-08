@@ -877,7 +877,7 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	DIR *d;
 	FILE *fd;
 	struct dirent *dir;
-	struct ssa_db *p_ssa_db = NULL;
+	struct ssa_db *p_ssa_db;
 	struct db_table_def table_def;
 	char *tbl_names;
 	uint64_t data_tbls_n = 0;
@@ -924,6 +924,10 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	closedir(d);
 
 	p_ssa_db = ssa_db_load_allocate_new(path_dir, tbl_names, data_tbls_n);
+	if (!p_ssa_db) {
+		fprintf(stderr, "SSA DB Helper: Failed allocating SSA DB\n");
+		goto Error;
+	}
 
 	sprintf(buffer, "%s/%s", path_dir, SSA_DB_HELPER_DB_DEF_NAME);
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
