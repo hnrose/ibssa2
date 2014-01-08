@@ -504,6 +504,7 @@ void ssa_pr_destroy_context(void * ctx)
 
 	if(p_context) {
 		if(p_context->p_index) {
+			ssa_pr_destroy_indexes(p_context->p_index);
 			free(p_context->p_index);
 			p_context->p_index = NULL;
 		}

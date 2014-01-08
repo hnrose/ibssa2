@@ -71,7 +71,7 @@ static int build_is_switch_lookup(struct ssa_pr_smdb_index *p_index,
 		(struct ep_guid_to_lid_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
 	SSA_ASSERT(p_guid_to_lid_tbl);
 
-	memset(p_index->is_switch_lookup,'\0',MAX_LOOKUP_LID + 1);
+	memset(p_index->is_switch_lookup,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->is_switch_lookup[0]));
 
 	count = get_dataset_count(p_smdb,SSA_TABLE_ID_GUID_TO_LID);
 
@@ -98,7 +98,7 @@ static int build_lft_top_lookup(struct ssa_pr_smdb_index *p_index,
 		(struct ep_lft_top_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP];
 	SSA_ASSERT(p_lft_top_tbl );
 
-	memset(p_index->lft_top_lookup,'\0',MAX_LOOKUP_LID*sizeof(uint16_t));
+	memset(p_index->lft_top_lookup,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->lft_top_lookup[0]));
 
 	count = get_dataset_count(p_smdb,SSA_TABLE_ID_LFT_TOP);
 
@@ -122,8 +122,8 @@ static int build_port_index(struct ssa_pr_smdb_index *p_index,
 		(struct ep_port_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_PORT];
 	SSA_ASSERT(p_port_tbl);
 
-	memset(p_index->ca_port_lookup,'\0',MAX_LOOKUP_LID * sizeof(uint64_t));
-	memset(p_index->switch_port_lookup,'\0',MAX_LOOKUP_LID * sizeof(uint64_t*));
+	memset(p_index->ca_port_lookup,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->ca_port_lookup[0]));
+	memset(p_index->switch_port_lookup,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->switch_port_lookup[0]));
 
 	count = get_dataset_count(p_smdb,SSA_TABLE_ID_PORT);
 	default_val = count + 1; 
@@ -134,8 +134,8 @@ static int build_port_index(struct ssa_pr_smdb_index *p_index,
 			if(!port_lookup) {
 				size_t j = 0;
 
-				port_lookup = (uint64_t*)malloc(MAX_LOOKUP_PORT * sizeof(uint64_t));
-				for(j = 0;j < MAX_LOOKUP_PORT;++j)
+				port_lookup = (uint64_t*)malloc((MAX_LOOKUP_PORT + 1) * sizeof(uint64_t));
+				for(j = 0;j <= MAX_LOOKUP_PORT;++j)
 					port_lookup[j] = default_val;
 
 				p_index->switch_port_lookup[ntohs(p_port_tbl[i].port_lid)] = port_lookup;
@@ -167,7 +167,7 @@ static int build_lft_block_lookup(struct ssa_pr_smdb_index *p_index,
 	p_lft_block_tbl =(struct ep_lft_block_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK];
 	SSA_ASSERT(p_lft_block_tbl);
 
-	memset(p_index->lft_block_lookup,'\0',MAX_LOOKUP_LID * sizeof(uint64_t*));
+	memset(p_index->lft_block_lookup,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->lft_block_lookup[0]));
 
 	count = get_dataset_count(p_smdb,SSA_TABLE_ID_LFT_BLOCK);
 	default_val = count + 1;
@@ -204,8 +204,8 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 	SSA_ASSERT(p_index);
 	SSA_ASSERT(p_index->is_switch_lookup);
 
-	memset(p_index->ca_link_lookup,'\0',MAX_LOOKUP_LID * sizeof(uint64_t));
-	memset(p_index->switch_link_lookup,'\0',MAX_LOOKUP_PORT * sizeof(uint64_t*));
+	memset(p_index->ca_link_lookup,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->ca_link_lookup[0]));
+	memset(p_index->switch_link_lookup,'\0',(MAX_LOOKUP_PORT + 1) * sizeof(p_index->switch_link_lookup[0]));
 
 	p_link_tbl = (const struct ep_link_tbl_rec*)p_smdb->pp_tables[SSA_TABLE_ID_LINK];
 	SSA_ASSERT(p_link_tbl);
@@ -228,9 +228,9 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 			uint64_t *port_lookup = p_index->switch_link_lookup[ntohs(p_link_tbl[i].from_lid)];
 			if(!port_lookup) {
 				size_t j = 0;
-				port_lookup = (uint64_t*)malloc(MAX_LOOKUP_PORT * sizeof(uint64_t));
+				port_lookup = (uint64_t*)malloc((MAX_LOOKUP_PORT + 1) * sizeof(uint64_t));
 				p_index->switch_link_lookup[ntohs(p_link_tbl[i].from_lid)] = port_lookup;
-				for(j = 0;j < MAX_LOOKUP_PORT;++j)
+				for(j = 0;j <= MAX_LOOKUP_PORT;++j)
 					port_lookup[j] = default_val;
 			}
 			port_lookup[p_link_tbl[i].from_port_num] = to_port_index ;
@@ -287,25 +287,28 @@ void ssa_pr_destroy_indexes(struct ssa_pr_smdb_index *p_index)
 
 	SSA_ASSERT(p_index);
 
-	memset(p_index->is_switch_lookup,'\0',MAX_LOOKUP_LID);
+	memset(p_index->is_switch_lookup,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->is_switch_lookup[0]));
+	memset(p_index->lft_top_lookup ,'\0',(MAX_LOOKUP_LID + 1) * sizeof(p_index->lft_top_lookup[0]));
+	memset(p_index->ca_port_lookup,'\0',(MAX_LOOKUP_LID +1) * sizeof(p_index->ca_port_lookup[0]));
 
-	memset(p_index->lft_top_lookup ,'\0',MAX_LOOKUP_LID * sizeof(uint16_t));
-
-	memset(p_index->ca_port_lookup,'\0',MAX_LOOKUP_LID * sizeof(uint64_t));
-	for(i = 0; i < MAX_LOOKUP_LID; ++i)
+	for(i = 0; i <= MAX_LOOKUP_LID; ++i) {
 		free(p_index->switch_port_lookup[i]);
-	memset(p_index->switch_port_lookup,'\0',MAX_LOOKUP_PORT * sizeof(uint64_t*));
-
-	memset(p_index->ca_link_lookup,'\0',MAX_LOOKUP_LID * sizeof(uint64_t));
-	for(i = 0; i < MAX_LOOKUP_LID; ++i)
-		free(p_index->switch_link_lookup[i]);
-	memset(p_index->switch_link_lookup,'\0',MAX_LOOKUP_PORT * sizeof(uint64_t*));
-
-	for(i = 0; i < MAX_LOOKUP_LID; ++i) {
-		if(p_index->lft_block_lookup[i])
-			free(p_index->lft_block_lookup[i]);
+		p_index->switch_port_lookup[i] = NULL;
 	}
-	memset(p_index->lft_block_lookup,'\0',MAX_LOOKUP_LID * sizeof(uint16_t*));
+
+	memset(p_index->ca_link_lookup,'\0',(MAX_LOOKUP_LID +1) * sizeof(p_index->ca_link_lookup[0]));
+
+	for(i = 0; i <= MAX_LOOKUP_LID; ++i) {
+		free(p_index->switch_link_lookup[i]);
+		p_index->switch_link_lookup[i] = NULL;
+	}
+
+	for(i = 0; i <= MAX_LOOKUP_LID; ++i) {
+		if(p_index->lft_block_lookup[i]) {
+			free(p_index->lft_block_lookup[i]);
+			p_index->lft_block_lookup[i] = NULL;
+		}
+	}
 
 	p_index->epoch = -1;
 }

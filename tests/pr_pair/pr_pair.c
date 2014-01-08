@@ -495,11 +495,11 @@ static int run_pr_calculation(struct input_prm* p_prm)
 	}
 
 Exit:
-	if(!p_context ) {
+	if(p_context ) {
 		ssa_pr_destroy_context(p_context);
 		p_context = NULL;
 	}
-	if(!p_db_diff) {
+	if(p_db_diff) {
 		destroy_smdb(p_db_diff);
 		p_db_diff = NULL;
 	}
@@ -507,16 +507,16 @@ Exit:
 		fclose(fd_dump);
 		fd_dump = NULL;
 	}
-	if(!p_guids) {
+	if(p_guids) {
 		free(p_guids);
 		p_guids = NULL;
 	}
-	if(!path_arr) {
+	if(path_arr) {
 		g_ptr_array_free (path_arr,TRUE);
 		path_arr = NULL;
 	}
-	if(!guids_arr) {
-		g_array_free(guids_arr,FALSE);
+	if(guids_arr) {
+		g_array_free(guids_arr,TRUE);
 		guids_arr = NULL;
 	}
 	if(close_log && fd_log) {
