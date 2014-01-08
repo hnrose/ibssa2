@@ -560,7 +560,7 @@ static void *core_extract_handler(void *context)
 					if (smdb_dump)
 						ssa_db_save(SMDB_DUMP_PATH,
 							    ssa_db_diff->p_smdb,
-							    SSA_DB_HELPER_DEBUG);
+							    smdb_dump);
 #ifndef SIM_SUPPORT
 					for (d = 0; d < ssa.dev_cnt; d++) {
 						for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {

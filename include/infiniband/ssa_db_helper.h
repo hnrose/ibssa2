@@ -47,7 +47,7 @@ BEGIN_C_DECLS
 #include <infiniband/ssa_db.h>
 
 enum ssa_db_helper_mode {
-	SSA_DB_HELPER_STANDARD,
+	SSA_DB_HELPER_STANDARD = 1,
 	SSA_DB_HELPER_DEBUG,
 	SSA_DB_HELPER_HUMAN
 };
