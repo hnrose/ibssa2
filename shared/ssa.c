@@ -2975,8 +2975,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 #ifdef CORE_INTEGRATION
 	if (dev->ssa->node_type & SSA_NODE_CORE) {
 		/* if configured, invoke SMDB preloading */
-
-		smdb = ssa_db_load(SMDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
+		/* HACK: loading mode is determined by dump mode */
+		smdb = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
 		if (!smdb) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "unable to preload smdb database. path:\"%s\"\n",
@@ -2992,8 +2992,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 #ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
 		/* if configured, invoke PR and/or SSA DB preloading */
-
-		prdb = ssa_db_load(PRDB_PRELOAD_PATH, SSA_DB_HELPER_DEBUG);
+		/* HACK: loading mode is determined by dump mode */
+		prdb = ssa_db_load(PRDB_PRELOAD_PATH, prdb_dump);
 		if (!prdb) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "unable to preload prdb database. path:\"%s\"\n",
@@ -3004,9 +3004,9 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 				PRDB_PRELOAD_PATH);
 		}
 
+		/* HACK: loading mode is determined by dump mode */
 		if (!smdb)
-			smdb = ssa_db_load(SMDB_PRELOAD_PATH,
-					   SSA_DB_HELPER_DEBUG);
+			smdb = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
 		if (!smdb) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "unable to preload smdb database. path:\"%s\"\n",
