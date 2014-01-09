@@ -28,5 +28,5 @@
 # #
 # #--
 #
-SUBDIRS = helper pr_pair
+#SUBDIRS = helper pr_pair
 

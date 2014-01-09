@@ -1,9 +1,7 @@
 ************** Commands **********************
 Compilation string:
 ./autogen.sh &&  ./configure
---with-ssadbhelper=/labhome/sashakot/storage/src/ssa/ssadbhelper/
---with-osm=/labhome/sashakot/storage/src/ssa/dist
---with-ssa=/labhome/sashakot/storage/src/ssa/ibssa_hal/
+--with-ibssa=/labhome/sashakot/storage/src/ssa/ibssa2/
 --prefix=/labhome/sashakot/storage/src/ssa/dist
 CFLAGS="-DSSA_DB_HELPER_DEBUG_MODE"  && make && echo $?
 
@@ -13,4 +11,3 @@ ndent src/ssa_path_record.c -o src/ssa_path_record.c_  -nbad -bap -nbc -bbo
 -lp -npcs -nprs -npsl -sai -saf -saw -ncs -nsc -sob -nfca -cp33 -ss -ts8 -il1
 **********************************************
 
-1. What order is used for port_guid ?
