@@ -820,8 +820,25 @@ static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir,
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	num_recs_arr = (uint64_t *) malloc(sizeof(*num_recs_arr) * data_tbls_n);
+	if (!num_recs_arr) {
+		fprintf(stderr, "SSA DB Helper: unable to allocate records number array\n");
+		return NULL;
+	}
+
 	num_fields_arr = (uint64_t *) malloc(sizeof(*num_fields_arr) * data_tbls_n);
+	if (!num_fields_arr) {
+		fprintf(stderr, "SSA DB Helper: unable to allocate fields number array\n");
+		free(num_recs_arr);
+		return NULL;
+	}
+
 	recs_size_arr = (uint64_t *) malloc(sizeof(*recs_size_arr) * data_tbls_n);
+	if (!recs_size_arr) {
+		fprintf(stderr, "SSA DB Helper: unable to allocate records size array\n");
+		free(num_fields_arr);
+		free(num_recs_arr);
+		return NULL;
+	}
 
 	/* reading datasets */
 	for (i = 0; i < data_tbls_n; i++) {
