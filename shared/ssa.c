@@ -2062,7 +2062,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 						}
 						ssa_db_save(dump_dir,
 							    prdb,
-							    SSA_DB_HELPER_DEBUG);
+							    prdb_dump);
 					}
 skip_save:
 					ssa_access_send_db_update(svc, prdb,
