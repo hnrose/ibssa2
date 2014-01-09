@@ -332,9 +332,10 @@ static void ssa_db_rec_tbl_load(FILE *fd, enum ssa_db_helper_mode mode,
 	for (i = 0; i < ntohll(p_dataset->set_count); i++) {
 		p_data_rec = (uint8_t *)((uint8_t *)p_data_tbl + i * ntohl(p_data_tbl_def->record_size));
 		if (mode == SSA_DB_HELPER_STANDARD) {
-			for (k = 0; k < ntohl(p_data_tbl_def->record_size); k++)
+			for (k = 0; k < ntohl(p_data_tbl_def->record_size); k++) {
 				fscanf(fd, "%c", &c);
 				memcpy(p_data_rec + k, &c, sizeof(c));
+			}
 		} else {
 			for (k = 0; k < ntohll(p_dataset_field->set_count); k++) {
 				p_field_rec = &p_field_tbl[k];
