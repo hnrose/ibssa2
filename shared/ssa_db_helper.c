@@ -614,7 +614,7 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 	if (!fd) {
 		fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
-		goto Error;
+		return -1;
 	}
 	ssa_db_table_def_load(fd, &table_def);
 	fclose(fd);
@@ -636,7 +636,7 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 	fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 	if (!fd) {
 		fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
-		goto Error;
+		return -1;
 	}
 	ssa_db_dataset_load(fd, &dataset);
 	fclose(fd);
@@ -655,7 +655,7 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 		if (!fd) {
 			fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
-			goto Error;
+			return -1;
 		}
 		ssa_db_table_def_load(fd, &field_table_def);
 		fclose(fd);
@@ -678,7 +678,7 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 		if (!fd) {
 			fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
-			goto Error;
+			return -1;
 		}
 		ssa_db_dataset_load(fd, &field_dataset);
 		fclose(fd);
@@ -696,7 +696,7 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 		if (!fd) {
 			fprintf(stderr, "SSA DB Helper: Failed opening %s file\n", buffer);
-			goto Error;
+			return -1;
 		}
 		ssa_db_field_tbl_load(fd, &field_dataset,
 				      p_ssa_db->pp_field_tables[tbl_idx]);
@@ -711,7 +711,7 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 	if (!fd) {
 		fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
-		goto Error;
+		return -1;
 	}
 	if (var_size_recs)
 		ssa_db_rec_tbl_load_var_size(fd, mode, &table_def,&dataset,
@@ -725,8 +725,6 @@ static int ssa_db_tbl_load(char *dir_path, struct ssa_db *p_ssa_db,
 	fclose(fd);
 
 	return 0;
-Error:
-	return -1;
 }
 
 static void removedir(const char *dirname)
