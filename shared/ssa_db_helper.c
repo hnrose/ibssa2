@@ -903,7 +903,14 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 		data_tbls_n++;
 	}
 	rewinddir(d);
+
 	tbl_names = (char *) malloc(data_tbls_n * sizeof(*tbl_names) * DB_NAME_LEN);
+	if (!tbl_names) {
+		fprintf(stderr, "SSA DB Helper: unable to allocate table names buffer\n");
+		closedir(d);
+		return NULL;
+	}
+
 	while ((dir = readdir(d)) != NULL) {
 		if (dir->d_type != DT_DIR ||
 		    !strcmp(dir->d_name, ".") ||
