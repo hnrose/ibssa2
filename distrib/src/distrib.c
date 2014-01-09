@@ -361,7 +361,7 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 		if (smdb_dump)
 			ssa_db_save(SMDB_DUMP_PATH,
 				    (struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db),
-				    SSA_DB_HELPER_DEBUG);
+				    smdb_dump);
 		return 1;
 	default:
 		break;
