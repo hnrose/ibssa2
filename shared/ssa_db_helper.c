@@ -915,6 +915,7 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 		fd = fopen(buffer, SSA_DB_HELPER_FILE_READ_MODE_TXT);
 		if (!fd) {
 			fprintf(stderr,"SSA DB Helper: Failed opening %s file\n", buffer);
+			closedir(d);
 			goto Error;
 		}
 		ssa_db_table_def_load(fd, &table_def);
@@ -955,5 +956,6 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	return p_ssa_db;
 
 Error:
+	free(tbl_names);
 	return NULL;
 }
