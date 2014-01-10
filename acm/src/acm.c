@@ -61,6 +61,8 @@
 #define MAX_EP_ADDR 4
 #define MAX_EP_MC   2
 
+#define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
+
 enum acm_state {
 	ACM_INIT,
 	ACM_QUERY_ADDR,
@@ -251,6 +253,7 @@ static uint8_t min_rate = IBV_RATE_10_GBPS;
 static enum acm_route_preload route_preload;
 static enum acm_mode acm_mode = ACM_MODE_ACM;
 
+extern int prdb_dump;
 extern short prdb_port;
 
 static void
@@ -3587,6 +3590,10 @@ ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n",
 		return 1;
 	case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
+		if (prdb_dump)
+			ssa_db_save(PRDB_DUMP_PATH,
+				    ((struct ssa_db_update_msg *)msg)->db_upd.db,
+				    prdb_dump);
 		if (acm_parse_ssa_db((struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
 			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to preload ACM cache\n");
 		return 1;
@@ -3632,6 +3639,8 @@ static void acm_set_options(void)
 			server_port = (short) atoi(value);
 		else if (!strcasecmp("prdb_port", opt))
 			prdb_port = (short) atoi(value);
+		else if (!strcasecmp("prdb_dump", opt))
+			prdb_dump = atoi(value);
 		else if (!strcasecmp("timeout", opt))
 			timeout = atoi(value);
 		else if (!strcasecmp("retries", opt))
@@ -3672,6 +3681,7 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "loopback resolution %d\n", loopback_prot);
 	ssa_log(SSA_LOG_DEFAULT, "server port %d\n", server_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "prdb dump %d\n", prdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "timeout %d ms\n", timeout);
 	ssa_log(SSA_LOG_DEFAULT, "retries %d\n", retries);
 	ssa_log(SSA_LOG_DEFAULT, "resolve depth %d\n", resolve_depth);
