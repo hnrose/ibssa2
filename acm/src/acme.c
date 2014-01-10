@@ -192,6 +192,15 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "# prdb_port 7471\n");
 	fprintf(f, "\n");
+	fprintf(f, "# prdb_dump:\n");
+	fprintf(f, "# Indicates whether to dump PRDB. Should be\n");
+	fprintf(f, "# one of the following values:\n");
+	fprintf(f, "# 0 - don't dump (default)\n");
+	fprintf(f, "# 1 - dump in binary mode\n");
+	fprintf(f, "# 2 - dump in debug mode\n");
+	fprintf(f, "# 3 - dump in human readable mode\n");
+	fprintf(f, "prdb_dump 0\n");
+	fprintf(f, "\n");
 	fprintf(f, "# timeout:\n");
 	fprintf(f, "# Additional time, in milliseconds, that the ACM service will wait for a\n");
 	fprintf(f, "# response from a remote ACM service or the IB SA.  The actual request\n");
