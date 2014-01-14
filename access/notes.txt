@@ -1,0 +1,13 @@
+************** Commands **********************
+Compilation string:
+./autogen.sh &&  ./configure
+--with-ibssa=/labhome/sashakot/storage/src/ssa/ibssa2/
+--prefix=/labhome/sashakot/storage/src/ssa/dist
+CFLAGS="-DSSA_DB_HELPER_DEBUG_MODE"  && make && echo $?
+
+Coding style (Linux kernel):
+ndent src/ssa_path_record.c -o src/ssa_path_record.c_  -nbad -bap -nbc -bbo
+-hnl -br -brs -c33 -cd33 -ncdb -ce -ci4  -cli0 -d0 -di1 -nfc1 -i8 -ip0 -l80
+-lp -npcs -nprs -npsl -sai -saf -saw -ncs -nsc -sob -nfca -cp33 -ss -ts8 -il1
+**********************************************
+
