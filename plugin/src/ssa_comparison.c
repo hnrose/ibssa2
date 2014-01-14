@@ -36,6 +36,7 @@
 #include <common.h>
 #include <infiniband/ssa_database.h>
 #include <infiniband/ssa_comparison.h>
+#include <ssa_log.h>
 
 extern int first;
 extern int smdb_deltas;

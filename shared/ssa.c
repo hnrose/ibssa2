@@ -38,16 +38,12 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <stdio.h>
-#include <stdarg.h>
 #include <string.h>
 #include <osd.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <fcntl.h>
 #include <rdma/rsocket.h>
-#include <syslog.h>
 #include <netinet/tcp.h>
 #include <infiniband/umad.h>
 #include <infiniband/umad_str.h>
@@ -62,6 +58,7 @@
 #include <common.h>
 #include <ssa_ctrl.h>
 #include <inttypes.h>
+#include <ssa_log.h>
 
 
 #define DEFAULT_TIMEOUT 1000
@@ -79,28 +76,10 @@
 static struct ssa_db *prdb;
 #endif
 static struct ssa_db *smdb;
-static FILE *flog;
-static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
-static const char * month_str[] = {
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec"
-};
-
-static int log_level = SSA_LOG_DEFAULT;
 int prdb_dump = 0;
 //static short server_port = 6125;
 short smdb_port = 7470;
@@ -112,105 +91,12 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 
-void ssa_set_log_level(int level)
-{
-	log_level = level;
-}
-
-int ssa_open_log(char *log_file)
-{
-	if (!strcasecmp(log_file, "stdout")) {
-		flog = stdout;
-		return 0;
-	}
-
-	if (!strcasecmp(log_file, "stderr")) {
-		flog = stderr;
-		return 0;
-	}
-
-	if ((flog = fopen(log_file, "w")))
-		return 0;
-
-	syslog(LOG_WARNING, "Failed to open log file %s\n", log_file);
-	flog = stderr;
-	return -1;
-}
-
-void ssa_close_log()
-{
-	fclose(flog);
-}
-
-void ssa_write_log(int level, const char *format, ...)
-{
-	va_list args;
-	pid_t tid;
-	struct timeval tv;
-	time_t tim;
-	struct tm result;
-
-	if (!(level & log_level))
-		return;
-
-	gettimeofday(&tv, NULL);
-	tim = tv.tv_sec;
-	localtime_r(&tim, &result);
-	tid = pthread_self();
-	va_start(args, format);
-	pthread_mutex_lock(&log_lock);
-	fprintf(flog, "%s %02d %02d:%02d:%02d %06d [%04X]: ",
-		(result.tm_mon < 12 ? month_str[result.tm_mon] : "???"),
-		result.tm_mday, result.tm_hour, result.tm_min,
-		result.tm_sec, (unsigned int)tv.tv_usec, tid);
-	vfprintf(flog, format, args);
-	fflush(flog);
-	pthread_mutex_unlock(&log_lock);
-	va_end(args);
-}
-
-void ssa_sprint_addr(int level, char *str, size_t str_size,
-		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size)
-{
-	struct ibv_path_record *path;
-
-	if (!(level & log_level))
-		return;
-
-	switch (addr_type) {
-	case SSA_ADDR_NAME:
-		memcpy(str, addr, addr_size);
-		break;
-	case SSA_ADDR_IP:
-		inet_ntop(AF_INET, addr, str, str_size);
-		break;
-	case SSA_ADDR_IP6:
-	case SSA_ADDR_GID:
-		inet_ntop(AF_INET6, addr, str, str_size);
-		break;
-	case SSA_ADDR_PATH:
-		path = (struct ibv_path_record *) addr;
-		if (path->dlid) {
-			snprintf(str, str_size, "SLID(%u) DLID(%u)",
-				ntohs(path->slid), ntohs(path->dlid));
-		} else {
-			ssa_sprint_addr(level, str, str_size, SSA_ADDR_GID,
-					path->dgid.raw, sizeof path->dgid);
-		}
-		break;
-	case SSA_ADDR_LID:
-		snprintf(str, str_size, "LID(%u)", ntohs(*((uint16_t *) addr)));
-		break;
-	default:
-		strcpy(str, "Unknown");
-		break;
-	}
-}
-
-void ssa_log_options()
-{
-	ssa_log(SSA_LOG_DEFAULT, "log level 0x%x\n", log_level);
-}
+/*
+ * needed for ssa_pr_create_context()
+ * will be eliminated after access layer
+ * integration
+ */
+extern FILE *flog;
 
 const char *ssa_method_str(uint8_t method)
 {

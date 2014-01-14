@@ -56,41 +56,7 @@ extern "C" {
 void ssa_daemonize(void);
 int ssa_open_lock_file(char *lock_file);
 
-enum ssa_addr_type {
-	SSA_ADDR_NAME,
-	SSA_ADDR_IP,
-	SSA_ADDR_IP6,
-	SSA_ADDR_PATH,
-	SSA_ADDR_GID,
-	SSA_ADDR_LID
-};
-
-enum {
-	SSA_LOG_DEFAULT		= 1 << 0,
-	SSA_LOG_VERBOSE		= 1 << 1,
-	SSA_LOG_CTRL		= 1 << 2,
-	SSA_LOG_DB		= 1 << 3,
-	SSA_LOG_COMM		= 1 << 4,
-	SSA_LOG_ALL		= 0xFFFFFFFF,
-};
-
 extern __thread char log_data[128];
-
-void ssa_set_log_level(int level);
-int  ssa_open_log(char *log_file);
-void ssa_close_log(void);
-void ssa_write_log(int level, const char *format, ...);
-#define ssa_log(level, format, ...) \
-	ssa_write_log(level, "%s: "format, __func__, ## __VA_ARGS__)
-#define ssa_log_func(level) ssa_log(level, "\n");
-#define ssa_log_err(level, format, ...) \
-	ssa_write_log(level | SSA_LOG_DEFAULT, "%s: ERROR - "format, __func__, ## __VA_ARGS__)
-#define ssa_log_warn(level, format, ...) \
-	ssa_write_log(level | SSA_LOG_DEFAULT, "%s: WARNING - "format, __func__, ## __VA_ARGS__)
-void ssa_sprint_addr(int level, char *str, size_t str_size,
-		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size);
-void ssa_log_options(void);
-
 
 struct ssa_class;
 struct ssa_device;

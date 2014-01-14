@@ -40,6 +40,7 @@
 #include <infiniband/ssa_extract.h>
 #include <infiniband/ssa_comparison.h>
 #include <ssa_ctrl.h>
+#include <ssa_log.h>
 
 #include <infiniband/ssa_db_helper.h>
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"

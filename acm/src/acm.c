@@ -48,6 +48,7 @@
 #include <dlist.h>
 #include <search.h>
 #include <common.h>
+#include <ssa_log.h>
 #include <inttypes.h>
 #include "acm_mad.h"
 #include <infiniband/ssa_db.h>

@@ -36,6 +36,7 @@
 #include <infiniband/ssa_comparison.h>
 #include <infiniband/ssa_extract.h>
 #include <common.h>
+#include <ssa_log.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>

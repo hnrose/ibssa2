@@ -35,6 +35,7 @@
 
 #include <search.h>
 #include <common.h>
+#include <ssa_log.h>
 #include <infiniband/ssa_mad.h>
 #include <infiniband/ssa_db_helper.h>
 #include <ssa_ctrl.h>
