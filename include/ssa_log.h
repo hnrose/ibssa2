@@ -34,7 +34,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include <common.h>
 
 #ifdef __cplusplus
 extern "C" {

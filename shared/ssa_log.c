@@ -33,7 +33,8 @@
  *
  */
 
-#include <infiniband/verbs.h>
+#include <infiniband/sa.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <pthread.h>

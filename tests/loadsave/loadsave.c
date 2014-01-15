@@ -40,6 +40,9 @@
 #include <ctype.h>
 #include <infiniband/ssa_db_helper.h>
 #include <infiniband/ssa_db.h>
+#include <ssa_log.h>
+
+static char log_file[128] = "/var/log/loadsave.log";
 
 static void print_usage(FILE* file,const char* name)
 {
@@ -149,6 +152,7 @@ int main(int argc,char *argv[])
 	printf("Input path: %s\n", input_path);
 	printf("Output path: %s\n", output_path);
 
+	ssa_open_log(log_file);
 	print_memory_usage("Memory usage before the database loading: ");
 
 	start = clock();
@@ -161,6 +165,7 @@ int main(int argc,char *argv[])
 		print_memory_usage("Memory usage after the database loading: ");
 	} else {
 		fprintf(stderr, "Database loading is failed.\n");
+		ssa_close_log();
 		exit(EXIT_FAILURE);
 	}
 
@@ -172,6 +177,7 @@ int main(int argc,char *argv[])
 
 	ssa_db_destroy(p_ssa_db);
 	p_ssa_db = NULL;
+	ssa_close_log();
 
 	return 0;
 }
