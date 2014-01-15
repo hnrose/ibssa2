@@ -78,4 +78,3 @@ static inline void DListRemove(DLIST_ENTRY *pEntry)
 #endif
 
 #endif // _DLIST_H_
-
