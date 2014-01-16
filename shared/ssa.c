@@ -201,7 +201,7 @@ static void sa_init_path_query(struct ssa_svc *svc, struct umad_sa_packet *mad,
 	path->pkey = 0xFFFF;	/* default partition */
 }
 
-static void ssa_svc_join(struct ssa_svc *svc)
+static int ssa_svc_join(struct ssa_svc *svc)
 {
 	struct ssa_umad umad;
 	int ret;
@@ -220,6 +220,7 @@ static void ssa_svc_join(struct ssa_svc *svc)
 		ssa_log_err(SSA_LOG_CTRL, "failed to send join request\n");
 		svc->state = SSA_STATE_IDLE;
 	}
+	return ret;
 }
 
 static void ssa_init_ssa_msg_hdr(struct ssa_msg_hdr *hdr, uint16_t op,
@@ -337,8 +338,8 @@ err:
 	return -1;
 }
 
-void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
-			union ibv_gid *sgid)
+int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
+		       union ibv_gid *sgid)
 {
 	struct sa_umad umad;
 	int ret;
@@ -351,6 +352,7 @@ void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
 	if (ret)
 		ssa_log_err(SSA_LOG_CTRL, "failed to send path query to SA\n");
+	return ret;
 }
 
 static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)

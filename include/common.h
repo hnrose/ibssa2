@@ -245,8 +245,8 @@ void ssa_cleanup(struct ssa_class *ssa);
 
 void ssa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
 		      uint8_t method, uint16_t attr_id);
-void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
-			union ibv_gid *sgid);
+int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
+		       union ibv_gid *sgid);
 
 #ifdef __cplusplus
 }
