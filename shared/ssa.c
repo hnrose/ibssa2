@@ -349,9 +349,8 @@ void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
 			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
-	if (ret) {
+	if (ret)
 		ssa_log_err(SSA_LOG_CTRL, "failed to send path query to SA\n");
-	}
 }
 
 static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
@@ -2791,9 +2790,8 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 	}
 
 	ret = fcntl(umad_get_fd(port->mad_portid), F_SETFL, O_NONBLOCK);
-	if (ret) {
+	if (ret)
 		ssa_log_warn(SSA_LOG_CTRL, "MAD fd is blocking\n");
-	}
 
 	memset(methods, 0xFF, sizeof methods);
 	port->mad_agentid = umad_register(port->mad_portid,
@@ -2841,9 +2839,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	}
 
 	ret = fcntl(dev->verbs->async_fd, F_SETFL, O_NONBLOCK);
-	if (ret) {
+	if (ret)
 		ssa_log_warn(SSA_LOG_CTRL, "event fd is blocking\n");
-	}
 
 	dev->port = (struct ssa_port *) calloc(attr.phys_port_cnt, ssa->port_size);
 	if (!dev)
