@@ -178,12 +178,12 @@ static int build_lft_block_lookup(struct ssa_pr_smdb_index *p_index,
 			p_index->lft_block_lookup[ntohs(p_lft_block_tbl[i].lid)];
 
 		if (!block_lookup) {
-			block_lookup = (uint64_t *)malloc(MAX_LFT_BLOCK_MUM * sizeof(uint64_t));
-			lookup_size += MAX_LFT_BLOCK_MUM * sizeof(uint64_t);
+			block_lookup = (uint64_t *)malloc(MAX_LFT_BLOCK_NUM * sizeof(uint64_t));
+			lookup_size += MAX_LFT_BLOCK_NUM * sizeof(uint64_t);
 
 			p_index->lft_block_lookup[ntohs(p_lft_block_tbl[i].lid)] = block_lookup;
 
-			for (j = 0; j < MAX_LFT_BLOCK_MUM; ++j)
+			for (j = 0; j < MAX_LFT_BLOCK_NUM; ++j)
 				block_lookup[j] = default_val;
 		}
 		block_lookup[ntohs(p_lft_block_tbl[i].block_num)] = i;

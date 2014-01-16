@@ -38,7 +38,7 @@
 #define LFT_NO_PATH 255
 #define MAX_LOOKUP_LID 0xBFFF
 #define MAX_LOOKUP_PORT 254
-#define MAX_LFT_BLOCK_MUM (MAX_LOOKUP_LID / 64)
+#define MAX_LFT_BLOCK_NUM (MAX_LOOKUP_LID / 64)
 #define NO_REAL_PORT_NUM -1
 
 /*
@@ -56,7 +56,7 @@
  *                    Index is a LID.
  *                    If LID is for CA port, the corresponding value in lft_block_lookup is NULL.
  *                    If not, the value is pointer to dynamically allocated lookup
- *                    table for switch's LFT blocks. The table's length is MAX_LFT_BLOCK_MUM.
+ *                    table for switch's LFT blocks. The table's length is MAX_LFT_BLOCK_NUM.
  *@ca_port_lookup - lookup table for CA ports.
  *                  Index: LID , value: index in SSA_TABLE_ID_PORT table.
  *@switch_port_lookup - lookup table for switch ports. The table allows lookup by pair (LID, port num).
