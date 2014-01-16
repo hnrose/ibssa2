@@ -37,7 +37,7 @@
 #include "ssa_path_record_helper.h"
 
 /*
- * ib_path_compare_rates and ordered_are copied from OpenSM SA source.
+ * ib_path_compare_rates and ordered_rates are copied from OpenSM SA source.
  */
 
 static int ordered_rates[] = {
