@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2004-2013 Mellanox Technologies LTD. All rights reserved.
  *
@@ -29,18 +28,16 @@
  *
  */
 
-
-
 #if HAVE_CONFIG_H
 #  include <config.h>
-#endif              /* HAVE_CONFIG_H */
+#endif /* HAVE_CONFIG_H */
 
 #include <time.h>
 #include <iba/ib_types.h>
 #include "ssa_path_record_helper.h"
 
 /*
- * ib_path_compare_rates and ordered_are copied from SA source.
+ * ib_path_compare_rates and ordered_are copied from OpenSM SA source.
  */
 
 static int ordered_rates[] = {
@@ -83,38 +80,43 @@ static int ib_path_compare_rates(const int rate1,const int rate2)
 }
 
 /*
- *  calculate_rate_cmp_table - calculates and print a static 
- *  lookup table for rate comarision
+ *  calculate_rate_cmp_table - calculates and print a static
+ *  lookup table for rate comparision
  */
 static void calculate_rate_cmp_table()
 {
 	int i = 0, j = 0;
 	const int n = 19;
-	
+
 	printf("\n");
-	for(i = 0; i < n; ++i) {
-		for(j = 0; j < n; ++j) {
-			printf("%d %c",ib_path_compare_rates(i,j),j == n -1 ? '\n' : ',' );
+	for (i = 0; i < n; ++i) {
+		for (j = 0; j < n; ++j) {
+			printf("%d %c", ib_path_compare_rates(i, j),
+			       j == n -1 ? '\n' : ',' );
 		}
 	}
 	printf("\n");
 }
 
 /*
- * check_rate_cmp_table - verifies SA's and a new fast versions of 
- * rate comparison functions 
+ * check_rate_cmp_table - verifies SA's and a new fast version of
+ * rate comparison function
  */
 static void check_rate_cmp_table()
 {
 	int i = 0, j = 0;
 	const int n = 19;
-	
-	for(i = 0; i < n; ++i) {
-		for(j = 0; j < n; ++j) {
-			if(ib_path_compare_rates(i,j) != ib_path_compare_rates_fast(i,j)) {
-				fprintf(stderr,"rates_cmp_table is wrong i = %d, j = %d,"
-						" ib_path_compare_rates = %d, ib_path_compare_rates_fast = %d\n",i,j,
-						ib_path_compare_rates(i,j),ib_path_compare_rates_fast(i,j));
+
+	for (i = 0; i < n; ++i) {
+		for (j = 0; j < n; ++j) {
+			if (ib_path_compare_rates(i, j) !=
+			    ib_path_compare_rates_fast(i, j)) {
+				fprintf(stderr,
+					"rates_cmp_table is wrong i = %d, j = %d,"
+					" ib_path_compare_rates = %d, ib_path_compare_rates_fast = %d\n",
+					i, j,
+					ib_path_compare_rates(i, j),
+					ib_path_compare_rates_fast(i, j));
 				return;
 			}
 		}
@@ -123,37 +125,37 @@ static void check_rate_cmp_table()
 }
 
 /*
- * According to profiling results,ib_path_compare_rates takes about
- * 7% of overall path record computation time.
+ * According to profiling results, ib_path_compare_rates takes about
+ * 7% of the overall path record computation time.
  * rates_cmp_table is a static lookup table with precomputed results
- * of ib_path_compare. It used for performance optimisation in 
+ * of ib_path_compare. It is used as a performance optimization in
  * the path records algorithm.
  */
 int rates_cmp_table[19][19] = {
-	0 ,0 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	0 ,0 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	1 ,1 ,0 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,0 ,-1 ,1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,0 ,1 ,1 ,-1 ,-1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,-1 ,-1 ,0 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,-1 ,1 ,0 ,-1 ,-1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,-1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,-1 ,-1 ,1 ,-1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,-1 ,1 ,1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,-1 ,1 ,-1 ,-1 ,-1 ,-1 ,-1 ,0 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,-1 ,-1 ,1 ,0 ,-1 ,-1 ,1 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,-1 ,1 ,1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,1 ,1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,-1 ,-1 ,-1 ,-1 ,1 ,-1 ,-1 ,-1 ,0 ,-1 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,-1 ,-1 ,1 ,0 ,-1 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0 ,-1,
-	1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,1 ,0};
+	0, 0, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	0, 0, -1, -1, -1, -1, -1, 1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	1, 1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	1, 1, 1, 0, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	1, 1, 1, 1, 0, 1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1,
+	1, 1, 1, -1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	1, 1, 1, 1, -1, 1, 0, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 0, -1, -1, -1, 1, -1, -1, -1, 1, -1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 0, -1, -1, 1, -1, -1, -1, 1, -1, 1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, 1, 1, -1, -1, 1, -1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, -1, -1, 1, -1, -1, -1,
+	1, 1, 1, 1, -1, 1, -1, -1, -1, -1, -1, 0, -1, -1, -1, -1, -1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, 1, 0, -1, -1, 1, -1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1, 1, 1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, -1, -1, -1, -1, 1, -1, -1, -1, 0, -1, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, 1, 0, -1, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1,
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 };
 
 int ssa_pr_log_level = SSA_PR_EEROR_LEVEL;
 FILE *ssa_pr_log_fd = NULL;
 
-const char* get_time()
+const char *get_time()
 {
 	static char buffer[64] = {};
 	time_t rawtime;

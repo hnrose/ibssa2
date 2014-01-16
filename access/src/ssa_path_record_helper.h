@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2004-2013 Mellanox Technologies LTD. All rights reserved.
  *
@@ -28,6 +27,7 @@
  * SOFTWARE.
  *
  */
+
 #ifndef __SSA_PATH_RECORD_HELPER_H__
 #define __SSA_PATH_RECORD_HELPER_H__
 
@@ -35,7 +35,7 @@
  * The file contains SSA Access Layer helper functions
  */
 
-#include<stdio.h>
+#include <stdio.h>
 
 #if defined (_DEBUG_)
 #define SSA_ASSERT	assert
@@ -43,11 +43,9 @@
 #define SSA_ASSERT( __exp__ )
 #endif				/* _DEBUG_ */
 
-
 #define ERROR_TAG "ERR"
 #define INFO_TAG "INFO"
 #define DEBUG_TAG "DEBUG"
-
 
 enum {
 	SSA_PR_NO_LOG = 0,
@@ -58,29 +56,28 @@ enum {
 
 extern int ssa_pr_log_level;
 extern FILE *ssa_pr_log_fd;
-extern const char* get_time();
+extern const char *get_time();
 
-extern  int rates_cmp_table[19][19];
+extern int rates_cmp_table[19][19];
 /*
- * According to profiling results,ib_path_compare_rates takes about
- * 7% of overall path record computation time.
- * ib_path_compare_rates_fast is a fast version of ib_path_compare_rates that use static lookup
- *  table with precomputed results. It used for performance optimization in 
+ * According to profiling results, ib_path_compare_rates takes about
+ * 7% of the overall path record computation time.
+ * ib_path_compare_rates_fast is a fast version of ib_path_compare_rates that uses a static lookup
+ * table with precomputed results. It is used as a performance optimization in
  * the path records algorithm.
  */
-static inline int ib_path_compare_rates_fast(const int rate1,const int rate2)
+static inline int ib_path_compare_rates_fast(const int rate1, const int rate2)
 {
 	return rates_cmp_table[rate1][rate2];
 }
 
 #define _FILE strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__
 #define SSA_PR_LOG_FORMAT "%s | %-7s | %-15s:%d | %s |"
-#define SSA_PR_LOG_PREFIX_ARGS(tag) get_time(), tag ,_FILE,__LINE__,__func__ 
-#define SSA_PR_LOG_PRINT_FUNCTION(format,...) fprintf(ssa_pr_log_fd,format,__VA_ARGS__)
+#define SSA_PR_LOG_PREFIX_ARGS(tag) get_time(), tag, _FILE, __LINE__, __func__ 
+#define SSA_PR_LOG_PRINT_FUNCTION(format,...) fprintf(ssa_pr_log_fd, format, __VA_ARGS__)
 
-
-#define SSA_PR_LOG_ERROR(message,args...) {if(ssa_pr_log_level>=SSA_PR_EEROR_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n",SSA_PR_LOG_PREFIX_ARGS(ERROR_TAG), ##args);}
-#define SSA_PR_LOG_INFO(message,args...) {if(ssa_pr_log_level>=SSA_PR_INFO_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n",SSA_PR_LOG_PREFIX_ARGS(INFO_TAG), ##args);}
-#define SSA_PR_LOG_DEBUG(message,args...) {if(ssa_pr_log_level>=SSA_PR_DEBUG_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n",SSA_PR_LOG_PREFIX_ARGS(DEBUG_TAG), ##args);}
+#define SSA_PR_LOG_ERROR(message, args...) { if (ssa_pr_log_level >= SSA_PR_EEROR_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(ERROR_TAG), ##args); }
+#define SSA_PR_LOG_INFO(message, args...) { if (ssa_pr_log_level >= SSA_PR_INFO_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(INFO_TAG), ##args); }
+#define SSA_PR_LOG_DEBUG(message, args...) { if (ssa_pr_log_level >= SSA_PR_DEBUG_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(DEBUG_TAG), ##args); }
 
 #endif /* __SSA_PATH_RECORD_HELPER_H__ */
