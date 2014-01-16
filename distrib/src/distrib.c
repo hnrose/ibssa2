@@ -82,7 +82,7 @@ pthread_t ctrl_thread;
 
 
 #ifdef INTEGRATION
-static void distrib_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
+static int distrib_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
 {
 	/*
 	 * For now, issue SA path query here.
@@ -96,7 +96,7 @@ static void distrib_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
 	 * query would be issued.
 	 *
 	 */
-	ssa_svc_query_path(svc, &svc->port->gid, gid);
+	return ssa_svc_query_path(svc, &svc->port->gid, gid);
 }
 
 /*
@@ -138,7 +138,9 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 	umad_send(distrib->svc.port->mad_portid, distrib->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
 
-	distrib_build_tree(svc, (union ibv_gid *) rec->port_gid);
+	ret = distrib_build_tree(svc, (union ibv_gid *) rec->port_gid);
+	if (ret)
+		ssa_log(SSA_LOG_CTRL, "distrib_build_tree failed %d\n", ret)
 }
 
 static void distrib_process_leave(struct ssa_distrib *distrib, struct ssa_umad *umad)
