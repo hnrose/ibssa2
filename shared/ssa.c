@@ -351,7 +351,7 @@ void ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "failed to send path query to SA\n");
-        }
+	}
 }
 
 static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
