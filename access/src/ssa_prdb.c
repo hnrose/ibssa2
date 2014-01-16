@@ -31,8 +31,8 @@
  *
  */
 
-#include <ssa_db.h>
-#include <ssa_prdb.h>
+#include <infiniband/ssa_db.h>
+#include <infiniband/ssa_prdb.h>
 #include <asm/byteorder.h>
 
 static const struct db_table_def def_tbl[] = {
