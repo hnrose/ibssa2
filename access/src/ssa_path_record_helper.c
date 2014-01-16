@@ -152,7 +152,7 @@ int rates_cmp_table[19][19] = {
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 };
 
-int ssa_pr_log_level = SSA_PR_EEROR_LEVEL;
+int ssa_pr_log_level = SSA_PR_ERROR_LEVEL;
 FILE *ssa_pr_log_fd = NULL;
 
 const char *get_time()
