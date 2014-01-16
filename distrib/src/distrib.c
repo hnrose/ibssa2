@@ -131,7 +131,6 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 			return;
 		}
 		DListInsertBefore(&member->entry, &distrib->orphan_list);
-
 	}
 
 	ssa_log(SSA_LOG_CTRL, "sending join response\n");
