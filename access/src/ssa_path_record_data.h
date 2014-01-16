@@ -31,6 +31,10 @@
 #ifndef SSA_PATH_RECORD_DATA_H
 #define SSA_PATH_RECORD_DATA_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Internal API for data
  */
@@ -178,5 +182,8 @@ const struct ep_port_tbl_rec
 *find_linked_port(const struct ssa_db *p_smdb,
 		  const struct ssa_pr_smdb_index *p_index,
 		  const be16_t from_lid, const int from_port_num);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SSA_PATH_RECORD_DATA_H */

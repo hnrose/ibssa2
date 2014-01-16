@@ -37,6 +37,10 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined (_DEBUG_)
 #define SSA_ASSERT	assert
 #else				/* _DEBUG_ */
@@ -79,5 +83,8 @@ static inline int ib_path_compare_rates_fast(const int rate1, const int rate2)
 #define SSA_PR_LOG_ERROR(message, args...) { if (ssa_pr_log_level >= SSA_PR_ERROR_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(ERROR_TAG), ##args); }
 #define SSA_PR_LOG_INFO(message, args...) { if (ssa_pr_log_level >= SSA_PR_INFO_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(INFO_TAG), ##args); }
 #define SSA_PR_LOG_DEBUG(message, args...) { if (ssa_pr_log_level >= SSA_PR_DEBUG_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(DEBUG_TAG), ##args); }
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SSA_PATH_RECORD_HELPER_H__ */
