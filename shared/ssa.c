@@ -2627,7 +2627,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	 * TODO:
 	 * 1. Pass required log verbosity. Access layer now has:
 	 *  SSA_PR_NO_LOG = 0,
-	 *  SSA_PR_EEROR_LEVEL = 1,
+	 *  SSA_PR_ERROR_LEVEL = 1,
 	 *  SSA_PR_INFO_LEVEL = 2,
 	 *  SSA_PR_DEBUG_LEVEL = 3
 	 * 2. Change errno
