@@ -95,9 +95,11 @@ static union ibv_gid access_gid;
 static union ibv_gid distrib_gid;
 
 
-static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
-			    uint8_t node_type)
+static int core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
+			   uint8_t node_type)
 {
+	int ret = -1;
+
 	/*
 	 * For now, issue SA path query here.
 	 * DGID is from incoming join.
@@ -151,7 +153,7 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 					access_gid.raw, sizeof access_gid.raw);
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
 		}
-		ssa_svc_query_path(svc, &svc->port->gid, gid);
+		ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_ACCESS:
 		if (access_init)
@@ -163,9 +165,9 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 				access_gid.raw, sizeof access_gid.raw);
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
 		if (distrib_init) {
-			ssa_svc_query_path(svc, &distrib_gid, gid);
+			ret = ssa_svc_query_path(svc, &distrib_gid, gid);
 		} else
-			ssa_svc_query_path(svc, &svc->port->gid, gid);
+			ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
 		if (access_init)
@@ -177,15 +179,16 @@ static void core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 				access_gid.raw, sizeof access_gid.raw);
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
 	case SSA_NODE_CORE:
-		ssa_svc_query_path(svc, &svc->port->gid, gid);
+		ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_CONSUMER:
 		if (access_init)
-			ssa_svc_query_path(svc, &access_gid, gid);
+			ret = ssa_svc_query_path(svc, &access_gid, gid);
 		else
 			ssa_log_err(SSA_LOG_CTRL, "no access node joined as yet\n");
 		break;
 	}
+	return ret;
 }
 
 static void core_update_tree(struct ssa_svc *svc, union ibv_gid *gid)
@@ -215,6 +218,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
 	uint8_t **tgid;
+	int ret;
 
 	/* TODO: verify ssa_key with core nodes */
 	rec = (struct ssa_member_record *) &umad->packet.data;
@@ -236,7 +240,6 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 			free(member);
 			return;
 		}
-		DListInsertBefore(&member->entry, &core->orphan_list);
 	}
 
 	ssa_log(SSA_LOG_CTRL, "sending join response\n");
@@ -253,7 +256,13 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 		first = 0;
 	}
 
-	core_build_tree(&core->svc, (union ibv_gid *) rec->port_gid, rec->node_type);
+	ret = core_build_tree(&core->svc, (union ibv_gid *) rec->port_gid,
+			      rec->node_type);
+	if (ret) {
+		ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
+		/* member is orphaned */
+		DListInsertBefore(&member->entry, &core->orphan_list);
+	}
 }
 
 static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
@@ -261,6 +270,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
 	uint8_t **tgid;
+	DLIST_ENTRY *entry;
 
 	rec = (struct ssa_member_record *) &umad->packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
@@ -274,7 +284,15 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 		ssa_log(SSA_LOG_CTRL, "removing member\n");
 		rec = container_of(*tgid, struct ssa_member_record, port_gid);
 		member = container_of(rec, struct ssa_member, rec);
-		DListRemove(&member->entry);
+		for (entry = core->orphan_list.Next;
+		     entry != &core->orphan_list;
+		     entry = entry->Next) {
+			if (entry == &member->entry) {
+				ssa_log(SSA_LOG_CTRL, "in orphan list\n");
+				DListRemove(&member->entry);
+				break;
+			}
+		}
 		free(member);
 	}
 
