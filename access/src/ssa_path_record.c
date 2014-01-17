@@ -459,7 +459,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 		}
 
 		p_path_prm->mtu = MIN(p_path_prm->mtu,port->neighbor_mtu);
-		if(ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
+		if (ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 			p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 		p_path_prm->hops++;
 
