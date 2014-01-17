@@ -422,8 +422,8 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 
 		if (!(port->rate & SSA_DB_PORT_IS_SWITCH_MASK)) {
 			SSA_PR_LOG_ERROR("Error: Internal error, bad path while routing "
-					 "(GUID: 0x%016"PRIx64") port %d to "
-					 "(GUID: 0x%016"PRIx64") port %d; "
+					 "(GUID: 0x%016" PRIx64 ") port %d to "
+					 "(GUID: 0x%016" PRIx64 ") port %d; "
 					 "ended at (LID: 0x%04" SCNx16 ") port %d",
 					 ntohll(p_source_rec->guid),
 					 source_port->port_num,
