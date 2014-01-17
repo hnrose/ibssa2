@@ -39,11 +39,11 @@ extern "C" {
  * Internal API for data
  */
 
-#define LFT_NO_PATH 255
-#define MAX_LOOKUP_LID 0xBFFF
-#define MAX_LOOKUP_PORT 254
-#define MAX_LFT_BLOCK_NUM (MAX_LOOKUP_LID / 64)
-#define NO_REAL_PORT_NUM -1
+#define LFT_NO_PATH		255
+#define MAX_LOOKUP_LID		0xBFFF
+#define MAX_LOOKUP_PORT		254
+#define MAX_LFT_BLOCK_NUM	(MAX_LOOKUP_LID / 64)
+#define NO_REAL_PORT_NUM	-1
 
 /*
  * SMDB index improves the speed of data retrieval operations on a smdb tables.
