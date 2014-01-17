@@ -221,7 +221,7 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 						       p_link_tbl[i].to_port_num);
 
 		if (to_port_index >= port_count) {
-			SSA_PR_LOG_ERROR("Can't find port for LID: 0x" SCNx16 ". Link index build failed",
+			SSA_PR_LOG_ERROR("Can't find port for LID: %u. Link index build failed",
 					 ntohs(p_link_tbl[i].to_lid));
 			return -1;
 		}
@@ -415,7 +415,7 @@ int find_destination_port(const struct ssa_db *p_smdb,
 
 	if (ntohs(dest_lid) > lft_top) {
 		SSA_PR_LOG_ERROR("LFT routing failed. Destination LID exceeds LFT top. "
-				 "Source LID (0x%" SCNx16 ") Destination LID: (0x%" SCNx16 ") LFT top: %u",
+				 "Source LID (%u) Destination LID: (%u) LFT top: %u",
 				 ntohs(source_lid), ntohs(dest_lid), lft_top);
 		return -1;
 	}
@@ -423,7 +423,7 @@ int find_destination_port(const struct ssa_db *p_smdb,
 	if (!p_index->lft_block_lookup[ntohs(source_lid)] ||
 	    p_index->lft_block_lookup[ntohs(source_lid)][lft_block_num] > lft_block_count) {
 		SSA_PR_LOG_ERROR("LFT routing failed. Destination LID exceeds LFT top. "
-				 "Source LID (0x%" SCNx16 ") Destination LID: (0x%" SCNx16 ") LFT top: %u",
+				 "Source LID (%u) Destination LID: (%u) LFT top: %u",
 				 ntohs(source_lid), ntohs(dest_lid), lft_top);
 		return -1;
 	}
@@ -448,7 +448,7 @@ static size_t find_port_index(const struct ssa_db *p_smdb,
 		uint64_t *switch_port_lookup = p_index->switch_port_lookup[ntohs(lid)];
 
 		if (!switch_port_lookup) {
-			SSA_PR_LOG_ERROR("Port not found. LID: 0x%" SCNx16 " Port num: %d",
+			SSA_PR_LOG_ERROR("Port not found. LID: %u Port num: %d",
 					 ntohs(lid), port_num);
 			return -1;
 		}
@@ -476,7 +476,7 @@ const struct ep_port_tbl_rec *find_port(const struct ssa_db *p_smdb,
 	port_index = find_port_index(p_smdb, p_index, lid, port_num);
 
 	if (port_index >= count) {
-		SSA_PR_LOG_ERROR("Port not found. LID: 0x%" SCNx16 " Port num: %d",
+		SSA_PR_LOG_ERROR("Port not found. LID: %u Port num: %d",
 				 ntohs(lid), port_num);
 		return NULL;
 	}
@@ -504,7 +504,7 @@ const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 	if (p_index->is_switch_lookup[ntohs(lid)]) {
 		uint64_t *port_lookup = p_index->switch_link_lookup[ntohs(lid)];
 		if (!port_lookup) {
-			SSA_PR_LOG_ERROR("Link not found. LID: 0x%" SCNx16 " Port num: %u",
+			SSA_PR_LOG_ERROR("Link not found. LID: %u Port num: %u",
 					 ntohs(lid), port_num);
 			return NULL;
 		}
@@ -517,11 +517,10 @@ const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 
 	if (record_index >= port_count) {
 		if (port_num >= 0) {
-			SSA_PR_LOG_ERROR("Link not found. LID: 0x%" SCNx16 " Port num: %u",
+			SSA_PR_LOG_ERROR("Link not found. LID: %u Port num: %u",
 					 ntohs(lid), port_num);
 		} else {
-			SSA_PR_LOG_ERROR("Link not found. LID: 0x%" SCNx16,
-					 ntohs(lid));
+			SSA_PR_LOG_ERROR("Link not found. LID: %u", ntohs(lid));
 		}
 		return NULL;
 	}

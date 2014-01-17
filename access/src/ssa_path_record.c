@@ -198,7 +198,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 									     &revers_path_prm);
 
 					if (SSA_PR_ERROR == revers_path_res) {
-						SSA_PR_LOG_INFO("Reverse path calculation failed. Source LID 0x%" SCNx16 " Destination LID: 0x%" SCNx16,
+						SSA_PR_LOG_INFO("Reverse path calculation failed. Source LID %u Destination LID: %u",
 								source_lid,
 								dest_lid);
 					} else
@@ -208,7 +208,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 						dump_clbk(&path_prm, clbk_prm);
 
 				} else if (SSA_PR_ERROR == path_res) {
-					SSA_PR_LOG_ERROR("Path calculation failed: (0x%" SCNx16 ") -> (0x%" SCNx16 ") "
+					SSA_PR_LOG_ERROR("Path calculation failed: (%u) -> (%u) "
 							 "\"Half World\" calculation stopped.",
 							 source_lid, dest_lid);
 					return SSA_PR_ERROR;
@@ -217,7 +217,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 		}
 		end = clock();
 		cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-		SSA_PR_LOG_DEBUG("\"half world\" path records for: 0x%" SCNx16
+		SSA_PR_LOG_DEBUG("\"half world\" path records for: %u"
 				 " time: %f sec.", source_lid, cpu_time_used);
 	}
 	return SSA_PR_SUCCESS;
@@ -351,7 +351,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 					    p_source_rec->lid);
 	if (NULL == source_port) {
 		SSA_PR_LOG_ERROR("Source port not found. Path record calculation stopped."
-				 " LID: 0x%" SCNx16,
+				 " LID: %u",
 				 htons(p_source_rec->lid));
 		return SSA_PR_ERROR;
 	}
@@ -364,7 +364,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 					  p_dest_rec->lid);
 	if (NULL == dest_port) {
 		SSA_PR_LOG_ERROR("Destination port not found. Path record calculation stopped."
-				 " LID: 0x%" SCNx16,
+				 " LID: %u",
 				 htons(p_dest_rec->lid));
 		return SSA_PR_ERROR;
 	}
@@ -381,14 +381,14 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 							       p_source_rec->lid,
 							       p_dest_rec->lid);
 		if (out_port_num  < 0) {
-			SSA_PR_LOG_ERROR("Failed to find outgoing port for LID: 0x%" SCNx16
-					 " on switch LID: 0x%" SCNx16 ". "
+			SSA_PR_LOG_ERROR("Failed to find outgoing port for LID: %u"
+					 " on switch LID: %u. "
 					 "Path record calculation stopped.",
 					 htons(p_dest_rec->lid),
 					 htons(p_source_rec->lid));
 			return SSA_PR_ERROR;
 		} else if (LFT_NO_PATH == out_port_num) {
-			SSA_PR_LOG_DEBUG("There is no path from LID: 0x%" SCNx16 " to LID: 0x%" SCNx16" .",
+			SSA_PR_LOG_DEBUG("There is no path from LID: %u to LID: %u.", 
 					 htons(p_source_rec->lid),
 					 htons(p_dest_rec->lid));
 			return SSA_PR_NO_PATH;
@@ -398,7 +398,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				 p_source_rec->lid, out_port_num);
 		if (NULL == port) {
 			SSA_PR_LOG_ERROR("Port not found. Path record calculation stopped."
-					 " LID: 0x%" SCNx16 " num: %u",
+					 " LID: %u num: %u",
 					 htons(p_source_rec->lid),
 					 out_port_num);
 			return SSA_PR_ERROR;
@@ -424,7 +424,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 			SSA_PR_LOG_ERROR("Error: Internal error, bad path while routing "
 					 "(GUID: 0x%016" PRIx64 ") port %d to "
 					 "(GUID: 0x%016" PRIx64 ") port %d; "
-					 "ended at (LID: 0x%04" SCNx16 ") port %d",
+					 "ended at (LID: %u) port %d",
 					 ntohll(p_source_rec->guid),
 					 source_port->port_num,
 					 ntohll(p_dest_rec->guid),
@@ -443,7 +443,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 						      port->port_lid,
 						      p_dest_rec->lid);
 		if (LFT_NO_PATH == out_port_num) {
-			SSA_PR_LOG_DEBUG("There is no path from LID: 0x%" SCNx16 " to LID: 0x%" SCNx16 ".",
+			SSA_PR_LOG_DEBUG("There is no path from LID: %u to LID: %u.",
 					 htons(p_source_rec->lid),
 					 htons(p_dest_rec->lid));
 			return SSA_PR_NO_PATH;
@@ -453,7 +453,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				 port->port_lid, out_port_num);
 		if (NULL == port) {
 			SSA_PR_LOG_ERROR("Port not found. Path record calculation stopped."
-					 " LID: 0x%" SCNx16 " num: %u",
+					 " LID: %u num: %u",
 					 htons(port->port_lid), out_port_num);
 			return SSA_PR_ERROR;
 		}
