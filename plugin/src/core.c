@@ -91,6 +91,7 @@ static int sock_coreextract[2];
 #ifndef SIM_SUPPORT
 static int access_init = 0;
 static int distrib_init = 0;
+static int core_init = 0;
 static union ibv_gid access_gid;
 static union ibv_gid distrib_gid;
 
@@ -188,6 +189,11 @@ static int core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 			"access node GID %s\n", log_data);
 	case SSA_NODE_CORE:
 		/* TODO: Handle standby SM nodes */
+		if (core_init)
+			ssa_log_warn(SSA_LOG_CTRL,
+				     "core node previously joined\n");
+		else
+			core_init = 1;
 		ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_CONSUMER:
