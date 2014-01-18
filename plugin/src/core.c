@@ -104,12 +104,12 @@ static int core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 	 * For now, issue SA path query here.
 	 * DGID is from incoming join.
 	 *
-	 * Latest prototype is to support either
+	 * Latest algorithm is to support either
 	 * plugin/core <-> distribution <-> access <-> ACM 
 	 * or plugin/core <-> access <-> ACM. Also, it
 	 * is a current requirement (limitation) that
 	 * the access node needs to join prior to the
-	 * ACM. Similarly, the distribution node should
+	 * ACM. Similarly, the distribution node needs to
 	 * join prior to the access node.
 	 *
 	 * With those assumptions, the SGID depends on the
@@ -126,7 +126,7 @@ static int core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 	 *
 	 * Longer term, SGID needs to come from the tree
 	 * calculation code so rather than query PathRecord
-	 * here, this would inform the tree calculation
+	 * here, this would "inform" the tree calculation
 	 * that a parent is needed for joining port and
 	 * when parent is determined, then the SA path
 	 * query would be issued.
@@ -136,34 +136,40 @@ static int core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 	case SSA_NODE_DISTRIBUTION:
 	case (SSA_NODE_DISTRIBUTION | SSA_NODE_ACCESS):
 		if (distrib_init)
-			ssa_log_warn(SSA_LOG_CTRL, "distribution node previously joined\n");
-		distrib_init =1;
+			ssa_log_warn(SSA_LOG_CTRL,
+				     "distribution node previously joined\n");
+		distrib_init = 1;
 		memcpy(&distrib_gid, gid, 16);
 		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
 				distrib_gid.raw, sizeof distrib_gid.raw);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "distribution node GID %s\n", log_data);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+			"distribution node GID %s\n", log_data);
 		if (node_type & SSA_NODE_ACCESS) {
 			if (access_init)
-				ssa_log_warn(SSA_LOG_CTRL, "access node previously joined\n");
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "access node previously joined\n");
 			access_init = 1;
 			memcpy(&access_gid, gid, 16);
 			ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
 					sizeof log_data, SSA_ADDR_GID,
 					access_gid.raw, sizeof access_gid.raw);
-			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
+			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+				"access node GID %s\n", log_data);
 		}
 		ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_ACCESS:
 		if (access_init)
-			ssa_log_warn(SSA_LOG_CTRL, "access node previously joined\n");
+			ssa_log_warn(SSA_LOG_CTRL,
+				     "access node previously joined\n");
 		access_init = 1;
 		memcpy(&access_gid, gid, 16);
 		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
 				access_gid.raw, sizeof access_gid.raw);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+			"access node GID %s\n", log_data);
 		if (distrib_init) {
 			ret = ssa_svc_query_path(svc, &distrib_gid, gid);
 		} else
@@ -171,21 +177,25 @@ static int core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
 		break;
 	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
 		if (access_init)
-			ssa_log_warn(SSA_LOG_CTRL, "access node previously joined\n");
+			ssa_log_warn(SSA_LOG_CTRL,
+				     "access node previously joined\n");
 		access_init = 1;
 		memcpy(&access_gid, gid, 16);
 		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
 				access_gid.raw, sizeof access_gid.raw);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "access node GID %s\n", log_data);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+			"access node GID %s\n", log_data);
 	case SSA_NODE_CORE:
+		/* TODO: Handle standby SM nodes */
 		ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_CONSUMER:
 		if (access_init)
 			ret = ssa_svc_query_path(svc, &access_gid, gid);
 		else
-			ssa_log_err(SSA_LOG_CTRL, "no access node joined as yet\n");
+			ssa_log_err(SSA_LOG_CTRL,
+				    "no access node joined as yet\n");
 		break;
 	}
 	return ret;
