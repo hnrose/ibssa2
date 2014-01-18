@@ -96,10 +96,11 @@ static union ibv_gid access_gid;
 static union ibv_gid distrib_gid;
 
 
-static int core_build_tree(struct ssa_svc *svc, union ibv_gid *gid,
-			   uint8_t node_type)
+static int core_build_tree(struct ssa_svc *svc, struct ssa_member *member)
 {
 	int ret = -1;
+	union ibv_gid *gid = (union ibv_gid *) member->rec.port_gid;
+	uint8_t node_type = member->rec.node_type;
 
 	/*
 	 * For now, issue SA path query here.
@@ -256,6 +257,9 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 			free(member);
 			return;
 		}
+	} else {
+		rec = container_of(*tgid, struct ssa_member_record, port_gid);
+		member = container_of(rec, struct ssa_member, rec);
 	}
 
 	ssa_log(SSA_LOG_CTRL, "sending join response\n");
@@ -272,8 +276,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 		first = 0;
 	}
 
-	ret = core_build_tree(&core->svc, (union ibv_gid *) rec->port_gid,
-			      rec->node_type);
+	ret = core_build_tree(&core->svc, member);
 	if (ret) {
 		ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
 		/* member is orphaned */
