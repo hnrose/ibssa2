@@ -440,8 +440,8 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	case SSA_STATE_HAVE_PARENT:
 		mad = &umad->packet;
 		info_rec = (struct ssa_info_record *) &mad->data;
-		memcpy(&svc->primary_parent, &info_rec->path_data,
-		       sizeof(svc->primary_parent));
+		memcpy(&svc->primary, &info_rec->path_data,
+		       sizeof(svc->primary));
 		break;
 	case SSA_STATE_CONNECTING:
 	case SSA_STATE_CONNECTED:		/* TODO compare against current parent, if same done */
@@ -2181,7 +2181,7 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 		return;
 	}
 
-	memcpy(&svc->conn_dataup.remote_gid, &svc->primary_parent.path.dgid,
+	memcpy(&svc->conn_dataup.remote_gid, &svc->primary.path.dgid,
 	       sizeof(union ibv_gid));
 	svc->conn_dataup.state = SSA_CONN_CONNECTED;
 	svc->state = SSA_STATE_CONNECTED;
@@ -2306,7 +2306,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	}
 
 	ret = rsetsockopt(svc->conn_dataup.rsock, SOL_RDMA, RDMA_ROUTE,
-			  &svc->primary_parent, sizeof(svc->primary_parent));
+			  &svc->primary, sizeof(svc->primary));
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rsetsockopt RDMA_ROUTE ERROR %d (%s)\n",
@@ -2320,7 +2320,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	dst_addr.sib_sid = htonll(((uint64_t) RDMA_PS_TCP << 16) + dport);
 	dst_addr.sib_sid_mask = htonll(RDMA_IB_IP_PS_MASK);
 	dst_addr.sib_scope_id = 0;
-	memcpy(&dst_addr.sib_addr, &svc->primary_parent.path.dgid,
+	memcpy(&dst_addr.sib_addr, &svc->primary.path.dgid,
 	       sizeof(union ibv_gid));
 	ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, (uint8_t *) &dst_addr.sib_addr,

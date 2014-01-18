@@ -209,7 +209,8 @@ struct ssa_svc {
 	//pthread_mutex_t		lock;
 	int			timeout;
 	enum ssa_svc_state	state;
-	struct ibv_path_data	primary_parent;
+	struct ibv_path_data	primary;	/* parent */
+	struct ibv_path_data	secondary;	/* parent */
 };
 
 int ssa_open_devices(struct ssa_class *ssa);
