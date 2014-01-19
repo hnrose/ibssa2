@@ -28,9 +28,11 @@
 # #
 # #--
 #
-SUBDIRS = . tests 
+SUBDIRS = . tests
 
-INCLUDES = -I$(srcdir)/include -I$(IBSSA_SRC)/include/ -I$(IBSSA_SRC)/include/infiniband -I$(prefix)/include -I$(prefix)/include/infiniband
+INCLUDES = -I. -I$(includedir) -I$(srcdir)/include/ \
+		-I$(srcdir)/include/infiniband \
+		-I$(prefix)/include -I$(prefix)/include/infiniband
 
 
 # Support debug mode through config variable
@@ -41,9 +43,7 @@ DBG += -g
 endif
 
 
-AM_CPPFLAGS = $(DBG) -Wall -Werror -g 
-
-
+AM_CPPFLAGS = $(DBG) -Wall -Werror -g
 COV =
 if COVERAGE
 AM_CPPFLAGS += -fprofile-arcs -ftest-coverage -I config
@@ -51,7 +51,7 @@ COV += -lgcov
 endif
 
 
-LDADD = ${COV}	
+LDADD = ${COV}
 
 
 includedir = @includedir@/infiniband/
@@ -61,14 +61,12 @@ lib_LTLIBRARIES = libssaaccesslayer.la
 
 
 # Quiter for the server
-libssaaccesslayer_la_SOURCES = ./src/ssa_path_record_helper.c ./src/ssa_path_record.c \
-							   ./src/ssa_path_record_data.c ./src/ssa_prdb.c\
-				 $(IBSSA_SRC)/shared/ssa_db.c $(IBSSA_SRC)/shared/ssa_db_helper.c
-libssaaccesslayer_la_LDFLAGS = -export-dynamic -lm \
-									$(GLIB_LIBS) -lglib-2.0  
-libssaaccesslayer_la_CPPFLAGS =  $(INCLUDES) -I$(includedir) $(DEPS_CFLAGS) $(GLIB_CFLAGS) -g 
+libssaaccesslayer_la_SOURCES =	./src/ssa_path_record_helper.c \
+	./src/ssa_path_record.c \
+	./src/ssa_path_record_data.c ./src/ssa_prdb.c\
+	./src/ssa_db.c \
+	./src/ssa_db_helper.c
+libssaaccesslayer_la_LDFLAGS = -export-dynamic -lm
+libssaaccesslayer_la_CPPFLAGS =  $(INCLUDES) -I$(includedir) $(DEPS_CFLAGS)
 libssaaccesslayerincludedir = $(includedir)/
-libssaaccesslayerinclude_HEADERS = $(IBSSA_SRC)/include/infiniband/ssa_path_record.h
-
-
-
+libssaaccesslayerinclude_HEADERS = $(srcdir)/include/infiniband/ssa_path_record.h
