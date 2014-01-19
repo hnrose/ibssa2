@@ -54,6 +54,18 @@ extern struct ssa_database *ssa_db;
 extern int first;
 extern int smdb_deltas;
 
+/** ===========================================================================
+ */
+static void
+ssa_db_extract_subnet_opts(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
+{
+	p_ssa_db->subnet_prefix = ntohll(p_subn->opt.subnet_prefix);
+	p_ssa_db->sm_state = p_subn->sm_state;
+	p_ssa_db->lmc = p_subn->opt.lmc;
+	p_ssa_db->subnet_timeout = p_subn->opt.subnet_timeout;
+	p_ssa_db->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
+}
+
 /** =========================================================================
  */
 struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
@@ -107,12 +119,7 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	ssa_log(SSA_LOG_VERBOSE, "[ %u LIDs\n", lids);
 
 	p_ssa = ssa_db->p_dump_db;
-	/* First, Fabric/SM related parameters */
-	p_ssa->subnet_prefix = ntohll(p_subn->opt.subnet_prefix);
-	p_ssa->sm_state = p_subn->sm_state;
-	p_ssa->lmc = p_subn->opt.lmc;
-	p_ssa->subnet_timeout = p_subn->opt.subnet_timeout;
-	p_ssa->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
+	ssa_db_extract_subnet_opts(p_subn, p_ssa);
 
 	nodes = (uint32_t) cl_qmap_count(&p_subn->node_guid_tbl);
 	if (!p_ssa->p_node_tbl) {
