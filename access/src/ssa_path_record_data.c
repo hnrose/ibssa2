@@ -386,7 +386,6 @@ int find_destination_port(const struct ssa_db *p_smdb,
 			  const struct ssa_pr_smdb_index *p_index,
 			  const be16_t source_lid, const be16_t dest_lid)
 {
-	size_t i = 0;
 	struct ep_lft_block_tbl_rec *p_lft_block_tbl = NULL;
 	size_t lft_block_count = 0;
 	size_t lft_block_num = 0;
@@ -436,7 +435,6 @@ static size_t find_port_index(const struct ssa_db *p_smdb,
 			      const struct ssa_pr_smdb_index *p_index,
 			      const be16_t lid, const int port_num)
 {
-	size_t i = 0;
 	size_t port_index = -1;
 
 	SSA_ASSERT(p_smdb);
@@ -488,7 +486,6 @@ const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 					       const be16_t lid,
 					       const int port_num)
 {
-	size_t i = 0;
 	const struct ep_port_tbl_rec *p_port_tbl = NULL;
 	size_t port_count = 0;
 	size_t record_index = 0;

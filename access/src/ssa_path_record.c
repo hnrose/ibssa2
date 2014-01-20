@@ -118,7 +118,6 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	size_t guid_to_lid_count = 0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
 	size_t i = 0;
-	size_t source_lids_count = 0;
 	uint16_t source_base_lid = 0;
 	uint16_t source_last_lid = 0;
 	uint16_t source_lid = 0;
@@ -230,11 +229,7 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	uint64_t record_num = 0;
 	size_t guid_to_lid_count = 0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
-	const struct ep_guid_to_lid_tbl_rec *p_curr_rec = NULL;
-	size_t i = 0;
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
-	uint16_t source_base_lid = 0;
-	uint16_t source_last_lid = 0;
 
 	SSA_ASSERT(p_ssa_db_smdb);
 
@@ -326,7 +321,6 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				   const struct ep_guid_to_lid_tbl_rec *p_dest_rec,
 				   ssa_path_parms_t *p_path_prm)
 {
-	int source_port_num = -1;
 	const struct ep_port_tbl_rec *source_port = NULL;
 	const struct ep_port_tbl_rec *dest_port = NULL;
 	const struct ep_port_tbl_rec *port = NULL;
