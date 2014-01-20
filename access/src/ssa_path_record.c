@@ -261,6 +261,7 @@ Error:
 		ssa_db_destroy(p_prdb);
 		return NULL;
 	}
+	return NULL;
 }
 
 ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
