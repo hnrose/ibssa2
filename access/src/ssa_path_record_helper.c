@@ -82,8 +82,9 @@ static int ib_path_compare_rates(const int rate1,const int rate2)
 
 /*
  *  calculate_rate_cmp_table - calculates and print a static
- *  lookup table for rate comparision
+ *  lookup table for rate comparison
  */
+#ifdef _VERIFICATION_CODE_
 static void calculate_rate_cmp_table()
 {
 	int i = 0, j = 0;
@@ -98,7 +99,7 @@ static void calculate_rate_cmp_table()
 	}
 	printf("\n");
 }
-
+#endif
 /*
  * check_rate_cmp_table - verifies SA's and a new fast version of
  * rate comparison function
