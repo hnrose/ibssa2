@@ -298,7 +298,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 
 	core_update_tree(&core->svc, (union ibv_gid *) rec->port_gid);
 
-	tgid = tdelete(rec->port_gid, &core->member_map, ssa_compare_gid);
+	tgid = tfind(rec->port_gid, &core->member_map, ssa_compare_gid);
 	if (tgid) {
 		ssa_log(SSA_LOG_CTRL, "removing member\n");
 		rec = container_of(*tgid, struct ssa_member_record, port_gid);
@@ -312,6 +312,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 				break;
 			}
 		}
+		tdelete(rec->port_gid, &core->member_map, ssa_compare_gid);
 		free(member);
 	}
 
