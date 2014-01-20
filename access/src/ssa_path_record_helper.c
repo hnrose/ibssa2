@@ -33,6 +33,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <time.h>
+#include <stdio.h>
 #include <iba/ib_types.h>
 #include "ssa_path_record_helper.h"
 
