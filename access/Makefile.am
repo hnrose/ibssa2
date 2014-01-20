@@ -30,9 +30,9 @@
 #
 SUBDIRS = . tests
 
-INCLUDES = -I. -I$(includedir) -I$(srcdir)/include/ \
-		-I$(srcdir)/include/infiniband \
-		-I$(prefix)/include -I$(prefix)/include/infiniband
+INCLUDES = -I./include -I$(includedir) -I$(includedir)/infiniband \
+	   -I$(srcdir)/include/ \
+	   -I$(srcdir)/include/infiniband 
 
 
 # Support debug mode through config variable

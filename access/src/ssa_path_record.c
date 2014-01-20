@@ -41,8 +41,8 @@
 #include <infiniband/ssa_smdb.h>
 #include <infiniband/ssa_prdb.h>
 #include <infiniband/ssa_path_record.h>
-#include "ssa_path_record_helper.h"
-#include "ssa_path_record_data.h"
+#include <ssa_path_record_helper.h>
+#include <ssa_path_record_data.h>
 
 #ifndef MIN
 #define MIN(X,Y) ((X) < (Y) ?  (X) : (Y))

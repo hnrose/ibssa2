@@ -35,7 +35,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <iba/ib_types.h>
-#include "ssa_path_record_helper.h"
+#include <ssa_path_record_helper.h>
 
 /*
  * ib_path_compare_rates and ordered_rates are copied from OpenSM SA source.
