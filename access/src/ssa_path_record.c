@@ -243,7 +243,7 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	p_prdb = ssa_prdb_create(record_num);
 	if (!p_prdb) {
 		SSA_PR_LOG_ERROR("Path record database creation failed."
-				 " Number of records: %ll", record_num);
+				 " Number of records: %"PRIu64, record_num);
 		return NULL;
 	}
 
