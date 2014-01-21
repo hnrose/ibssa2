@@ -175,6 +175,43 @@ err0:
 	return -1;
 }
 
+/** ===========================================================================
+ */
+static void
+ssa_db_extract_node_tbl_rec(osm_node_t *p_node, uint64_t *p_offset,
+			    struct ssa_db_extract *p_ssa_db)
+{
+	struct ep_map_rec *p_map_rec;
+#ifdef SSA_PLUGIN_VERBOSE_LOGGING
+	char buffer[64];
+	if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
+		sprintf(buffer, " with %s Switch Port 0\n",
+			ib_switch_info_is_enhanced_port0(
+			    &p_node->sw->switch_info) ? "Enhanced" : "Base");
+	else
+		sprintf(buffer, "\n");
+	ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
+		ntohll(osm_node_get_node_guid(p_node)),
+		osm_node_get_type(p_node),
+		buffer);
+#endif
+
+	ep_node_tbl_rec_init(p_node, &p_ssa_db->p_node_tbl[*p_offset]);
+
+	p_map_rec = ep_map_rec_init(*p_offset);
+	if (!p_map_rec) {
+		/* add memory allocation failure handling */
+		ssa_log(SSA_LOG_VERBOSE,
+			"Quick MAP rec memory allocation failed");
+	}
+
+	cl_qmap_insert(&p_ssa_db->ep_node_tbl,
+		       osm_node_get_node_guid(p_node),
+		       &p_map_rec->map_item);
+
+	*p_offset = *p_offset + 1;
+}
+
 /** =========================================================================
  */
 struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
@@ -199,7 +236,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 #endif
 	struct ep_map_rec *p_map_rec;
 	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec;
-	struct ep_node_tbl_rec *p_node_tbl_rec;
 	struct ep_port_tbl_rec *p_port_tbl_rec;
 	struct ep_link_tbl_rec *p_link_tbl_rec;
 	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
@@ -233,11 +269,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	if (ret)
 		return NULL;
 
-	p_node_tbl_rec = (struct ep_node_tbl_rec *) malloc(sizeof(*p_node_tbl_rec));
-	if (!p_node_tbl_rec) {
-			/* TODO: add memory allocation failure handling */
-	}
-
 	p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
 	if (!p_lft_top_tbl_rec) {
 			/* TODO: add memory allocation failure handling */
@@ -253,30 +284,8 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	       (osm_node_t *)cl_qmap_end(&p_subn->node_guid_tbl)) {
 		p_node = p_next_node;
 		p_next_node = (osm_node_t *)cl_qmap_next(&p_node->map_item);
-#ifdef SSA_PLUGIN_VERBOSE_LOGGING
-		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
-			sprintf(buffer, " with %s Switch Port 0\n",
-				ib_switch_info_is_enhanced_port0(&p_node->sw->switch_info) ? "Enhanced" : "Base");
-		else
-			sprintf(buffer, "\n");
-		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
-			ntohll(osm_node_get_node_guid(p_node)),
-			osm_node_get_type(p_node),
-			buffer);
-#endif
-		/* add to node table (p_node_tbl) */
-		ep_node_tbl_rec_init(p_node, p_node_tbl_rec);
-		memcpy(&p_ssa->p_node_tbl[node_offset], p_node_tbl_rec,
-		       sizeof(*p_node_tbl_rec));
-		p_map_rec = ep_map_rec_init(node_offset);
-		if (!p_map_rec) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "Quick MAP rec memory allocation failed");
-		}
-		node_offset++;
-		cl_qmap_insert(&p_ssa->ep_node_tbl,
-			       osm_node_get_node_guid(p_node),
-			       &p_map_rec->map_item);
+
+		ssa_db_extract_node_tbl_rec(p_node, &node_offset, p_ssa);
 
 		/* TODO: add more cases when full dump is needed */
 		if (!first)
@@ -536,7 +545,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	free(p_guid_to_lid_tbl_rec);
 	free(p_lft_block_tbl_rec);
 	free(p_lft_top_tbl_rec);
-	free(p_node_tbl_rec);
 
 	p_ssa->initialized = 1;
 
