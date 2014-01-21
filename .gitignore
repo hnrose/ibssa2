@@ -18,18 +18,6 @@
 libtool
 config.h
 
-######################
-# Windows specific   #
-#####################
-[Ww]in[87][Dd]ebug/
-[Ww]in[87][Rr]elease/
-Vista[Dd]ebug/
-Vista[Rr]elease
-*vcxproj.user
-*.sdf
-*.opensdf
-*.v11.suo
-
 ###################
 # Autoconfigure   #
 ###################
@@ -39,7 +27,6 @@ config
 config.log
 config.status
 configure
-ibutils2.spec
 INSTALL
 Makefile
 Makefile.in
@@ -70,8 +57,3 @@ core.*
 # ctags temp files  #
 #####################
 tags
-
-#####################
-# testers           #
-#####################
-tests/pr_pair/pr_pair
