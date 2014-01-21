@@ -33,28 +33,6 @@ AC_INIT([ssaaccesslayer],[1.0],[sashakot@mellanox.com])
 AC_CONFIG_SRCDIR([])
 AC_CONFIG_MACRO_DIR(config)
 
-dnl Define an input config option to control osm
-AC_ARG_WITH(osm,
-[  --with-osm=<dir> define OSM directory],
-AC_MSG_NOTICE(Using OSM from: $with_osm),
-with_osm="none")
-OSM_PATH=/usr
-if test "x$with_osm" != xnone; then
-  OSM_PATH=$with_osm
-fi
-AC_SUBST(OSM_PATH)
-
-dnl Define an input config option to control osm
-AC_ARG_WITH(ssadbhelper,
-[  --with-ssadbhelper=<dir> define SSA DB Helper directory],
-AC_MSG_NOTICE(Using SSA DB Helper from: $with_ssadbhelper),
-with_ssadbhelper="none")
-OSM_DBHELPER_PATH=/usr
-if test "x$with_ssadbhelper" != xnone; then
-  OSM_DBHELPER_PATH=$with_ssadbhelper
-fi
-AC_SUBST(OSM_DBHELPER_PATH)
-
 
 dnl use local config dir for extras
 AC_CONFIG_AUX_DIR(config)
@@ -135,5 +113,5 @@ AC_CHECK_FUNCS([])
 AC_CONFIG_FILES([ssaaccesslayer.spec])
 
 dnl Create the following Makefiles
-AC_OUTPUT(Makefile tests/Makefile tests/helper/Makefile tests/pr_pair/Makefile) 
+AC_OUTPUT(Makefile) 
 
