@@ -733,103 +733,118 @@ void ssa_db_update(struct ssa_database *ssa_db)
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }
 
+/** ===========================================================================
+ */
+static void
+ssa_db_lft_block_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
+{
+	struct ep_lft_block_tbl_rec lft_block_tbl_rec;
+	struct ep_map_rec *p_map_rec, *p_map_rec_old;
+	uint64_t rec_num, key;
+	uint16_t block_num;
+
+	rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+	if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
+		ssa_db->p_lft_db->p_dump_lft_block_tbl =
+		    (struct ep_lft_block_tbl_rec *)
+			realloc(&ssa_db->p_lft_db->p_dump_lft_block_tbl[0],
+				(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
+				SSA_TABLE_BLOCK_SIZE *
+				sizeof(*ssa_db->p_lft_db->p_dump_lft_block_tbl));
+	}
+
+	block_num = p_lft_change_rec->lft_change.block_num;
+	ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
+				 "for LID %u Block %u\n",
+				 ntohs(p_lft_change_rec->lid), block_num);
+
+	lft_block_tbl_rec.lid = p_lft_change_rec->lid;
+	lft_block_tbl_rec.block_num = htons(block_num);
+	memcpy(lft_block_tbl_rec.block, p_lft_change_rec->block,
+	       IB_SMP_DATA_SIZE);
+
+	key = ep_rec_gen_key(ntohs(p_lft_change_rec->lid), block_num);
+
+	p_map_rec = ep_map_rec_init(rec_num);
+	p_map_rec_old = (struct ep_map_rec *)
+		cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+			       key, &p_map_rec->map_item);
+	if (p_map_rec != p_map_rec_old) {
+		/* in case of a record with the same key already exist */
+		rec_num = p_map_rec_old->offset;
+		free(p_map_rec);
+	}
+
+	memcpy(&ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num],
+	       &lft_block_tbl_rec, sizeof(lft_block_tbl_rec));
+}
+
+/** ===========================================================================
+ */
+static void
+ssa_db_lft_top_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
+{
+	struct ep_lft_top_tbl_rec lft_top_tbl_rec;
+	struct ep_map_rec *p_map_rec, *p_map_rec_old;
+	uint64_t rec_num, key;
+
+	rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+	if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
+		ssa_db->p_lft_db->p_dump_lft_top_tbl =
+		    (struct ep_lft_top_tbl_rec *)
+			realloc(&ssa_db->p_lft_db->p_dump_lft_top_tbl[0],
+				(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
+				SSA_TABLE_BLOCK_SIZE *
+				sizeof(*ssa_db->p_lft_db->p_dump_lft_top_tbl));
+	}
+
+	ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
+				 "for LID %u New Top %u\n",
+				 ntohs(p_lft_change_rec->lid),
+				 p_lft_change_rec->lft_change.lft_top);
+
+	lft_top_tbl_rec.lid = p_lft_change_rec->lid;
+	lft_top_tbl_rec.lft_top = htons(p_lft_change_rec->lft_change.lft_top);
+	key = (uint64_t) ntohs(p_lft_change_rec->lid);
+
+	p_map_rec = ep_map_rec_init(rec_num);
+	p_map_rec_old = (struct ep_map_rec *)
+		cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+			       key, &p_map_rec->map_item);
+	if (p_map_rec != p_map_rec_old) {
+		/* in case of a record with the same key already exist */
+		rec_num = p_map_rec_old->offset;
+		free(p_map_rec);
+	}
+
+	memcpy(&ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num],
+	       &lft_top_tbl_rec, sizeof(lft_top_tbl_rec));
+}
+
 /** =========================================================================
  */
 void ssa_db_lft_handle(void)
 {
 	struct ssa_db_lft_change_rec *p_lft_change_rec;
-	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
-	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
-	struct ep_map_rec *p_map_rec, *p_map_rec_tmp;
 	cl_list_item_t *p_item;
-	uint64_t rec_num, key;
-	uint16_t block_num;
 
 	pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
 
 	while ((p_item = cl_qlist_remove_head(&ssa_db->lft_rec_list)) !=
 					cl_qlist_end(&ssa_db->lft_rec_list)) {
-		p_lft_change_rec = cl_item_obj(p_item, p_lft_change_rec, list_item);
-		if (p_lft_change_rec->lft_change.flags == LFT_CHANGED_BLOCK) {
-			p_lft_block_tbl_rec =
-				(struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
-			if (!p_lft_block_tbl_rec) {
-					/* TODO: add memory allocation failure handling */
-			}
-			rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
-			if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
-				ssa_db->p_lft_db->p_dump_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
-						realloc(&ssa_db->p_lft_db->p_dump_lft_block_tbl[0],
-							(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
-							SSA_TABLE_BLOCK_SIZE *
-							sizeof(*ssa_db->p_lft_db->p_dump_lft_block_tbl));
-			}
-
-			block_num = p_lft_change_rec->lft_change.block_num;
-			ssa_log(SSA_LOG_VERBOSE, "LFT change block event received "
-						 "for LID %u Block %u\n",
-						 ntohs(p_lft_change_rec->lid), block_num);
-
-			p_lft_block_tbl_rec->lid = p_lft_change_rec->lid;
-			p_lft_block_tbl_rec->block_num	= htons(block_num);
-			memcpy(p_lft_block_tbl_rec->block, p_lft_change_rec->block,
-			       IB_SMP_DATA_SIZE);
-
-			key = ep_rec_gen_key(ntohs(p_lft_change_rec->lid), block_num);
-
-			p_map_rec = ep_map_rec_init(rec_num);
-			p_map_rec_tmp = (struct ep_map_rec *)
-				cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_block_tbl,
-					       key, &p_map_rec->map_item);
-			if (p_map_rec != p_map_rec_tmp) {
-				/* in case of a record with the same key already exist */
-				rec_num = p_map_rec_tmp->offset;
-				free(p_map_rec);
-			}
-
-			memcpy(&ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num],
-			       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
-			free(p_lft_block_tbl_rec);
-		} else if (p_lft_change_rec->lft_change.flags == LFT_CHANGED_LFT_TOP) {
-			p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
-			if (!p_lft_top_tbl_rec) {
-					/* TODO: add memory allocation failure handling */
-			}
-			rec_num = cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
-			if (rec_num % SSA_TABLE_BLOCK_SIZE == 0) {
-				ssa_db->p_lft_db->p_dump_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
-						realloc(&ssa_db->p_lft_db->p_dump_lft_top_tbl[0],
-							(rec_num / SSA_TABLE_BLOCK_SIZE + 1) *
-							SSA_TABLE_BLOCK_SIZE *
-							sizeof(*ssa_db->p_lft_db->p_dump_lft_top_tbl));
-			}
-
-			ssa_log(SSA_LOG_VERBOSE, "LFT change top event received "
-						 "for LID %u New Top %u\n",
-						 ntohs(p_lft_change_rec->lid),
-						 p_lft_change_rec->lft_change.lft_top);
-
-			p_lft_top_tbl_rec->lid = p_lft_change_rec->lid;
-			p_lft_top_tbl_rec->lft_top = htons(p_lft_change_rec->lft_change.lft_top);
-			key = (uint64_t) ntohs(p_lft_change_rec->lid);
-
-			p_map_rec = ep_map_rec_init(rec_num);
-			p_map_rec_tmp = (struct ep_map_rec *)
-				cl_qmap_insert(&ssa_db->p_lft_db->ep_dump_lft_top_tbl,
-					       key, &p_map_rec->map_item);
-
-			if (p_map_rec != p_map_rec_tmp) {
-				/* in case of a record with the same key already exist */
-				rec_num = p_map_rec_tmp->offset;
-				free(p_map_rec);
-			}
-
-			memcpy(&ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num],
-			       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
-			free(p_lft_top_tbl_rec);
-		} else {
+		p_lft_change_rec =
+		    cl_item_obj(p_item, p_lft_change_rec, list_item);
+		switch (p_lft_change_rec->lft_change.flags) {
+		case LFT_CHANGED_BLOCK:
+			ssa_db_lft_block_handle(p_lft_change_rec);
+			break;
+		case LFT_CHANGED_LFT_TOP:
+			ssa_db_lft_top_handle(p_lft_change_rec);
+			break;
+		default:
 			ssa_log(SSA_LOG_ALL, "Unknown LFT change event (%d)\n",
 				p_lft_change_rec->lft_change.flags);
+			break;
 		}
 		free(p_lft_change_rec);
         }
