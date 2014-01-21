@@ -247,6 +247,52 @@ ssa_db_extract_lft(osm_switch_t *p_sw, uint64_t *p_top_offset,
 	}
 }
 
+/** ===========================================================================
+ */
+static void
+ssa_db_extract_guid_to_lid_tbl_rec(osm_port_t *p_port, uint64_t *p_offset,
+				   struct ssa_db_extract *p_ssa_db)
+{
+	struct ep_map_rec *p_map_rec;
+#ifdef SSA_PLUGIN_VERBOSE_LOGGING
+	uint8_t is_fdr10_active;
+	ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u Port state %d"
+		"(%s)\n", ntohll(osm_physp_get_port_guid(p_port->p_physp)),
+		ntohs(osm_port_get_base_lid(p_port)),
+		osm_physp_get_port_state(p_port->p_physp),
+		(osm_physp_get_port_state(p_port->p_physp) < 5 ?
+		    port_state_str[osm_physp_get_port_state(p_port->p_physp)] :
+			"???"));
+	is_fdr10_active =
+	    p_port->p_physp->ext_port_info.link_speed_active & FDR10;
+	ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
+		is_fdr10_active ? "" : "not");
+#endif
+
+	/* check for valid LID first */
+	if ((ntohs(osm_port_get_base_lid(p_port)) < IB_LID_UCAST_START_HO) ||
+	    (ntohs(osm_port_get_base_lid(p_port)) > IB_LID_UCAST_END_HO)) {
+		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64
+			" has invalid LID %u\n",
+			ntohll(osm_physp_get_port_guid(p_port->p_physp)),
+			ntohs(osm_port_get_base_lid(p_port)));
+	}
+
+	ep_guid_to_lid_tbl_rec_init(p_port,
+	    &p_ssa_db->p_guid_to_lid_tbl[*p_offset]);
+	p_map_rec = ep_map_rec_init(*p_offset);
+	if (!p_map_rec) {
+		/* add memory allocation failure handling */
+		ssa_log(SSA_LOG_VERBOSE, "Quick MAP rec memory allocation "
+			"failed");
+	}
+	cl_qmap_insert(&p_ssa_db->ep_guid_to_lid_tbl,
+		       osm_physp_get_port_guid(p_port->p_physp),
+		       &p_map_rec->map_item);
+
+	*p_offset = *p_offset + 1;
+}
+
 /** =========================================================================
  */
 struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
@@ -270,7 +316,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	//uint8_t n;
 #endif
 	struct ep_map_rec *p_map_rec;
-	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec;
 	struct ep_port_tbl_rec *p_port_tbl_rec;
 	struct ep_link_tbl_rec *p_link_tbl_rec;
 	uint64_t ep_rec_key;
@@ -287,9 +332,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	uint16_t lids, lid_ho = 0;
 	uint16_t i;
 	uint16_t *p_pkey;
-#ifdef SSA_PLUGIN_VERBOSE_LOGGING
-	uint8_t is_fdr10_active;
-#endif
 	uint8_t ret = 0;
 
 	lids = (uint16_t) cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
@@ -322,13 +364,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
 			ssa_db_extract_lft(p_node->sw, &lft_top_offset,
 					   &lft_block_offset);
-	}
-
-
-	p_guid_to_lid_tbl_rec = (struct ep_guid_to_lid_tbl_rec *)
-		malloc(sizeof(*p_guid_to_lid_tbl_rec));
-	if (!p_guid_to_lid_tbl_rec) {
-			/* TODO: add memory allocation failure handling */
 	}
 
 	p_link_tbl_rec = (struct ep_link_tbl_rec *)
@@ -368,18 +403,9 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	       (osm_port_t *)cl_qmap_end(&p_subn->port_guid_tbl)) {
 		p_port = p_next_port;
 		p_next_port = (osm_port_t *)cl_qmap_next(&p_port->map_item);
-#ifdef SSA_PLUGIN_VERBOSE_LOGGING
-		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u Port state %d (%s)\n",
-			ntohll(osm_physp_get_port_guid(p_port->p_physp)),
-			ntohs(osm_port_get_base_lid(p_port)),
-			osm_physp_get_port_state(p_port->p_physp),
-			(osm_physp_get_port_state(p_port->p_physp) < 5 ? port_state_str[osm_physp_get_port_state(p_port->p_physp)] : "???"));
-		is_fdr10_active =
-		    p_port->p_physp->ext_port_info.link_speed_active & FDR10;
-		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
-			is_fdr10_active ? "" : "not");
-#endif
 
+		ssa_db_extract_guid_to_lid_tbl_rec(p_port, &guid_to_lid_offset,
+						   p_ssa);
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 //		ssa_log(SSA_LOG_VERBOSE, "\t\t\tSLVL tables\n");
 //		ssa_log(SSA_LOG_VERBOSE, "%s\n", header_line);
@@ -430,28 +456,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 			}
 		}
 #endif
-
-		/* check for valid LID first */
-		if ((ntohs(osm_port_get_base_lid(p_port)) < IB_LID_UCAST_START_HO) ||
-		    (ntohs(osm_port_get_base_lid(p_port)) > IB_LID_UCAST_END_HO)) {
-			ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64
-				" has invalid LID %u\n",
-				ntohll(osm_physp_get_port_guid(p_port->p_physp)),
-				ntohs(osm_port_get_base_lid(p_port)));
-		}
-
-		ep_guid_to_lid_tbl_rec_init(p_port, p_guid_to_lid_tbl_rec);
-		memcpy(&p_ssa->p_guid_to_lid_tbl[guid_to_lid_offset],
-		       p_guid_to_lid_tbl_rec, sizeof(*p_guid_to_lid_tbl_rec));
-		p_map_rec = ep_map_rec_init(guid_to_lid_offset);
-		if (!p_map_rec) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "Quick MAP rec memory allocation failed");
-		}
-		guid_to_lid_offset++;
-		cl_qmap_insert(&p_ssa->ep_guid_to_lid_tbl,
-			       osm_physp_get_port_guid(p_port->p_physp),
-			       &p_map_rec->map_item);
 
 		/* TODO:: add log info ??? */
 		p_node = p_port->p_physp->p_node;
@@ -544,7 +548,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 
 	free(p_port_tbl_rec);
 	free(p_link_tbl_rec);
-	free(p_guid_to_lid_tbl_rec);
 
 	p_ssa->initialized = 1;
 
