@@ -332,7 +332,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 	SSA_ASSERT(p_dest_rec);
 	SSA_ASSERT(p_path_prm);
 
-	opt_rec = 
+	opt_rec =
 		(const struct ep_subnet_opts_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	SSA_ASSERT(opt_rec);
 

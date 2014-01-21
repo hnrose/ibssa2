@@ -111,4 +111,3 @@ AC_CONFIG_FILES([ssaaccesslayer.spec])
 
 dnl Create the following Makefiles
 AC_OUTPUT(Makefile)
-

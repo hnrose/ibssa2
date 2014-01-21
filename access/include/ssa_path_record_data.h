@@ -68,7 +68,7 @@ extern "C" {
  *                      If LID is for CA port, the corresponding value in switch_port_lookup is NULL.
  *                      If not, the value is pointer to dynamically allocated lookup
  *                      table for switch's ports. The table's length is MAX_LOOKUP_PORT.
- *                      
+ *
  *@ca_link_lookup - lookup table for links from CA.
  *                  Index: LID, value: index in SSA_TABLE_ID_LINK table.
  *@switch_link_lookup - lookup table for links from switch ports.

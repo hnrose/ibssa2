@@ -372,7 +372,7 @@ const struct ep_guid_to_lid_tbl_rec
 	count = get_dataset_count(p_smdb, SSA_TABLE_ID_GUID_TO_LID);
 
 	for (i = 0; i < count; i++) {
-		if (port_guid == p_guid_to_lid_tbl[i].guid) 
+		if (port_guid == p_guid_to_lid_tbl[i].guid)
 			return p_guid_to_lid_tbl + i;
 	}
 
