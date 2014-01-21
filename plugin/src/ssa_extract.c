@@ -71,10 +71,13 @@ ssa_db_extract_subnet_opts(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 static int
 ssa_db_extract_alloc_tbls(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 {
+	const osm_pkey_tbl_t *p_pkey_tbl;
 	osm_switch_t *p_sw;
+	osm_port_t *p_port;
 	uint64_t links, ports, lft_blocks;
 	uint32_t guids, nodes, lft_tops;
 	uint32_t switch_ports_num = 0;
+	uint32_t pkey_cnt = 0;
 	uint16_t lids;
 
 	nodes = (uint32_t) cl_qmap_count(&p_subn->node_guid_tbl);
@@ -159,8 +162,29 @@ ssa_db_extract_alloc_tbls(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 		}
 	}
 
+	for (p_port = (osm_port_t *)cl_qmap_head(&p_subn->port_guid_tbl);
+	     p_port != (osm_port_t *)cl_qmap_end(&p_subn->port_guid_tbl);
+	     p_port = (osm_port_t *)cl_qmap_next(&p_port->map_item)) {
+		p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
+		pkey_cnt += (uint32_t)
+		    cl_map_count((const cl_map_t *) &p_pkey_tbl->keys);
+	}
+
+	if (!p_ssa_db->p_pkey_tbl) {
+		p_ssa_db->p_pkey_tbl = (uint16_t *)
+		    malloc(sizeof(*p_ssa_db->p_pkey_tbl) * pkey_cnt);
+		if (!p_ssa_db->p_pkey_tbl) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to allocate pkeys table\n");
+			goto err6;
+		}
+	}
+	p_ssa_db->pkey_tbl_rec_num = pkey_cnt;
+
 	return 0;
 
+err6:
+	free(p_ssa_db->p_port_tbl);
 err5:
 	free(p_ssa_db->p_link_tbl);
 err4:
@@ -390,8 +414,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	uint64_t pkey_cur_offset = 0;
 	uint64_t lft_top_offset = 0;
 	uint64_t lft_block_offset = 0;
-	uint64_t pkeys;
-	uint32_t port_pkeys_num = 0;
 	uint16_t lids, lid_ho = 0;
 	uint16_t i;
 	uint16_t *p_pkey;
@@ -440,26 +462,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	if (!p_port_tbl_rec) {
 			/* TODO: add memory allocation failure handling */
 	}
-
-	p_next_port = (osm_port_t *)cl_qmap_head(&p_subn->port_guid_tbl);
-	while (p_next_port !=
-	       (osm_port_t *)cl_qmap_end(&p_subn->port_guid_tbl)) {
-		p_port = p_next_port;
-		p_next_port = (osm_port_t *)cl_qmap_next(&p_port->map_item);
-		p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
-		port_pkeys_num += (uint32_t) cl_map_count((const cl_map_t *) &p_pkey_tbl->keys);
-	}
-
-	pkeys = port_pkeys_num;
-	if (!p_ssa->p_pkey_tbl) {
-		p_ssa->p_pkey_tbl = (uint16_t *)
-				malloc(sizeof(*p_ssa->p_pkey_tbl) * pkeys);
-		if (!p_ssa->p_pkey_tbl) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "PKEY rec memory allocation failed");
-		}
-	}
-	p_ssa->pkey_tbl_rec_num = pkeys;
 
 	p_next_port = (osm_port_t *)cl_qmap_head(&p_subn->port_guid_tbl);
 	while (p_next_port !=
