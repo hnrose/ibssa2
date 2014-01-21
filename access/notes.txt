@@ -1,7 +1,6 @@
 ************** Commands **********************
 Compilation string:
 ./autogen.sh &&  ./configure
---with-ibssa=/labhome/sashakot/storage/src/ssa/ibssa2/
 --prefix=/labhome/sashakot/storage/src/ssa/dist
 CFLAGS="-DSSA_DB_HELPER_DEBUG_MODE"  && make && echo $?
 
