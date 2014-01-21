@@ -66,6 +66,63 @@ ssa_db_extract_subnet_opts(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 	p_ssa_db->allow_both_pkeys = (uint8_t) p_subn->opt.allow_both_pkeys;
 }
 
+/** ===========================================================================
+ */
+static int
+ssa_db_extract_alloc_tbls(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
+{
+	uint64_t lft_blocks;
+	uint32_t nodes, lft_tops;
+	uint16_t lids;
+
+	nodes = (uint32_t) cl_qmap_count(&p_subn->node_guid_tbl);
+	if (!p_ssa_db->p_node_tbl) {
+		p_ssa_db->p_node_tbl = (struct ep_node_tbl_rec *)
+		    malloc(sizeof(*p_ssa_db->p_node_tbl) * nodes);
+		if (!p_ssa_db->p_node_tbl) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to allocate nodes table\n");
+			return -1;
+		}
+	}
+
+	lft_tops = (uint32_t) cl_qmap_count(&p_subn->sw_guid_tbl);
+	if (!ssa_db->p_lft_db->p_db_lft_top_tbl) {
+		ssa_db->p_lft_db->p_db_lft_top_tbl =
+		    (struct ep_lft_top_tbl_rec *)
+			malloc(sizeof(*ssa_db->p_lft_db->p_db_lft_top_tbl) *
+			       lft_tops);
+		if (!ssa_db->p_lft_db->p_db_lft_top_tbl) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to allocate LFT tops table\n");
+			free(p_ssa_db->p_node_tbl);
+			return -1;
+		}
+	}
+
+	lids = (uint16_t) cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
+
+	lft_blocks = ((lids % IB_SMP_DATA_SIZE) ?
+	    (lids / IB_SMP_DATA_SIZE + 1) : (lids / IB_SMP_DATA_SIZE));
+	lft_blocks = (uint64_t) lft_tops * lft_blocks * (1 << p_ssa_db->lmc);
+	if (!ssa_db->p_lft_db->p_db_lft_block_tbl) {
+		ssa_db->p_lft_db->p_db_lft_block_tbl =
+		    (struct ep_lft_block_tbl_rec *)
+			malloc(sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl) *
+			       lft_blocks);
+		if (!ssa_db->p_lft_db->p_db_lft_block_tbl) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to allocate LFT "
+				"blocks table\n");
+			free(p_ssa_db->p_node_tbl);
+			free(ssa_db->p_lft_db->p_db_lft_top_tbl);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 /** =========================================================================
  */
 struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
@@ -104,16 +161,16 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	uint64_t pkey_cur_offset = 0;
 	uint64_t lft_top_offset = 0;
 	uint64_t lft_block_offset = 0;
-	uint64_t links, ports, pkeys, lft_blocks;
-	uint32_t guids, nodes;
+	uint64_t links, ports, pkeys;
+	uint32_t guids;
 	uint32_t switch_ports_num = 0, port_pkeys_num = 0;
-	uint16_t lft_tops;
 	uint16_t lids, lid_ho = 0, max_block;
 	uint16_t i;
 	uint16_t *p_pkey;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	uint8_t is_fdr10_active;
 #endif
+	uint8_t ret = 0;
 
 	lids = (uint16_t) cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
 	ssa_log(SSA_LOG_VERBOSE, "[ %u LIDs\n", lids);
@@ -121,45 +178,18 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	p_ssa = ssa_db->p_dump_db;
 	ssa_db_extract_subnet_opts(p_subn, p_ssa);
 
-	nodes = (uint32_t) cl_qmap_count(&p_subn->node_guid_tbl);
-	if (!p_ssa->p_node_tbl) {
-		p_ssa->p_node_tbl = (struct ep_node_tbl_rec *)
-				malloc(sizeof(*p_ssa->p_node_tbl) * nodes);
-		if (!p_ssa->p_node_tbl) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "NODE rec memory allocation failed");
-		}
-	}
+	ret = ssa_db_extract_alloc_tbls(p_subn, p_ssa);
+	if (ret)
+		return NULL;
 
 	p_node_tbl_rec = (struct ep_node_tbl_rec *) malloc(sizeof(*p_node_tbl_rec));
 	if (!p_node_tbl_rec) {
 			/* TODO: add memory allocation failure handling */
 	}
 
-	lft_tops = (uint32_t) cl_qmap_count(&p_subn->sw_guid_tbl);
-	if (!ssa_db->p_lft_db->p_db_lft_top_tbl) {
-		ssa_db->p_lft_db->p_db_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
-			malloc(sizeof(*ssa_db->p_lft_db->p_db_lft_top_tbl) * lft_tops);
-		if (!ssa_db->p_lft_db->p_db_lft_top_tbl) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "LFT top rec memory allocation failed");
-		}
-	}
-
 	p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
 	if (!p_lft_top_tbl_rec) {
 			/* TODO: add memory allocation failure handling */
-	}
-
-	lft_blocks = ((lids % IB_SMP_DATA_SIZE) ? (lids / IB_SMP_DATA_SIZE + 1) : (lids / IB_SMP_DATA_SIZE));
-	lft_blocks = (uint64_t) lft_tops * lft_blocks * (1 << p_ssa->lmc);
-	if (!ssa_db->p_lft_db->p_db_lft_block_tbl) {
-		ssa_db->p_lft_db->p_db_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
-			malloc(sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl) * lft_blocks);
-		if (!ssa_db->p_lft_db->p_db_lft_block_tbl) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "LFT block rec memory allocation failed");
-		}
 	}
 
 	p_lft_block_tbl_rec = (struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
