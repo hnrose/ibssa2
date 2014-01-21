@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2011-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -534,7 +534,7 @@ ssa_db_extract_host_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 	ssa_db_extract_link_tbl_rec(p_physp, NULL, p_link_offset, p_ssa_db);
 }
 
-/** =========================================================================
+/** ===========================================================================
  */
 struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 {
@@ -618,7 +618,7 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	return p_ssa;
 }
 
-/** =========================================================================
+/** ===========================================================================
  */
 void ssa_db_validate_lft()
 {
@@ -629,14 +629,17 @@ void ssa_db_validate_lft()
 	if (!first)
 		return;
 
-	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl); i++) {
+	for (i = 0;
+	     i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl); i++) {
 		lft_block_tbl_rec = ssa_db->p_lft_db->p_db_lft_block_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE, "LFT Block Record: LID %u Block num %u\n",
+		ssa_log(SSA_LOG_VERBOSE,
+			"LFT Block Record: LID %u Block num %u\n",
 			ntohs(lft_block_tbl_rec.lid),
 			ntohs(lft_block_tbl_rec.block_num));
 	}
 
-	for (i = 0; i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl); i++) {
+	for (i = 0;
+	     i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl); i++) {
 		lft_top_tbl_rec = ssa_db->p_lft_db->p_db_lft_top_tbl[i];
 		ssa_log(SSA_LOG_VERBOSE, "LFT Top Record: LID %u New Top %u\n",
 			ntohs(lft_top_tbl_rec.lid),
@@ -644,7 +647,7 @@ void ssa_db_validate_lft()
 	}
 }
 
-/** =========================================================================
+/** ===========================================================================
  */
 void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 {
@@ -661,8 +664,10 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
 	/* First, most Fabric/SM related parameters */
-	ssa_log(SSA_LOG_VERBOSE, "Subnet prefix 0x%" PRIx64 "\n", p_ssa_db->subnet_prefix);
-	ssa_log(SSA_LOG_VERBOSE, "LMC %u Subnet timeout %u Both Pkeys %sabled\n",
+	ssa_log(SSA_LOG_VERBOSE, "Subnet prefix 0x%" PRIx64 "\n",
+		p_ssa_db->subnet_prefix);
+	ssa_log(SSA_LOG_VERBOSE,
+		"LMC %u Subnet timeout %u Both Pkeys %sabled\n",
 		p_ssa_db->lmc, p_ssa_db->subnet_timeout,
 		p_ssa_db->allow_both_pkeys ? "en" : "dis");
 
@@ -670,7 +675,8 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 		node_tbl_rec = p_ssa_db->p_node_tbl[i];
 		if (node_tbl_rec.node_type == IB_NODE_TYPE_SWITCH)
 			sprintf(buffer, " with %s Switch Port 0\n",
-				node_tbl_rec.is_enhanced_sp0 ? "Enhanced" : "Base");
+				node_tbl_rec.is_enhanced_sp0 ?
+				"Enhanced" : "Base");
 		else
 			sprintf(buffer, "\n");
 		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
@@ -681,9 +687,12 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_guid_to_lid_tbl); i++) {
 		guid_to_lid_tbl_rec = p_ssa_db->p_guid_to_lid_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE, "Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
-			ntohll(guid_to_lid_tbl_rec.guid), ntohll(guid_to_lid_tbl_rec.lid),
-			guid_to_lid_tbl_rec.lmc, guid_to_lid_tbl_rec.is_switch);
+		ssa_log(SSA_LOG_VERBOSE,
+			"Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
+			ntohll(guid_to_lid_tbl_rec.guid),
+			ntohll(guid_to_lid_tbl_rec.lid),
+			guid_to_lid_tbl_rec.lmc,
+			guid_to_lid_tbl_rec.is_switch);
 
 	}
 
@@ -692,24 +701,29 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
 			ntohs(port_tbl_rec.port_lid), port_tbl_rec.port_num);
 		ssa_log(SSA_LOG_VERBOSE, "NeighborMTU %u rate %u\n",
-			port_tbl_rec.neighbor_mtu, port_tbl_rec.rate & SSA_DB_PORT_RATE_MASK);
+			port_tbl_rec.neighbor_mtu,
+			port_tbl_rec.rate & SSA_DB_PORT_RATE_MASK);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
-			(port_tbl_rec.rate & SSA_DB_PORT_IS_FDR10_ACTIVE_MASK) ? "" : "not");
-		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n", ntohs(port_tbl_rec.pkey_tbl_size) /
+			(port_tbl_rec.rate & SSA_DB_PORT_IS_FDR10_ACTIVE_MASK)
+			? "" : "not");
+		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n",
+			ntohs(port_tbl_rec.pkey_tbl_size) /
 			sizeof(*p_ssa_db->p_pkey_tbl));
 	}
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_link_tbl); i++) {
 		link_tbl_rec = p_ssa_db->p_link_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE, "Link Record: from LID %u port %u to LID %u port %u\n",
-			ntohs(link_tbl_rec.from_lid), link_tbl_rec.from_port_num,
-			ntohs(link_tbl_rec.to_lid), link_tbl_rec.to_port_num);
+		ssa_log(SSA_LOG_VERBOSE,
+			"Link Record: from LID %u port %u to LID %u port %u\n",
+			ntohs(link_tbl_rec.from_lid),
+			link_tbl_rec.from_port_num, ntohs(link_tbl_rec.to_lid),
+			link_tbl_rec.to_port_num);
 	}
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
 }
 
-/** =========================================================================
+/** ===========================================================================
  */
 /* TODO:: Add meaningfull return value */
 void ssa_db_update(struct ssa_database *ssa_db)
@@ -821,7 +835,7 @@ ssa_db_lft_top_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 	       &lft_top_tbl_rec, sizeof(lft_top_tbl_rec));
 }
 
-/** =========================================================================
+/** ===========================================================================
  */
 void ssa_db_lft_handle(void)
 {
