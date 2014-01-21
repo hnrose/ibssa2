@@ -113,5 +113,5 @@ AC_CHECK_FUNCS([])
 AC_CONFIG_FILES([ssaaccesslayer.spec])
 
 dnl Create the following Makefiles
-AC_OUTPUT(Makefile) 
+AC_OUTPUT(Makefile)
 
