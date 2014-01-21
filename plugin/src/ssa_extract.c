@@ -71,8 +71,10 @@ ssa_db_extract_subnet_opts(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 static int
 ssa_db_extract_alloc_tbls(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 {
-	uint64_t lft_blocks;
-	uint32_t nodes, lft_tops;
+	osm_switch_t *p_sw;
+	uint64_t links, ports, lft_blocks;
+	uint32_t guids, nodes, lft_tops;
+	uint32_t switch_ports_num = 0;
 	uint16_t lids;
 
 	nodes = (uint32_t) cl_qmap_count(&p_subn->node_guid_tbl);
@@ -82,7 +84,7 @@ ssa_db_extract_alloc_tbls(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 		if (!p_ssa_db->p_node_tbl) {
 			ssa_log(SSA_LOG_DEFAULT,
 				"ERROR - unable to allocate nodes table\n");
-			return -1;
+			goto err0;
 		}
 	}
 
@@ -95,8 +97,7 @@ ssa_db_extract_alloc_tbls(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 		if (!ssa_db->p_lft_db->p_db_lft_top_tbl) {
 			ssa_log(SSA_LOG_DEFAULT,
 				"ERROR - unable to allocate LFT tops table\n");
-			free(p_ssa_db->p_node_tbl);
-			return -1;
+			goto err1;
 		}
 	}
 
@@ -114,13 +115,64 @@ ssa_db_extract_alloc_tbls(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 			ssa_log(SSA_LOG_DEFAULT,
 				"ERROR - unable to allocate LFT "
 				"blocks table\n");
-			free(p_ssa_db->p_node_tbl);
-			free(ssa_db->p_lft_db->p_db_lft_top_tbl);
-			return -1;
+			goto err2;
+		}
+	}
+
+	guids = (uint32_t) cl_qmap_count(&p_subn->port_guid_tbl);
+	if (!p_ssa_db->p_guid_to_lid_tbl) {
+		p_ssa_db->p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)
+				malloc(sizeof(*p_ssa_db->p_guid_to_lid_tbl) *
+				       guids);
+		if (!p_ssa_db->p_guid_to_lid_tbl) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to allocate GUID to LID "
+				"table\n");
+			goto err3;
+		}
+	}
+
+	for (p_sw = (osm_switch_t *)cl_qmap_head(&p_subn->sw_guid_tbl);
+	     p_sw != (osm_switch_t *)cl_qmap_end(&p_subn->sw_guid_tbl);
+	     p_sw = (osm_switch_t *)cl_qmap_next(&p_sw->map_item))
+			switch_ports_num += p_sw->num_ports;
+
+	links = guids + switch_ports_num;
+	if (!p_ssa_db->p_link_tbl) {
+		p_ssa_db->p_link_tbl = (struct ep_link_tbl_rec *)
+				malloc(sizeof(*p_ssa_db->p_link_tbl) * links);
+		if (!p_ssa_db->p_link_tbl) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to allocate links table\n");
+			goto err4;
+		}
+	}
+
+	ports = links;
+	if (!p_ssa_db->p_port_tbl) {
+		p_ssa_db->p_port_tbl = (struct ep_port_tbl_rec *)
+				malloc(sizeof(*p_ssa_db->p_port_tbl) * ports);
+		if (!p_ssa_db->p_port_tbl) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to allocate ports table\n");
+			goto err5;
 		}
 	}
 
 	return 0;
+
+err5:
+	free(p_ssa_db->p_link_tbl);
+err4:
+	free(p_ssa_db->p_guid_to_lid_tbl);
+err3:
+	free(ssa_db->p_lft_db->p_db_lft_block_tbl);
+err2:
+	free(ssa_db->p_lft_db->p_db_lft_top_tbl);
+err1:
+	free(p_ssa_db->p_node_tbl);
+err0:
+	return -1;
 }
 
 /** =========================================================================
@@ -161,9 +213,8 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	uint64_t pkey_cur_offset = 0;
 	uint64_t lft_top_offset = 0;
 	uint64_t lft_block_offset = 0;
-	uint64_t links, ports, pkeys;
-	uint32_t guids;
-	uint32_t switch_ports_num = 0, port_pkeys_num = 0;
+	uint64_t pkeys;
+	uint32_t port_pkeys_num = 0;
 	uint16_t lids, lid_ho = 0, max_block;
 	uint16_t i;
 	uint16_t *p_pkey;
@@ -227,9 +278,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 			       osm_node_get_node_guid(p_node),
 			       &p_map_rec->map_item);
 
-		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
-			switch_ports_num += p_node->sw->num_ports;
-
 		/* TODO: add more cases when full dump is needed */
 		if (!first)
 			continue;
@@ -265,15 +313,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 		}
 	}
 
-	guids = (uint32_t) cl_qmap_count(&p_subn->port_guid_tbl);
-	if (!p_ssa->p_guid_to_lid_tbl) {
-		p_ssa->p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)
-				malloc(sizeof(*p_ssa->p_guid_to_lid_tbl) * guids);
-		if (!p_ssa->p_guid_to_lid_tbl) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "Port GUID to LID rec memory allocation failed");
-		}
-	}
 
 	p_guid_to_lid_tbl_rec = (struct ep_guid_to_lid_tbl_rec *)
 		malloc(sizeof(*p_guid_to_lid_tbl_rec));
@@ -281,30 +320,10 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 			/* TODO: add memory allocation failure handling */
 	}
 
-	links = guids + switch_ports_num;
-	if (!p_ssa->p_link_tbl) {
-		p_ssa->p_link_tbl = (struct ep_link_tbl_rec *)
-				malloc(sizeof(*p_ssa->p_link_tbl) * links);
-		if (!p_ssa->p_link_tbl) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "Link rec memory allocation failed");
-		}
-	}
-
 	p_link_tbl_rec = (struct ep_link_tbl_rec *)
 		malloc(sizeof(*p_link_tbl_rec));
 	if (!p_link_tbl_rec) {
 			/* TODO: add memory allocation failure handling */
-	}
-
-	ports = links;
-	if (!p_ssa->p_port_tbl) {
-		p_ssa->p_port_tbl = (struct ep_port_tbl_rec *)
-				malloc(sizeof(*p_ssa->p_port_tbl) * ports);
-		if (!p_ssa->p_port_tbl) {
-			/* add memory allocation failure handling */
-			ssa_log(SSA_LOG_VERBOSE, "Port rec memory allocation failed");
-		}
 	}
 
 	p_port_tbl_rec = (struct ep_port_tbl_rec *)
