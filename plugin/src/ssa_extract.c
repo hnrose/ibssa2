@@ -212,6 +212,41 @@ ssa_db_extract_node_tbl_rec(osm_node_t *p_node, uint64_t *p_offset,
 	*p_offset = *p_offset + 1;
 }
 
+/** ===========================================================================
+ */
+static void
+ssa_db_extract_lft(osm_switch_t *p_sw, uint64_t *p_top_offset,
+		   uint64_t *p_block_offset)
+{
+	struct ep_map_rec *p_map_rec;
+	uint64_t rec_key;
+	uint16_t max_block;
+	uint16_t lid_ho;
+	uint16_t i;
+
+	max_block = p_sw->lft_size / IB_SMP_DATA_SIZE;
+	lid_ho = ntohs(osm_node_get_base_lid(p_sw->p_node, 0));
+	rec_key = (uint64_t) lid_ho;
+
+	ep_lft_top_tbl_rec_init(lid_ho, p_sw->lft_size,
+	    &ssa_db->p_lft_db->p_db_lft_top_tbl[*p_top_offset]);
+	p_map_rec = ep_map_rec_init(*p_top_offset);
+	cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
+		       rec_key, &p_map_rec->map_item);
+	*p_top_offset = *p_top_offset + 1;
+
+	for(i = 0; i < max_block; i++) {
+		rec_key = ep_rec_gen_key(lid_ho, i);
+		ep_lft_block_tbl_rec_init(p_sw, lid_ho, i,
+		    &ssa_db->p_lft_db->p_db_lft_block_tbl[*p_block_offset]);
+
+		p_map_rec = ep_map_rec_init(*p_block_offset);
+		cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
+			       rec_key, &p_map_rec->map_item);
+		*p_block_offset = *p_block_offset + 1;
+	}
+}
+
 /** =========================================================================
  */
 struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
@@ -238,8 +273,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl_rec;
 	struct ep_port_tbl_rec *p_port_tbl_rec;
 	struct ep_link_tbl_rec *p_link_tbl_rec;
-	struct ep_lft_block_tbl_rec *p_lft_block_tbl_rec;
-	struct ep_lft_top_tbl_rec *p_lft_top_tbl_rec;
 	uint64_t ep_rec_key;
 	uint64_t guid_to_lid_offset = 0;
 	uint64_t node_offset = 0;
@@ -251,7 +284,7 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	uint64_t lft_block_offset = 0;
 	uint64_t pkeys;
 	uint32_t port_pkeys_num = 0;
-	uint16_t lids, lid_ho = 0, max_block;
+	uint16_t lids, lid_ho = 0;
 	uint16_t i;
 	uint16_t *p_pkey;
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
@@ -268,16 +301,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	ret = ssa_db_extract_alloc_tbls(p_subn, p_ssa);
 	if (ret)
 		return NULL;
-
-	p_lft_top_tbl_rec = (struct ep_lft_top_tbl_rec *) malloc(sizeof(*p_lft_top_tbl_rec));
-	if (!p_lft_top_tbl_rec) {
-			/* TODO: add memory allocation failure handling */
-	}
-
-	p_lft_block_tbl_rec = (struct ep_lft_block_tbl_rec *) malloc(sizeof(*p_lft_block_tbl_rec));
-	if (!p_lft_block_tbl_rec) {
-			/* TODO: add memory allocation failure handling */
-	}
 
 	p_next_node = (osm_node_t *)cl_qmap_head(&p_subn->node_guid_tbl);
 	while (p_next_node !=
@@ -296,30 +319,9 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 		 * are added automatically, further dumps or changes
 		 * will be done only on OSM_EVENT_ID_LFT_CHANGE
 		 */
-		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH) {
-			max_block = p_node->sw->lft_size / IB_SMP_DATA_SIZE;
-			lid_ho = ntohs(osm_node_get_base_lid(p_node, 0));
-			ep_rec_key = (uint64_t) lid_ho;
-
-			ep_lft_top_tbl_rec_init(lid_ho, p_node->sw->lft_size, p_lft_top_tbl_rec);
-			memcpy(&ssa_db->p_lft_db->p_db_lft_top_tbl[lft_top_offset],
-			       p_lft_top_tbl_rec, sizeof(*p_lft_top_tbl_rec));
-			p_map_rec = ep_map_rec_init(lft_top_offset++);
-			cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
-				       ep_rec_key, &p_map_rec->map_item);
-
-			for(i = 0; i < max_block; i++) {
-				ep_rec_key = ep_rec_gen_key(lid_ho, i);
-				ep_lft_block_tbl_rec_init(p_node->sw, lid_ho, i, p_lft_block_tbl_rec);
-
-				memcpy(&ssa_db->p_lft_db->p_db_lft_block_tbl[lft_block_offset],
-				       p_lft_block_tbl_rec, sizeof(*p_lft_block_tbl_rec));
-
-				p_map_rec = ep_map_rec_init(lft_block_offset++);
-				cl_qmap_insert(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
-					       ep_rec_key, &p_map_rec->map_item);
-			}
-		}
+		if (osm_node_get_type(p_node) == IB_NODE_TYPE_SWITCH)
+			ssa_db_extract_lft(p_node->sw, &lft_top_offset,
+					   &lft_block_offset);
 	}
 
 
@@ -543,8 +545,6 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	free(p_port_tbl_rec);
 	free(p_link_tbl_rec);
 	free(p_guid_to_lid_tbl_rec);
-	free(p_lft_block_tbl_rec);
-	free(p_lft_top_tbl_rec);
 
 	p_ssa->initialized = 1;
 
