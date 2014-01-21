@@ -150,7 +150,7 @@ static void print_input_prm(const struct input_prm *prm)
 	}
 	if(strlen(prm->prdb_path))
 		printf("PRDB path : %s\n",prm->prdb_path);
-	else 
+	else
 		printf("Dump PR log to : %s\n",strlen(prm->dump_path)? prm->dump_path: "stdout");
 
 	printf("SMDB database path: %s\n",prm->smdb_path);
@@ -550,7 +550,7 @@ int main(int argc,char *argv[])
 	short use_verbosity_opt =0;
 	short use_prdb_dump = 0;
 	short err_opt = 0;
-	uint64_t id = 0; 
+	uint64_t id = 0;
 	char id_string_val[PATH_MAX] = {};
 	char verbosity_string_val[PATH_MAX] = {};
 
@@ -675,7 +675,7 @@ int main(int argc,char *argv[])
 			exit(EXIT_FAILURE);
 		}
 
-		if(verbosity < 0 || 
+		if(verbosity < 0 ||
 				verbosity >= sizeof(log_verbosity_level) / sizeof(log_verbosity_level[0])) {
 			fprintf(stderr,"Vebosity paramater has wrong value: %d.\n",verbosity);
 			print_usage(stderr,argv[0]);
