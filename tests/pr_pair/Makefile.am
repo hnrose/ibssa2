@@ -33,7 +33,9 @@
 SUBDIRS = .
 
 
-INCLUDES = -I. -I$(SSA_SRC)/ -I$(OSM_PATH)/local/include -I$(OSM_PATH)/local/include/infiniband -I$(OSM_DBHELPER_PATH)  
+INCLUDES = -I../include -I../include/infiniband \
+	   -I$(prefix)/include/ \
+	   -I$(prefix)/include/infiniband
 
 
 # Support debug mode through config variable
@@ -49,24 +51,29 @@ AM_CPPFLAGS = $(DBG) -Wall -Werror -g
 
 COV =
 if COVERAGE
-AM_CPPFLAGS += -fprofile-arcs -ftest-coverage
+AM_CPPFLAGS += -fprofile-arcs -ftest-coverage -I config
 COV += -lgcov
 endif
 
 
-LDADD = ${COV}	
+LDADD = ${COV}
 
 
 includedir = @includedir@/infiniband/
 
 
-lib_LTLIBRARIES = libssaacesslayerhelper.la
+bin_PROGRAMS = pr_pair
+
 
 
 # Quiter for the server
-libssaacesslayerhelper_la_SOURCES = ./helper.c
-libssaacesslayerhelper_la_LDFLAGS = -export-dynamic
-libssaacesslayerhelper_la_CPPFLAGS =  $(INCLUDES) -I$(includedir)  -g
+pr_pair_SOURCES = ./pr_pair.c \
+		  ./ssa_path_record.c  ./ssa_path_record_data.c \
+		  ./ssa_path_record_helper.c ./ssa_db.c ./ssa_prdb.c \
+		  ./ssa_smdb.c ./ssa_db_helper.c ./ssa_log.c
+pr_pair_CPPFLAGS =  $(INCLUDES) -I$(includedir)  $(DEPS_CFLAGS)  -g $(GLIB_CFLAGS)
+pr_pair_LDFLAGS = -lpthread \
+		  $(GLIB_LIBS) -lglib-2.0  \
+		  -lm
 
-
-
+#pr_pair_LDADD =  $(GLIB_LIBS)

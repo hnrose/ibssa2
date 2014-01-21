@@ -2,7 +2,7 @@
 
 import sys
 import re
-from optparse import OptionParser 
+from optparse import OptionParser
 
 re_guid = re.compile(r'0x(?P<guid>[0-9,a-f]{16})', re.IGNORECASE)
 re_lid = re.compile(r'base LID (?P<lid>[0-9]+)', re.IGNORECASE)

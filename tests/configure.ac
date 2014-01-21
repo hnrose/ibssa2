@@ -60,6 +60,8 @@ AC_PROG_LN_S
 AC_PROG_CC
 AC_PROG_CXX
 
+dnl Checks glib
+PKG_CHECK_MODULES([DEPS], [glib-2.0 >= 2.22.5])
 dnl We will use libtool for making ...
 AC_PROG_LIBTOOL
 
@@ -108,4 +110,4 @@ AC_CHECK_FUNCS([strchr strstr strtol strtoull regcomp regexec])
 AC_CONFIG_FILES([ssa_tests.spec])
 
 dnl Create the following Makefiles
-AC_OUTPUT(Makefile loadsave/Makefile)
+AC_OUTPUT(Makefile loadsave/Makefile pr_pair/Makefile)

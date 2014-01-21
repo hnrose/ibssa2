@@ -28,7 +28,7 @@
 # #
 # #--
 #
-SUBDIRS = . tests
+SUBDIRS = .
 
 INCLUDES = -I./include -I$(includedir) -I$(includedir)/infiniband \
 	   -I$(srcdir)/include/ \

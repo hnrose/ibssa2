@@ -101,7 +101,7 @@ static int is_file_exist(const char *path)
 static void print_memory_usage(const char* prefix)
 {
 	char buf[30] = {};
-	
+
 	snprintf(buf,30,"/proc/%u/statm",(unsigned)getpid());
 	FILE* pf = fopen(buf, "r");
 	if (pf) {
@@ -148,7 +148,7 @@ static void print_input_prm(const struct input_prm *prm)
 	} else {
 		printf("Log verbosity: --- The parameter is wrong ---");
 	}
-	if(strlen(prm->prdb_path)) 
+	if(strlen(prm->prdb_path))
 		printf("PRDB path : %s\n",prm->prdb_path);
 	else 
 		printf("Dump PR log to : %s\n",strlen(prm->dump_path)? prm->dump_path: "stdout");
@@ -196,7 +196,7 @@ static const struct ep_port_tbl_rec* find_port(const struct ssa_db* p_ssa_db_smd
 		const be16_t lid)
 {
 	size_t i = 0;
-	const struct ep_port_tbl_rec  *p_port_tbl = 
+	const struct ep_port_tbl_rec  *p_port_tbl =
 		(const struct ep_port_tbl_rec*)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_PORT];
 	const size_t count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_PORT);
 
@@ -211,12 +211,12 @@ static const struct ep_guid_to_lid_tbl_rec *find_guid_to_lid_rec_by_lid(const st
 		const be16_t lid)
 {
 	size_t i =0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = 
+	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl =
 		(struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
 	const size_t count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_GUID_TO_LID);
 
 	for (i = 0; i < count; i++) {
-		if (lid == p_guid_to_lid_tbl[i].lid) 
+		if (lid == p_guid_to_lid_tbl[i].lid)
 			return p_guid_to_lid_tbl+i;
 	}
 	return NULL;
@@ -266,7 +266,7 @@ static void ssa_pr_path_output(const ssa_path_parms_t *p_path_prm, void *prm)
 
 static struct ssa_db *load_smdb(const char *path)
 {
-	struct ssa_db *db_diff = NULL; 
+	struct ssa_db *db_diff = NULL;
 	clock_t start, end;
 	double cpu_time_used;
 
@@ -311,7 +311,7 @@ static size_t read_ids_from_file(const char *path, GArray *arr)
 	while(1 == fscanf(fd,"0x%"PRIx64"\n",&id)) {
 		g_array_append_val(arr,id);
 		count++;
-	}	
+	}
 
 Exit:
 	if(!fd) {
@@ -351,7 +351,7 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 	if(p_prm->is_guid) {
 		/*There is only one guid*/
 		g_array_append_val(p_arr,p_prm->id);
-		return 1;	 
+		return 1;
 	} else if(p_prm->whole_world) {
 		size_t i = 0;
 
@@ -359,7 +359,7 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 			(struct ep_guid_to_lid_tbl_rec *)p_db->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
 		const size_t count = get_dataset_count(p_db,SSA_TABLE_ID_GUID_TO_LID);
 
-		for (i = 0; i < count; i++) { 
+		for (i = 0; i < count; i++) {
 			uint64_t id = ntohll(p_guid_to_lid_tbl[i].guid);
 			g_array_append_val(p_arr,id);
 		}
@@ -467,7 +467,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		}
 	}
 
-	if(!p_prm->whole_world) { 
+	if(!p_prm->whole_world) {
 		get_input_guids(p_prm,p_db_diff,guids_arr);
 		for(i = 0; i < guids_arr->len && SSA_PR_SUCCESS == res; ++i) {
 			be64_t guid = htonll(g_array_index(guids_arr,uint64_t,i));
@@ -476,7 +476,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		}
 	} else {
 		pr_res = ssa_pr_whole_world(p_db_diff,p_context,ssa_pr_path_output,path_arr);
-	}	
+	}
 
 	if(SSA_PR_SUCCESS != pr_res) {
 		fprintf(stderr,"Path record algorithm is failed.\n");
