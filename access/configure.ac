@@ -76,7 +76,7 @@ dnl   *) AC_MSG_ERROR(bad value ${enableval} for --enable-libcheck) ;; esac],[li
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([sys/types.h stdio.h stdlib.h string.h pthread.h])
+AC_CHECK_HEADERS([sys/types.h stdio.h stdlib.h string.h])
 
 dnl Define an input config option to control debug compile
 AC_ARG_ENABLE(debug,
@@ -98,9 +98,6 @@ AC_ARG_ENABLE(coverage,
 				     *) AC_MSG_ERROR(bad value ${enableval} for --enable-coverage) ;;
 				 esac],[coverage=false])
 AM_CONDITIONAL(COVERAGE, test x$coverage = xtrue)
-
-dnl Checks glib
-PKG_CHECK_MODULES([DEPS], [glib-2.0 >= 2.22.5])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
