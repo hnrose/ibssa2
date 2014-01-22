@@ -37,6 +37,7 @@
 #include <iba/ib_types.h>
 #include <ssa_path_record_helper.h>
 
+#ifdef _VERIFICATION_CODE_
 /*
  * ib_path_compare_rates and ordered_rates are copied from OpenSM SA source.
  */
@@ -84,7 +85,6 @@ static int ib_path_compare_rates(const int rate1,const int rate2)
  *  calculate_rate_cmp_table - calculates and print a static
  *  lookup table for rate comparison
  */
-#ifdef _VERIFICATION_CODE_
 static void calculate_rate_cmp_table()
 {
 	int i = 0, j = 0;
@@ -99,7 +99,7 @@ static void calculate_rate_cmp_table()
 	}
 	printf("\n");
 }
-#endif
+
 /*
  * check_rate_cmp_table - verifies SA's and a new fast version of
  * rate comparison function
@@ -125,6 +125,7 @@ static void check_rate_cmp_table()
 	}
 	printf("rates_cmp_table is good\n");
 }
+#endif
 
 /*
  * According to profiling results, ib_path_compare_rates takes about
