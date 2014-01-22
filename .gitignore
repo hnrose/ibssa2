@@ -36,7 +36,6 @@ stamp-h1
 config.h.in
 *.spec
 configure.in
-ssaaccesslayer.spec
 ####################
 # git files        #
 ####################
