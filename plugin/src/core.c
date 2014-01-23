@@ -54,6 +54,7 @@
 static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
 static int node_type = SSA_NODE_CORE;
 static int smdb_dump = 0;
+static char smdb_dump_dir[128] = SMDB_DUMP_PATH;
 int smdb_deltas = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
@@ -757,7 +758,7 @@ static void *core_extract_handler(void *context)
 				if (ssa_db_diff) {
 					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
 					if (smdb_dump)
-						ssa_db_save(SMDB_DUMP_PATH,
+						ssa_db_save(smdb_dump_dir,
 							    ssa_db_diff->p_smdb,
 							    smdb_dump);
 #ifndef SIM_SUPPORT
@@ -901,8 +902,8 @@ static int core_convert_node_type(const char *node_type_string)
 static void core_set_options(void)
 {
 	FILE *f;
-	char s[120];
-	char opt[32], value[32];
+	char s[160];
+	char opt[32], value[128];
 
 	if (!(f = fopen(opts_file, "r")))
 		return;
@@ -911,7 +912,7 @@ static void core_set_options(void)
 		if (s[0] == '#')
 			continue;
 
-		if (sscanf(s, "%32s%32s", opt, value) != 2)
+		if (sscanf(s, "%32s%128s", opt, value) != 2)
 			continue;
 
 		if (!strcasecmp("log_file", opt))
@@ -920,6 +921,8 @@ static void core_set_options(void)
 			ssa_set_log_level(atoi(value));
 		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
+		else if (!strcasecmp("smdb_dump_dir", opt))
+			strcpy(smdb_dump_dir, value);
 		else if (!strcasecmp("node_type", opt))
 			node_type = core_convert_node_type(value);
 		else if (!strcasecmp("smdb_port", opt))
@@ -955,6 +958,7 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);
+	ssa_log(SSA_LOG_DEFAULT, "smdb dump dir %s\n", smdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump %d\n", prdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 }
