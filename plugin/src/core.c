@@ -65,10 +65,18 @@ extern short prdb_port;
 
 int first = 1;
 
+/* Used for primary/secondary state to properly maintain number of children */
+enum {
+	SSA_CHILD_IDLE		= 0,
+	SSA_CHILD_PARENTED	= (1 << 0)
+};
+
 struct ssa_member {
 	struct ssa_member_record	rec;
 	struct ssa_member		*primary;	/* parent */
 	struct ssa_member		*secondary;	/* parent */
+	int				primary_state;
+	int				secondary_state;
 	uint16_t			lid;
 	uint8_t				sl;
 	int				child_num;
@@ -335,6 +343,7 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 	else
 		parent->child_num--;
 	child->primary = NULL;
+	child->primary_state = SSA_CHILD_IDLE;
 }
 
 /*
@@ -508,15 +517,20 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 		rec = container_of(*parentgid, struct ssa_member_record, port_gid);
 		parent = container_of(rec, struct ssa_member, rec);
 		child->primary = parent;
-		if (child->rec.node_type == SSA_NODE_CONSUMER)
-			parent->access_child_num++;
-		else if ((child->rec.node_type & SSA_NODE_CORE) !=
-			 SSA_NODE_CORE)
-			parent->child_num++;
+		if (child->rec.node_type == SSA_NODE_CONSUMER) {
+			if (!(child->primary_state & SSA_CHILD_PARENTED))
+				parent->access_child_num++;
+		} else if ((child->rec.node_type & SSA_NODE_CORE) !=
+			 SSA_NODE_CORE) {
+			if (!(child->primary_state & SSA_CHILD_PARENTED))
+				parent->child_num++;
+		}
+		child->primary_state |= SSA_CHILD_PARENTED;
 ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data, SSA_ADDR_GID, (uint8_t *) &path->dgid, sizeof path->dgid); 
 ssa_log(SSA_LOG_DEFAULT, "child node type %d parent GID %s children %d access children %d\n", child->rec.node_type, log_data, parent->child_num, parent->access_child_num);
 	} else {
 		child->primary = NULL;
+		child->primary_state = SSA_CHILD_IDLE;
 		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
 				(uint8_t *) &path->dgid, sizeof path->dgid);
