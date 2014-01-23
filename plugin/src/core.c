@@ -33,6 +33,7 @@
  *
  */
 
+#include <limits.h>
 #include <infiniband/osm_headers.h>
 #include <search.h>
 #include <common.h>
@@ -65,18 +66,25 @@ int first = 1;
 
 struct ssa_member {
 	struct ssa_member_record	rec;
-	struct ssa_member		*primary;
-	struct ssa_member		*secondary;
+	struct ssa_member		*primary;	/* parent */
+	struct ssa_member		*secondary;	/* parent */
 	uint16_t			lid;
 	uint8_t				sl;
-	DLIST_ENTRY			list;
+	int				child_num;
+	int				access_child_num; /* used when combined or access node type */
+	DLIST_ENTRY			child_list;
+	DLIST_ENTRY			access_child_list; /* used when combined or access node type */
 	DLIST_ENTRY			entry;
+	DLIST_ENTRY			access_entry;
 };
 
 struct ssa_core {
 	struct ssa_svc			svc;
 	void				*member_map;
 	DLIST_ENTRY			orphan_list;
+	DLIST_ENTRY			core_list;
+	DLIST_ENTRY			distrib_list;
+	DLIST_ENTRY			access_list;
 };
 
 static struct ssa_class ssa;
@@ -89,117 +97,187 @@ static osm_opensm_t *osm;
 static int sock_coreextract[2];
 
 #ifndef SIM_SUPPORT
-static int access_init = 0;
-static int distrib_init = 0;
-static int core_init = 0;
-static union ibv_gid access_gid;
-static union ibv_gid distrib_gid;
-
-
-static int core_build_tree(struct ssa_svc *svc, struct ssa_member *member)
+/* Should the following two DList routines go into a new dlist.c in shared ? */
+static DLIST_ENTRY *DListFind(DLIST_ENTRY *entry, DLIST_ENTRY *list)
 {
-	int ret = -1;
-	union ibv_gid *gid = (union ibv_gid *) member->rec.port_gid;
-	uint8_t node_type = member->rec.node_type;
+	DLIST_ENTRY *cur_entry;
 
-	/*
-	 * For now, issue SA path query here.
-	 * DGID is from incoming join.
-	 *
-	 * Latest algorithm is to support either
-	 * plugin/core <-> distribution <-> access <-> ACM 
-	 * or plugin/core <-> access <-> ACM. Also, it
-	 * is a current requirement (limitation) that
-	 * the access node needs to join prior to the
-	 * ACM. Similarly, the distribution node needs to
-	 * join prior to the access node.
-	 *
-	 * With those assumptions, the SGID depends on the
-	 * node type. If it's a distribution node, the SGID
-	 * is the port GID that the join came in on. 
-	 * If it's an access node, the SGID is the port GID of
-	 * the previously joined distribution node, and if no
-	 * distribution nodes have yet joined, then it's
-	 * the port GID that the join came in on.
-	 * If it's a consumer (ACM) node, the SGID is the
-	 * port GID of the previous joined access node.
-	 * If there is no previous access node, this
-	 * is treated as an error.
-	 *
-	 * Longer term, SGID needs to come from the tree
-	 * calculation code so rather than query PathRecord
-	 * here, this would "inform" the tree calculation
-	 * that a parent is needed for joining port and
-	 * when parent is determined, then the SA path
-	 * query would be issued.
-	 *
-	 */
+	for (cur_entry = list->Next; cur_entry != list;
+	     cur_entry = cur_entry->Next) {
+		if (cur_entry == entry)
+			return entry;
+	}
+	return NULL;
+}
+
+static int DListCount(DLIST_ENTRY *list)
+{
+	DLIST_ENTRY *entry;
+	int count = 0;
+
+	for (entry = list->Next; entry != list; entry = entry->Next)
+		count++;
+	return count;
+}
+
+/*
+ * Current algorithm for find_best_parent is to merely balance
+ * the number of children when a new join arrives at the
+ * core.
+ *
+ * There is join order dependency in the current algorithm.
+ * The current assumption is that distribution tree (core,
+ * distribution, and access nodes) come up prior to compute
+ * nodes.
+ *
+ * Note that there is currently no rebalancing. Balancing
+ * only occurs on join to subnet and not on leaves from subnet.
+ * This will be further investigated when fault/error handling
+ * is added. Also, there is no way currently for the core
+ * to request that a downstream node switchover to new parent.
+ * Also, a way for downstream node to request a reparent may
+ * also be needed.
+ *
+ * For now, if the child is an access node and there is no
+ * distribution node, the parent will be the core node. This
+ * may change depending on how reconnection ends up working.
+ *
+ * Also, for now, if child is consumer node and there is no
+ * access node, this is an error.
+ *
+ * Subsequent version may be based on some maximum number of hops
+ * allowed between child and parent but this requires similar
+ * expensive calculations like routing.
+ *
+ * A simpler approach would be to support a configuration file for this.
+ *
+ * Another mechanism to influence the algorithm is weighting for
+ * combined nodes so these handler fewer access nodes than a "pure"
+ * access node when subnet has a mix of such nodes.
+ */
+static union ibv_gid *find_best_parent(struct ssa_core *core,
+				       struct ssa_member *child)
+{
+	struct ssa_svc *svc;
+	DLIST_ENTRY *list, *entry;
+	struct ssa_member *member;
+	union ibv_gid *parentgid;
+	int least_child_num;
+	uint8_t node_type;
+
+	if (child->primary)
+		return (union ibv_gid *) child->primary->rec.port_gid;
+
+	svc = &core->svc;
+	node_type = child->rec.node_type;
+
+	switch (node_type) {
+	case SSA_NODE_CORE:
+	case SSA_NODE_DISTRIBUTION:
+	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
+	case (SSA_NODE_DISTRIBUTION | SSA_NODE_ACCESS):
+		list = NULL;
+		parentgid = &svc->port->gid;
+		break;
+	case SSA_NODE_ACCESS:
+		/* If no distribution nodes yet, parent is core */
+		if (DListCount(&core->distrib_list))
+			list = &core->distrib_list;
+		else {
+			list = NULL;
+			parentgid = &svc->port->gid;
+		}
+		break;
+	case SSA_NODE_CONSUMER:
+		/* If child is consumer, parent is access */
+		list = &core->access_list;
+		break;
+	}
+
+	if (list) {
+		least_child_num = INT_MAX;
+		parentgid = NULL;
+		for (entry = list->Next; entry != list; entry = entry->Next) {
+			if (node_type == SSA_NODE_CONSUMER) {
+				member = container_of(entry, struct ssa_member,
+						      access_entry);
+				if (member->access_child_num < least_child_num) {
+					parentgid = (union ibv_gid *) member->rec.port_gid;
+					least_child_num = member->access_child_num;
+					if (!least_child_num)
+						break;
+				}
+			} else {
+				member = container_of(entry, struct ssa_member,
+						      entry);
+				if (member->child_num < least_child_num) {
+					parentgid = (union ibv_gid *) member->rec.port_gid;
+					least_child_num = member->child_num;
+					if (!least_child_num)
+						break;
+				}
+			}
+		}
+	}
+	return parentgid;
+}
+
+static int core_build_tree(struct ssa_core *core, struct ssa_member *child)
+{
+	struct ssa_svc *svc = &core->svc;
+	union ibv_gid *gid = (union ibv_gid *) child->rec.port_gid;
+	union ibv_gid *parentgid;
+	int ret = -1;
+	uint8_t node_type = child->rec.node_type;
+
 	switch (node_type) {
 	case SSA_NODE_DISTRIBUTION:
 	case (SSA_NODE_DISTRIBUTION | SSA_NODE_ACCESS):
-		if (distrib_init)
-			ssa_log_warn(SSA_LOG_CTRL,
-				     "distribution node previously joined\n");
-		distrib_init = 1;
-		memcpy(&distrib_gid, gid, 16);
-		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
-				sizeof log_data, SSA_ADDR_GID,
-				distrib_gid.raw, sizeof distrib_gid.raw);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"distribution node GID %s\n", log_data);
-		if (node_type & SSA_NODE_ACCESS) {
-			if (access_init)
-				ssa_log_warn(SSA_LOG_CTRL,
-					     "access node previously joined\n");
-			access_init = 1;
-			memcpy(&access_gid, gid, 16);
-			ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
-					sizeof log_data, SSA_ADDR_GID,
-					access_gid.raw, sizeof access_gid.raw);
-			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-				"access node GID %s\n", log_data);
+		parentgid = find_best_parent(core, child);
+		if (parentgid)
+			ret = ssa_svc_query_path(svc, parentgid, gid);
+		if (parentgid && !ret) {
+			if (!DListFind(&child->entry, &core->distrib_list))
+				DListInsertBefore(&child->entry,
+						  &core->distrib_list);
+			if (node_type & SSA_NODE_ACCESS) {
+				if (!DListFind(&child->access_entry,
+					       &core->access_list))
+					DListInsertBefore(&child->access_entry,
+							  &core->access_list);
+			}
 		}
-		ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
 		break;
 	case SSA_NODE_ACCESS:
-		if (access_init)
-			ssa_log_warn(SSA_LOG_CTRL,
-				     "access node previously joined\n");
-		access_init = 1;
-		memcpy(&access_gid, gid, 16);
-		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
-				sizeof log_data, SSA_ADDR_GID,
-				access_gid.raw, sizeof access_gid.raw);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"access node GID %s\n", log_data);
-		if (distrib_init) {
-			ret = ssa_svc_query_path(svc, &distrib_gid, gid);
-		} else
-			ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
+		parentgid = find_best_parent(core, child);
+		if (parentgid)
+			ret = ssa_svc_query_path(svc, parentgid, gid);
+		if (parentgid && !ret &&
+		    !DListFind(&child->access_entry, &core->access_list))
+			DListInsertBefore(&child->access_entry,
+					  &core->access_list);
 		break;
 	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
-		if (access_init)
-			ssa_log_warn(SSA_LOG_CTRL,
-				     "access node previously joined\n");
-		access_init = 1;
-		memcpy(&access_gid, gid, 16);
-		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data,
-				sizeof log_data, SSA_ADDR_GID,
-				access_gid.raw, sizeof access_gid.raw);
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"access node GID %s\n", log_data);
 	case SSA_NODE_CORE:
 		/* TODO: Handle standby SM nodes */
-		if (core_init)
-			ssa_log_warn(SSA_LOG_CTRL,
-				     "core node previously joined\n");
-		else
-			core_init = 1;
-		ret = ssa_svc_query_path(svc, &svc->port->gid, gid);
+		parentgid = find_best_parent(core, child);
+		if (parentgid)
+			ret = ssa_svc_query_path(svc, parentgid, gid);
+		if (parentgid && !ret) {
+			if (!DListFind(&child->entry, &core->core_list))
+				DListInsertBefore(&child->entry, &core->core_list);
+			if ((node_type & SSA_NODE_ACCESS) &&
+			    (!DListFind(&child->access_entry,
+					&core->access_list))) {
+				DListInsertBefore(&child->access_entry,
+						  &core->access_list);
+			}
+		}
 		break;
 	case SSA_NODE_CONSUMER:
-		if (access_init)
-			ret = ssa_svc_query_path(svc, &access_gid, gid);
+		parentgid = find_best_parent(core, child);
+		if (parentgid)
+			ret = ssa_svc_query_path(svc, parentgid, gid);
 		else
 			ssa_log_err(SSA_LOG_CTRL,
 				    "no access node joined as yet\n");
@@ -208,22 +286,54 @@ static int core_build_tree(struct ssa_svc *svc, struct ssa_member *member)
 	return ret;
 }
 
-static void core_update_tree(struct ssa_svc *svc, union ibv_gid *gid)
+static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
+			     union ibv_gid *gid)
 {
-	/* TODO: update any parented nodes */
-	if (distrib_init) {
-		if (!ssa_compare_gid(&distrib_gid, gid)) {
-			memset(&distrib_gid, 0, 16);
-			distrib_init = 0;
-		}
+	struct ssa_member_record *rec;
+	struct ssa_member *parent;
+	uint8_t **tgid;
+	uint8_t node_type;
+
+	if (!child)
+		return;
+
+	/*
+	 * Find parent of child being removed from tree and
+	 * update the number of children.
+	 *
+	 * No way to force children to reconnect currently.
+	 */
+	node_type = child->rec.node_type;
+	if (node_type & SSA_NODE_CORE)
+		return;
+	if (!child->primary) {
+		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
+				sizeof log_data, SSA_ADDR_GID,
+				(uint8_t *) &child->rec.port_gid,
+				sizeof child->rec.port_gid);
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - no parent for GID %s\n", log_data);
+		return;
 	}
 
-	if (access_init) {
-		if (!ssa_compare_gid(&distrib_gid, gid)) {
-			memset(&access_gid, 0, 16);
-			access_init = 0;
-		}
+	/* Should something else be done with children whose parent goes away ? */
+	tgid = tfind(&child->rec.port_gid, &core->member_map, ssa_compare_gid);
+	if (!tgid) {
+		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
+				sizeof log_data, SSA_ADDR_GID,
+				(uint8_t *) &child->rec.port_gid,
+				sizeof child->rec.port_gid);
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - couldn't find parent for GID %s\n", log_data);
+		return;
 	}
+	rec = container_of(*tgid, struct ssa_member_record, port_gid);
+	parent = container_of(rec, struct ssa_member, rec);
+	if (node_type & SSA_NODE_CONSUMER)
+		parent->access_child_num--;
+	else
+		parent->child_num--;
+	child->primary = NULL;
 }
 
 /*
@@ -252,7 +362,8 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 
 		member->rec = *rec;
 		member->lid = ntohs(umad->umad.addr.lid);
-		DListInit(&member->list);
+		DListInit(&member->child_list);
+		DListInit(&member->access_child_list);
 		if (!tsearch(&member->rec.port_gid, &core->member_map, ssa_compare_gid)) {
 			free(member);
 			return;
@@ -276,7 +387,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 		first = 0;
 	}
 
-	ret = core_build_tree(&core->svc, member);
+	ret = core_build_tree(core, member);
 	if (ret) {
 		ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
 		/* member is orphaned */
@@ -290,28 +401,49 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 	struct ssa_member *member;
 	uint8_t **tgid;
 	DLIST_ENTRY *entry;
+	uint8_t node_type;
 
 	rec = (struct ssa_member_record *) &umad->packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
 
-	core_update_tree(&core->svc, (union ibv_gid *) rec->port_gid);
-
 	tgid = tfind(rec->port_gid, &core->member_map, ssa_compare_gid);
-	if (tgid) {
+	if (!tgid)
+		core_update_tree(core, NULL, (union ibv_gid *) rec->port_gid);
+	else {
 		ssa_log(SSA_LOG_CTRL, "removing member\n");
 		rec = container_of(*tgid, struct ssa_member_record, port_gid);
 		member = container_of(rec, struct ssa_member, rec);
-		for (entry = core->orphan_list.Next;
-		     entry != &core->orphan_list;
-		     entry = entry->Next) {
-			if (entry == &member->entry) {
-				ssa_log(SSA_LOG_CTRL, "in orphan list\n");
-				DListRemove(&member->entry);
-				break;
+		entry = DListFind(&member->entry, &core->orphan_list);
+		if (entry) {
+			ssa_log(SSA_LOG_CTRL, "in orphan list\n");
+			DListRemove(&member->entry);
+		}
+		node_type = member->rec.node_type;
+		if (node_type & SSA_NODE_CORE) {
+			entry = DListFind(&member->entry, &core->core_list);
+			if (entry) {
+				ssa_log(SSA_LOG_CTRL, "in core list\n");
+				DListRemove(&member->entry);	
 			}
 		}
+		if (node_type & SSA_NODE_DISTRIBUTION) {
+			entry = DListFind(&member->entry, &core->distrib_list);
+			if (entry) {
+				ssa_log(SSA_LOG_CTRL, "in distrib list\n");
+				DListRemove(&member->entry);
+			}
+		}
+		if (node_type & SSA_NODE_ACCESS) {
+			entry = DListFind(&member->access_entry,
+					  &core->access_list);
+			if (entry) {
+				ssa_log(SSA_LOG_CTRL, "in access list\n");
+				DListRemove(&member->access_entry);
+			}
+		}
+		core_update_tree(core, member, (union ibv_gid *) rec->port_gid);
 		tdelete(rec->port_gid, &core->member_map, ssa_compare_gid);
 		free(member);
 	}
@@ -346,7 +478,9 @@ static void core_process_parent_set(struct ssa_core *core, struct ssa_umad *umad
 static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 {
 	struct ibv_path_record *path;
-	struct ssa_member **member;
+	struct uint8_t **childgid, **parentgid;
+	struct ssa_member_record *rec;
+	struct ssa_member *child, *parent;
 	struct ssa_umad umad_sa;
 	int ret;
 
@@ -356,14 +490,37 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
 
 	/* Joined port GID is SGID in PathRecord */
-	member = tfind(&path->sgid, &core->member_map, ssa_compare_gid);
-	if (!member) {
+	childgid = tfind(&path->sgid, &core->member_map, ssa_compare_gid);
+	if (!childgid) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
 				(uint8_t *) &path->sgid, sizeof path->sgid);
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - couldn't find joined port GID %s\n", log_data);
 		return;
+	}
+	rec = container_of(*childgid, struct ssa_member_record, port_gid);
+	child = container_of(rec, struct ssa_member, rec);
+
+	parentgid = tfind(&path->dgid, &core->member_map, ssa_compare_gid);
+	if (parentgid) {
+		rec = container_of(*parentgid, struct ssa_member_record, port_gid);
+		parent = container_of(rec, struct ssa_member, rec);
+		child->primary = parent;
+		if (child->rec.node_type == SSA_NODE_CONSUMER)
+			parent->access_child_num++;
+		else if ((child->rec.node_type & SSA_NODE_CORE) !=
+			 SSA_NODE_CORE)
+			parent->child_num++;
+ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data, SSA_ADDR_GID, (uint8_t *) &path->dgid, sizeof path->dgid); 
+ssa_log(SSA_LOG_DEFAULT, "child node type %d parent GID %s children %d access children %d\n", child->rec.node_type, log_data, parent->child_num, parent->access_child_num);
+	} else {
+		child->primary = NULL;
+		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
+				sizeof log_data, SSA_ADDR_GID,
+				(uint8_t *) &path->dgid, sizeof path->dgid);
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"ERROR - couldn't find parent GID %s\n", log_data);
 	}
 
 	/*
@@ -374,11 +531,11 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 	 * from the PathRecord between the client and the parent
 	 * since the (only) parent is the core.
 	 */
-	(*member)->sl = ntohs(path->qosclass_sl) & 0xF;
+	child->sl = ntohs(path->qosclass_sl) & 0xF;
 
 	memset(&umad_sa, 0, sizeof umad_sa);
-	umad_set_addr(&umad_sa.umad, (*member)->lid, 1, (*member)->sl, UMAD_QKEY);
-	core_init_parent(core, &umad_sa.packet, &(*member)->rec, path);
+	umad_set_addr(&umad_sa.umad, child->lid, 1, child->sl, UMAD_QKEY);
+	core_init_parent(core, &umad_sa.packet, &child->rec, path);
 
 	ssa_log(SSA_LOG_CTRL, "sending set parent\n");
 	ret = umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
@@ -479,6 +636,9 @@ static void core_init_svc(struct ssa_svc *svc)
 {
 	struct ssa_core *core = container_of(svc, struct ssa_core, svc);
 	DListInit(&core->orphan_list);
+	DListInit(&core->core_list);
+	DListInit(&core->distrib_list);
+	DListInit(&core->access_list);
 }
 
 static void core_free_member(void *gid)
