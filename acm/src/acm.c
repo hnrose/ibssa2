@@ -62,6 +62,15 @@
 #define MAX_EP_ADDR 4
 #define MAX_EP_MC   2
 
+/* Map to ACM_EP_INFO_* */
+#define ACM_ADDRESS_INVALID    0x00
+#define ACM_ADDRESS_NAME       0x01
+#define ACM_ADDRESS_IP         0x02
+#define ACM_ADDRESS_IP6        0x03
+#define ACM_ADDRESS_GID        0x04
+#define ACM_ADDRESS_LID        0x05
+#define ACM_ADDRESS_RESERVED   0x06  /* start of reserved range */
+
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
 
 enum acm_state {
