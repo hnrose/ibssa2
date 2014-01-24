@@ -811,7 +811,7 @@ out:
 	pthread_exit(NULL);
 }
 
-static void core_send(enum ssa_db_ctrl_msg_type type)
+static void core_send_msg(enum ssa_db_ctrl_msg_type type)
 {
 	struct ssa_db_ctrl_msg msg;
 
@@ -856,7 +856,7 @@ static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 	cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);
 	pthread_mutex_unlock(&ssa_db->lft_rec_list_lock);
 
-	core_send(SSA_DB_LFT_CHANGE);
+	core_send_msg(SSA_DB_LFT_CHANGE);
 }
 
 static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
@@ -885,7 +885,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 			break;
 
 		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
-		core_send(SSA_DB_START_EXTRACT);
+		core_send_msg(SSA_DB_START_EXTRACT);
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
@@ -1058,7 +1058,7 @@ static void *core_construct(osm_opensm_t *opensm)
 
 #ifndef SIM_SUPPORT
 err5:
-	core_send(SSA_DB_EXIT);
+	core_send_msg(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 #endif
 err4:
@@ -1086,7 +1086,7 @@ static void core_destroy(void *context)
 #endif
 
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
-	core_send(SSA_DB_EXIT);
+	core_send_msg(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 
 #ifndef SIM_SUPPORT
