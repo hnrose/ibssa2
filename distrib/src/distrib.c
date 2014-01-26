@@ -42,20 +42,21 @@
 
 #define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
 
+#define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
+
 /*
  * Service options - may be set through ibssa_opts.cfg file.
  */
 static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
 static int node_type = SSA_NODE_ACCESS;
 static int smdb_dump = 0;
+static char smdb_dump_dir[128] = SMDB_DUMP_PATH;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
 extern int prdb_dump;
 extern short smdb_port;
 extern short prdb_port;
-
-#define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 
 #ifdef INTEGRATION
 struct ssa_member {
@@ -361,7 +362,7 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	case SSA_DB_UPDATE:
 		ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
 		if (smdb_dump)
-			ssa_db_save(SMDB_DUMP_PATH,
+			ssa_db_save(smdb_dump_dir,
 				    (struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db),
 				    smdb_dump);
 		return 1;
@@ -446,8 +447,8 @@ static int distrib_convert_node_type(const char *node_type_string)
 static void distrib_set_options(void)
 {
 	FILE *f;
-	char s[120];
-	char opt[32], value[32];
+	char s[160];
+	char opt[32], value[128];
 
 	if (!(f = fopen(opts_file, "r")))
 		return;
@@ -456,7 +457,7 @@ static void distrib_set_options(void)
 		if (s[0] == '#')
 			continue;
 
-		if (sscanf(s, "%32s%32s", opt, value) != 2)
+		if (sscanf(s, "%32s%128s", opt, value) != 2)
 			continue;
 
 		if (!strcasecmp("log_file", opt))
@@ -465,6 +466,8 @@ static void distrib_set_options(void)
 			ssa_set_log_level(atoi(value));
 		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
+		else if (!strcasecmp("smdb_dump_dir", opt))
+			strcpy(smdb_dump_dir, value);
 		else if (!strcasecmp("node_type", opt))
 			node_type = distrib_convert_node_type(value);
 		else if (!strcasecmp("smdb_dump", opt))
@@ -498,6 +501,7 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "node type %d (%s)\n", node_type,
 		distrib_node_type_str(node_type));
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);
+	ssa_log(SSA_LOG_DEFAULT, "smdb dump dir %s\n", smdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump %d\n", prdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
