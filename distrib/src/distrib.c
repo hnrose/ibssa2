@@ -55,6 +55,7 @@ static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
 extern int prdb_dump;
+extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
 
@@ -468,6 +469,8 @@ static void distrib_set_options(void)
 			strcpy(lock_file, value);
 		else if (!strcasecmp("smdb_dump_dir", opt))
 			strcpy(smdb_dump_dir, value);
+		else if (!strcasecmp("prdb_dump_dir", opt))
+			strcpy(prdb_dump_dir, value);
 		else if (!strcasecmp("node_type", opt))
 			node_type = distrib_convert_node_type(value);
 		else if (!strcasecmp("smdb_dump", opt))
@@ -503,6 +506,7 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump dir %s\n", smdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump %d\n", prdb_dump);
+	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 }

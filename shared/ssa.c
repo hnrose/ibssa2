@@ -81,6 +81,7 @@ __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
 int prdb_dump = 0;
+char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 //static short server_port = 6125;
 short smdb_port = 7470;
 short prdb_port = 7471;
@@ -1932,7 +1933,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 						n = snprintf(dump_dir,
 							     sizeof(dump_dir),
 							     "%s.",
-							     PRDB_DUMP_PATH);
+							     prdb_dump_dir);
 						snprintf(dump_dir + n,
 							 sizeof(dump_dir) - n,
 							 "%" PRIx64,
