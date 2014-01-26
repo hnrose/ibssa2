@@ -53,7 +53,9 @@ void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
 				 struct ep_guid_to_lid_tbl_rec * p_rec);
 void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec * p_rec);
 void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec * p_rec);
-void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec * p_rec);
+void ep_port_tbl_rec_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
+			  uint16_t pkey_tbl_size, uint16_t lid,
+			  struct ep_port_tbl_rec *p_rec);
 void ep_lft_block_tbl_rec_init(osm_switch_t *p_sw, uint16_t lid, uint16_t block,
 			       struct ep_lft_block_tbl_rec * p_rec);
 void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top,

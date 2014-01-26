@@ -239,7 +239,9 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 
 /** =========================================================================
  */
-void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
+void ep_port_tbl_rec_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
+			  uint16_t pkey_tbl_size, uint16_t lid,
+			  struct ep_port_tbl_rec *p_rec)
 {
 	const ib_port_info_t *p_pi;
 	const osm_physp_t *p_physp0;
@@ -260,9 +262,10 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, struct ep_port_tbl_rec *p_rec)
 	is_switch = ((osm_node_get_type(p_physp->p_node) == IB_NODE_TYPE_SWITCH) ? 0xff : 0) &
 					  SSA_DB_PORT_IS_SWITCH_MASK;
 
-	p_rec->pkey_tbl_offset		= 0;
-	p_rec->pkey_tbl_size		= 0;
-	p_rec->port_lid			= osm_physp_get_base_lid(p_physp);
+	p_rec->pkey_tbl_offset		= pkey_base_offset;
+	p_rec->pkey_tbl_size		= pkey_tbl_size;
+	p_rec->port_lid			=
+	    (lid ? lid : osm_physp_get_base_lid(p_physp));
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
 	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
 	p_rec->rate			= ib_port_info_compute_rate(&p_physp->port_info,
