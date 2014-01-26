@@ -78,17 +78,6 @@
 #define DB_FIELD_DEF_FORMAT_WRITE	"version %"SCNu8" type %"SCNu8" db_id %"SCNu8" table_id %"SCNu8" field_id %"SCNu8" field_size %u field_offset %u name %s\n"
 #define DB_FIELD_DEF_FORMAT_READ	"version %"SCNu8" type %"SCNu8" db_id %"SCNu8" table_id %"SCNu8" field_id %"SCNu8" field_size %u field_offset %u name %[^\n]s"
 
-#define DB_GUID_TO_LID_DEF_FORMAT	"guid 0x%" PRIx64 " lid %"SCNu16" lmc %"SCNu8" is_switch %"SCNu8"\n"
-#define	DB_NODE_TBL_FORMAT_READ		"node_guid 0x%" PRIx64 " is_enhanced_sp0 %"SCNu8" node_type %"SCNu8" description %[^\n]s"
-#define	DB_NODE_TBL_FORMAT_WRITE	"node_guid 0x%" PRIx64 " is_enhanced_sp0 %"SCNu8" node_type %"SCNu8" description %s\n"
-#define DB_LINK_TBL_FORMAT		"from_lid %"SCNu16" to_lid %"SCNu16" from_port_num %"SCNu8" to_port_num %"SCNu8"\n"
-#define DB_PORT_TBL_FORMAT		"pkey_tbl_offset %lu pkey_tbl_size %"SCNu16" port_lid %"SCNu16" port_num %"SCNu8" "\
-					"neighbor_mtu %"SCNu8" link_speed_ext %"SCNu8" link_speed %"SCNu8" link_width_active %"SCNu8" "\
-					"vl_enforce %"SCNu8" is_fdr_active %"SCNu8"\n"
-#define DB_PKEY_TBL_FORMAT		"%" SCNu16 "\n"
-#define DB_LFT_TOP_TBL_FORMAT		"lid %" SCNu16 " lft_top %" SCNu16 "\n"
-#define DB_LFT_BLOCK_TBL_FORMAT		"lid %" SCNu16 " block_num %" SCNu16 "\n"
-
 static void ssa_db_db_def_dump(FILE *fd, const struct db_def *p_db_def)
 {
 	fprintf(fd, DB_DEF_FORMAT_WRITE, p_db_def->version, p_db_def->size,
