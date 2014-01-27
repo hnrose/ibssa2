@@ -423,9 +423,7 @@ static void distrib_free_member(void *gid)
 	member = container_of(rec, struct ssa_member, rec);
 	free(member);
 }
-#endif
 
-#ifdef INTEGRATION
 static void distrib_destroy_svc(struct ssa_svc *svc)
 {
 	struct ssa_distrib *distrib = container_of(svc, struct ssa_distrib, svc);
