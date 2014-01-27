@@ -110,6 +110,7 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 {
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
+	int ret;
 	uint8_t **tgid;
 
 	/* TODO: verify ssa_key with core nodes */
@@ -142,7 +143,7 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 
 	ret = distrib_build_tree(svc, (union ibv_gid *) rec->port_gid);
 	if (ret)
-		ssa_log(SSA_LOG_CTRL, "distrib_build_tree failed %d\n", ret)
+		ssa_log(SSA_LOG_CTRL, "distrib_build_tree failed %d\n", ret);
 }
 
 static void distrib_process_leave(struct ssa_distrib *distrib, struct ssa_umad *umad)
