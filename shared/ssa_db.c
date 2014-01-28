@@ -46,7 +46,7 @@
 void ssa_db_def_init(struct db_def * p_db_def, uint8_t version,
 		     uint8_t size, uint8_t db_id, uint8_t table_id,
 		     uint8_t field_id, const char * name,
-		     uint32_t table_def_size)
+		     uint64_t epoch, uint32_t table_def_size)
 {
 	p_db_def->version		= version;
 	p_db_def->size			= size;
@@ -54,6 +54,7 @@ void ssa_db_def_init(struct db_def * p_db_def, uint8_t version,
 	p_db_def->id.table		= table_id;
 	p_db_def->id.field		= field_id;
 	strncpy(p_db_def->name, name, sizeof(p_db_def->name));
+	p_db_def->epoch			= htonll(epoch);
 	p_db_def->table_def_size	= htonl(table_def_size);
 }
 
@@ -135,6 +136,55 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
 	       sizeof(*p_tbl));
 	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
 	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
+}
+
+/** =========================================================================
+ */
+uint64_t ssa_db_get_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id)
+{
+	if (!p_ssa_db)
+		return 0;
+
+	if (tbl_id == DB_DEF_TBL_ID)
+		return ntohll(p_ssa_db->db_def.epoch);
+
+	if (tbl_id < p_ssa_db->data_tbl_cnt)
+		return ntohll(p_ssa_db->p_db_tables[tbl_id].epoch);
+	else
+		return 0;
+}
+
+/** =========================================================================
+ */
+void ssa_db_set_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id, uint64_t epoch)
+{
+	if (!p_ssa_db)
+		return;
+
+	if (tbl_id == DB_DEF_TBL_ID)
+		p_ssa_db->db_def.epoch = htonll(epoch);
+	else if (tbl_id < p_ssa_db->data_tbl_cnt)
+		p_ssa_db->p_db_tables[tbl_id].epoch = htonll(epoch);
+}
+
+/** =========================================================================
+ */
+uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id)
+{
+	if (!p_ssa_db)
+		return 0;
+
+	if (tbl_id == DB_DEF_TBL_ID) {
+		p_ssa_db->db_def.epoch =
+		    htonll(ntohll(p_ssa_db->db_def.epoch) + 1);
+		return ntohll(p_ssa_db->db_def.epoch);
+	} else if (tbl_id < p_ssa_db->data_tbl_cnt) {
+		p_ssa_db->p_db_tables[tbl_id].epoch =
+		    htonll(ntohll(p_ssa_db->p_db_tables[tbl_id].epoch) + 1);
+		return ntohll(p_ssa_db->p_db_tables[tbl_id].epoch);
+	} else {
+		return 0;
+	}
 }
 
 /** =========================================================================
@@ -242,7 +292,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 	 */
 	ssa_db_def_init(&p_ssa_db->db_def, DB_DEF_VERSION,
 			sizeof(p_ssa_db->db_def), db_id,
-			0, 0, name, sizeof(*p_ssa_db->p_def_tbl));
+			0, 0, name, 0 /* epoch */, sizeof(*p_ssa_db->p_def_tbl));
 
 	/*
 	 * Definition tables dataset initialization

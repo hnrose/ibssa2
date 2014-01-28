@@ -67,8 +67,8 @@
 #define SSA_DB_HELPER_DELIMITER		":"
 #define SSA_DB_HELPER_ARRAY_DELIMITER	";"
 
-#define DB_DEF_FORMAT_WRITE		"version %"SCNu8" size %"SCNu8" db_id %"SCNu8" tbl_id %"SCNu8" field_id %"SCNu8" table_def_size %u name %s\n"
-#define DB_DEF_FORMAT_READ		"version %"SCNu8" size %"SCNu8" db_id %"SCNu8" tbl_id %"SCNu8" field_id %"SCNu8" table_def_size %u name %[^\n]s"
+#define DB_DEF_FORMAT_WRITE		"version %"SCNu8" size %"SCNu8" db_id %"SCNu8" tbl_id %"SCNu8" field_id %"SCNu8" table_def_size %u epoch %"SCNu64" name %s\n"
+#define DB_DEF_FORMAT_READ		"version %"SCNu8" size %"SCNu8" db_id %"SCNu8" tbl_id %"SCNu8" field_id %"SCNu8" table_def_size %u epoch %"SCNu64" name %[^\n]s"
 #define TABLE_DEF_FORMAT_WRITE		"version %"SCNu8" size %"SCNu8" type %"SCNu8" access %"SCNu8" id %"SCNu8"-%"SCNu8"-%"SCNu8 \
 					" record_size %"SCNu32" ref_table_id %u name %s\n"
 #define TABLE_DEF_FORMAT_READ		"version %"SCNu8" size %"SCNu8" type %"SCNu8" access %"SCNu8" id %"SCNu8"-%"SCNu8"-%"SCNu8 \
@@ -82,7 +82,8 @@ static void ssa_db_db_def_dump(FILE *fd, const struct db_def *p_db_def)
 {
 	fprintf(fd, DB_DEF_FORMAT_WRITE, p_db_def->version, p_db_def->size,
 		p_db_def->id.db, p_db_def->id.table, p_db_def->id.field,
-		ntohl(p_db_def->table_def_size), p_db_def->name);
+		ntohl(p_db_def->table_def_size), ntohll(p_db_def->epoch),
+		p_db_def->name);
 }
 
 static void ssa_db_table_def_dump(FILE *fd, struct db_table_def *p_def_tbl,
@@ -136,7 +137,9 @@ static void ssa_db_db_def_load(FILE *fd, struct db_def *p_db_def)
 			     &p_db_def->version, &p_db_def->size,
 			     &p_db_def->id.db, &p_db_def->id.table,
 			     &p_db_def->id.field, &table_def_size,
-			     p_db_def->name);
+			     &p_db_def->epoch, p_db_def->name);
+
+		p_db_def->epoch = htonll(p_db_def->epoch);
 		p_db_def->table_def_size = htonl(table_def_size);
 	}
 }

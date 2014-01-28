@@ -72,6 +72,7 @@ struct db_id {
  * @reserved - set to 0
  * @id - unique identifier for a specific database
  * @name - user-friendly name for a specific database
+ * @epoch - static or dynamic version of DB (is equal to maximum table epoch)
  * @table_def_size - size of each table definition (db_table_def)
  *
  * A database is comprised of:
@@ -83,12 +84,14 @@ struct db_id {
  * contained within a database.
  */
 #define DB_DEF_VERSION 0
+#define DB_DEF_TBL_ID  0xFF
 struct db_def {
 	uint8_t		version;
 	uint8_t		size;
 	uint8_t		reserved[2];
 	struct db_id	id;
 	char		name[DB_NAME_LEN];
+	be64_t		epoch;
 	be32_t		table_def_size;
 	uint8_t		reserved2[4];
 };
@@ -290,7 +293,7 @@ struct ssa_db_msg {
 void ssa_db_def_init(struct db_def * p_db_def, uint8_t version,
 		     uint8_t size, uint8_t db_id, uint8_t table_id,
 		     uint8_t field_id, const char * name,
-		     uint32_t table_def_size);
+		     uint64_t epoch, uint32_t table_def_size);
 
 void ssa_db_dataset_init(struct db_dataset * p_dataset,
 			 uint8_t version, uint8_t size,
@@ -418,6 +421,9 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 
 void ssa_db_destroy(struct ssa_db * p_ssa_db);
 uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db);
+uint64_t ssa_db_get_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id);
+void ssa_db_set_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id, uint64_t epoch);
+uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id);
 #ifdef __cplusplus
 }
 #endif
