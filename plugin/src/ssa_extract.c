@@ -550,11 +550,9 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	uint64_t pkey_cur_offset = 0;
 	uint64_t lft_top_offset = 0;
 	uint64_t lft_block_offset = 0;
-	uint16_t lids;
 	uint8_t ret = 0;
 
-	lids = (uint16_t) cl_ptr_vector_get_size(&p_subn->port_lid_tbl);
-	ssa_log(SSA_LOG_VERBOSE, "[ %u LIDs\n", lids);
+	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
 	p_ssa = ssa_db->p_dump_db;
 	ssa_db_extract_subnet_opts(p_subn, p_ssa);
