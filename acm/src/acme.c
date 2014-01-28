@@ -206,7 +206,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Specifies the location of PRDB dump directory. If not specified,\n");
 	fprintf(f, "# PRDB is dumped to 'RDMA_CONF_DIR/prdb_dump'\n");
 	fprintf(f, "\n");
-	fprintf(f, "# prdb_dump_dir (null)\n");
+	fprintf(f, "# prdb_dump_dir /etc/rdma/prdb_dump\n");
 	fprintf(f, "\n");
 	fprintf(f, "# timeout:\n");
 	fprintf(f, "# Additional time, in milliseconds, that the ACM service will wait for a\n");
