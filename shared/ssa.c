@@ -70,6 +70,7 @@
 
 #define SMDB_PRELOAD_PATH RDMA_CONF_DIR "/smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
+#define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
 
 #ifdef ACCESS_INTEGRATION
@@ -80,7 +81,9 @@ static struct ssa_db *smdb;
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
 
+int smdb_dump = 0;
 int prdb_dump = 0;
+char smdb_dump_dir[128] = SMDB_DUMP_PATH;
 char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 //static short server_port = 6125;
 short smdb_port = 7470;

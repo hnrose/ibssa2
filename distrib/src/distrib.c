@@ -42,19 +42,17 @@
 
 #define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
 
-#define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
-
 /*
  * Service options - may be set through ibssa_opts.cfg file.
  */
 static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
 static int node_type = SSA_NODE_ACCESS;
-static int smdb_dump = 0;
-static char smdb_dump_dir[128] = SMDB_DUMP_PATH;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
+extern int smdb_dump;
 extern int prdb_dump;
+extern char smdb_dump_dir[128];
 extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
