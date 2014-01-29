@@ -232,6 +232,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 	const struct db_table_def *p_tbl_def = NULL;
 	const struct db_dataset *p_dataset = NULL;
 	const struct db_field_def *p_field_def = NULL;
+	int i = 0;
 
 	if (!p_ssa_db)
 		return;
@@ -274,8 +275,8 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 				    p_dataset->set_count);
 
 	/* field tables datasets initialization */
-	for (p_dataset = dataset_tbl; p_dataset->version != DB_VERSION_INVALID; p_dataset++)
-		ssa_db_dataset_init(&p_ssa_db->p_db_field_tables[p_dataset->id.table],
+	for (p_dataset = field_dataset_tbl; p_dataset->version != DB_VERSION_INVALID; p_dataset++, i++)
+		ssa_db_dataset_init(&p_ssa_db->p_db_field_tables[i],
 				    p_dataset->version, p_dataset->size,
 				    p_dataset->access, p_dataset->id.db,
 				    p_dataset->id.table, p_dataset->id.field,
