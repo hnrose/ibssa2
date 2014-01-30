@@ -100,6 +100,9 @@ void ssa_write_log(int level, const char *format, ...)
 	time_t tim;
 	struct tm result;
 
+	if (!flog)
+		return;
+
 	if (!(level & log_level))
 		return;
 
