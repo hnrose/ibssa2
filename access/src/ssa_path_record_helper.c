@@ -34,12 +34,17 @@
 
 #include <time.h>
 #include <stdio.h>
-#include <iba/ib_types.h>
 #include <ssa_path_record_helper.h>
 
 #ifdef _VERIFICATION_CODE_
+#define IB_PATH_RECORD_RATE_2_5_GBS		2
+#define IB_PATH_RECORD_RATE_300_GBS		18
+
+#define IB_MIN_RATE    IB_PATH_RECORD_RATE_2_5_GBS
+#define IB_MAX_RATE    IB_PATH_RECORD_RATE_300_GBS
+
 /*
- * ib_path_compare_rates and ordered_rates are copied from OpenSM SA source.
+ * ib_path_compare_rates and ordered_rates are copied from OpenSM source.
  */
 
 static int ordered_rates[] = {
