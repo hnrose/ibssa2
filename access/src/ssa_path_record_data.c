@@ -36,7 +36,6 @@
 #include <math.h>
 #include <string.h>
 #include <inttypes.h>
-#include <iba/ib_types.h>
 #include <infiniband/ssa_smdb.h>
 #include "ssa_path_record_helper.h"
 #include "ssa_path_record_data.h"
@@ -404,12 +403,12 @@ int find_destination_port(const struct ssa_db *p_smdb,
 	lft_block_count = get_dataset_count(p_smdb, SSA_TABLE_ID_LFT_BLOCK);
 
 	/*
-	 * Optimization. If IB_SMP_DATA_SIZE is power of 2, we can use shift istead of division
+	 * Optimization. If UMAD_LEN_SMP_DATA is power of 2, we can use shift istead of division
 	 *
-	 * lft_block_num = floorl(ntohs(dest_lid) / IB_SMP_DATA_SIZE);
+	 * lft_block_num = floorl(ntohs(dest_lid) / UMAD_LEN_SMP_DATA);
 	 */
 	lft_block_num = ntohs(dest_lid) >> 6;
-	lft_port_shift = ntohs(dest_lid) % IB_SMP_DATA_SIZE;
+	lft_port_shift = ntohs(dest_lid) % UMAD_LEN_SMP_DATA;
 	lft_top = p_index->lft_top_lookup[ntohs(source_lid)];
 
 	if (ntohs(dest_lid) > lft_top) {
