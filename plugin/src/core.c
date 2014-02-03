@@ -861,7 +861,7 @@ static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 
 static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
 {
-	osm_epi_ucast_routing_flags_t *p_ucast_routing_flag;
+	osm_epi_ucast_routing_flags_t ucast_routing_flag;
 
 	switch (event_id) {
 	case OSM_EVENT_ID_TRAP:
@@ -872,9 +872,8 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 		core_process_lft_change((osm_epi_lft_change_event_t *) event_data);
 		break;
 	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
-		p_ucast_routing_flag = (osm_epi_ucast_routing_flags_t *) event_data;
-		if (p_ucast_routing_flag &&
-		    *p_ucast_routing_flag == UCAST_ROUTING_REROUTE) {
+		ucast_routing_flag = (osm_epi_ucast_routing_flags_t) event_data;
+		if (ucast_routing_flag == UCAST_ROUTING_REROUTE) {
 			/* We get here in case of subnet re-routing not followed by SUBNET_UP */
 			/* TODO: notify the distribution thread and push the LFT changes */
 		}
