@@ -738,6 +738,8 @@ void ssa_db_update(struct ssa_database *ssa_db)
 	if (ssa_db->p_current_db->initialized && smdb_deltas) {
 		ssa_db_extract_delete(ssa_db->p_previous_db);
 		ssa_db->p_previous_db = ssa_db->p_current_db;
+	} else {
+		ssa_db_extract_delete(ssa_db->p_current_db);
 	}
 	ssa_db->p_current_db = ssa_db->p_dump_db;
 	ssa_db->p_dump_db = ssa_db_extract_init();
