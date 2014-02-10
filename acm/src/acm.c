@@ -1758,29 +1758,43 @@ static void acm_svr_accept(void)
 }
 
 static int
-acm_is_path_from_port(struct acm_port *port, struct ibv_path_record *path)
+acm_is_path_from_port(void *port, struct ibv_path_record *path)
 {
 	union ibv_gid gid;
+	struct ibv_context *verbs;
+	int *gid_cnt;
+	uint16_t *lid, *lid_mask;
+	uint8_t *port_num;
 	uint8_t i;
 
+	if (acm_mode == ACM_MODE_ACM)
+		verbs = ((struct acm_port *)(port))->dev->verbs;
+	else /* ACM_MODE_SSA */
+		verbs = ((struct ssa_port *)(port))->dev->verbs;
+
+	gid_cnt = GET_PORT_FIELD_PTR(port, int, gid_cnt);
+	lid = GET_PORT_FIELD_PTR(port, uint16_t, lid);
+	lid_mask = GET_PORT_FIELD_PTR(port, uint16_t, lid_mask);
+	port_num = GET_PORT_FIELD_PTR(port, uint8_t, port_num);
+
 	if (!ib_any_gid(&path->sgid)) {
-		return (acm_gid_index(port, &path->sgid) < port->gid_cnt);
+		return (acm_gid_index(port, &path->sgid) < *gid_cnt);
 	}
 
 	if (path->slid) {
-		return (port->lid == (ntohs(path->slid) & port->lid_mask));
+		return (*lid == (ntohs(path->slid) & *lid_mask));
 	}
 
 	if (ib_any_gid(&path->dgid)) {
 		return 1;
 	}
 
-	if (acm_gid_index(port, &path->dgid) < port->gid_cnt) {
+	if (acm_gid_index(port, &path->dgid) < *gid_cnt) {
 		return 1;
 	}
 
-	for (i = 0; i < port->gid_cnt; i++) {
-		ibv_query_gid(port->dev->verbs, port->port_num, i, &gid);
+	for (i = 0; i < *gid_cnt; i++) {
+		ibv_query_gid(verbs, *port_num, i, &gid);
 		if (gid.global.subnet_prefix == path->dgid.global.subnet_prefix) {
 			return 1;
 		}
@@ -1790,19 +1804,23 @@ acm_is_path_from_port(struct acm_port *port, struct ibv_path_record *path)
 }
 
 static struct acm_ep *
-acm_get_port_ep(struct acm_port *port, struct acm_ep_addr_data *data)
+acm_get_port_ep(void *port, struct acm_ep_addr_data *data)
 {
 	struct acm_ep *ep;
-	DLIST_ENTRY *ep_entry;
+	DLIST_ENTRY *ep_entry, *ep_list;
+	enum ibv_port_state *state;
 
-	if (port->state != IBV_PORT_ACTIVE)
+	ep_list = GET_PORT_FIELD_PTR(port, DLIST_ENTRY, ep_list);
+	state = GET_PORT_FIELD_PTR(port, enum ibv_port_state, state);
+
+	if (*state != IBV_PORT_ACTIVE)
 		return NULL;
 
 	if (data->type == ACM_EP_INFO_PATH &&
 	    !acm_is_path_from_port(port, &data->info.path))
 		return NULL;
 
-	for (ep_entry = port->ep_list.Next; ep_entry != &port->ep_list;
+	for (ep_entry = ep_list->Next; ep_entry != ep_list;
 		 ep_entry = ep_entry->Next) {
 
 		ep = container_of(ep_entry, struct acm_ep, entry);
@@ -1823,24 +1841,42 @@ acm_get_port_ep(struct acm_port *port, struct acm_ep_addr_data *data)
 static struct acm_ep *
 acm_get_ep(struct acm_ep_addr_data *data)
 {
-	struct acm_device *dev;
+	struct acm_device *acm_dev;
+	struct ssa_device *ssa_dev1;
+	void *port;
 	struct acm_ep *ep;
 	DLIST_ENTRY *dev_entry;
-	int i;
+	int i, d, p;
 
 	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 			data->type, data->info.addr, sizeof data->info.addr);
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", log_data);
-	for (dev_entry = device_list.Next; dev_entry != &device_list;
-		 dev_entry = dev_entry->Next) {
+	if (acm_mode == ACM_MODE_ACM) {
+		for (dev_entry = device_list.Next; dev_entry != &device_list;
+			 dev_entry = dev_entry->Next) {
 
-		dev = container_of(dev_entry, struct acm_device, entry);
-		for (i = 0; i < dev->port_cnt; i++) {
-			pthread_mutex_lock(&dev->port[i].lock);
-			ep = acm_get_port_ep(&dev->port[i], data);
-			pthread_mutex_unlock(&dev->port[i].lock);
-			if (ep)
-				return ep;
+			acm_dev =
+			    container_of(dev_entry, struct acm_device, entry);
+			for (i = 0; i < acm_dev->port_cnt; i++) {
+				port = &acm_dev->port[i];
+				pthread_mutex_lock(&acm_dev->port[i].lock);
+				ep = acm_get_port_ep(port, data);
+				pthread_mutex_unlock(&acm_dev->port[i].lock);
+				if (ep)
+					return ep;
+			}
+		}
+	} else { /* ACM_MODE_SSA */
+		for (d = 0; d < ssa.dev_cnt; d++) {
+			ssa_dev1 = ssa_dev(&ssa, d);
+			for (p = 1; p <= ssa_dev1->port_cnt; p++) {
+				port = ssa_dev_port(ssa_dev1, p);
+				pthread_mutex_lock(&((struct ssa_port *)(port))->lock);
+				ep = acm_get_port_ep(port, data);
+				pthread_mutex_unlock(&((struct ssa_port *)(port))->lock);
+				if (ep)
+					return ep;
+			}
 		}
 	}
 
@@ -3279,6 +3315,10 @@ void acm_ep_up(void *port, uint16_t pkey_index)
 		ssa_log_err(0, "unable to init loopback\n");
 		goto err2;
 	}
+
+	/* TODO: this is done instead of in port_join method */
+	ep->state = ACM_READY;
+
 	pthread_mutex_lock(lock);
 	ep_list = GET_PORT_FIELD_PTR(port, DLIST_ENTRY, ep_list);
 	DListInsertHead(&ep->entry, ep_list);
@@ -3303,39 +3343,70 @@ static struct acm_port *acm_dev_port(struct acm_device *dev, uint8_t port_num)
 
 static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 {
+	struct ibv_context *verbs;
 	struct acm_device *acm_dev;
 	struct acm_port *acm_port;
+	struct ssa_device *ssa_dev1;
+	struct ssa_port *ssa_port;
 	struct acm_ep *acm_ep;
+	void *port;
 	DLIST_ENTRY *dev_entry = NULL;
 	uint64_t *lid2guid;
 	uint16_t pkey;
-	int ret = 1;
+	uint8_t port_num;
+	int d, ret = 1;
 
 	if (!p_ssa_db)
 		return ret;
 
-	for (dev_entry = device_list.Next; dev_entry != &device_list;
-		 dev_entry = dev_entry->Next) {
-		acm_dev = container_of(dev_entry, struct acm_device, entry);
-		if (acm_dev->guid == svc->port->dev->guid)
-			break;
-	}
+	if (acm_mode == ACM_MODE_ACM) {
+		for (dev_entry = device_list.Next; dev_entry != &device_list;
+		     dev_entry = dev_entry->Next) {
+			acm_dev = container_of(dev_entry, struct acm_device,
+					       entry);
+			if (acm_dev->guid == svc->port->dev->guid)
+				break;
+		}
 
-	if (!acm_dev || dev_entry == &device_list) {
-		ssa_log(SSA_LOG_DEFAULT,
-			"ERROR - no matching ACM device found (with guid: 0x%" PRIx64 ")\n",
-			ntohll(svc->port->dev->guid));
-		goto err;
-	}
+		if (!acm_dev || dev_entry == &device_list) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - no matching ACM device found "
+				"(with guid: 0x%" PRIx64 ")\n",
+				ntohll(svc->port->dev->guid));
+			goto err;
+		}
 
-	acm_port = acm_dev_port(acm_dev, svc->port->port_num);
+		acm_port = acm_dev_port(acm_dev, svc->port->port_num);
+		verbs = acm_port->dev->verbs;
+		port_num = acm_port->port_num;
+		port = acm_port;
+	} else { /* ACM_MODE_SSA */
+		for (d = 0; d < ssa.dev_cnt; d++) {
+			ssa_dev1 = ssa_dev(&ssa, d);
+			if (ssa_dev1->guid == svc->port->dev->guid)
+				break;
+		}
+
+		if (!ssa_dev1 || d == ssa.dev_cnt) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - no matching SSA device found "
+				"(with guid: 0x%" PRIx64 ")\n",
+				ntohll(svc->port->dev->guid));
+			goto err;
+		}
+
+		ssa_port = ssa_dev_port(ssa_dev1, svc->port->port_num);
+		verbs = ssa_port->dev->verbs;
+		port_num = ssa_port->port_num;
+		port = ssa_port;
+	}
 
 	/* assume single pkey per port */
-	ret = ibv_query_pkey(acm_port->dev->verbs, acm_port->port_num, 0, &pkey);
+	ret = ibv_query_pkey(verbs, port_num, 0, &pkey);
 	if (ret)
 		goto err;
 
-	acm_ep = acm_find_ep(acm_port, pkey);
+	acm_ep = acm_find_ep(port, pkey);
 	if (!acm_ep) {
 		ret = 1;
 		goto err;
