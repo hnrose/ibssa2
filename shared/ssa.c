@@ -2786,7 +2786,7 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 	port->port_num = port_num;
 	snprintf(port->name, sizeof port->name, "%s:%d", dev->name, port_num);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", port->name);
-	//pthread_mutex_init(&port->lock, NULL);
+	pthread_mutex_init(&port->lock, NULL);
 
 	port->mad_portid = umad_open_port(dev->name, port->port_num);
 	if (port->mad_portid < 0) {
@@ -3043,6 +3043,7 @@ static void ssa_close_port(struct ssa_port *port)
 		umad_unregister(port->mad_portid, port->mad_agentid);
 	if (port->mad_portid >= 0)
 		umad_close_port(port->mad_portid);
+	pthread_mutex_destroy(&port->lock);
 }
 
 void ssa_close_devices(struct ssa_class *ssa)

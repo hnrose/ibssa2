@@ -106,7 +106,7 @@ struct ssa_port {
 	int			mad_portid;
 	int			mad_agentid;
 	int			sa_agentid;
-	//pthread_mutex_t		lock;
+	pthread_mutex_t		lock;
 	enum ibv_port_state	state;
 	union ibv_gid		gid;
 	uint16_t		sm_lid;
