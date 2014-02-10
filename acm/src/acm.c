@@ -2655,9 +2655,12 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 {
 	union ibv_gid sgid, dgid;
 	struct ibv_port_attr attr = { 0 };
+	struct ibv_context *verbs;
 	struct acm_dest *dest;
 	char s[128];
 	char *p, *ptr, *p_guid, *p_lid;
+	uint16_t *port_lid;
+	uint8_t *port_num;
 	uint64_t guid;
 	uint16_t lid, dlid;
 	int sl, mtu, rate;
@@ -2665,9 +2668,14 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 	uint8_t addr[ACM_MAX_ADDRESS];
 	uint8_t addr_type;
 
-	ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
-		      ((struct acm_port *)ep->port)->port_num, 0, &sgid);
+	if (acm_mode == ACM_MODE_ACM)
+		verbs = ((struct acm_port *)(ep->port))->dev->verbs;
+	else /* ACM_MODE_SSA */
+		verbs = ((struct ssa_port *)(ep->port))->dev->verbs;
 
+	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
+	port_lid = GET_PORT_FIELD_PTR(ep->port, uint16_t, lid);
+	ibv_query_gid(verbs, *port_num, 0, &sgid);
 	/* Search for endpoint's SLID */
 	while (fgets(s, sizeof s, f)) {
 		if (s[0] == '#')
@@ -2703,11 +2711,10 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			continue;
 
 		lid = (uint16_t) strtoul(p_lid, NULL, 0);
-		if (lid != ((struct acm_port *)ep->port)->lid)
+		if (lid != *port_lid)
 		        continue;
 
-		ibv_query_port(((struct acm_port *)ep->port)->dev->verbs,
-			       ((struct acm_port *)ep->port)->port_num, &attr);
+		ibv_query_port(verbs, *port_num, &attr);
 		ret = 0;
 		break;
 	}
@@ -2766,7 +2773,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			}
 
 			dest->path.sgid = sgid;
-			dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
+			dest->path.slid = htons(*port_lid);
 			dest->path.dgid = dgid;
 			dest->path.dlid = htons(dlid);
 			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
@@ -2774,7 +2781,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			dest->path.mtu = (uint8_t) mtu;
 			dest->path.rate = (uint8_t) rate;
 			dest->path.qosclass_sl = htons((uint16_t) sl & 0xF);
-			if (dlid == ((struct acm_port *)ep->port)->lid) {
+			if (dlid == *port_lid) {
 				dest->path.packetlifetime = 0;
 				dest->addr_timeout = (uint64_t)~0ULL;
 				dest->route_timeout = (uint64_t)~0ULL;
@@ -2850,8 +2857,11 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 {
 	union ibv_gid sgid, dgid;
 	struct ibv_port_attr attr = { 0 };
+	struct ibv_context *verbs;
 	struct acm_dest *dest;
 	struct ep_pr_tbl_rec *p_pr_tbl, *p_pr_rec;
+	uint16_t *port_lid;
+	uint8_t *port_num;
 	uint64_t guid, i, k, pr_cnt;
 	uint16_t lid, dlid;
 	int sl, mtu, rate;
@@ -2859,8 +2869,14 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 	uint8_t addr[ACM_MAX_ADDRESS];
 	uint8_t addr_type;
 
-	ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
-		      ((struct acm_port *)ep->port)->port_num, 0, &sgid);
+	if (acm_mode == ACM_MODE_ACM)
+		verbs = ((struct acm_port *)(ep->port))->dev->verbs;
+	else /* ACM_MODE_SSA */
+		verbs = ((struct ssa_port *)(ep->port))->dev->verbs;
+
+	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
+	port_lid = GET_PORT_FIELD_PTR(ep->port, uint16_t, lid);
+	ibv_query_gid(verbs, *port_num, 0, &sgid);
 
 	p_pr_tbl = (struct ep_pr_tbl_rec *) p_ssa_db->pp_tables[SSA_PR_TABLE_ID];
 	pr_cnt = ntohll(p_ssa_db->p_db_tables[SSA_PR_TABLE_ID].set_count);
@@ -2873,11 +2889,10 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			continue;
 
 		lid = ntohs(p_pr_rec->lid);
-		if (lid != ((struct acm_port *)ep->port)->lid)
+		if (lid != *port_lid)
 		        continue;
 
-		ibv_query_port(((struct acm_port *)ep->port)->dev->verbs,
-			       ((struct acm_port *)ep->port)->port_num, &attr);
+		ibv_query_port(verbs, *port_num, &attr);
 		ret = 0;
 		break;
 	}
@@ -2914,7 +2929,7 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			}
 
 			dest->path.sgid = sgid;
-			dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
+			dest->path.slid = htons(*port_lid);
 			dest->path.dgid = dgid;
 			dest->path.dlid = htons(dlid);
 			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
@@ -2922,7 +2937,7 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			dest->path.mtu = (uint8_t) mtu;
 			dest->path.rate = (uint8_t) rate;
 			dest->path.qosclass_sl = htons((uint16_t) sl & 0xF);
-			if (dlid == ((struct acm_port *)ep->port)->lid) {
+			if (dlid == *port_lid) {
 				dest->path.packetlifetime = 0;
 				dest->addr_timeout = (uint64_t)~0ULL;
 				dest->route_timeout = (uint64_t)~0ULL;
@@ -3269,12 +3284,7 @@ void acm_ep_up(void *port, uint16_t pkey_index)
 	DListInsertHead(&ep->entry, ep_list);
 	pthread_mutex_unlock(lock);
 
-	/*
-	 * TODO: remove the condition as soon as SSA mode
-	 * cache preloading will be available
-	 */
-	if (acm_mode == ACM_MODE_ACM)
-		acm_ep_preload(ep);
+	acm_ep_preload(ep);
 	return;
 
 err2:
