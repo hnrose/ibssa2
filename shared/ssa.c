@@ -2037,12 +2037,83 @@ static void ssa_ctrl_send_event(struct ssa_port *port, enum ibv_event_type event
 static void ssa_ctrl_update_port(struct ssa_port *port)
 {
 	struct ibv_port_attr attr;
+#ifdef ACM
+	union ibv_gid gid;
+	uint16_t pkey;
+	int i;
+#endif
+	int ret;
 
-	ibv_query_port(port->dev->verbs, port->port_num, &attr);
+	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
+	if (ret) {
+		ssa_log_err(0, "unable to get port state\n");
+		return;
+	}
+
 	if (attr.state == IBV_PORT_ACTIVE) {
 		port->sm_lid = attr.sm_lid;
 		port->sm_sl = attr.sm_sl;
 		ibv_query_gid(port->dev->verbs, port->port_num, 0, &port->gid);
+#ifdef ACM
+		if (port->state != IBV_PORT_ACTIVE) {
+			port->mtu = attr.active_mtu;
+			port->rate = acm_get_rate(attr.active_width,
+						  attr.active_speed);
+			if (attr.subnet_timeout >= 8)
+				port->subnet_timeout =
+					1 << (attr.subnet_timeout - 8);
+			for (port->gid_cnt = 0;; port->gid_cnt++) {
+				ret = ibv_query_gid(port->dev->verbs,
+						    port->port_num,
+						    port->gid_cnt, &gid);
+				if (ret || !gid.global.interface_id)
+					break;
+			}
+
+			for (port->pkey_cnt = 0;; port->pkey_cnt++) {
+				ret = ibv_query_pkey(port->dev->verbs,
+						     port->port_num,
+						     port->pkey_cnt, &pkey);
+				if (ret || !pkey)
+					break;
+			}
+			port->lid = attr.lid;
+			port->lid_mask = 0xffff - ((1 << attr.lmc) - 1);
+
+			port->sa_dest.av.src_path_bits = 0;
+			port->sa_dest.av.dlid = attr.sm_lid;
+			port->sa_dest.av.sl = attr.sm_sl;
+			port->sa_dest.av.port_num = port->port_num;
+			port->sa_dest.remote_qpn = 1;
+			attr.sm_lid = htons(attr.sm_lid);
+			acm_set_dest_addr(&port->sa_dest, ACM_ADDRESS_LID,
+					  (uint8_t *) &attr.sm_lid,
+					  sizeof(attr.sm_lid));
+
+			port->sa_dest.ah = ibv_create_ah(port->dev->pd, &port->sa_dest.av);
+			if (!port->sa_dest.ah)
+				return;
+
+			atomic_set(&port->sa_dest.refcnt, 1);
+			for (i = 0; i < port->pkey_cnt; i++)
+				 acm_ep_up(port, (uint16_t) i);
+		}
+	} else {
+		if (port->state == IBV_PORT_ACTIVE) {
+			/*
+			 * We wait for the SA destination to be released.  We could use an
+			 * event instead of a sleep loop, but it's not worth it given how
+			 * infrequently we should be processing a port down event in practice.
+			 */
+			atomic_dec(&port->sa_dest.refcnt);
+			while (atomic_get(&port->sa_dest.refcnt))
+				sleep(0);
+			ibv_destroy_ah(port->sa_dest.ah);
+			ssa_log(SSA_LOG_VERBOSE, "%s %d is down\n",
+				port->dev->verbs->device->name,
+				port->port_num);
+		}
+#endif
 	}
 	port->state = attr.state;
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s state %s SM LID %d\n",
@@ -2787,6 +2858,10 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 	snprintf(port->name, sizeof port->name, "%s:%d", dev->name, port_num);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", port->name);
 	pthread_mutex_init(&port->lock, NULL);
+#ifdef ACM
+	DListInit(&port->ep_list);
+	acm_init_dest(&port->sa_dest, ACM_ADDRESS_LID, NULL, 0);
+#endif
 
 	port->mad_portid = umad_open_port(dev->name, port->port_num);
 	if (port->mad_portid < 0) {
@@ -2858,6 +2933,20 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	dev->port_cnt = attr.phys_port_cnt;
 	dev->port_size = ssa->port_size;
 
+#ifdef ACM
+	dev->pd = ibv_alloc_pd(dev->verbs);
+	if (!dev->pd) {
+		ssa_log_err(0, "unable to allocate PD\n");
+		goto err2;
+	}
+
+	dev->channel = ibv_create_comp_channel(dev->verbs);
+	if (!dev->channel) {
+		ssa_log_err(0, "unable to create comp channel\n");
+		goto err3;
+	}
+#endif
+
 	for (i = 1; i <= dev->port_cnt; i++)
 		ssa_open_port(ssa_dev_port(dev, i), dev, i);
 
@@ -2910,7 +2999,12 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return;
-
+#ifdef ACM
+err3:
+	ibv_dealloc_pd(dev->pd);
+err2:
+	free(dev->port);
+#endif
 err1:
 	ibv_close_device(dev->verbs);
 	dev->verbs = NULL;

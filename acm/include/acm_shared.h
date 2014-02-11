@@ -82,7 +82,7 @@ struct acm_send_queue {
 };
 
 struct acm_ep {
-	struct acm_port	      *port;
+	void		      *port;
 	struct ibv_cq         *cq;
 	struct ibv_qp         *qp;
 	struct ibv_mr         *mr;
@@ -104,4 +104,9 @@ struct acm_ep {
 	DLIST_ENTRY           wait_queue;
 	enum acm_state        state;
 };
+
+void acm_init_dest(struct acm_dest *dest, uint8_t addr_type, uint8_t *addr, size_t size);
+void acm_set_dest_addr(struct acm_dest *dest, uint8_t addr_type, uint8_t *addr, size_t size);
+enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed);
+void acm_ep_up(void *port, uint16_t pkey_index);
 #endif /* ACM_SHARED_H */

@@ -46,6 +46,9 @@
 #include <ssa_ctrl.h>
 #include <dlist.h>
 #include <search.h>
+#ifdef ACM
+#include <acm_shared.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -98,6 +101,10 @@ struct ssa_device {
 	size_t			port_size;
 	int                     port_cnt;
 	struct ssa_port         *port;
+#ifdef ACM
+	struct ibv_comp_channel *channel;
+	struct ibv_pd		*pd;
+#endif
 };
 
 struct ssa_port {
@@ -114,6 +121,17 @@ struct ssa_port {
 	uint8_t			port_num;
 	uint16_t		svc_cnt;
 	struct ssa_svc		**svc;
+#ifdef ACM
+	DLIST_ENTRY		ep_list;
+	struct acm_dest		sa_dest;
+	enum ibv_mtu		mtu;
+	enum ibv_rate		rate;
+	int			subnet_timeout;
+	int			gid_cnt;
+	uint16_t		pkey_cnt;
+	uint16_t		lid;
+	uint16_t		lid_mask;
+#endif
 };
 
 enum ssa_conn_type {

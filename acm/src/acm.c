@@ -58,6 +58,11 @@
 
 #define IB_LID_MCAST_START 0xc000
 
+#define GET_PORT_FIELD_PTR(ptr, type, field) \
+	((type *)((acm_mode == ACM_MODE_ACM) ? \
+		  ((void *) ptr + offsetof(struct acm_port, field)) : \
+		  ((void *) ptr + offsetof(struct ssa_port, field))))
+
 enum acm_addr_prot {
 	ACM_ADDR_PROT_ACM
 };
@@ -149,6 +154,8 @@ union socket_addr {
 
 static struct ssa_class ssa;
 static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread;
+static pthread_mutex_t ssa_dev_open = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t ssa_dev_open_cond_var = PTHREAD_COND_INITIALIZER;
 
 static DLIST_ENTRY device_list;
 
@@ -187,7 +194,7 @@ static int recv_depth = 1024;
 static uint8_t min_mtu = IBV_MTU_2048;
 static uint8_t min_rate = IBV_RATE_10_GBPS;
 static enum acm_route_preload route_preload;
-static enum acm_mode acm_mode = ACM_MODE_ACM;
+static enum acm_mode acm_mode = ACM_MODE_SSA;
 
 extern int prdb_dump;
 extern char prdb_dump_dir[128];
@@ -236,7 +243,7 @@ static int acm_compare_dest(const void *dest1, const void *dest2)
 	return memcmp(dest1, dest2, ACM_MAX_ADDRESS);
 }
 
-static void
+void
 acm_set_dest_addr(struct acm_dest *dest, uint8_t addr_type, uint8_t *addr, size_t size)
 {
 	memcpy(dest->address, addr, size);
@@ -244,7 +251,7 @@ acm_set_dest_addr(struct acm_dest *dest, uint8_t addr_type, uint8_t *addr, size_
 	acm_format_name(SSA_LOG_DEFAULT, dest->name, sizeof dest->name, addr_type, addr, size);
 }
 
-static void
+void
 acm_init_dest(struct acm_dest *dest, uint8_t addr_type, uint8_t *addr, size_t size)
 {
 	DListInit(&dest->req_queue);
@@ -322,18 +329,20 @@ acm_acquire_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 }
 
 static struct acm_dest *
-acm_acquire_sa_dest(struct acm_port *port)
+acm_acquire_sa_dest(void *port)
 {
-	struct acm_dest *dest;
+	struct acm_dest *dest = NULL;
+	enum ibv_port_state *state;
+	pthread_mutex_t *lock;
 
-	pthread_mutex_lock(&port->lock);
-	if (port->state == IBV_PORT_ACTIVE) {
-		dest = &port->sa_dest;
-		atomic_inc(&port->sa_dest.refcnt);
-	} else {
-		dest = NULL;
+	lock = GET_PORT_FIELD_PTR(port, pthread_mutex_t, lock);
+	pthread_mutex_lock(lock);
+	state = GET_PORT_FIELD_PTR(port, enum ibv_port_state, state);
+	if (*state == IBV_PORT_ACTIVE) {
+		dest = GET_PORT_FIELD_PTR(port, struct acm_dest, sa_dest);
+		atomic_inc(&dest->refcnt);
 	}
-	pthread_mutex_unlock(&port->lock);
+	pthread_mutex_unlock(lock);
 	return dest;
 }
 
@@ -381,6 +390,12 @@ static struct acm_send_msg *
 acm_alloc_send(struct acm_ep *ep, struct acm_dest *dest, size_t size)
 {
 	struct acm_send_msg *msg;
+	struct ibv_pd *pd;
+
+	if (acm_mode == ACM_MODE_ACM)
+		pd = ((struct acm_port *)ep->port)->dev->pd;
+	else /* ACM_MODE_SSA */
+		pd = ((struct ssa_port *)ep->port)->dev->pd;
 
 	msg = (struct acm_send_msg *) calloc(1, sizeof *msg);
 	if (!msg) {
@@ -389,14 +404,14 @@ acm_alloc_send(struct acm_ep *ep, struct acm_dest *dest, size_t size)
 	}
 
 	msg->ep = ep;
-	msg->mr = ibv_reg_mr(ep->port->dev->pd, msg->data, size, 0);
+	msg->mr = ibv_reg_mr(pd, msg->data, size, 0);
 	if (!msg->mr) {
 		ssa_log_err(0, "failed to register send buffer\n");
 		goto err1;
 	}
 
 	if (!dest->ah) {
-		msg->ah = ibv_create_ah(ep->port->dev->pd, &dest->av);
+		msg->ah = ibv_create_ah(pd, &dest->av);
 		if (!msg->ah) {
 			ssa_log_err(0, "unable to create ah\n");
 			goto err2;
@@ -511,12 +526,14 @@ static void acm_send_available(struct acm_ep *ep, struct acm_send_queue *queue)
 static void acm_complete_send(struct acm_send_msg *msg)
 {
 	struct acm_ep *ep = msg->ep;
+	int *subnet_timeout;
 
 	pthread_mutex_lock(&ep->lock);
 	DListRemove(&msg->entry);
 	if (msg->tries) {
+		subnet_timeout = GET_PORT_FIELD_PTR(ep->port, int, subnet_timeout);
 		ssa_log(SSA_LOG_VERBOSE, "waiting for response\n");
-		msg->expires = time_stamp_ms() + ep->port->subnet_timeout + timeout;
+		msg->expires = time_stamp_ms() + *subnet_timeout + timeout;
 		DListInsertTail(&msg->entry, &ep->wait_queue);
 		if (atomic_inc(&wait_cnt) == 1)
 			event_signal(&timeout_event);
@@ -567,13 +584,23 @@ unlock:
 	return req;
 }
 
-static uint8_t acm_gid_index(struct acm_port *port, union ibv_gid *gid)
+static uint8_t acm_gid_index(void *port, union ibv_gid *gid)
 {
 	union ibv_gid cmp_gid;
+	struct ibv_context *verbs;
+	int *gid_cnt;
+	uint8_t *port_num;
 	uint8_t i;
 
-	for (i = 0; i < port->gid_cnt; i++) {
-		ibv_query_gid(port->dev->verbs, port->port_num, i, &cmp_gid);
+	if (acm_mode == ACM_MODE_ACM)
+		verbs = ((struct acm_port *)port)->dev->verbs;
+	else /* ACM_MODE_SSA */
+		verbs = ((struct ssa_port *)port)->dev->verbs;
+
+	gid_cnt = GET_PORT_FIELD_PTR(port, int, gid_cnt);
+	port_num = GET_PORT_FIELD_PTR(port, uint8_t, port_num);
+	for (i = 0; i < *gid_cnt; i++) {
+		ibv_query_gid(verbs, *port_num, i, &cmp_gid);
 		if (!memcmp(&cmp_gid, gid, sizeof cmp_gid))
 			break;
 	}
@@ -693,7 +720,8 @@ static void acm_process_join_resp(struct acm_ep *ep, struct ib_user_mad *umad)
 	acm_record_mc_av(ep->port, mc_rec, dest);
 
 	if (index == 0) {
-		dest->ah = ibv_create_ah(ep->port->dev->pd, &dest->av);
+		dest->ah =
+		    ibv_create_ah(((struct acm_port *)ep->port)->dev->pd, &dest->av);
 		if (!dest->ah) {
 			ssa_log_err(0, "unable to create ah\n");
 			goto out;
@@ -823,18 +851,21 @@ static uint8_t acm_resolve_path(struct acm_ep *ep, struct acm_dest *dest,
 		struct ibv_wc *wc, struct acm_mad *resp))
 {
 	struct acm_send_msg *msg;
+	struct acm_dest *sa_dest;
 	struct ib_sa_mad *mad;
 	uint8_t ret;
 
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
+
 	if (!acm_acquire_sa_dest(ep->port)) {
 		ssa_log(SSA_LOG_VERBOSE, "cannot acquire SA destination\n");
 		ret = ACM_STATUS_EINVAL;
 		goto err;
 	}
 
-	msg = acm_alloc_send(ep, &ep->port->sa_dest, sizeof(*mad));
-	acm_release_sa_dest(&ep->port->sa_dest);
+	sa_dest = GET_PORT_FIELD_PTR(ep->port, struct acm_dest, sa_dest);
+	msg = acm_alloc_send(ep, sa_dest, sizeof(*mad));
+	acm_release_sa_dest(sa_dest);
 	if (!msg) {
 		ssa_log_err(0, "cannot allocate send msg\n");
 		ret = ACM_STATUS_ENOMEM;
@@ -893,6 +924,8 @@ static void
 acm_record_path_addr(struct acm_ep *ep, struct acm_dest *dest,
 	struct ibv_path_record *path)
 {
+	uint16_t *lid;
+
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
 	dest->path.pkey = htons(ep->pkey);
 	dest->path.dgid = path->dgid;
@@ -900,7 +933,8 @@ acm_record_path_addr(struct acm_ep *ep, struct acm_dest *dest,
 		dest->path.sgid = path->sgid;
 		dest->path.slid = path->slid;
 	} else {
-		dest->path.slid = htons(ep->port->lid);
+		lid = GET_PORT_FIELD_PTR(ep->port, uint16_t, lid);
+		dest->path.slid = htons(*lid);
 	}
 	dest->path.dlid = path->dlid;
 	dest->state = ACM_ADDR_RESOLVED;
@@ -1347,15 +1381,21 @@ static void acm_process_comp(struct acm_ep *ep, struct ibv_wc *wc)
 
 static void *acm_comp_handler(void *context)
 {
-	struct acm_device *dev = (struct acm_device *) context;
+	struct ibv_comp_channel *channel;
 	struct acm_ep *ep;
 	struct ibv_cq *cq;
 	struct ibv_wc wc;
 	int cnt;
 
 	ssa_log(SSA_LOG_VERBOSE, "started\n");
+
+	if (acm_mode == ACM_MODE_ACM)
+		channel = ((struct acm_device *)context)->channel;
+	else /* ACM_MODE_SSA */
+		channel = ((struct ssa_device *)context)->channel;
+
 	while (1) {
-		ibv_get_cq_event(dev->channel, &cq, (void *) &ep);
+		ibv_get_cq_event(channel, &cq, (void *) &ep);
 
 		cnt = 0;
 		while (ibv_poll_cq(cq, 1, &wc) > 0) {
@@ -1443,7 +1483,7 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 		return;
 	}
 
-	port = ep->port;
+	port = ((struct acm_port *)ep->port);
 	umad->addr.qpn = htonl(port->sa_dest.remote_qpn);
 	umad->addr.qkey = htonl(ACM_QKEY);
 	umad->addr.pkey_index = ep->pkey_index;
@@ -1452,7 +1492,8 @@ static void acm_join_group(struct acm_ep *ep, union ibv_gid *port_gid,
 	umad->addr.path_bits = port->sa_dest.av.src_path_bits;
 
 	ssa_log(SSA_LOG_DEFAULT, "%s %d pkey 0x%x, sl 0x%x, rate 0x%x, mtu 0x%x\n",
-		ep->port->dev->verbs->device->name, ep->port->port_num,
+		((struct acm_port *)ep->port)->dev->verbs->device->name,
+		((struct acm_port *)ep->port)->port_num,
 		ep->pkey, sl, rate, mtu);
 	mad = (struct ib_sa_mad *) umad->data;
 	acm_init_join(mad, port_gid, ep->pkey, tos, tclass, sl, rate, mtu);
@@ -1564,14 +1605,32 @@ static void acm_process_wait_queue(struct acm_ep *ep, uint64_t *next_expire)
 	}
 }
 
+static void
+acm_retry_process_wait_queue(DLIST_ENTRY *ep_list, uint64_t *p_next_expire)
+{
+	struct acm_ep *ep;
+	DLIST_ENTRY *ep_entry;
+
+	for (ep_entry = ep_list->Next; ep_entry != ep_list;
+	     ep_entry = ep_entry->Next) {
+		ep = container_of(ep_entry, struct acm_ep, entry);
+
+		pthread_mutex_lock(&ep->lock);
+		if (!DListEmpty(&ep->wait_queue))
+			acm_process_wait_queue(ep, p_next_expire);
+		pthread_mutex_unlock(&ep->lock);
+	}
+}
+
 static void *acm_retry_handler(void *context)
 {
 	struct acm_device *dev;
-	struct acm_port *port;
-	struct acm_ep *ep;
-	DLIST_ENTRY *dev_entry, *ep_entry;
+	struct ssa_device *ssa_dev1;
+	struct acm_port *acm_port;
+	struct ssa_port *ssa_port;
+	DLIST_ENTRY *dev_entry;
 	uint64_t next_expire;
-	int i, wait;
+	int i, d, p, wait;
 
 	ssa_log(SSA_LOG_DEFAULT, "started\n");
 	while (1) {
@@ -1579,23 +1638,25 @@ static void *acm_retry_handler(void *context)
 			event_wait(&timeout_event, -1);
 
 		next_expire = -1;
-		for (dev_entry = device_list.Next; dev_entry != &device_list;
-			 dev_entry = dev_entry->Next) {
-
-			dev = container_of(dev_entry, struct acm_device, entry);
-
-			for (i = 0; i < dev->port_cnt; i++) {
-				port = &dev->port[i];
-
-				for (ep_entry = port->ep_list.Next;
-					 ep_entry != &port->ep_list;
-					 ep_entry = ep_entry->Next) {
-
-					ep = container_of(ep_entry, struct acm_ep, entry);
-					pthread_mutex_lock(&ep->lock);
-					if (!DListEmpty(&ep->wait_queue))
-						acm_process_wait_queue(ep, &next_expire);
-					pthread_mutex_unlock(&ep->lock);
+		if (acm_mode == ACM_MODE_ACM) {
+			for (dev_entry = device_list.Next;
+			     dev_entry != &device_list;
+			     dev_entry = dev_entry->Next) {
+				dev = container_of(dev_entry, struct acm_device,
+						   entry);
+				for (i = 0; i < dev->port_cnt; i++) {
+					acm_port = &dev->port[i];
+					acm_retry_process_wait_queue(
+					    &acm_port->ep_list, &next_expire);
+				}
+			}
+		} else { /* ACM_MODE_SSA */
+			for (d = 0; d < ssa.dev_cnt; d++) {
+				ssa_dev1 = ssa_dev(&ssa, d);
+				for (p = 1; p <= ssa_dev1->port_cnt; p++) {
+					ssa_port = ssa_dev_port(ssa_dev1, p);
+					acm_retry_process_wait_queue(
+					    &ssa_port->ep_list, &next_expire);
 				}
 			}
 		}
@@ -1795,6 +1856,7 @@ acm_svr_query_path(struct acm_client *client, struct acm_msg *msg)
 	struct acm_request *req;
 	struct acm_send_msg *sa_msg;
 	struct ib_sa_mad *mad;
+	struct acm_dest *sa_dest;
 	struct acm_ep *ep;
 	uint8_t status;
 
@@ -1824,8 +1886,9 @@ acm_svr_query_path(struct acm_client *client, struct acm_msg *msg)
 		goto free;
 	}
 
-	sa_msg = acm_alloc_send(ep, &ep->port->sa_dest, sizeof(*mad));
-	acm_release_sa_dest(&ep->port->sa_dest);
+	sa_dest = GET_PORT_FIELD_PTR(ep->port, struct acm_dest, sa_dest);
+	sa_msg = acm_alloc_send(ep, sa_dest, sizeof(*mad));
+	acm_release_sa_dest(sa_dest);
 	if (!sa_msg) {
 		ssa_log_err(0, "cannot allocate send msg\n");
 		status = ACM_STATUS_ENOMEM;
@@ -2404,7 +2467,7 @@ static enum acm_mode acm_convert_mode(char *param)
 	return acm_mode;
 }
 
-static enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
+enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 {
 	switch (width) {
 	case 1:
@@ -2491,7 +2554,13 @@ static enum ibv_rate acm_convert_rate(int rate)
 
 static int acm_post_recvs(struct acm_ep *ep)
 {
+	struct ibv_pd *pd;
 	int i, size;
+
+	if (acm_mode == ACM_MODE_ACM)
+		pd = ((struct acm_port *)ep->port)->dev->pd;
+	else /* ACM_MODE_SSA */
+		pd = ((struct ssa_port *)ep->port)->dev->pd;
 
 	size = recv_depth * ACM_RECV_SIZE;
 	ep->recv_bufs = malloc(size);
@@ -2500,8 +2569,7 @@ static int acm_post_recvs(struct acm_ep *ep)
 		return ACM_STATUS_ENOMEM;
 	}
 
-	ep->mr = ibv_reg_mr(ep->port->dev->pd, ep->recv_bufs, size,
-		IBV_ACCESS_LOCAL_WRITE);
+	ep->mr = ibv_reg_mr(pd, ep->recv_bufs, size, IBV_ACCESS_LOCAL_WRITE);
 	if (!ep->mr) {
 		ssa_log_err(0, "unable to register receive buffer\n");
 		goto err;
@@ -2597,7 +2665,8 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 	uint8_t addr[ACM_MAX_ADDRESS];
 	uint8_t addr_type;
 
-	ibv_query_gid(ep->port->dev->verbs, ep->port->port_num, 0, &sgid);
+	ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
+		      ((struct acm_port *)ep->port)->port_num, 0, &sgid);
 
 	/* Search for endpoint's SLID */
 	while (fgets(s, sizeof s, f)) {
@@ -2634,10 +2703,11 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			continue;
 
 		lid = (uint16_t) strtoul(p_lid, NULL, 0);
-		if (lid != ep->port->lid)
+		if (lid != ((struct acm_port *)ep->port)->lid)
 		        continue;
 
-		ibv_query_port(ep->port->dev->verbs, ep->port->port_num, &attr);
+		ibv_query_port(((struct acm_port *)ep->port)->dev->verbs,
+			       ((struct acm_port *)ep->port)->port_num, &attr);
 		ret = 0;
 		break;
 	}
@@ -2696,7 +2766,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			}
 
 			dest->path.sgid = sgid;
-			dest->path.slid = htons(ep->port->lid);
+			dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
 			dest->path.dgid = dgid;
 			dest->path.dlid = htons(dlid);
 			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
@@ -2704,7 +2774,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			dest->path.mtu = (uint8_t) mtu;
 			dest->path.rate = (uint8_t) rate;
 			dest->path.qosclass_sl = htons((uint16_t) sl & 0xF);
-			if (dlid == ep->port->lid) {
+			if (dlid == ((struct acm_port *)ep->port)->lid) {
 				dest->path.packetlifetime = 0;
 				dest->addr_timeout = (uint64_t)~0ULL;
 				dest->route_timeout = (uint64_t)~0ULL;
@@ -2789,7 +2859,8 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 	uint8_t addr[ACM_MAX_ADDRESS];
 	uint8_t addr_type;
 
-	ibv_query_gid(ep->port->dev->verbs, ep->port->port_num, 0, &sgid);
+	ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
+		      ((struct acm_port *)ep->port)->port_num, 0, &sgid);
 
 	p_pr_tbl = (struct ep_pr_tbl_rec *) p_ssa_db->pp_tables[SSA_PR_TABLE_ID];
 	pr_cnt = ntohll(p_ssa_db->p_db_tables[SSA_PR_TABLE_ID].set_count);
@@ -2802,10 +2873,11 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			continue;
 
 		lid = ntohs(p_pr_rec->lid);
-		if (lid != ep->port->lid)
+		if (lid != ((struct acm_port *)ep->port)->lid)
 		        continue;
 
-		ibv_query_port(ep->port->dev->verbs, ep->port->port_num, &attr);
+		ibv_query_port(((struct acm_port *)ep->port)->dev->verbs,
+			       ((struct acm_port *)ep->port)->port_num, &attr);
 		ret = 0;
 		break;
 	}
@@ -2842,7 +2914,7 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			}
 
 			dest->path.sgid = sgid;
-			dest->path.slid = htons(ep->port->lid);
+			dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
 			dest->path.dgid = dgid;
 			dest->path.dlid = htons(dlid);
 			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
@@ -2850,7 +2922,7 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			dest->path.mtu = (uint8_t) mtu;
 			dest->path.rate = (uint8_t) rate;
 			dest->path.qosclass_sl = htons((uint16_t) sl & 0xF);
-			if (dlid == ep->port->lid) {
+			if (dlid == ((struct acm_port *)ep->port)->lid) {
 				dest->path.packetlifetime = 0;
 				dest->addr_timeout = (uint64_t)~0ULL;
 				dest->route_timeout = (uint64_t)~0ULL;
@@ -2897,6 +2969,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 {
 	FILE *faddr;
 	char *dev_name;
+	uint8_t *port_num;
 	char s[120];
 	char dev[32], addr[32], pkey_str[8];
 	uint16_t pkey;
@@ -2904,10 +2977,14 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 	int port, index = 0;
 	struct in6_addr ip_addr;
 
-	dev_name = ep->port->dev->verbs->device->name;
-	ssa_log(SSA_LOG_VERBOSE, "device %s, port %d, pkey 0x%x\n",
-		dev_name, ep->port->port_num, ep->pkey);
+	if (acm_mode == ACM_MODE_ACM)
+		dev_name = ((struct acm_port *)ep->port)->dev->verbs->device->name;
+	else /* ACM_MODE_SSA */
+		dev_name = ((struct ssa_port *)ep->port)->dev->verbs->device->name;
 
+	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
+	ssa_log(SSA_LOG_VERBOSE, "device %s, port %d, pkey 0x%x\n",
+		dev_name, *port_num, ep->pkey);
 	if (!(faddr = acm_open_addr_file())) {
 		ssa_log_err(0, "address file not found\n");
 		return -1;
@@ -2937,7 +3014,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 			pkey = 0xFFFF;
 		}
 
-		if (!strcasecmp(dev_name, dev) && (ep->port->port_num == (uint8_t) port) &&
+		if (!strcasecmp(dev_name, dev) && (*port_num == (uint8_t) port) &&
 			(ep->pkey == pkey)) {
 
 			ep->addr_type[index] = type;
@@ -2980,12 +3057,24 @@ static void acm_ep_preload(struct acm_ep *ep)
 static int acm_init_ep_loopback(struct acm_ep *ep)
 {
 	struct acm_dest *dest;
+	struct ibv_context *verbs;
+	uint16_t *lid;
+	uint8_t *port_num, *mtu, *rate;
 	int i;
 
 	ssa_log_func(SSA_LOG_VERBOSE);
 	if (loopback_prot != ACM_LOOPBACK_PROT_LOCAL)
 		return 0;
 
+	if (acm_mode == ACM_MODE_ACM)
+		verbs = ((struct acm_port *)ep->port)->dev->verbs;
+	else /* ACM_MODE_SSA */
+		verbs = ((struct ssa_port *)ep->port)->dev->verbs;
+
+	lid = GET_PORT_FIELD_PTR(ep->port, uint16_t, lid);
+	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
+	mtu = GET_PORT_FIELD_PTR(ep->port, uint8_t, mtu);
+	rate = GET_PORT_FIELD_PTR(ep->port, uint8_t, rate);
 	for (i = 0; i < MAX_EP_ADDR && ep->addr_type[i]; i++) {
 		dest = acm_acquire_dest(ep, ep->addr_type[i], ep->addr[i].addr);
 		if (!dest) {
@@ -2996,15 +3085,14 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 			return -1;
 		}
 
-		ibv_query_gid(ep->port->dev->verbs, ep->port->port_num,
-			      0, &dest->path.sgid);
+		ibv_query_gid(verbs, *port_num, 0, &dest->path.sgid);
 
 		dest->path.dgid = dest->path.sgid;
-		dest->path.dlid = dest->path.slid = htons(ep->port->lid);
+		dest->path.dlid = dest->path.slid = htons(*lid);
 		dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
 		dest->path.pkey = htons(ep->pkey);
-		dest->path.mtu = (uint8_t) ep->port->mtu;
-		dest->path.rate = (uint8_t) ep->port->rate;
+		dest->path.mtu = (uint8_t) *mtu;
+		dest->path.rate = (uint8_t) *rate;
 
 		dest->remote_qpn = ep->qp->qp_num;
 		dest->addr_timeout = (uint64_t) ~0ULL;
@@ -3016,27 +3104,30 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 	return 0;
 }
 
-static struct acm_ep *acm_find_ep(struct acm_port *port, uint16_t pkey)
+static struct acm_ep *acm_find_ep(void *port, uint16_t pkey)
 {
 	struct acm_ep *ep, *res = NULL;
-	DLIST_ENTRY *entry;
+	DLIST_ENTRY *ep_list, *entry;
+	pthread_mutex_t *lock;
 
 	ssa_log(SSA_LOG_VERBOSE, "pkey 0x%x\n", pkey);
 
-	pthread_mutex_lock(&port->lock);
-	for (entry = port->ep_list.Next; entry != &port->ep_list; entry = entry->Next) {
+	lock = GET_PORT_FIELD_PTR(port, pthread_mutex_t, lock);
+	pthread_mutex_lock(lock);
+	ep_list = GET_PORT_FIELD_PTR(port, DLIST_ENTRY, ep_list);
+	for (entry = ep_list->Next; entry != ep_list; entry = entry->Next) {
 		ep = container_of(entry, struct acm_ep, entry);
 		if (ep->pkey == pkey) {
 			res = ep;
 			break;
 		}
 	}
-	pthread_mutex_unlock(&port->lock);
+	pthread_mutex_unlock(lock);
 	return res;
 }
 
 static struct acm_ep *
-acm_alloc_ep(struct acm_port *port, uint16_t pkey, uint16_t pkey_index)
+acm_alloc_ep(void *port, uint16_t pkey, uint16_t pkey_index)
 {
 	struct acm_ep *ep;
 
@@ -3061,16 +3152,35 @@ acm_alloc_ep(struct acm_port *port, uint16_t pkey, uint16_t pkey_index)
 	return ep;
 }
 
-static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
+void acm_ep_up(void *port, uint16_t pkey_index)
 {
 	struct acm_ep *ep;
+	struct ibv_context *verbs;
+	struct ibv_comp_channel *channel;
+	struct ibv_pd *pd;
+	DLIST_ENTRY *ep_list;
+	pthread_mutex_t *lock;
+	uint8_t *port_num;
 	struct ibv_qp_init_attr init_attr;
 	struct ibv_qp_attr attr;
 	int ret, sq_size;
 	uint16_t pkey;
 
 	ssa_log_func(SSA_LOG_VERBOSE);
-	ret = ibv_query_pkey(port->dev->verbs, port->port_num, pkey_index, &pkey);
+
+	if (acm_mode == ACM_MODE_ACM) {
+		verbs = ((struct acm_port *)port)->dev->verbs;
+		channel = ((struct acm_port *)port)->dev->channel;
+		pd = ((struct acm_port *)port)->dev->pd;
+	} else { /* ACM_MODE_SSA */
+		verbs = ((struct ssa_port *)port)->dev->verbs;
+		channel = ((struct ssa_port *)port)->dev->channel;
+		pd = ((struct ssa_port *)port)->dev->pd;
+	}
+
+	port_num = GET_PORT_FIELD_PTR(port, uint8_t, port_num);
+	lock = GET_PORT_FIELD_PTR(port, pthread_mutex_t, lock);
+	ret = ibv_query_pkey(verbs, *port_num, pkey_index, &pkey);
 	if (ret)
 		return;
 
@@ -3091,8 +3201,7 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	}
 
 	sq_size = resolve_depth + sa_depth + send_depth;
-	ep->cq = ibv_create_cq(port->dev->verbs, sq_size + recv_depth,
-		ep, port->dev->channel, 0);
+	ep->cq = ibv_create_cq(verbs, sq_size + recv_depth, ep, channel, 0);
 	if (!ep->cq) {
 		ssa_log_err(0, "failed to create CQ\n");
 		goto err0;
@@ -3114,14 +3223,14 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 	init_attr.qp_type = IBV_QPT_UD;
 	init_attr.send_cq = ep->cq;
 	init_attr.recv_cq = ep->cq;
-	ep->qp = ibv_create_qp(ep->port->dev->pd, &init_attr);
+	ep->qp = ibv_create_qp(pd, &init_attr);
 	if (!ep->qp) {
 		ssa_log_err(0, "failed to create QP\n");
 		goto err1;
 	}
 
 	attr.qp_state = IBV_QPS_INIT;
-	attr.port_num = port->port_num;
+	attr.port_num = *port_num;
 	attr.pkey_index = pkey_index;
 	attr.qkey = ACM_QKEY;
 	ret = ibv_modify_qp(ep->qp, &attr, IBV_QP_STATE | IBV_QP_PKEY_INDEX |
@@ -3155,10 +3264,17 @@ static void acm_ep_up(struct acm_port *port, uint16_t pkey_index)
 		ssa_log_err(0, "unable to init loopback\n");
 		goto err2;
 	}
-	pthread_mutex_lock(&port->lock);
-	DListInsertHead(&ep->entry, &port->ep_list);
-	pthread_mutex_unlock(&port->lock);
-	acm_ep_preload(ep);
+	pthread_mutex_lock(lock);
+	ep_list = GET_PORT_FIELD_PTR(port, DLIST_ENTRY, ep_list);
+	DListInsertHead(&ep->entry, ep_list);
+	pthread_mutex_unlock(lock);
+
+	/*
+	 * TODO: remove the condition as soon as SSA mode
+	 * cache preloading will be available
+	 */
+	if (acm_mode == ACM_MODE_ACM)
+		acm_ep_preload(ep);
 	return;
 
 err2:
@@ -3357,18 +3473,45 @@ static void *acm_event_handler(void *context)
 	return context;
 }
 
+void acm_send_devices_open()
+{
+	pthread_mutex_lock(&ssa_dev_open);
+	pthread_cond_signal(&ssa_dev_open_cond_var);
+	pthread_mutex_unlock(&ssa_dev_open);
+}
+
+static void acm_wait_devices_open()
+{
+	pthread_mutex_lock(&ssa_dev_open);
+	pthread_cond_wait(&ssa_dev_open_cond_var, &ssa_dev_open);
+	pthread_mutex_unlock(&ssa_dev_open);
+}
+
 static void acm_activate_devices()
 {
 	struct acm_device *dev;
+	struct ssa_device *ssa_dev1;
 	DLIST_ENTRY *dev_entry;
+	int d;
 
 	ssa_log_func(SSA_LOG_VERBOSE);
-	for (dev_entry = device_list.Next; dev_entry != &device_list;
-		dev_entry = dev_entry->Next) {
+	if (acm_mode == ACM_MODE_ACM) {
+		for (dev_entry = device_list.Next; dev_entry != &device_list;
+			dev_entry = dev_entry->Next) {
 
-		dev = container_of(dev_entry, struct acm_device, entry);
-		pthread_create(&event_thread, NULL, acm_event_handler, dev);
-		pthread_create(&comp_thread, NULL, acm_comp_handler, dev);
+			dev = container_of(dev_entry, struct acm_device, entry);
+			pthread_create(&event_thread, NULL, acm_event_handler, dev);
+			pthread_create(&comp_thread, NULL, acm_comp_handler, dev);
+		}
+	} else { /* ACM_MODE_SSA */
+		/*
+		 * Wait for acm_ctrl_handler to open ssa devices.
+		 */
+		acm_wait_devices_open();
+		for (d = 0; d < ssa.dev_cnt; d++) {
+			ssa_dev1 = ssa_dev(&ssa, d);
+			pthread_create(&comp_thread, NULL, acm_comp_handler, ssa_dev1);
+		}
 	}
 }
 
@@ -3643,6 +3786,12 @@ static void *acm_ctrl_handler(void *context)
 
 	ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
 	ret = ssa_open_devices(&ssa);
+#ifdef ACM
+	/*
+	 * Signal to ACM main thread that ssa devices were open.
+	 */
+	acm_send_devices_open();
+#endif
 	if (ret) {
 		ssa_log_err(0, "opening devices\n");
 		return NULL;
@@ -3725,18 +3874,18 @@ int main(int argc, char **argv)
 	for (i = 0; i < ACM_MAX_COUNTER; i++)
 		atomic_init(&counter[i]);
 
-	pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
-
-#if 1		/* for initial demo purposes */
-	if (acm_open_devices()) {
-		ssa_log_err(0, "unable to open any devices\n");
-		return -1;
+	if (acm_mode == ACM_MODE_ACM) {
+		if (acm_open_devices()) {
+			ssa_log_err(0, "unable to open any ACM device\n");
+			return -1;
+		}
+	} else { /* ACM_MODE_SSA */
+		pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
 	}
 
 	acm_activate_devices();
 	ssa_log(SSA_LOG_VERBOSE, "starting timeout/retry thread\n");
 	pthread_create(&retry_thread, NULL, acm_retry_handler, NULL);
-#endif
 
 	ssa_log(SSA_LOG_VERBOSE, "starting server\n");
 	acm_server();
@@ -3745,5 +3894,7 @@ int main(int argc, char **argv)
 	pthread_join(ctrl_thread, NULL);
 	ssa_close_log();
 	ssa_cleanup(&ssa);
+	pthread_cond_destroy(&ssa_dev_open_cond_var);
+	pthread_mutex_destroy(&ssa_dev_open);
 	return 0;
 }
