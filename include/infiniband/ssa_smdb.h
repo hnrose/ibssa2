@@ -200,7 +200,7 @@ struct ep_lft_block_tbl_rec {
 
 #define SSA_TABLE_BLOCK_SIZE			1024
 
-struct ssa_db *ssa_db_smdb_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX]);
+struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SSA_TABLE_ID_MAX]);
 
 void ssa_db_smdb_destroy(struct ssa_db * p_smdb);
 END_C_DECLS

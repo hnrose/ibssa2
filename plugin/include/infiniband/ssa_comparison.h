@@ -77,8 +77,8 @@ struct ssa_db_diff {
 	uint8_t dirty;
 };
 
-struct ssa_db_diff *ssa_db_diff_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX]);
+struct ssa_db_diff *ssa_db_diff_init(uint64_t epoch, uint64_t data_rec_cnt[SSA_TABLE_ID_MAX]);
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
-struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db);
+struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev);
 END_C_DECLS
 #endif				/* _SSA_COMPARISON_H_ */

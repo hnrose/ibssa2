@@ -735,7 +735,7 @@ void ssa_db_update(struct ssa_database *ssa_db)
         }
 
 	/* Updating previous SMDB with current one */
-	if (ssa_db->p_current_db->initialized && smdb_deltas) {
+	if (ssa_db->p_current_db->initialized) {
 		ssa_db_extract_delete(ssa_db->p_previous_db);
 		ssa_db->p_previous_db = ssa_db->p_current_db;
 	} else {

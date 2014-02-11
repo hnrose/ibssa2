@@ -273,7 +273,8 @@ err1:
 
 /** =========================================================================
  */
-void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
+void ssa_db_init(struct ssa_db * p_ssa_db, char * name,
+		 uint8_t db_id, uint64_t epoch,
 		 const struct db_table_def *def_tbl,
 		 const struct db_dataset *dataset_tbl,
 		 const struct db_dataset *field_dataset_tbl,
@@ -292,7 +293,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
 	 */
 	ssa_db_def_init(&p_ssa_db->db_def, DB_DEF_VERSION,
 			sizeof(p_ssa_db->db_def), db_id,
-			0, 0, name, 0 /* epoch */, sizeof(*p_ssa_db->p_def_tbl));
+			0, 0, name, epoch, sizeof(*p_ssa_db->p_def_tbl));
 
 	/*
 	 * Definition tables dataset initialization

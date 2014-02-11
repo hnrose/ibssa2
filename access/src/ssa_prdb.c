@@ -66,7 +66,7 @@ static const struct db_field_def field_tbl[] = {
 
 /** =========================================================================
  */
-struct ssa_db  *ssa_prdb_create(uint64_t num_recs)
+struct ssa_db  *ssa_prdb_create(uint64_t epoch, uint64_t num_recs)
 {
 	struct ssa_db *p_ssa_db = NULL;
 	uint64_t num_recs_arr[SSA_PR_TABLE_ID_MAX] = {};
@@ -80,7 +80,7 @@ struct ssa_db  *ssa_prdb_create(uint64_t num_recs)
 	p_ssa_db = ssa_db_create(num_recs_arr, recs_size_arr,
 				 num_field_recs_arr, SSA_PR_TABLE_ID_MAX);
 
-	ssa_db_init(p_ssa_db, "PRDB", 10 /*just some db_id */, def_tbl,
+	ssa_db_init(p_ssa_db, "PRDB", 10 /*just some db_id */, epoch, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);
 
 	return p_ssa_db;

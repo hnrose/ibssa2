@@ -128,7 +128,7 @@ static const struct db_field_def field_tbl[] = {
 
 /** =========================================================================
  */
-struct ssa_db *ssa_db_smdb_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
+struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
 {
 	struct ssa_db *p_ssa_db;
 	uint64_t num_field_recs_arr[SSA_TABLE_ID_MAX];
@@ -154,7 +154,7 @@ struct ssa_db *ssa_db_smdb_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
 
 	p_ssa_db = ssa_db_create(data_rec_cnt, recs_size_arr, num_field_recs_arr, SSA_TABLE_ID_MAX);
 
-	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, def_tbl,
+	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, epoch, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);
 
 	return p_ssa_db;

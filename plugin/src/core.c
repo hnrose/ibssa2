@@ -729,6 +729,7 @@ static void *core_extract_handler(void *context)
 #endif
 	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
+	uint64_t epoch_prev = 0;
 	int ret;
 #ifndef SIM_SUPPORT
 	int d, p, s;
@@ -766,11 +767,20 @@ static void *core_extract_handler(void *context)
 
 				pthread_mutex_lock(&ssa_db_diff_lock);
 				/* Clear previous version */
+				if (ssa_db_diff)
+					epoch_prev = ssa_db_get_epoch(
+					    ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
+
 				ssa_db_diff_destroy(ssa_db_diff);
 
-				ssa_db_diff = ssa_db_compare(ssa_db);
+				ssa_db_diff =
+					ssa_db_compare(ssa_db, epoch_prev);
 				if (ssa_db_diff) {
 					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
+					/*
+					 * TODO: use 'ssa_db_get_epoch(p_ssa_db_diff->p_smdb, DB_DEF_TBL_ID)'
+					 * for getting current epoch and sending it to children nodes.
+					 */
 					if (smdb_dump)
 						ssa_db_save(smdb_dump_dir,
 							    ssa_db_diff->p_smdb,

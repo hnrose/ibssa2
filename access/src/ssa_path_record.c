@@ -240,7 +240,8 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 					      SSA_TABLE_ID_GUID_TO_LID);
 	record_num = guid_to_lid_count * guid_to_lid_count * 2;
 
-	p_prdb = ssa_prdb_create(record_num);
+	/* TODO: use previous PRDB version epoch */
+	p_prdb = ssa_prdb_create(0 /* epoch */, record_num);
 	if (!p_prdb) {
 		SSA_PR_LOG_ERROR("Path record database creation failed."
 				 " Number of records: %"PRIu64, record_num);

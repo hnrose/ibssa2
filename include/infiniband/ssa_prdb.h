@@ -76,7 +76,7 @@ struct ep_pr_tbl_rec {
 	uint8_t		is_reversible;
 };
 
-extern struct ssa_db  *ssa_prdb_create(uint64_t num_recs);
+extern struct ssa_db  *ssa_prdb_create(uint64_t epoch, uint64_t num_recs);
 
 END_C_DECLS
 #endif				/* _SSA_PR_DB_H_ */

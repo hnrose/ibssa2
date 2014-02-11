@@ -43,13 +43,14 @@ extern int smdb_deltas;
 
 /** =========================================================================
  */
-struct ssa_db_diff *ssa_db_diff_init(uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
+struct ssa_db_diff *
+ssa_db_diff_init(uint64_t epoch, uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
 {
 	struct ssa_db_diff *p_ssa_db_diff;
 
 	p_ssa_db_diff = (struct ssa_db_diff *) calloc(1, sizeof(*p_ssa_db_diff));
 	if (p_ssa_db_diff) {
-		p_ssa_db_diff->p_smdb = ssa_db_smdb_init(data_rec_cnt);
+		p_ssa_db_diff->p_smdb = ssa_db_smdb_init(epoch, data_rec_cnt);
 
 		cl_qmap_init(&p_ssa_db_diff->ep_guid_to_lid_tbl_added);
 		cl_qmap_init(&p_ssa_db_diff->ep_node_tbl_added);
@@ -111,7 +112,8 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
  */
 static void ssa_db_diff_compare_subnet_opts(struct ssa_db_extract * p_previous_db,
 					    struct ssa_db_extract * p_current_db,
-					    struct ssa_db_diff * p_ssa_db_diff)
+					    struct ssa_db_diff * p_ssa_db_diff,
+					    boolean_t *tbl_changed)
 {
 	struct ep_subnet_opts_tbl_rec *p_subnet_opts =
 		(struct ep_subnet_opts_tbl_rec *)
@@ -123,7 +125,8 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db_extract * p_previous_d
 
 	p_subnet_opts->change_mask = 0;
 
-	if (!p_previous_db->initialized && p_current_db->initialized) {
+	if ((!p_previous_db->initialized && p_current_db->initialized) ||
+	     !smdb_deltas) {
 		p_subnet_opts->subnet_prefix = p_current_db->subnet_prefix;
 		p_subnet_opts->sm_state = p_current_db->sm_state;
 		p_subnet_opts->lmc = p_current_db->lmc;
@@ -136,8 +139,10 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db_extract * p_previous_d
 		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_SUBNET_TIMEOUT;
 		p_subnet_opts->change_mask |= SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS;
 
-		dirty = 1;
-		goto Exit;
+		if (smdb_deltas) {
+			dirty = 1;
+			goto Exit;
+		}
 	}
 
 	if (p_previous_db->subnet_prefix != p_current_db->subnet_prefix) {
@@ -171,6 +176,7 @@ Exit:
 		p_ssa_db_diff->dirty = dirty;
 		p_dataset->set_size = htonll(sizeof(*p_subnet_opts));
 		p_dataset->set_count = htonll(1);
+		tbl_changed[SSA_TABLE_ID_SUBNET_OPTS] = TRUE;
 	}
 }
 
@@ -534,27 +540,41 @@ static uint8_t ssa_db_diff_table_cmp(cl_qmap_t * p_map_old,
 	uint64_t key_old, key_new;
 	uint8_t dirty = 0;
 
+	if (!smdb_deltas) {
+		for (p_item_new = cl_qmap_head(p_map_new);
+		     p_item_new != cl_qmap_end(p_map_new);
+		     p_item_new = cl_qmap_next(p_item_new)) {
+			key_new = cl_qmap_key(p_item_new);
+			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
+					key_new, p_item_new, p_data_tbl_new);
+		}
+	}
+
 	p_item_old = cl_qmap_head(p_map_old);
 	p_item_new = cl_qmap_head(p_map_new);
 	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
 		key_old = cl_qmap_key(p_item_old);
 		key_new = cl_qmap_key(p_item_new);
 		if (key_old < key_new) {
-			qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
-					key_old, p_item_old, p_data_tbl_old);
+			if (smdb_deltas)
+				qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
+						key_old, p_item_old, p_data_tbl_old);
 			p_item_old = cl_qmap_next(p_item_old);
 			dirty = 1;
 		} else if (key_old > key_new) {
-			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
-					key_new, p_item_new, p_data_tbl_new);
+			if (smdb_deltas)
+				qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
+						key_new, p_item_new, p_data_tbl_new);
 			p_item_new = cl_qmap_next(p_item_new);
 			dirty = 1;
 		} else {
 			if (cmp_pfn(p_item_old, p_data_tbl_old, p_item_new, p_data_tbl_new)) {
-				qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
-						key_old, p_item_old, p_data_tbl_old);
-				qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
-						key_new, p_item_new, p_data_tbl_new);
+				if (smdb_deltas) {
+					qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
+							key_old, p_item_old, p_data_tbl_old);
+					qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
+							key_new, p_item_new, p_data_tbl_new);
+				}
 				dirty = 1;
 			}
 			p_item_old = cl_qmap_next(p_item_old);
@@ -564,16 +584,18 @@ static uint8_t ssa_db_diff_table_cmp(cl_qmap_t * p_map_old,
 
 	while (p_item_new != cl_qmap_end(p_map_new)) {
 		key_new = cl_qmap_key(p_item_new);
-		qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
-				key_new, p_item_new, p_data_tbl_new);
+		if (smdb_deltas)
+			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl,
+					key_new, p_item_new, p_data_tbl_new);
 		p_item_new = cl_qmap_next(p_item_new);
 		dirty = 1;
 	}
 
 	while (p_item_old != cl_qmap_end(p_map_old)) {
 		key_old = cl_qmap_key(p_item_old);
-		qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
-				key_old, p_item_old, p_data_tbl_old);
+		if (smdb_deltas)
+			qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl,
+					key_old, p_item_old, p_data_tbl_old);
 		p_item_old = cl_qmap_next(p_item_old);
 		dirty = 1;
 	}
@@ -611,32 +633,47 @@ static uint8_t ssa_db_diff_var_size_table_cmp(cl_qmap_t * p_map_old,
 	uint64_t ref_tbl_offset = 0;
 	uint8_t dirty = 0;
 
+	if (!smdb_deltas) {
+		for (p_item_new = cl_qmap_head(p_map_new);
+		     p_item_new != cl_qmap_end(p_map_new);
+		     p_item_new = cl_qmap_next(p_item_new)) {
+			key_new = cl_qmap_key(p_item_new);
+			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
+					p_data_ref_tbl, &ref_tbl_offset, key_new,
+					p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+		}
+	}
+
 	p_item_old = cl_qmap_head(p_map_old);
 	p_item_new = cl_qmap_head(p_map_new);
 	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
 		key_old = cl_qmap_key(p_item_old);
 		key_new = cl_qmap_key(p_item_new);
 		if (key_old < key_new) {
-			qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
-					NULL, NULL, key_old, p_item_old,
-					p_data_tbl_old, NULL);
+			if (smdb_deltas)
+				qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
+						NULL, NULL, key_old, p_item_old,
+						p_data_tbl_old, NULL);
 			p_item_old = cl_qmap_next(p_item_old);
 			dirty = 1;
 		} else if (key_old > key_new) {
-			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
-					p_data_ref_tbl, &ref_tbl_offset, key_new,
-					p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+			if (smdb_deltas)
+				qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
+						p_data_ref_tbl, &ref_tbl_offset, key_new,
+						p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
 			p_item_new = cl_qmap_next(p_item_new);
 			dirty = 1;
 		} else {
 			if (cmp_pfn(p_item_old, p_data_tbl_old, p_data_ref_tbl_old,
 				    p_item_new, p_data_tbl_new, p_data_ref_tbl_new)) {
-				qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
-						NULL, NULL, key_old, p_item_old,
-						p_data_tbl_old, NULL);
-				qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
-						p_data_ref_tbl, &ref_tbl_offset, key_new,
-						p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+				if (smdb_deltas) {
+					qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
+							NULL, NULL, key_old, p_item_old,
+							p_data_tbl_old, NULL);
+					qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
+							p_data_ref_tbl, &ref_tbl_offset, key_new,
+							p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+				}
 				dirty = 1;
 			}
 			p_item_old = cl_qmap_next(p_item_old);
@@ -646,18 +683,20 @@ static uint8_t ssa_db_diff_var_size_table_cmp(cl_qmap_t * p_map_old,
 
 	while (p_item_new != cl_qmap_end(p_map_new)) {
 		key_new = cl_qmap_key(p_item_new);
-		qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
-				p_data_ref_tbl, &ref_tbl_offset, key_new,
-				p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
+		if (smdb_deltas)
+			qmap_insert_pfn(p_map_added, p_dataset, p_data_tbl, p_ref_dataset,
+					p_data_ref_tbl, &ref_tbl_offset, key_new,
+					p_item_new, p_data_tbl_new, p_data_ref_tbl_new);
 		p_item_new = cl_qmap_next(p_item_new);
 		dirty = 1;
 	}
 
 	while (p_item_old != cl_qmap_end(p_map_old)) {
 		key_old = cl_qmap_key(p_item_old);
-		qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
-				NULL, NULL, key_old, p_item_old,
-				p_data_tbl_old, NULL);
+		if (smdb_deltas)
+			qmap_insert_pfn(p_map_removed, p_dataset, p_data_tbl, NULL,
+					NULL, NULL, key_old, p_item_old,
+					p_data_tbl_old, NULL);
 		p_item_old = cl_qmap_next(p_item_old);
 		dirty = 1;
 	}
@@ -669,7 +708,8 @@ static uint8_t ssa_db_diff_var_size_table_cmp(cl_qmap_t * p_map_old,
  */
 static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous_db,
 					      struct ssa_db_extract * p_current_db,
-					      struct ssa_db_diff * const p_ssa_db_diff)
+					      struct ssa_db_diff * const p_ssa_db_diff,
+					      boolean_t *tbl_changed)
 {
 	uint8_t dirty = 0;
 	/*
@@ -711,6 +751,9 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous
 				       &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_GUID_TO_LID],
 				       (void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
+	if (dirty & 1)
+		tbl_changed[SSA_TABLE_ID_GUID_TO_LID] = TRUE;
+
 	dirty = dirty << 1;
 	/*
 	 * Comparing ep_node_rec records
@@ -726,6 +769,9 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous
 				       &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_NODE],
 				       (void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
 
+	if (dirty & 1)
+		tbl_changed[SSA_TABLE_ID_NODE] = TRUE;
+
 	dirty = dirty << 1;
 	/*
 	 * Comparing ep_link_rec records
@@ -740,6 +786,9 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous
 				       &p_ssa_db_diff->ep_link_tbl_removed,
 				       &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LINK],
 				       (void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
+
+	if (dirty & 1)
+		tbl_changed[SSA_TABLE_ID_LINK] = TRUE;
 
 	dirty = dirty << 1;
 	/*
@@ -759,6 +808,11 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous
 						(void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PORT],
 						&p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_PKEY],
 						(void **) &p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PKEY]);
+
+	if (dirty & 1) {
+		tbl_changed[SSA_TABLE_ID_PORT] = TRUE;
+		tbl_changed[SSA_TABLE_ID_PKEY] = TRUE;
+	}
 
 	if (dirty)
 		p_ssa_db_diff->dirty = 1;
@@ -1216,9 +1270,65 @@ static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old, cl_qmap_t * p_m
 
 /** =========================================================================
  */
-struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
+static void
+ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
+			 boolean_t *tbl_changed)
+{
+	struct ssa_db *p_smdb;
+	char *tbl_name;
+	uint64_t epoch_old, epoch_new;
+	uint64_t i, k, tbl_cnt;
+	boolean_t update_global_epoch = FALSE;
+
+	ssa_log(SSA_LOG_VERBOSE, "[\n");
+
+	assert(p_ssa_db_diff);
+	assert(p_ssa_db_diff->p_smdb);
+
+	p_smdb = p_ssa_db_diff->p_smdb;
+	tbl_cnt = p_smdb->data_tbl_cnt;
+	epoch_old = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
+	epoch_new = epoch_old + 1;
+	for (i = 0; i < tbl_cnt; i++) {
+		if (smdb_deltas && p_smdb->p_db_tables[i].set_size == 0)
+			continue;
+
+		if (!smdb_deltas && tbl_changed[i] == FALSE)
+			continue;
+
+		ssa_db_set_epoch(p_smdb, i, epoch_new);
+		update_global_epoch = TRUE;
+
+		for (k = 0; k < p_smdb->db_table_def.set_count; k++) {
+			if (p_smdb->p_def_tbl[k].id.table == i) {
+				tbl_name = p_smdb->p_def_tbl[k].name;
+				break;
+			}
+		}
+
+		ssa_log(SSA_LOG_VERBOSE,
+			"%s table epoch was updated to: 0x%" PRIx64 "\n",
+			tbl_name, epoch_new);
+	}
+
+	if (update_global_epoch) {
+		ssa_db_increment_epoch(p_smdb, DB_DEF_TBL_ID);
+		ssa_log(SSA_LOG_VERBOSE,
+			"%s epoch was updated: 0x%" PRIx64 " --> "
+			"0x%" PRIx64 "\n", p_smdb->db_def.name,
+			epoch_old, epoch_new);
+	}
+
+	ssa_log(SSA_LOG_VERBOSE, "]\n");
+}
+
+/** =========================================================================
+ */
+struct ssa_db_diff *
+ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
+	boolean_t tbl_changed[SSA_TABLE_ID_MAX] = {FALSE};
 	uint64_t data_rec_cnt[SSA_TABLE_ID_MAX];
 	uint64_t new_recs;
 
@@ -1254,17 +1364,22 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
 		cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) +
 		cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 
-	p_ssa_db_diff = ssa_db_diff_init(data_rec_cnt);
+	p_ssa_db_diff = ssa_db_diff_init(epoch_prev, data_rec_cnt);
 	if (!p_ssa_db_diff) {
 		/* error handling */
 		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");
 		goto Exit;
 	}
 
-	ssa_db_diff_compare_subnet_opts(ssa_db->p_previous_db,
-					ssa_db->p_current_db, p_ssa_db_diff);
-	ssa_db_diff_compare_subnet_tables(ssa_db->p_previous_db,
-					  ssa_db->p_current_db, p_ssa_db_diff);
+	ssa_db_diff_compare_subnet_opts(ssa_db->p_previous_db, ssa_db->p_current_db,
+					p_ssa_db_diff, tbl_changed);
+	ssa_db_diff_compare_subnet_tables(ssa_db->p_previous_db, ssa_db->p_current_db,
+					  p_ssa_db_diff, tbl_changed);
+
+	if (first) {
+		tbl_changed[SSA_TABLE_ID_LFT_BLOCK] = TRUE;
+		tbl_changed[SSA_TABLE_ID_LFT_TOP] = TRUE;
+	}
 
 	if (!smdb_deltas)
 		goto force_full;
@@ -1282,6 +1397,12 @@ struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db)
 		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_TOP],
 				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
 				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
+
+		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl))
+			tbl_changed[SSA_TABLE_ID_LFT_TOP] = TRUE;
+
+		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl))
+			tbl_changed[SSA_TABLE_ID_LFT_BLOCK] = TRUE;
 
 		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
 						     &ssa_db->p_lft_db->ep_dump_lft_top_tbl);
@@ -1328,6 +1449,12 @@ force_full:
 			     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
 			     ssa_db->p_lft_db->p_dump_lft_top_tbl);
 
+	if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl))
+		tbl_changed[SSA_TABLE_ID_LFT_TOP] = TRUE;
+
+	if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl))
+		tbl_changed[SSA_TABLE_ID_LFT_BLOCK] = TRUE;
+
 	new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
 					     &ssa_db->p_lft_db->ep_dump_lft_top_tbl);
 	if (new_recs > 0) {
@@ -1364,6 +1491,8 @@ force_done:
                 p_ssa_db_diff = NULL;
                 goto Exit;
         }
+
+	ssa_db_diff_update_epoch(p_ssa_db_diff, tbl_changed);
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	ssa_db_diff_dump(p_ssa_db_diff);
 #endif

@@ -413,7 +413,8 @@ struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
 			     uint64_t * p_num_field_recs_arr,
 			     uint64_t tbl_cnt);
 
-void ssa_db_init(struct ssa_db * p_ssa_db, char * name, uint8_t db_id,
+void ssa_db_init(struct ssa_db * p_ssa_db, char * name,
+		 uint8_t db_id, uint64_t epoch,
 		 const struct db_table_def *def_tbl,
 		 const struct db_dataset *dataset_tbl,
 		 const struct db_dataset *field_dataset_tbl,
