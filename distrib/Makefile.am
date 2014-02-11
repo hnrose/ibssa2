@@ -11,7 +11,7 @@ svc_ibssa_SOURCES = src/distrib.c src/ssa.c src/ssa_db.c \
 #svc_ibssa_CFLAGS = $(AM_CFLAGS) -DACCESS -DINTEGRATION -DACCESS_INTEGRATION
 #svc_ibssa_CFLAGS = $(AM_CFLAGS) -DCORE_INTEGRATION
 svc_ibssa_CFLAGS = $(AM_CFLAGS) -DACCESS
-svc_ibssa_LDADD = -lrdmacm -lm -L$(libdir)
+svc_ibssa_LDADD = -lrdmacm -L$(libdir)
 
 ibssa_includedir = $(includedir)/infiniband
 

@@ -36,7 +36,6 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include <assert.h>
-#include <math.h>
 #include <infiniband/ssa_db.h>
 #include <infiniband/ssa_smdb.h>
 #include <infiniband/ssa_prdb.h>
@@ -148,7 +147,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	}
 
 	source_base_lid = ntohs(p_source_rec->lid);
-	source_last_lid = source_base_lid + pow(2, p_source_rec->lmc) - 1;
+	source_last_lid = source_base_lid + (0x01 << p_source_rec->lmc) - 1;
 
 	for (source_lid = source_base_lid; source_lid <= source_last_lid; ++source_lid) {
 		start = clock();
@@ -160,7 +159,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 			const struct ep_guid_to_lid_tbl_rec* p_dest_rec = p_guid_to_lid_tbl + i;
 			dest_base_lid = ntohs(p_dest_rec->lid);
 			dest_last_lid = dest_base_lid +
-					pow(2, p_dest_rec->lmc) - 1;
+					(0x01 << p_dest_rec->lmc) - 1;
 
 			for (dest_lid = dest_base_lid; dest_lid <= dest_last_lid; ++dest_lid) {
 				ssa_path_parms_t path_prm;

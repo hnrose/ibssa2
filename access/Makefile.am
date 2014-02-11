@@ -66,7 +66,7 @@ libssaaccesslayer_la_SOURCES =	./src/ssa_path_record_helper.c \
 	./src/ssa_path_record_data.c ./src/ssa_prdb.c\
 	./src/ssa_db.c \
 	./src/ssa_db_helper.c
-libssaaccesslayer_la_LDFLAGS = -export-dynamic -lm
+libssaaccesslayer_la_LDFLAGS = -export-dynamic
 libssaaccesslayer_la_CPPFLAGS =  $(INCLUDES) -I$(includedir) $(DEPS_CFLAGS)
 libssaaccesslayerincludedir = $(includedir)/
 libssaaccesslayerinclude_HEADERS = $(srcdir)/include/infiniband/ssa_path_record.h

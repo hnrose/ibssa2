@@ -33,7 +33,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <errno.h>
-#include <math.h>
 #include <string.h>
 #include <inttypes.h>
 #include <infiniband/ssa_smdb.h>

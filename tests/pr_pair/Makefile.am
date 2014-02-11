@@ -73,7 +73,6 @@ pr_pair_SOURCES = ./pr_pair.c \
 		  ./ssa_smdb.c ./ssa_db_helper.c ./ssa_log.c
 pr_pair_CPPFLAGS =  $(INCLUDES) -I$(includedir)  $(DEPS_CFLAGS)  -g $(GLIB_CFLAGS)
 pr_pair_LDFLAGS = -lpthread \
-		  $(GLIB_LIBS) -lglib-2.0  \
-		  -lm
+		  $(GLIB_LIBS) -lglib-2.0
 
 #pr_pair_LDADD =  $(GLIB_LIBS)
