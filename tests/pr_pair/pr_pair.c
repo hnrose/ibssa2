@@ -54,6 +54,7 @@
 
 
 static const char *log_verbosity_level[] = {"No log","Error","Info","Debug"};
+static char log_file[PATH_MAX] = "/var/log/pr_pair.log";
 
 static void print_usage(FILE *file,const char *name)
 {
@@ -553,8 +554,11 @@ int main(int argc,char *argv[])
 	uint64_t id = 0;
 	char id_string_val[PATH_MAX] = {};
 	char verbosity_string_val[PATH_MAX] = {};
+	int rt = 0;
 
 	memset(&prm,'\0',sizeof(prm));
+
+	ssa_open_log(log_file);
 
 	while ((opt = getopt(argc, argv, "glan:f:o:O:hL:v:?")) != -1) {
 		switch (opt) {
@@ -732,5 +736,9 @@ int main(int argc,char *argv[])
 
 	print_input_prm(&prm);
 
-	return run_pr_calculation(&prm);
+	rt = run_pr_calculation(&prm);
+
+	ssa_close_log ();
+
+	return rt;
 }
