@@ -69,8 +69,9 @@ AC_RUN_IFELSE(
         ]
 )
 
-AC_CHECK_HEADER(infiniband/umad.h, [],
-    AC_MSG_ERROR([<infiniband/umad.h> not found.  Is libibumad installed?]))
+AC_CHECK_MEMBER(struct umad_hdr.base_version, [],
+    AC_MSG_ERROR([struct umad_hdr not found.  A newer version of libibumad is required.]),
+    [#include <infiniband/umad_types.h>])
 fi
 
 dnl Check for gcc atomic intrinsics
