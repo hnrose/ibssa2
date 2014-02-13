@@ -69,7 +69,7 @@ AC_CHECK_HEADER(opensm/osm_event_plugin.h, [],
 	AC_MSG_ERROR([opensm/osm_event_plugin.h not found.  opensm event plugin support required.]))
 
 AC_CHECK_HEADER(rdma/rsocket.h, [],
-	AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librsocket installed?]))
+	AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librdmacm installed?]))
 
 AC_CHECK_MEMBER(struct umad_hdr.base_version, [],
     AC_MSG_ERROR([struct umad_hdr not found.  A newer version of libibumad is required.]),
