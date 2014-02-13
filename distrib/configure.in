@@ -78,5 +78,5 @@ if test "x$rdmascript" = "x"; then
    fi
 fi
 
-AC_CONFIG_FILES([Makefile ibssa.spec])
+AC_CONFIG_FILES([Makefile ibssa.spec ibssa.init])
 AC_OUTPUT
