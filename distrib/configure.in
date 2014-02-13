@@ -26,11 +26,11 @@ AC_CHECK_SIZEOF(long)
 dnl Checks for libraries
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
-    AC_MSG_ERROR([ibv_get_device_list() not found.  ibacm requires libibverbs.]))
+    AC_MSG_ERROR([ibv_get_device_list() not found.  ibssa requires libibverbs.]))
 AC_CHECK_LIB(rdmacm, rselect, [],
-    AC_MSG_ERROR([rselect() not found.  ibacm requires librdmacm.]))
+    AC_MSG_ERROR([rselect() not found.  ibssa requires librdmacm.]))
 AC_CHECK_LIB(ibumad, umad_send, [],
-    AC_MSG_ERROR([umad_send() not found.  ibacm requires libibumad.]))
+    AC_MSG_ERROR([umad_send() not found.  ibssa requires libibumad.]))
 fi
 
 dnl Checks for header files.
@@ -39,7 +39,7 @@ if test "$disable_libcheck" != "yes"; then
 AC_CHECK_HEADER(infiniband/verbs.h, [],
     AC_MSG_ERROR([<infiniband/verbs.h> not found.  Is libibverbs installed?]))
 AC_CHECK_HEADER(rdma/rsocket.h, [],
-    AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librsocket installed?]))
+    AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librdmacm installed?]))
 AC_CHECK_HEADER(infiniband/umad.h, [],
     AC_MSG_ERROR([<infiniband/umad.h> not found.  Is libibumad installed?]))
 fi
