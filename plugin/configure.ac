@@ -38,9 +38,9 @@ AC_CHECK_SIZEOF(long)
 dnl Check for libraries
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
-    AC_MSG_ERROR([ibv_get_device_list() not found.  ibacm requires libibverbs.]))
+    AC_MSG_ERROR([ibv_get_device_list() not found.  libopensmssa requires libibverbs.]))
 AC_CHECK_LIB(rdmacm, rselect, [],
-    AC_MSG_ERROR([rselect() not found.  ibacm requires librdmacm.]))
+    AC_MSG_ERROR([rselect() not found.  libopensmssa requires librdmacm.]))
 AC_CHECK_LIB(ibumad, umad_register, [],
     AC_MSG_ERROR([umad_register() not found.  libibumad is required.]))
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.2])
