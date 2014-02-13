@@ -71,6 +71,34 @@ AC_CHECK_HEADER(opensm/osm_event_plugin.h, [],
 AC_CHECK_HEADER(rdma/rsocket.h, [],
 	AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librdmacm installed?]))
 
+dnl Checks for keepalive support in librdmacm rsockets.
+AC_LANG(C)
+AC_MSG_CHECKING([rsockets keepalive])
+AC_RUN_IFELSE(
+    [AC_LANG_PROGRAM(
+        [[#include <stdio.h>
+          #include <netinet/in.h>
+          #include <netinet/tcp.h>
+          #include <sys/types.h>
+          #include <rdma/rsocket.h>
+          #include <infiniband/ib.h>]],
+        [[
+          int rsock, ret, optval, optlen;
+          rsock = rsocket(AF_IB, SOCK_STREAM, 0);
+          if (rsock < 0)
+              return 1;
+          ret = rgetsockopt(rsock, IPPROTO_TCP, TCP_KEEPIDLE, &optval, &optlen);
+          rclose(rsock);
+          if (ret < 0)
+              return 1;
+          return 0;
+        ]])],
+        [ AC_MSG_RESULT([yes]) ],
+        [ AC_MSG_RESULT([no])
+          AC_MSG_WARN([rsockets does not support keepalives.  librdmacm 1.0.18 or beyond is needed.])
+        ]
+)
+
 AC_CHECK_MEMBER(struct umad_hdr.base_version, [],
     AC_MSG_ERROR([struct umad_hdr not found.  A newer version of libibumad is required.]),
     [#include <infiniband/umad_types.h>])
