@@ -56,6 +56,7 @@ extern char smdb_dump_dir[128];
 extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
+extern int keepalive;
 
 #ifdef INTEGRATION
 struct ssa_member {
@@ -478,6 +479,8 @@ static void distrib_set_options(void)
 			smdb_port = (short) atoi(value);
 		else if (!strcasecmp("prdb_port", opt))
 			prdb_port = (short) atoi(value);
+		else if (!strcasecmp("keepalive", opt))
+			keepalive = atoi(value);
 	}
 
 	fclose(f);
@@ -506,6 +509,7 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
 }
 
 static void *distrib_construct(int node_type)

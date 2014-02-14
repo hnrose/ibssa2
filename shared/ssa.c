@@ -88,6 +88,7 @@ char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 //static short server_port = 6125;
 short smdb_port = 7470;
 short prdb_port = 7471;
+int keepalive = 0;
 
 /* Forward declarations */
 static void ssa_close_ssa_conn(struct ssa_conn *conn);
@@ -2311,6 +2312,25 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			fd, errno, strerror(errno));
 		rclose(fd);
 		return -1;
+	}
+
+	if (keepalive) {
+		val = 1;
+		ret = rsetsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
+				  (void *) &val, sizeof(val));
+		if (ret)
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"rsetsockopt SO_KEEPALIVE ERROR %d (%s)\n",
+				errno, strerror(errno));
+		else {
+			val = keepalive;
+			ret = rsetsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE,
+					  (void *) &val, sizeof(val)); 
+			if (ret)
+				ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+					"rsetsockopt TCP_KEEPIDLE ERROR %d (%s)\n",
+					errno, strerror(errno));
+		}
 	}
 
 	val = 1;

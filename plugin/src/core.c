@@ -62,6 +62,7 @@ extern char smdb_dump_dir[128];
 extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
+extern int keepalive;
 
 int first = 1;
 
@@ -960,6 +961,8 @@ static void core_set_options(void)
 			prdb_dump = atoi(value);
 		else if (!strcasecmp("smdb_deltas", opt))
 			smdb_deltas = atoi(value);
+		else if (!strcasecmp("keepalive", opt))
+			keepalive = atoi(value);
 	}
 
 	fclose(f);
@@ -987,6 +990,7 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump %d\n", prdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
+	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
 }
 
 static void *core_construct(osm_opensm_t *opensm)
