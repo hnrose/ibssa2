@@ -1115,7 +1115,7 @@ static void *ssa_upstream_handler(void *context)
 		}
 
 		if (fds[2].revents) {
-			/* Only 1 data connection right now !!! */
+			/* Only 1 upstream data connection currently */
 			if (fds[2].revents & POLLOUT) {
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
@@ -1736,8 +1736,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 #endif
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-				ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): "
-					"ssa_db %p\n", msg.data.db_upd.db);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA DB update (SMDB): ssa_db %p\n",
+					msg.data.db_upd.db);
 				smdb = msg.data.db_upd.db;
 				break;
 			default:
