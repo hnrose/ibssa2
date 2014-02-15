@@ -1116,6 +1116,20 @@ static void *ssa_upstream_handler(void *context)
 
 		if (fds[2].revents) {
 			/* Only 1 upstream data connection currently */
+			if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+				ssa_log(SSA_LOG_DEFAULT,
+					"error event 0x%x on fd %d\n",
+					fds[2].revents, fds[2].fd);
+				if (svc->conn_dataup.rsock >= 0) {
+					ssa_log(SSA_LOG_DEFAULT,
+						"rsock %d should but is not already closed\n",
+						svc->conn_dataup.rsock);
+					ssa_close_ssa_conn(&svc->conn_dataup);
+				}
+				fds[2].fd = -1;
+				fds[2].events = 0;
+				fds[2].revents = 0;
+			}
 			if (fds[2].revents & POLLOUT) {
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
