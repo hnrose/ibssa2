@@ -1766,12 +1766,23 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
 			pfd = (struct pollfd *)(fds + i);
 			if (pfd->revents) {
-				if (svc->fd_to_conn[pfd->fd]) {
-					pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents);
-				} else
-					ssa_log_warn(SSA_LOG_CTRL,
-						     "event 0x%x but no data rsock for pollfd slot %d\n",
-						     pfd->revents, i);
+				if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
+					ssa_log(SSA_LOG_DEFAULT,
+						"error event 0x%x on fd %d\n",
+						pfd->revents, pfd->fd);
+					/* Update distribution tree (at least when core) ? */
+					/* Also, when not core, need to notify core via MAD */
+					ssa_close_ssa_conn(svc->fd_to_conn[pfd->fd]);
+					svc->fd_to_conn[pfd->fd] = NULL;
+					pfd->fd = -1;
+				} else {
+					if (svc->fd_to_conn[pfd->fd]) {
+						pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents);
+					} else
+						ssa_log_warn(SSA_LOG_CTRL,
+							     "event 0x%x but no data rsock for pollfd slot %d\n",
+							     pfd->revents, i);
+				}
 			}
 			pfd->revents = 0;
 		}
