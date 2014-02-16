@@ -423,7 +423,7 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 	int res = 0;
 
 	p_tbl_rec_old += p_map_rec_old->offset;
-	p_tbl_rec_old += p_map_rec_new->offset;
+	p_tbl_rec_new += p_map_rec_new->offset;
 	p_tbl_ref_rec_old += ntohll(p_tbl_rec_old->pkey_tbl_offset);
 	p_tbl_ref_rec_new += ntohll(p_tbl_rec_new->pkey_tbl_offset);
 
