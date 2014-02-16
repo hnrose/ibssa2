@@ -480,6 +480,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 {
 	if (!conn)
 		return;
+	ssa_log(SSA_LOG_DEFAULT, "closing rsock %d\n", conn->rsock);
 	rclose(conn->rsock);
 	conn->rsock = -1;
 	conn->dbtype = SSA_CONN_NODB_TYPE;
