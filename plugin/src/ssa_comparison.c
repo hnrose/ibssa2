@@ -505,7 +505,7 @@ static int ssa_db_link_cmp(cl_map_item_t * p_item_old,
 	int res = 0;
 
 	p_tbl_rec_old += p_map_rec_old->offset;
-	p_tbl_rec_old += p_map_rec_new->offset;
+	p_tbl_rec_new += p_map_rec_new->offset;
 
 	if ((p_tbl_rec_old->from_lid != p_tbl_rec_new->from_lid) ||
 	    (p_tbl_rec_old->to_lid != p_tbl_rec_new->to_lid) ||
