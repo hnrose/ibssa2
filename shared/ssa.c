@@ -1766,14 +1766,28 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 		}
 
 		pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
-		if (pfd->revents) {
+		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"error event 0x%x on SMDB listen fd %x\n",
+				pfd->revents, pfd->fd);
+			if (svc->conn_listen_smdb.rsock >= 0)
+				ssa_close_ssa_conn(&svc->conn_listen_smdb);
+			pfd->fd = -1;
+		} else if (pfd->revents) {
 			pfd->revents = 0;
 			ssa_check_listen_events(svc, pfd, fds,
 						SSA_CONN_SMDB_TYPE);
 		}
 
 		pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
-		if (pfd->revents) {
+		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"error event 0x%x on PRDB listen fd %x\n",
+				pfd->revents, pfd->fd);
+			if (svc->conn_listen_prdb.rsock >= 0)
+				ssa_close_ssa_conn(&svc->conn_listen_prdb);
+			pfd->fd = -1;
+		} else if (pfd->revents) {
 			pfd->revents = 0;
 			ssa_check_listen_events(svc, pfd, fds,
 						SSA_CONN_PRDB_TYPE);
