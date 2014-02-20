@@ -3335,74 +3335,36 @@ err0:
 	free(ep);
 }
 
-static struct acm_port *acm_dev_port(struct acm_device *dev, uint8_t port_num)
-{
-        return (struct acm_port *)
-                ((void *) dev->port + sizeof(dev->port) * (port_num - 1));
-}
-
 static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 {
-	struct ibv_context *verbs;
-	struct acm_device *acm_dev;
-	struct acm_port *acm_port;
 	struct ssa_device *ssa_dev1;
-	struct ssa_port *ssa_port;
+	struct ssa_port *port;
 	struct acm_ep *acm_ep;
-	void *port;
-	DLIST_ENTRY *dev_entry = NULL;
 	uint64_t *lid2guid;
 	uint16_t pkey;
-	uint8_t port_num;
 	int d, ret = 1;
 
 	if (!p_ssa_db)
 		return ret;
 
-	if (acm_mode == ACM_MODE_ACM) {
-		for (dev_entry = device_list.Next; dev_entry != &device_list;
-		     dev_entry = dev_entry->Next) {
-			acm_dev = container_of(dev_entry, struct acm_device,
-					       entry);
-			if (acm_dev->guid == svc->port->dev->guid)
-				break;
-		}
-
-		if (!acm_dev || dev_entry == &device_list) {
-			ssa_log(SSA_LOG_DEFAULT,
-				"ERROR - no matching ACM device found "
-				"(with guid: 0x%" PRIx64 ")\n",
-				ntohll(svc->port->dev->guid));
-			goto err;
-		}
-
-		acm_port = acm_dev_port(acm_dev, svc->port->port_num);
-		verbs = acm_port->dev->verbs;
-		port_num = acm_port->port_num;
-		port = acm_port;
-	} else { /* ACM_MODE_SSA */
-		for (d = 0; d < ssa.dev_cnt; d++) {
-			ssa_dev1 = ssa_dev(&ssa, d);
-			if (ssa_dev1->guid == svc->port->dev->guid)
-				break;
-		}
-
-		if (!ssa_dev1 || d == ssa.dev_cnt) {
-			ssa_log(SSA_LOG_DEFAULT,
-				"ERROR - no matching SSA device found "
-				"(with guid: 0x%" PRIx64 ")\n",
-				ntohll(svc->port->dev->guid));
-			goto err;
-		}
-
-		ssa_port = ssa_dev_port(ssa_dev1, svc->port->port_num);
-		verbs = ssa_port->dev->verbs;
-		port_num = ssa_port->port_num;
-		port = ssa_port;
+	for (d = 0; d < ssa.dev_cnt; d++) {
+		ssa_dev1 = ssa_dev(&ssa, d);
+		if (ssa_dev1->guid == svc->port->dev->guid)
+			break;
 	}
 
+	if (!ssa_dev1 || d == ssa.dev_cnt) {
+		ssa_log(SSA_LOG_DEFAULT,
+			"ERROR - no matching SSA device found "
+			"(with guid: 0x%" PRIx64 ")\n",
+			ntohll(svc->port->dev->guid));
+		goto err;
+	}
+
+	port = ssa_dev_port(ssa_dev1, svc->port->port_num);
+
 	/* assume single pkey per port */
-	ret = ibv_query_pkey(verbs, port_num, 0, &pkey);
+	ret = ibv_query_pkey(port->dev->verbs, port->port_num, 0, &pkey);
 	if (ret)
 		goto err;
 
@@ -3755,8 +3717,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg
 			ssa_db_save(prdb_dump_dir,
 				    ((struct ssa_db_update_msg *)msg)->db_upd.db,
 				    prdb_dump);
-		if (acm_parse_ssa_db((struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
-			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to preload ACM cache\n");
+		if (acm_mode == ACM_MODE_SSA) {
+			if (acm_parse_ssa_db((struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
+				ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to preload ACM cache\n");
+		}
 		return 1;
 	default:
 		break;
