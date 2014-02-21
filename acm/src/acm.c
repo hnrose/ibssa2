@@ -3829,12 +3829,8 @@ static void *acm_ctrl_handler(void *context)
 
 	ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
 	ret = ssa_open_devices(&ssa);
-#ifdef ACM
-	/*
-	 * Signal to ACM main thread that ssa devices were open.
-	 */
+	/* Signal to ACM main thread that ssa devices are open */
 	acm_send_devices_open();
-#endif
 	if (ret) {
 		ssa_log_err(0, "opening devices\n");
 		return NULL;
