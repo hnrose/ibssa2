@@ -1620,14 +1620,23 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 					pfd2->events = POLLIN;
 					if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
 						ssa_downstream_conn_done(svc, conn_data);
-				} else
+				} else {
+					ssa_close_ssa_conn(conn_data);
+					free(conn_data);
+					conn_data = NULL;
+					svc->fd_to_conn[fd] = NULL;
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "no pollfd slot available for rsock %d\n",
 						     fd);
-			} else
+				}
+			} else {
+				ssa_close_ssa_conn(conn_data);
+				free(conn_data);
+				conn_data = NULL;
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "rsock %d in fd_to_conn array already occupied\n",
 					     fd);
+			}
 		}
 	} else
 		ssa_log_err(SSA_LOG_DEFAULT,
