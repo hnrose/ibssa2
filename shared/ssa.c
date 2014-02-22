@@ -536,7 +536,7 @@ static short ssa_upstream_query(struct ssa_svc *svc, uint16_t op, short events)
 
 		ret = ssa_upstream_send_query(svc->conn_dataup.rsock,
 					      svc->conn_dataup.sbuf, op, id);
-		if (ret > 0) {
+		if (ret >= 0) {
 			ssa_upstream_update_phase(&svc->conn_dataup, op);
 			svc->conn_dataup.soffset += ret;
 			svc->conn_dataup.sid = id;
@@ -550,8 +550,9 @@ static short ssa_upstream_query(struct ssa_svc *svc, uint16_t op, short events)
 		} else {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "ssa_upstream_send_query for op %u failed "
-				    "on rsock %d\n",
-				    op, svc->conn_dataup.rsock);
+				    "%d (%s) on rsock %d\n",
+				    op, errno, strerror(errno),
+				    svc->conn_dataup.rsock);
 			return 0;
 		}
 	} else
@@ -568,7 +569,7 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 
 	ret = rsend(conn->rsock, conn->sbuf + conn->soffset,
 		    conn->ssize - conn->soffset, MSG_DONTWAIT);
-	if (ret > 0) {
+	if (ret >= 0) {
 		conn->soffset += ret;
 		if (conn->soffset == conn->ssize) {
 			if (conn->sbuf != conn->sbuf2) {
@@ -582,7 +583,7 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 					conn->soffset = 0;
 					ret = rsend(conn->rsock, conn->sbuf,
 						    conn->ssize, MSG_DONTWAIT);
-					if (ret > 0) {
+					if (ret >= 0) {
 						conn->soffset += ret;
 						if (conn->soffset == conn->ssize) {
 							conn->sbuf2 = NULL;
@@ -1240,7 +1241,7 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 				     SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
 				     conn->rid);
 		ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
-		if (ret > 0) {
+		if (ret >= 0) {
 			conn->soffset += ret;
 			if (conn->soffset == conn->ssize) {
 				free(conn->sbuf);
@@ -1248,7 +1249,10 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 				return POLLIN;
 			} else
 				return POLLOUT | POLLIN;
-		}
+		} else
+			ssa_log_err(SSA_LOG_CTRL,
+				    "rsend failed: %d (%s) on rsock %d\n",
+				    errno, strerror(errno), conn->rsock);
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
 			    "failed to allocate ssa_msg_hdr for response "
@@ -1271,7 +1275,7 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 		ssa_init_ssa_msg_hdr(conn->sbuf, op, conn->ssize + len,
 				     SSA_MSG_FLAG_RESP, conn->rid);
 		ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
-		if (ret > 0) {
+		if (ret >= 0) {
 			conn->soffset += ret;
 			if (conn->soffset == conn->ssize) {
 				free(conn->sbuf);
@@ -1282,16 +1286,23 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 				conn->soffset = 0;
 				ret = rsend(conn->rsock, conn->sbuf,
 					    conn->ssize, MSG_DONTWAIT);
-				if (ret > 0) {
+				if (ret >= 0) {
 					conn->soffset += ret;
 					if (conn->soffset == conn->ssize)
 						return POLLIN;
 					else
 						return POLLOUT | POLLIN;
-				}
+				} else
+					ssa_log_err(SSA_LOG_CTRL,
+						    "rsend failed: %d (%s) on rsock %d\n",
+						    errno, strerror(errno),
+						    conn->rsock);
 			} else
 				return POLLOUT | POLLIN;
-		}
+		} else
+			ssa_log_err(SSA_LOG_CTRL,
+				    "rsend failed: %d (%s) on rsock %d\n",
+				    errno, strerror(errno), conn->rsock);
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
 			    "failed to allocate ssa_msg_hdr for response "
