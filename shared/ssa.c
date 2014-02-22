@@ -1119,6 +1119,8 @@ static void *ssa_upstream_handler(void *context)
 					}
 				}
 				break;
+			case SSA_CONN_DONE:
+				break;
 			case SSA_CTRL_EXIT:
 				goto out;
 			default:
