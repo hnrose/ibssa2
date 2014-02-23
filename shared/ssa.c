@@ -1012,7 +1012,8 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events)
 
 	ret = rrecv(svc->conn_dataup.rsock,
 		    svc->conn_dataup.rbuf + svc->conn_dataup.roffset,
-		    svc->conn_dataup.rsize - svc->conn_dataup.roffset, MSG_DONTWAIT);
+		    svc->conn_dataup.rsize - svc->conn_dataup.roffset,
+		    MSG_DONTWAIT);
 	if (ret > 0) {
 		svc->conn_dataup.roffset += ret;
 		if (svc->conn_dataup.roffset == svc->conn_dataup.rsize) {
@@ -1873,9 +1874,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 					svc->fd_to_conn[pfd->fd] = NULL;
 					pfd->fd = -1;
 				} else {
-					if (svc->fd_to_conn[pfd->fd]) {
+					if (svc->fd_to_conn[pfd->fd])
 						pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents);
-					} else
+					else
 						ssa_log_warn(SSA_LOG_CTRL,
 							     "event 0x%x on data rsock %d pollfd slot %d but fd_to_conn slot is empty\n",
 							     pfd->revents,
