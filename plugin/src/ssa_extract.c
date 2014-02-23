@@ -752,7 +752,6 @@ void ssa_db_update(struct ssa_database *ssa_db)
 static void
 ssa_db_lft_block_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 {
-	struct ep_lft_block_tbl_rec lft_block_tbl_rec;
 	struct ep_map_rec *p_map_rec, *p_map_rec_old;
 	uint64_t rec_num, key;
 	uint16_t block_num;
@@ -772,11 +771,6 @@ ssa_db_lft_block_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 				 "for LID %u Block %u\n",
 				 ntohs(p_lft_change_rec->lid), block_num);
 
-	lft_block_tbl_rec.lid = p_lft_change_rec->lid;
-	lft_block_tbl_rec.block_num = htons(block_num);
-	memcpy(lft_block_tbl_rec.block, p_lft_change_rec->block,
-	       IB_SMP_DATA_SIZE);
-
 	key = ep_rec_gen_key(ntohs(p_lft_change_rec->lid), block_num);
 
 	p_map_rec = ep_map_rec_init(rec_num);
@@ -789,8 +783,11 @@ ssa_db_lft_block_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 		free(p_map_rec);
 	}
 
-	memcpy(&ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num],
-	       &lft_block_tbl_rec, sizeof(lft_block_tbl_rec));
+	ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num].lid = p_lft_change_rec->lid;
+	ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num].block_num = htons(block_num);
+
+	memcpy(ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num].block,
+	       p_lft_change_rec->block, UMAD_LEN_SMP_DATA);
 }
 
 /** ===========================================================================
@@ -798,7 +795,6 @@ ssa_db_lft_block_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 static void
 ssa_db_lft_top_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 {
-	struct ep_lft_top_tbl_rec lft_top_tbl_rec;
 	struct ep_map_rec *p_map_rec, *p_map_rec_old;
 	uint64_t rec_num, key;
 
@@ -817,8 +813,6 @@ ssa_db_lft_top_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 				 ntohs(p_lft_change_rec->lid),
 				 p_lft_change_rec->lft_change.lft_top);
 
-	lft_top_tbl_rec.lid = p_lft_change_rec->lid;
-	lft_top_tbl_rec.lft_top = htons(p_lft_change_rec->lft_change.lft_top);
 	key = (uint64_t) ntohs(p_lft_change_rec->lid);
 
 	p_map_rec = ep_map_rec_init(rec_num);
@@ -831,8 +825,10 @@ ssa_db_lft_top_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 		free(p_map_rec);
 	}
 
-	memcpy(&ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num],
-	       &lft_top_tbl_rec, sizeof(lft_top_tbl_rec));
+	ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num].lid =
+		p_lft_change_rec->lid;
+	ssa_db->p_lft_db->p_dump_lft_top_tbl[rec_num].lft_top =
+		htons(p_lft_change_rec->lft_change.lft_top);
 }
 
 /** ===========================================================================
