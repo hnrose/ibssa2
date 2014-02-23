@@ -1008,7 +1008,6 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events)
 {
 	struct ssa_msg_hdr *hdr;
 	int ret;
-	uint16_t op;
 	short revents = events;
 
 	ret = rrecv(svc->conn_dataup.rsock,
@@ -1019,16 +1018,9 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events)
 		if (svc->conn_dataup.roffset == svc->conn_dataup.rsize) {
 			if (!svc->conn_dataup.rhdr) {
 				hdr = svc->conn_dataup.rbuf;
-				if (validate_ssa_msg_hdr(hdr)) {
-					op = ntohs(hdr->op);
-					if (!(ntohs(hdr->flags) & SSA_MSG_FLAG_RESP))
-						ssa_log(SSA_LOG_DEFAULT,
-							"Ignoring SSA_MSG_FLAG_RESP not set in op %u response in phase %d on rsock %d\n",
-							op,
-							svc->conn_dataup.phase,
-							svc->conn_dataup.rsock);
+				if (validate_ssa_msg_hdr(hdr))
 					revents = ssa_upstream_handle_op(svc, hdr, events);
-				} else
+				else
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "validate_ssa_msg_hdr failed: version %d class %d op %u id 0x%x on rsock %d\n",
 						     hdr->version, hdr->class,
