@@ -44,13 +44,125 @@
 #include <stdint.h>
 #include <byteswap.h>
 
-#include <glib.h>
-
 #include <ssa_db.h>
 #include <ssa_smdb.h>
 #include <ssa_prdb.h>
 #include <ssa_db_helper.h>
 #include <infiniband/ssa_path_record.h>
+
+
+#define PRTVECTOR_AUTOGROW_MASK 0x01
+#define PRTVECTOR_AUTOFREE_MASK 0x02
+
+typedef struct {
+	void **data;
+	size_t size;
+	size_t count;
+	uint64_t prm;
+} ptrvector_t;
+
+static ptrvector_t *ptrvector_create(size_t size, int autogrow, int autodelete)
+{
+	ptrvector_t *tmp = (ptrvector_t *)malloc(sizeof(ptrvector_t));
+	if(tmp) {
+		tmp->data = calloc(size, sizeof(void*));
+		if(!tmp->data) {
+			free(tmp);
+			return NULL;
+		}
+		tmp->size = size;
+		tmp->count = 0;
+		tmp->prm = 0;
+		if(autogrow)
+			tmp->prm |= PRTVECTOR_AUTOGROW_MASK;
+		if(autodelete)
+			tmp->prm |= PRTVECTOR_AUTOFREE_MASK ;
+	}
+	return tmp;
+}
+
+static void ptrvector_destroy(ptrvector_t *vec)
+{
+	if(vec) {
+		if(vec->prm & PRTVECTOR_AUTOFREE_MASK) {
+			size_t i;
+			for(i = 0; i < vec->count; i++)
+					free(vec->data[i]);
+		}
+		free(vec->data);
+		vec->size = 0;
+		vec->count = 0;
+	}
+	free(vec);
+}
+
+static int ptrvector_grow(ptrvector_t *vec, size_t extend)
+{
+	size_t new_size;
+	void **data;
+
+	if(!vec)
+		return 1;
+
+	new_size = vec->size + extend;
+	data = (void*)realloc(vec->data,new_size * sizeof(void*));
+	if(!data)
+		return 1;
+
+	vec->size = new_size;
+	vec->data = data;
+
+	return 0;
+}
+
+static int ptrvector_get(ptrvector_t *vec, size_t idx,void **element)
+{
+	if(!vec || idx >= vec->count)
+		return 1;
+	*element = vec->data[idx];
+	return 0;
+}
+
+static int ptrvector_set(ptrvector_t *vec, size_t idx, void *element)
+{
+	if(!vec || idx >= vec->count)
+		return 1;
+
+	vec->data[idx] = element;
+	return 0;
+}
+
+static int ptrvector_pushback(ptrvector_t *vec,void *element)
+{
+	size_t idx;
+
+	if(!vec || !(vec->prm | PRTVECTOR_AUTOGROW_MASK))
+		return 1;
+
+	idx = vec->count;
+
+	if(idx >= vec->size) {
+		size_t new_size;
+		int ret;
+
+		if(!vec->size) {
+			new_size = idx + 1;
+		}
+		else {
+			int n = (idx + 1) / vec->size;
+			new_size = (n + 1) * vec->size;
+		}
+
+		ret = ptrvector_grow(vec,new_size - vec->size);
+		if(ret)
+			return ret;
+	}
+
+	vec->data[idx] = element;
+	vec->count++;
+
+	return 0;
+}
 
 
 static const char *log_verbosity_level[] = {"No log","Error","Info","Debug"};
@@ -173,11 +285,11 @@ static void print_input_prm(const struct input_prm *prm)
 	}
 }
 
-static GPtrArray *init_pr_path_container()
+static ptrvector_t  *init_pr_path_container()
 {
-	return g_ptr_array_new_with_free_func(g_free);
+	return ptrvector_create(1000,1,1);
 }
-
+/*
 static gint path_compare(gconstpointer a,gconstpointer b)
 {
 	ssa_path_parms_t *p_path_a = *(ssa_path_parms_t **)a;
@@ -192,7 +304,7 @@ static gint path_compare(gconstpointer a,gconstpointer b)
 
 	return diff_from ? diff_from : diff_to;
 }
-
+*/
 static const struct ep_port_tbl_rec* find_port(const struct ssa_db* p_ssa_db_smdb,
 		const be16_t lid)
 {
@@ -222,16 +334,22 @@ static const struct ep_guid_to_lid_tbl_rec *find_guid_to_lid_rec_by_lid(const st
 	}
 	return NULL;
 }
-static void dump_pr(GPtrArray *path_arr,struct ssa_db *p_smdb,FILE *fd)
+
+static void dump_pr(ptrvector_t *path_arr,struct ssa_db *p_smdb,FILE *fd)
 {
-	guint i = 0;
+	size_t i = 0;
 	uint16_t prev_lid = 0;
 	short first_line = 1;
+	ssa_path_parms_t *p_path_prm = NULL;
+	int ret = 0;
 
-	g_ptr_array_sort(path_arr,path_compare);
+	// TODO: implement sorting
+//	g_ptr_array_sort(path_arr,path_compare);
 
-	for (i = 0; i < path_arr->len; i++) {
-		ssa_path_parms_t *p_path_prm = g_ptr_array_index(path_arr,i);
+	for (i = 0; i < path_arr->count; i++) {
+		ret = ptrvector_get(path_arr,i,(void**)&p_path_prm);
+		if(ret)
+			break;
 
 		if(prev_lid != p_path_prm->from_lid) {
 			const struct ep_port_tbl_rec *p_port_rec = find_port(p_smdb,p_path_prm->from_lid);
@@ -257,12 +375,12 @@ static void dump_pr(GPtrArray *path_arr,struct ssa_db *p_smdb,FILE *fd)
 static void ssa_pr_path_output(const ssa_path_parms_t *p_path_prm, void *prm)
 {
 	ssa_path_parms_t *p_my_path = NULL;
-	GPtrArray *path_arr = (GPtrArray *)prm;
+	ptrvector_t *path_arr = (ptrvector_t *)prm;
 
-	p_my_path =  (void*)g_malloc(sizeof *p_my_path);
+	p_my_path = (void*)malloc(sizeof *p_my_path);
 
 	memcpy(p_my_path,p_path_prm,sizeof(*p_my_path));
-	g_ptr_array_add(path_arr,p_my_path);
+	ptrvector_pushback(path_arr,p_my_path);
 }
 
 static struct ssa_db *load_smdb(const char *path)
@@ -294,7 +412,7 @@ static void destroy_smdb(struct ssa_db *db_diff)
 	printf("smdb database is destroyed.\n");
 }
 
-static size_t read_ids_from_file(const char *path, GArray *arr)
+static size_t read_ids_from_file(const char *path,ptrvector_t *arr)
 {
 	FILE* fd = NULL;
 	size_t count = 0;
@@ -310,7 +428,7 @@ static size_t read_ids_from_file(const char *path, GArray *arr)
 	}
 
 	while(1 == fscanf(fd,"0x%"PRIx64"\n",&id)) {
-		g_array_append_val(arr,id);
+		ptrvector_pushback(arr,(void*)id);
 		count++;
 	}
 
@@ -322,22 +440,6 @@ Exit:
 	return count;
 }
 
-static void remove_duplicates(GArray *p_arr)
-{
-	guint i = 0;
-	guint last = 0;
-
-	for(i = 1; i < p_arr->len; ++i) {
-		uint64_t v_i = g_array_index(p_arr,uint64_t,i);
-		uint64_t v_last = g_array_index(p_arr,uint64_t,last);
-		if(v_i != v_last)
-			g_array_index(p_arr,uint64_t,++last) = v_i;
-	}
-
-	if(last <p_arr->len - 1)
-		g_array_remove_range(p_arr,last+1,p_arr->len - last -1);
-}
-
 static int compare_ints(uint64_t a,uint64_t b)
 {
 	return a - b;
@@ -345,13 +447,13 @@ static int compare_ints(uint64_t a,uint64_t b)
 
 static size_t get_input_guids(const struct input_prm *p_prm,
 		struct ssa_db *p_db,
-		GArray* p_arr)
+		ptrvector_t* p_arr)
 {
 	assert(p_prm && p_arr && p_db);
 
 	if(p_prm->is_guid) {
 		/*There is only one guid*/
-		g_array_append_val(p_arr,p_prm->id);
+		ptrvector_pushback(p_arr,(void*)p_prm->id);
 		return 1;
 	} else if(p_prm->whole_world) {
 		size_t i = 0;
@@ -362,7 +464,7 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 
 		for (i = 0; i < count; i++) {
 			uint64_t id = ntohll(p_guid_to_lid_tbl[i].guid);
-			g_array_append_val(p_arr,id);
+			ptrvector_pushback(p_arr,(void*)id);
 		}
 	} else if(strlen(p_prm->input_path)>0) {
 		const size_t tmp = read_ids_from_file(p_prm->input_path,p_arr);
@@ -373,8 +475,9 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 		}
 	}
 
-	g_array_sort(p_arr, (GCompareFunc)compare_ints);
-	remove_duplicates(p_arr);
+	// TODO: implement duplicates removing
+	//g_array_sort(p_arr, (GCompareFunc)compare_ints);
+	//remove_duplicates(p_arr);
 
 	return 0;
 }
@@ -390,9 +493,9 @@ static int run_pr_calculation(struct input_prm* p_prm)
 	void *p_context = NULL;
 	be64_t *p_guids = NULL;
 	size_t count_guids = 0;
-	GPtrArray *path_arr = NULL;
-	GArray *guids_arr = NULL;
-	guint i = 0;
+	ptrvector_t *path_arr = NULL;
+	ptrvector_t *guids_arr = NULL;
+	size_t i = 0;
 	int res = 0;
 	ssa_pr_status_t pr_res = SSA_PR_SUCCESS;
 	struct ssa_db *p_prdb = NULL;
@@ -432,16 +535,16 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		goto Exit;
 	}
 
-	guids_arr = g_array_sized_new(FALSE,TRUE,sizeof(uint64_t),10000);
+	guids_arr = ptrvector_create(10000,1,0);
 	if(NULL == guids_arr) {
-		fprintf(stderr,"Can't create Glib array for guids.\n");
+		fprintf(stderr,"Can't create an array for guids.\n");
 		res = -1;
 		goto Exit;
 	}
 
 	path_arr = init_pr_path_container();
 	if(NULL == path_arr) {
-		fprintf(stderr,"Can't create a Glib array.\n");
+		fprintf(stderr,"Can't create a storage for path records.\n");
 		res = -1;
 		goto Exit;
 	}
@@ -455,8 +558,14 @@ static int run_pr_calculation(struct input_prm* p_prm)
 
 	if(dump_to_prdb) {
 		get_input_guids(p_prm,p_db_diff,guids_arr);
-		if(guids_arr->len) {
-			be64_t guid = htonll(g_array_index(guids_arr,uint64_t,0));
+		if(guids_arr->count) {
+			be64_t guid;
+			if(ptrvector_get(guids_arr,0,(void**)&guid))
+			{
+				fprintf(stderr,"Can't obtain a guid\n");
+				goto Exit;
+			}
+			guid = htonll(guid);
 			p_prdb = ssa_pr_compute_half_world(p_db_diff,p_context,guid);
 			if(!p_prdb) {
 				fprintf(stderr,"Path record computation is failed. prdb database is not created\n");
@@ -470,8 +579,10 @@ static int run_pr_calculation(struct input_prm* p_prm)
 
 	if(!p_prm->whole_world) {
 		get_input_guids(p_prm,p_db_diff,guids_arr);
-		for(i = 0; i < guids_arr->len && SSA_PR_SUCCESS == res; ++i) {
-			be64_t guid = htonll(g_array_index(guids_arr,uint64_t,i));
+		for(i = 0; i < guids_arr->count && SSA_PR_SUCCESS == res; ++i) {
+			be64_t guid;
+			ptrvector_get(guids_arr,i,(void**)guid);
+			guid = htonll(guid);
 
 			pr_res = ssa_pr_half_world(p_db_diff,p_context,guid,ssa_pr_path_output,path_arr);
 		}
@@ -486,7 +597,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 	}
 
 	if(!dump_to_prdb) {
-		printf("%u path records found\n",path_arr->len);
+		printf("%u path records found\n",path_arr->count);
 		dump_pr(path_arr,p_db_diff,fd_dump);
 	} else {
 		ssa_db_save(p_prm->prdb_path,p_prdb,SSA_DB_HELPER_DEBUG);
@@ -513,11 +624,11 @@ Exit:
 		p_guids = NULL;
 	}
 	if(path_arr) {
-		g_ptr_array_free (path_arr,TRUE);
+		ptrvector_destroy(path_arr);
 		path_arr = NULL;
 	}
 	if(guids_arr) {
-		g_array_free(guids_arr,TRUE);
+		ptrvector_destroy(guids_arr);
 		guids_arr = NULL;
 	}
 	if(close_log && fd_log) {

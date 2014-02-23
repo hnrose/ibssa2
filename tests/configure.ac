@@ -60,8 +60,6 @@ AC_PROG_LN_S
 AC_PROG_CC
 AC_PROG_CXX
 
-dnl Checks glib
-PKG_CHECK_MODULES([DEPS], [glib-2.0 >= 2.22.5])
 dnl We will use libtool for making ...
 AC_PROG_LIBTOOL
 
