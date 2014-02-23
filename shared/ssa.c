@@ -1097,8 +1097,8 @@ static void *ssa_upstream_handler(void *context)
 				conn_req = (struct ssa_conn_req_msg *) &msg;
 				if (conn_req->svc->port->dev->ssa->node_type ==
 				    SSA_NODE_CONSUMER) {
-					port = prdb_port;
 					conn_req->svc->conn_dataup.dbtype = SSA_CONN_PRDB_TYPE;
+					port = prdb_port;
 				} else {
 					conn_req->svc->conn_dataup.dbtype = SSA_CONN_SMDB_TYPE;
 					port = smdb_port;
