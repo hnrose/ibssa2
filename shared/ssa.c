@@ -1186,9 +1186,8 @@ static void *ssa_upstream_handler(void *context)
 						ssa_log_err(SSA_LOG_CTRL,
 							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[2].fd);
 				}
-				if (svc->conn_dataup.rbuf) {
+				if (svc->conn_dataup.rbuf)
 					fds[2].events = ssa_upstream_rrecv(svc, fds[2].events);
-				}
 			}
 			if (fds[2].revents & ~(POLLOUT | POLLIN)) {
 				ssa_log(SSA_LOG_DEFAULT,
