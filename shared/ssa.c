@@ -1028,9 +1028,8 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events)
 						     ntohs(hdr->op),
 						     ntohl(hdr->id),
 						     svc->conn_dataup.rsock);
-			} else {
+			} else
 				revents = ssa_upstream_update_conn(svc, events);
-			}
 		}
 	}
 	return revents;
