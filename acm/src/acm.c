@@ -195,6 +195,7 @@ static uint8_t min_mtu = IBV_MTU_2048;
 static uint8_t min_rate = IBV_RATE_10_GBPS;
 static enum acm_route_preload route_preload;
 static enum acm_mode acm_mode = ACM_MODE_SSA;
+static uint64_t *lid2guid_cached = NULL;
 
 extern int prdb_dump;
 extern char prdb_dump_dir[128];
@@ -2991,6 +2992,59 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 	return ret;
 }
 
+static void
+acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
+				 struct acm_ep *ep)
+{
+	union ibv_gid sgid, dgid;
+	struct ssa_port *port;
+	struct acm_dest *dest;
+	uint16_t dlid;
+	uint8_t addr[ACM_MAX_ADDRESS];
+	uint8_t addr_type, k;
+
+	if (!lid2guid_cached || !lid2guid)
+		return;
+
+	port = (struct ssa_port *)ep->port;
+
+	ibv_query_gid(port->dev->verbs, port->port_num, 0, &sgid);
+	dgid.global.subnet_prefix = sgid.global.subnet_prefix;
+
+	for (dlid = 1; dlid < IB_LID_MCAST_START; dlid++) {
+		if (!lid2guid_cached[dlid])
+			continue;
+
+		if (lid2guid[dlid])
+			continue;
+
+		/* removing old dest records from ep cache */
+		for (k = 0; k < 2; k++) {
+			memset(addr, 0, ACM_MAX_ADDRESS);
+			if (k == 0) {
+				addr_type = ACM_ADDRESS_LID;
+				*((uint16_t *) addr) = htons(dlid);
+			} else {
+				dgid.global.interface_id = lid2guid[dlid];
+				addr_type = ACM_ADDRESS_GID;
+				memcpy(addr, &dgid, sizeof(dgid));
+			}
+
+			pthread_mutex_lock(&ep->lock);
+			dest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
+			if (dest) {
+				tdelete(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
+				acm_put_dest(dest);
+			} else {
+				acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
+						addr_type, addr, ACM_MAX_ADDRESS);
+				ssa_log(SSA_LOG_VERBOSE, "ERROR: %s not found\n", log_data);
+			}
+			pthread_mutex_unlock(&ep->lock);
+		}
+	}
+}
+
 static int acm_parse_access_v1(struct acm_ep *ep)
 {
 	struct ssa_db *p_ssa_db;
@@ -3382,7 +3436,13 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 
 	acm_parse_access_v1_lid2guid(p_ssa_db, lid2guid);
 	ret = acm_parse_access_v1_paths(p_ssa_db, lid2guid, acm_ep);
-	free(lid2guid);
+	acm_parse_access_v1_paths_update(lid2guid, lid2guid_cached, acm_ep);
+	if (!lid2guid_cached) {
+		lid2guid_cached = lid2guid;
+	} else {
+		free(lid2guid_cached);
+		lid2guid_cached = lid2guid;
+	}
 err:
 	/* TODO: decide whether the destroy call is needed */
 	/* ssa_db_destroy(p_ssa_db); */
@@ -3933,6 +3993,7 @@ int main(int argc, char **argv)
 	pthread_join(ctrl_thread, NULL);
 	ssa_close_log();
 	ssa_cleanup(&ssa);
+	free(lid2guid_cached);
 	pthread_cond_destroy(&ssa_dev_open_cond_var);
 	pthread_mutex_destroy(&ssa_dev_open);
 	return 0;
