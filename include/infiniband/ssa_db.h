@@ -283,6 +283,7 @@ enum {
 	SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,	/* issued multiple times */
 	SSA_MSG_DB_QUERY_DATA_DATASET,		/* issued multiple times */
 	SSA_MSG_DB_PUBLISH_EPOCH_BUF,
+	SSA_MSG_DB_UPDATE,
 };
 
 struct ssa_db_msg {

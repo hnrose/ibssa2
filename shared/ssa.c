@@ -228,7 +228,8 @@ static int ssa_svc_join(struct ssa_svc *svc)
 }
 
 static void ssa_init_ssa_msg_hdr(struct ssa_msg_hdr *hdr, uint16_t op,
-				 uint32_t len, uint16_t flags, uint32_t id)
+				 uint32_t len, uint16_t flags, uint32_t id,
+				 uint32_t rdma_len, uint64_t rdma_addr)
 {
 	hdr->version = SSA_MSG_VERSION;
 	hdr->class = SSA_MSG_CLASS_DB;
@@ -238,8 +239,8 @@ static void ssa_init_ssa_msg_hdr(struct ssa_msg_hdr *hdr, uint16_t op,
 	hdr->status = 0;
 	hdr->id = htonl(id);
 	hdr->reserved = 0;
-	hdr->rdma_len = 0;
-	hdr->rdma_addr = 0;
+	hdr->rdma_len = htonl(rdma_len);
+	hdr->rdma_addr = htonll(rdma_addr);
 }
 
 static int validate_ssa_msg_hdr(struct ssa_msg_hdr *hdr)
@@ -255,6 +256,7 @@ static int validate_ssa_msg_hdr(struct ssa_msg_hdr *hdr)
 	case SSA_MSG_DB_QUERY_FIELD_DEF_DATASET:
 	case SSA_MSG_DB_QUERY_DATA_DATASET:
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
+	case SSA_MSG_DB_UPDATE:
 		return 1;
 	default:
 		return 0;
@@ -492,7 +494,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 static int ssa_upstream_send_query(int rsock, struct ssa_msg_hdr *msg,
 				   uint16_t op, uint32_t id)
 {
-	ssa_init_ssa_msg_hdr(msg, op, sizeof(*msg), SSA_MSG_FLAG_END, id);
+	ssa_init_ssa_msg_hdr(msg, op, sizeof(*msg), SSA_MSG_FLAG_END, id, 0, 0);
 	return rsend(rsock, msg, sizeof(*msg), MSG_DONTWAIT);
 }
 
@@ -799,8 +801,6 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 
 	switch (svc->conn_dataup.phase) {
 	case SSA_DB_IDLE:
-		/* Temporary workaround !!! */
-		usleep(10000);		/* 10 msec */
 		revents = ssa_upstream_query(svc, SSA_MSG_DB_QUERY_DEF, events);
 		svc->conn_dataup.rindex = 0;
 		break;
@@ -908,11 +908,20 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 	short revents = events;
 
 	op = ntohs(hdr->op);
-	if (!(ntohs(hdr->flags) & SSA_MSG_FLAG_RESP))
-		ssa_log(SSA_LOG_DEFAULT,
-			"Ignoring SSA_MSG_FLAG_RESP not set in op %u "
-			"response in phase %d rsock %d\n",
-			op, svc->conn_dataup.phase, svc->conn_dataup.rsock);
+	if (op != SSA_MSG_DB_UPDATE) {
+		if (!(ntohs(hdr->flags) & SSA_MSG_FLAG_RESP))
+			ssa_log(SSA_LOG_DEFAULT,
+				"Ignoring SSA_MSG_FLAG_RESP not set in op %u "
+				"response in phase %d rsock %d\n",
+				op, svc->conn_dataup.phase, svc->conn_dataup.rsock);
+	} else {
+		if ((ntohs(hdr->flags) & SSA_MSG_FLAG_RESP))
+			ssa_log(SSA_LOG_DEFAULT,
+				"Ignoring SSA_MSG_FLAG_RESP set in op %u "
+				"in phase %d rsock %d\n",
+				op, svc->conn_dataup.phase, svc->conn_dataup.rsock);
+	}
+
 	switch (op) {
 	case SSA_MSG_DB_QUERY_DEF:
 	case SSA_MSG_DB_QUERY_TBL_DEF:
@@ -991,6 +1000,15 @@ cate check !!! */
 			ssa_log(SSA_LOG_DEFAULT,
 				"phase %d is not SSA_DB_DATA on rsock %d\n",
 				svc->conn_dataup.phase, svc->conn_dataup.rsock);
+		break;
+	case SSA_MSG_DB_UPDATE:
+ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p phase %d rsock %d\n", svc->conn_dataup.ssa_db, svc->conn_dataup.phase, svc->conn_dataup.rsock);
+		svc->conn_dataup.roffset = 0;
+		free(svc->conn_dataup.rbuf);
+		svc->conn_dataup.rhdr = NULL;
+		svc->conn_dataup.rbuf = NULL;
+		if (svc->conn_dataup.ssa_db)
+			revents = ssa_upstream_update_conn(svc, events);
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
 		ssa_log_warn(SSA_LOG_CTRL,
@@ -1102,9 +1120,7 @@ static void *ssa_upstream_handler(void *context)
 						fds[2].events = POLLOUT;
 					else {
 						conn_req->svc->conn_dataup.ssa_db = calloc(1, sizeof(*conn_req->svc->conn_dataup.ssa_db));
-						if (conn_req->svc->conn_dataup.ssa_db) {
-							fds[2].events = ssa_upstream_update_conn(conn_req->svc, fds[2].events);
-						} else {
+						if (!conn_req->svc->conn_dataup.ssa_db) {
 							ssa_log_err(SSA_LOG_DEFAULT,
 								    "could not allocate ssa_db struct\n");
 						}
@@ -1166,9 +1182,7 @@ static void *ssa_upstream_handler(void *context)
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
 					ssa_upstream_svc_client(svc, errnum);
 					svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
-					if (svc->conn_dataup.ssa_db) {
-						fds[2].events = ssa_upstream_update_conn(svc, fds[2].events);
-					} else {
+					if (!svc->conn_dataup.ssa_db) {
 						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ssa_db struct for rsock %d\n", fds[2].fd);
 					}
 				} else {
@@ -1232,7 +1246,7 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 		conn->soffset = 0;
 		ssa_init_ssa_msg_hdr(conn->sbuf, op, conn->ssize,
 				     SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
-				     conn->rid);
+				     conn->rid, 0, 0);
 		ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
 		if (ret >= 0) {
 			conn->soffset += ret;
@@ -1266,7 +1280,7 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 		conn->ssize2 = len;
 		conn->soffset = 0;
 		ssa_init_ssa_msg_hdr(conn->sbuf, op, conn->ssize + len,
-				     SSA_MSG_FLAG_RESP, conn->rid);
+				     SSA_MSG_FLAG_RESP, conn->rid, 0, 0);
 		ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
 		if (ret >= 0) {
 			conn->soffset += ret;
@@ -1591,6 +1605,49 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 	return revents;
 }
 
+static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
+					     struct ssa_conn *conn)
+{
+	uint32_t id;
+	int ret;
+
+	conn->sbuf = malloc(sizeof(struct ssa_msg_hdr));
+	if (!conn->sbuf) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "failed to allocate ssa_msg_hdr on rsock %d\n",
+			    conn->rsock);
+		return POLLIN;
+	}
+
+	conn->ssize = sizeof(struct ssa_msg_hdr);
+	conn->soffset = 0;
+	id = svc->tid++;
+	ssa_init_ssa_msg_hdr(conn->sbuf, SSA_MSG_DB_UPDATE, conn->ssize,
+			     SSA_MSG_FLAG_END, id, 0, 0 /* need to fill in epoch !!! */);
+	usleep(1000);	/* 1 msec delay is a temporary workaround so rsend does not indicate EAGAIN/EWOULDBLOCK !!! */
+	ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
+	if (ret >= 0) {
+		conn->soffset += ret;
+		conn->sid = id;
+		if (conn->soffset == conn->ssize) {
+			free(conn->sbuf);
+			conn->sbuf = NULL;
+			return POLLIN;
+		} else {
+			return POLLIN | POLLOUT;
+		}
+	} else {
+		ssa_log_err(SSA_LOG_CTRL, "rsend failed: %d (%s) on rsock %d\n",
+			    errno, strerror(errno), conn->rsock);
+		return POLLIN;
+	}
+
+	ssa_log_err(SSA_LOG_CTRL,
+		    "rsend of update notification failed %d (%s) on rsock %d\n",
+		    errno, strerror(errno), conn->rsock);
+	return POLLIN;
+}
+
 static int ssa_find_pollfd_slot(struct pollfd *fds, int nfds)
 {
 	int i;
@@ -1624,6 +1681,8 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 					pfd2->events = POLLIN;
 					if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
 						ssa_downstream_conn_done(svc, conn_data);
+					if (conn_dbtype == SSA_CONN_SMDB_TYPE)
+						pfd2->events = ssa_downstream_notify_db_update(svc, conn_data);
 				} else {
 					ssa_close_ssa_conn(conn_data);
 					free(conn_data);
@@ -1653,7 +1712,8 @@ static void *ssa_downstream_handler(void *context)
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd **fds;
 	struct pollfd *pfd, *pfd2;
-	int ret, i;
+	struct ssa_conn *conn;
+	int ret, i, slot;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
@@ -1759,9 +1819,14 @@ static void *ssa_downstream_handler(void *context)
 ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data, SSA_ADDR_GID, msg.data.db_upd.remote_gid->raw, sizeof msg.data.db_upd.remote_gid->raw);
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p\n", msg.data.db_upd.rsock, log_data, msg.data.db_upd.db);
 				/* Now ready to rsend to downstream client upon request */
-				if (svc->fd_to_conn[msg.data.db_upd.rsock])
-					svc->fd_to_conn[msg.data.db_upd.rsock]->ssa_db = msg.data.db_upd.db;
-				else
+				slot = msg.data.db_upd.rsock;
+				conn = svc->fd_to_conn[slot];
+				if (conn) {
+					conn->ssa_db = msg.data.db_upd.db;
+					/* for now, send update notification for PRDB downstream !!! */
+					pfd2 = (struct pollfd *)(fds + slot);
+					pfd2->events = ssa_downstream_notify_db_update(svc, conn);
+				} else
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "DB update for rsock %d but no ssa_conn struct available\n");
 				break;
