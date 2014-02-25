@@ -244,6 +244,16 @@ static int acm_compare_dest(const void *dest1, const void *dest2)
 	return memcmp(dest1, dest2, ACM_MAX_ADDRESS);
 }
 
+static int acm_compare_dest_by_lid(const void *dest1, const void *dest2)
+{
+	return *(uint16_t *)dest1 - *(uint16_t *)dest2;
+}
+
+static int acm_compare_dest_by_gid(const void *dest1, const void *dest2)
+{
+	return memcmp(dest1, dest2, sizeof(union ibv_gid));
+}
+
 void
 acm_set_dest_addr(struct acm_dest *dest, uint8_t addr_type, uint8_t *addr, size_t size)
 {
@@ -285,7 +295,12 @@ acm_get_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 {
 	struct acm_dest *dest, **tdest;
 
-	tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
+	if (addr_type == ACM_ADDRESS_LID)
+		tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest_by_lid);
+	else if (addr_type == ACM_ADDRESS_GID)
+		tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest_by_gid);
+	else
+		tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
 	if (tdest) {
 		dest = *tdest;
 		(void) atomic_inc(&dest->refcnt);
@@ -321,7 +336,12 @@ acm_acquire_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 	if (!dest) {
 		dest = acm_alloc_dest(addr_type, addr);
 		if (dest) {
-			tsearch(dest, &ep->dest_map[addr_type - 1], acm_compare_dest);
+			if (addr_type == ACM_ADDRESS_LID)
+				tsearch(dest, &ep->dest_map[addr_type - 1], acm_compare_dest_by_lid);
+			else if (addr_type == ACM_ADDRESS_GID)
+				tsearch(dest, &ep->dest_map[addr_type - 1], acm_compare_dest_by_gid);
+			else
+				tsearch(dest, &ep->dest_map[addr_type - 1], acm_compare_dest);
 			(void) atomic_inc(&dest->refcnt);
 		}
 	}
@@ -357,7 +377,12 @@ static void acm_release_sa_dest(struct acm_dest *dest)
 //acm_remove_dest(struct acm_ep *ep, struct acm_dest *dest)
 //{
 //	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
-//	tdelete(dest->address, &ep->dest_map[dest->addr_type - 1], acm_compare_dest);
+//	if (dest->addr_type == ACM_ADDRESS_LID)
+//		tdelete(dest->address, &ep->dest_map[dest->addr_type - 1], acm_compare_dest_by_lid);
+//	else if (dest->addr_type == ACM_ADDRESS_GID)
+//		tdelete(dest->address, &ep->dest_map[dest->addr_type - 1], acm_compare_dest_by_gid);
+//	else
+//		tdelete(dest->address, &ep->dest_map[dest->addr_type - 1], acm_compare_dest);
 //	acm_put_dest(dest);
 //}
 
