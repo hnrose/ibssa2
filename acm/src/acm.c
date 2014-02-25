@@ -2998,7 +2998,7 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 {
 	union ibv_gid sgid, dgid;
 	struct ssa_port *port;
-	struct acm_dest *dest;
+	struct acm_dest *dest, **tdest;
 	uint16_t dlid;
 	uint8_t addr[ACM_MAX_ADDRESS];
 	uint8_t addr_type, k;
@@ -3031,8 +3031,9 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 			}
 
 			pthread_mutex_lock(&ep->lock);
-			dest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
-			if (dest) {
+			tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
+			if (tdest) {
+				dest = *tdest;
 				tdelete(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
 				acm_put_dest(dest);
 			} else {
