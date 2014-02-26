@@ -37,79 +37,98 @@
 #include <infiniband/ssa_smdb.h>
 #include <opensm/osm_switch.h>
 
+struct ssa_db_lft *ssa_database_lft_init()
+{
+	struct ssa_db_lft *p_lft_db =
+		(struct ssa_db_lft *) calloc(1, sizeof(*p_lft_db));
+
+	if (p_lft_db) {
+		cl_qmap_init(&p_lft_db->ep_db_lft_block_tbl);
+		cl_qmap_init(&p_lft_db->ep_db_lft_top_tbl);
+		cl_qmap_init(&p_lft_db->ep_dump_lft_block_tbl);
+		cl_qmap_init(&p_lft_db->ep_dump_lft_top_tbl);
+	}
+
+	return p_lft_db;
+}
+
+void ssa_database_lft_delete(struct ssa_db_lft *p_lft_db)
+{
+	if (!p_lft_db)
+		return;
+
+	ssa_qmap_apply_func(&p_lft_db->ep_db_lft_block_tbl,
+			    ep_map_rec_delete_pfn);
+	ssa_qmap_apply_func(&p_lft_db->ep_db_lft_top_tbl,
+			    ep_map_rec_delete_pfn);
+	ssa_qmap_apply_func(&p_lft_db->ep_dump_lft_block_tbl,
+			    ep_map_rec_delete_pfn);
+	ssa_qmap_apply_func(&p_lft_db->ep_dump_lft_top_tbl,
+			    ep_map_rec_delete_pfn);
+
+	cl_qmap_remove_all(&p_lft_db->ep_db_lft_block_tbl);
+	cl_qmap_remove_all(&p_lft_db->ep_db_lft_top_tbl);
+	cl_qmap_remove_all(&p_lft_db->ep_dump_lft_block_tbl);
+	cl_qmap_remove_all(&p_lft_db->ep_dump_lft_top_tbl);
+
+	free(p_lft_db->p_db_lft_block_tbl);
+	free(p_lft_db->p_dump_lft_block_tbl);
+	free(p_lft_db->p_db_lft_top_tbl);
+	free(p_lft_db->p_dump_lft_top_tbl);
+	free(p_lft_db);
+}
+
 struct ssa_database *ssa_database_init(void)
 {
 	struct ssa_database *p_ssa_database =
 		(struct ssa_database *) calloc(1, sizeof(struct ssa_database));
-	if (p_ssa_database) {
-		cl_qlist_init(&p_ssa_database->lft_rec_list);
-		pthread_mutex_init(&p_ssa_database->lft_rec_list_lock, NULL);
-		p_ssa_database->p_lft_db = (struct ssa_db_lft *)
-					calloc(1, sizeof(*p_ssa_database->p_lft_db));
-		if (p_ssa_database->p_lft_db) {
-			cl_qmap_init(&p_ssa_database->p_lft_db->ep_db_lft_block_tbl);
-			cl_qmap_init(&p_ssa_database->p_lft_db->ep_db_lft_top_tbl);
-			cl_qmap_init(&p_ssa_database->p_lft_db->ep_dump_lft_block_tbl);
-			cl_qmap_init(&p_ssa_database->p_lft_db->ep_dump_lft_top_tbl);
-		} else {
-			goto err1;
-		}
+	if (!p_ssa_database)
+		goto err1;
 
-		p_ssa_database->p_current_db = ssa_db_extract_init();
-		if (!p_ssa_database->p_current_db)
-			goto err2;
+	cl_qlist_init(&p_ssa_database->lft_rec_list);
+	pthread_mutex_init(&p_ssa_database->lft_rec_list_lock, NULL);
 
-		p_ssa_database->p_previous_db = ssa_db_extract_init();
-		if (!p_ssa_database->p_previous_db)
-			goto err3;
+	p_ssa_database->p_lft_db = ssa_database_lft_init();
+	if (!p_ssa_database->p_lft_db)
+		goto err2;
 
-		p_ssa_database->p_dump_db = ssa_db_extract_init();
-		if (!p_ssa_database->p_dump_db)
-			goto err4;
-	}
+	p_ssa_database->p_current_db = ssa_db_extract_init();
+	if (!p_ssa_database->p_current_db)
+		goto err3;
+
+	p_ssa_database->p_previous_db = ssa_db_extract_init();
+	if (!p_ssa_database->p_previous_db)
+		goto err4;
+
+	p_ssa_database->p_dump_db = ssa_db_extract_init();
+	if (!p_ssa_database->p_dump_db)
+		goto err5;
 
 	return p_ssa_database;
-err4:
+err5:
 	ssa_db_extract_delete(p_ssa_database->p_previous_db);
-err3:
+err4:
 	ssa_db_extract_delete(p_ssa_database->p_current_db);
+err3:
+	ssa_database_lft_delete(p_ssa_database->p_lft_db);
 err2:
-	free(p_ssa_database->p_lft_db);
-err1:
+	pthread_mutex_destroy(&p_ssa_database->lft_rec_list_lock);
 	free(p_ssa_database);
+err1:
 	return NULL;
 }
 
 void ssa_database_delete(struct ssa_database *p_ssa_db)
 {
-	if (p_ssa_db) {
-		ssa_db_extract_delete(p_ssa_db->p_dump_db);
-		ssa_db_extract_delete(p_ssa_db->p_previous_db);
-		ssa_db_extract_delete(p_ssa_db->p_current_db);
-		pthread_mutex_destroy(&p_ssa_db->lft_rec_list_lock);
+	if (!p_ssa_db)
+		return;
 
-		if (p_ssa_db->p_lft_db) {
-			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_db_lft_block_tbl,
-					    ep_map_rec_delete_pfn);
-			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_db_lft_top_tbl,
-					    ep_map_rec_delete_pfn);
-			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_dump_lft_block_tbl,
-					    ep_map_rec_delete_pfn);
-			ssa_qmap_apply_func(&p_ssa_db->p_lft_db->ep_dump_lft_top_tbl,
-					    ep_map_rec_delete_pfn);
-			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_db_lft_block_tbl);
-			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_db_lft_top_tbl);
-			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_dump_lft_block_tbl);
-			cl_qmap_remove_all(&p_ssa_db->p_lft_db->ep_dump_lft_top_tbl);
-
-			free(p_ssa_db->p_lft_db->p_db_lft_block_tbl);
-			free(p_ssa_db->p_lft_db->p_dump_lft_block_tbl);
-			free(p_ssa_db->p_lft_db->p_db_lft_top_tbl);
-			free(p_ssa_db->p_lft_db->p_dump_lft_top_tbl);
-			free(p_ssa_db->p_lft_db);
-		}
-		free(p_ssa_db);
-	}
+	ssa_db_extract_delete(p_ssa_db->p_dump_db);
+	ssa_db_extract_delete(p_ssa_db->p_previous_db);
+	ssa_db_extract_delete(p_ssa_db->p_current_db);
+	ssa_database_lft_delete(p_ssa_db->p_lft_db);
+	pthread_mutex_destroy(&p_ssa_db->lft_rec_list_lock);
+	free(p_ssa_db);
 }
 
 struct ssa_db_extract *ssa_db_extract_init(void)
