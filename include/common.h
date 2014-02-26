@@ -181,6 +181,7 @@ struct ssa_conn {
 	void			*sbuf2;
 	int			ssize2;
 	struct ssa_db		*ssa_db;
+	uint64_t		epoch;
 };
 
 struct ssa_access_context {

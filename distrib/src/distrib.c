@@ -35,6 +35,7 @@
 
 #include <search.h>
 #include <common.h>
+#include <inttypes.h>
 #include <ssa_log.h>
 #include <infiniband/ssa_mad.h>
 #include <infiniband/ssa_db_helper.h>
@@ -361,7 +362,7 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	case SSA_CTRL_MAD:
 		return distrib_process_ssa_mad(svc, msg);
 	case SSA_DB_UPDATE:
-		ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
+		ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", ((struct ssa_db_update_msg *)msg)->db_upd.db, ((struct ssa_db_update_msg *)msg)->db_upd.epoch);
 		if (smdb_dump)
 			ssa_db_save(smdb_dump_dir,
 				    (struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db),

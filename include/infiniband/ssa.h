@@ -71,7 +71,7 @@ enum {
  * @id - identifier of request
  * @reserved - set to 0
  * @rdma_len - size of rdma response buffer or transfer
- * @rdma_addr - address of rdma response buffer
+ * @rdma_addr - address of rdma response buffer (epoch in update notification)
  *
  * All SSA messages are preceded by the ssa_msg_hdr structure.  The len
  * indicates the size of the message, if known.  If the len is set to -1,

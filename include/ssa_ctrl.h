@@ -91,6 +91,7 @@ struct ssa_db_update {
 	int			rsock;
 	int			flags;
 	union ibv_gid		*remote_gid;
+	uint64_t		epoch;
 };
 
 struct ssa_db_update_msg {

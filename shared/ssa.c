@@ -77,6 +77,7 @@
 static struct ssa_db *prdb;
 #endif
 static struct ssa_db *smdb;
+static uint64_t epoch;
 
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
@@ -777,7 +778,8 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 }
 
 static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
-					int flags, union ibv_gid *gid)
+					int flags, union ibv_gid *gid,
+					uint64_t epoch)
 {
 	struct ssa_db_update_msg msg;
 
@@ -786,6 +788,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	msg.db_upd.db = db;
 	msg.db_upd.flags = flags;
 	msg.db_upd.remote_gid = gid;
+	msg.db_upd.epoch = epoch;
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
 		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
 	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
@@ -796,7 +799,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 {
-	uint64_t data_tbl_cnt;
+	uint64_t data_tbl_cnt, epoch;
 	short revents = events;
 
 	switch (svc->conn_dataup.phase) {
@@ -888,9 +891,11 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p rsock %d\n", svc->conn_dataup.
 						     events);
 		} else {
 			svc->conn_dataup.ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
-ssa_log(SSA_LOG_DEFAULT, "ssa_db %p complete with num tables %d rsock %d\n", svc->conn_dataup.ssa_db, svc->conn_dataup.ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
+			epoch = ssa_db_get_epoch(svc->conn_dataup.ssa_db,
+						 DB_DEF_TBL_ID);
+ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", svc->conn_dataup.ssa_db, epoch, svc->conn_dataup.ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
 			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db,
-						    0, NULL);
+						    0, NULL, epoch);
 		}
 		break;
 	default:
@@ -1002,7 +1007,7 @@ cate check !!! */
 				svc->conn_dataup.phase, svc->conn_dataup.rsock);
 		break;
 	case SSA_MSG_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p phase %d rsock %d\n", svc->conn_dataup.ssa_db, svc->conn_dataup.phase, svc->conn_dataup.rsock);
+ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p epoch 0x%" PRIx64 " phase %d rsock %d\n", svc->conn_dataup.ssa_db, ntohll(hdr->rdma_addr), svc->conn_dataup.phase, svc->conn_dataup.rsock);
 		svc->conn_dataup.roffset = 0;
 		free(svc->conn_dataup.rbuf);
 		svc->conn_dataup.rhdr = NULL;
@@ -1606,7 +1611,8 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 }
 
 static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
-					     struct ssa_conn *conn)
+					     struct ssa_conn *conn,
+					     uint64_t epoch)
 {
 	uint32_t id;
 	int ret;
@@ -1623,7 +1629,7 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 	conn->soffset = 0;
 	id = svc->tid++;
 	ssa_init_ssa_msg_hdr(conn->sbuf, SSA_MSG_DB_UPDATE, conn->ssize,
-			     SSA_MSG_FLAG_END, id, 0, 0 /* need to fill in epoch !!! */);
+			     SSA_MSG_FLAG_END, id, 0, epoch);
 	usleep(1000);	/* 1 msec delay is a temporary workaround so rsend does not indicate EAGAIN/EWOULDBLOCK !!! */
 	ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
 	if (ret >= 0) {
@@ -1682,7 +1688,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 					if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
 						ssa_downstream_conn_done(svc, conn_data);
 					if (conn_dbtype == SSA_CONN_SMDB_TYPE)
-						pfd2->events = ssa_downstream_notify_db_update(svc, conn_data);
+						pfd2->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
 				} else {
 					ssa_close_ssa_conn(conn_data);
 					free(conn_data);
@@ -1817,15 +1823,16 @@ static void *ssa_downstream_handler(void *context)
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
 ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data, SSA_ADDR_GID, msg.data.db_upd.remote_gid->raw, sizeof msg.data.db_upd.remote_gid->raw);
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p\n", msg.data.db_upd.rsock, log_data, msg.data.db_upd.db);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.rsock, log_data, msg.data.db_upd.db, msg.data.db_upd.epoch);
 				/* Now ready to rsend to downstream client upon request */
 				slot = msg.data.db_upd.rsock;
 				conn = svc->fd_to_conn[slot];
 				if (conn) {
 					conn->ssa_db = msg.data.db_upd.db;
+					conn->epoch = msg.data.db_upd.epoch;
 					/* for now, send update notification for PRDB downstream !!! */
 					pfd2 = (struct pollfd *)(fds + slot);
-					pfd2->events = ssa_downstream_notify_db_update(svc, conn);
+					pfd2->events = ssa_downstream_notify_db_update(svc, conn, 0);	/* need to fill in PRDB epoch !!! */
 				} else
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "DB update for rsock %d but no ssa_conn struct available\n");
@@ -1855,8 +1862,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p\n", msg.data.
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
+				epoch = msg.data.db_upd.epoch;
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -1883,9 +1891,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p\n", msg.data.db_upd.db
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
 				ssa_log(SSA_LOG_DEFAULT,
-					"SSA DB update (SMDB): ssa_db %p\n",
-					msg.data.db_upd.db);
+					"SSA DB update (SMDB): ssa_db %p epoch 0x%" PRIx64 "\n",
+					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
+				epoch = msg.data.db_upd.epoch;
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2059,6 +2068,7 @@ static void *ssa_access_handler(void *context)
 			case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
+				/* Should epoch be added to access context ? */
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2172,6 +2182,7 @@ skip_save:
 			case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract thread: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
+				/* Should epoch be added to access context ? */
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,

@@ -3798,7 +3798,7 @@ ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n",
 		/* Request ssa_db ? */
 		return 1;
 	case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p\n", ((struct ssa_db_update_msg *)msg)->db_upd.db);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", ((struct ssa_db_update_msg *)msg)->db_upd.db, ((struct ssa_db_update_msg *)msg)->db_upd.epoch);
 		if (prdb_dump)
 			ssa_db_save(prdb_dump_dir,
 				    ((struct ssa_db_update_msg *)msg)->db_upd.db,
