@@ -478,6 +478,7 @@ static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type,
 	conn->sindex = 0;
 	conn->sbuf2 = NULL;
 	conn->ssa_db = NULL;
+	conn->epoch = 0;
 }
 
 static void ssa_close_ssa_conn(struct ssa_conn *conn)
