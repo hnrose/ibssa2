@@ -1324,13 +1324,89 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 
 /** =========================================================================
  */
+static void
+ssa_db_diff_update_lfts(struct ssa_database *ssa_db, struct ssa_db_diff *p_ssa_db_diff,
+			boolean_t tbl_changed[], int smdb_deltas, int first)
+{
+	uint64_t new_recs;
+
+	if (first) {
+		tbl_changed[SSA_TABLE_ID_LFT_BLOCK] = TRUE;
+		tbl_changed[SSA_TABLE_ID_LFT_TOP] = TRUE;
+	}
+
+	if (!smdb_deltas || first) {
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl,
+				       &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				       p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK],
+				       &ssa_db->p_lft_db->ep_db_lft_block_tbl,
+				       ssa_db->p_lft_db->p_db_lft_block_tbl);
+		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl,
+				     &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_TOP],
+				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP],
+				     &ssa_db->p_lft_db->ep_db_lft_top_tbl,
+				     ssa_db->p_lft_db->p_db_lft_top_tbl);
+	}
+
+	if (!first) {
+		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl,
+				       &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
+				       p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK],
+				       &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+				       ssa_db->p_lft_db->p_dump_lft_block_tbl);
+		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl,
+				     &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_TOP],
+				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP],
+				     &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
+
+		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl))
+			tbl_changed[SSA_TABLE_ID_LFT_TOP] = TRUE;
+
+		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl))
+			tbl_changed[SSA_TABLE_ID_LFT_BLOCK] = TRUE;
+
+		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
+						     &ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+		if (new_recs > 0) {
+			ssa_db->p_lft_db->p_db_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
+					realloc(&ssa_db->p_lft_db->p_db_lft_top_tbl[0],
+						(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl) + new_recs) *
+						 sizeof(*ssa_db->p_lft_db->p_db_lft_top_tbl));
+		}
+
+		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
+						     &ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+		if (new_recs > 0) {
+			ssa_db->p_lft_db->p_db_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
+					realloc(&ssa_db->p_lft_db->p_db_lft_block_tbl[0],
+						(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) + new_recs) *
+						 sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl));
+		}
+
+		/* Apply LFT block / top changes on existing LFT database */
+		ep_lft_block_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_block_tbl, NULL,
+				       ssa_db->p_lft_db->p_db_lft_block_tbl,
+				       &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
+				       ssa_db->p_lft_db->p_dump_lft_block_tbl);
+		ep_lft_top_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_top_tbl, NULL,
+				     ssa_db->p_lft_db->p_db_lft_top_tbl,
+				     &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
+				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
+		/* Clear LFT dump data */
+		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
+		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
+	}
+}
+
+/** =========================================================================
+ */
 struct ssa_db_diff *
 ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 	boolean_t tbl_changed[SSA_TABLE_ID_MAX] = {FALSE};
 	uint64_t data_rec_cnt[SSA_TABLE_ID_MAX];
-	uint64_t new_recs;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1375,64 +1451,7 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 					p_ssa_db_diff, tbl_changed);
 	ssa_db_diff_compare_subnet_tables(ssa_db->p_previous_db, ssa_db->p_current_db,
 					  p_ssa_db_diff, tbl_changed);
-
-	if (first) {
-		tbl_changed[SSA_TABLE_ID_LFT_BLOCK] = TRUE;
-		tbl_changed[SSA_TABLE_ID_LFT_TOP] = TRUE;
-	}
-
-	if (!smdb_deltas || first) {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
-				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_db_lft_block_tbl,
-				     ssa_db->p_lft_db->p_db_lft_block_tbl);
-		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_TOP],
-				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_db_lft_top_tbl,
-				     ssa_db->p_lft_db->p_db_lft_top_tbl);
-	}
-
-	if (!first) {
-		ep_lft_block_qmap_copy(&p_ssa_db_diff->ep_lft_block_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_BLOCK],
-				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK], &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
-				     ssa_db->p_lft_db->p_dump_lft_block_tbl);
-		ep_lft_top_qmap_copy(&p_ssa_db_diff->ep_lft_top_tbl, &p_ssa_db_diff->p_smdb->p_db_tables[SSA_TABLE_ID_LFT_TOP],
-				     p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP], &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
-				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
-
-		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_top_tbl))
-			tbl_changed[SSA_TABLE_ID_LFT_TOP] = TRUE;
-
-		if (cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl))
-			tbl_changed[SSA_TABLE_ID_LFT_BLOCK] = TRUE;
-
-		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_top_tbl,
-						     &ssa_db->p_lft_db->ep_dump_lft_top_tbl);
-		if (new_recs > 0) {
-			ssa_db->p_lft_db->p_db_lft_top_tbl = (struct ep_lft_top_tbl_rec *)
-					realloc(&ssa_db->p_lft_db->p_db_lft_top_tbl[0],
-						(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl) + new_recs) *
-						 sizeof(*ssa_db->p_lft_db->p_db_lft_top_tbl));
-		}
-
-		new_recs = ssa_db_diff_new_qmap_recs(&ssa_db->p_lft_db->ep_db_lft_block_tbl,
-						     &ssa_db->p_lft_db->ep_dump_lft_block_tbl);
-		if (new_recs > 0) {
-			ssa_db->p_lft_db->p_db_lft_block_tbl = (struct ep_lft_block_tbl_rec *)
-					realloc(&ssa_db->p_lft_db->p_db_lft_block_tbl[0],
-						(cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) + new_recs) *
-						 sizeof(*ssa_db->p_lft_db->p_db_lft_block_tbl));
-		}
-
-		/* Apply LFT block / top changes on existing LFT database */
-		ep_lft_block_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_block_tbl, NULL,
-				     ssa_db->p_lft_db->p_db_lft_block_tbl, &ssa_db->p_lft_db->ep_dump_lft_block_tbl,
-				     ssa_db->p_lft_db->p_dump_lft_block_tbl);
-		ep_lft_top_qmap_copy(&ssa_db->p_lft_db->ep_db_lft_top_tbl, NULL,
-				     ssa_db->p_lft_db->p_db_lft_top_tbl, &ssa_db->p_lft_db->ep_dump_lft_top_tbl,
-				     ssa_db->p_lft_db->p_dump_lft_top_tbl);
-		/* Clear LFT dump data */
-		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
-		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
-	}
+	ssa_db_diff_update_lfts(ssa_db, p_ssa_db_diff, tbl_changed, smdb_deltas, first);
 
 	if (!p_ssa_db_diff->dirty) {
                 ssa_log(SSA_LOG_VERBOSE, "SMDB was not changed\n");
