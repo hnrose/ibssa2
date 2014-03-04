@@ -581,7 +581,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		get_input_guids(p_prm,p_db_diff,guids_arr);
 		for(i = 0; i < guids_arr->count && SSA_PR_SUCCESS == res; ++i) {
 			be64_t guid;
-			ptrvector_get(guids_arr,i,(void**)guid);
+			ptrvector_get(guids_arr,i,(void**)&guid);
 			guid = htonll(guid);
 
 			pr_res = ssa_pr_half_world(p_db_diff,p_context,guid,ssa_pr_path_output,path_arr);
