@@ -36,6 +36,7 @@ stamp-h1
 config.h.in
 *.spec
 configure.in
+.dirstamp
 ####################
 # git files        #
 ####################
@@ -56,3 +57,9 @@ core.*
 # ctags temp files  #
 #####################
 tags
+
+#####################
+#    testers        #
+#####################
+tests/loadsave/loadsave
+tests/pr_pair/pr_pair
