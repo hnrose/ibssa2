@@ -74,8 +74,7 @@ dnl   *) AC_MSG_ERROR(bad value ${enableval} for --enable-libcheck) ;; esac],[li
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([sys/types.h stdio.h stdlib.h string.h pthread.h])
-
+AC_CHECK_HEADERS([arpa/inet.h inttypes.h limits.h stdint.h stdlib.h string.h sys/time.h syslog.h unistd.h])
 dnl Define an input config option to control debug compile
 AC_ARG_ENABLE(debug,
 			  [  --enable-debug    Turn on debugging],
@@ -101,9 +100,18 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_C_CONST
 AC_C_INLINE
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+AC_TYPE_UINT8_T
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS([strchr strstr strtol strtoull regcomp regexec])
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
+AC_CHECK_FUNCS([gettimeofday localtime_r memset mkdir strcasecmp])
 
 AC_CONFIG_FILES([ssa_tests.spec])
 
