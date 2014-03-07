@@ -567,8 +567,14 @@ static int core_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	struct sa_umad *umad_sa;
 
 	umad_sa = &msg->data.umad_sa;
-	if (umad_sa->umad.status)
+	if (umad_sa->umad.status) {
+		ssa_log(SSA_LOG_DEFAULT,
+			"SA MAD method 0x%x attribute 0x%x received with status 0x%x\n",
+			umad_sa->packet.mad_hdr.method,
+			ntohs(umad_sa->packet.mad_hdr.attr_id),
+			umad_sa->umad.status);
 		return 0;
+	}
 
 	core = container_of(svc, struct ssa_core, svc);
 
@@ -580,6 +586,10 @@ static int core_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 		}
 		break;
 	default:
+		ssa_log(SSA_LOG_DEFAULT,
+			"SA MAD method 0x%x attribute 0x%x not expected\n",
+			umad_sa->packet.mad_hdr.method,
+			ntohs(umad_sa->packet.mad_hdr.attr_id));
 		break;
 	}
 
@@ -592,8 +602,13 @@ static int core_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *ms
 	struct ssa_umad *umad;
 
 	umad = &msg->data.umad;
-	if (umad->umad.status)
+	if (umad->umad.status) {
+		ssa_log(SSA_LOG_DEFAULT,
+			"SSA MAD method 0x%x attribute 0x%x received with status 0x%x\n",
+			umad->packet.mad_hdr.method,
+			ntohs(umad->packet.mad_hdr.attr_id), umad->umad.status);
 		return 0;
+	}
 
 	core = container_of(svc, struct ssa_core, svc);
 
@@ -617,6 +632,10 @@ static int core_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *ms
 		}
 		break;
 	default:
+		ssa_log(SSA_LOG_DEFAULT,
+			"SSA MAD method 0x%x attribute 0x%x not expected\n",
+			umad->packet.mad_hdr.method,
+			ntohs(umad->packet.mad_hdr.attr_id));
 		break;
 	}
 
