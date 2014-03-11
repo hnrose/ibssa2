@@ -3463,12 +3463,9 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	acm_parse_access_v1_lid2guid(p_ssa_db, lid2guid);
 	ret = acm_parse_access_v1_paths(p_ssa_db, lid2guid, acm_ep);
 	acm_parse_access_v1_paths_update(lid2guid, lid2guid_cached, acm_ep);
-	if (!lid2guid_cached) {
-		lid2guid_cached = lid2guid;
-	} else {
+	if (lid2guid_cached)
 		free(lid2guid_cached);
-		lid2guid_cached = lid2guid;
-	}
+	lid2guid_cached = lid2guid;
 err:
 	/* TODO: decide whether the destroy call is needed */
 	/* ssa_db_destroy(p_ssa_db); */
