@@ -3090,7 +3090,10 @@ static int acm_parse_access_v1(struct acm_ep *ep)
 
 	acm_parse_access_v1_lid2guid(p_ssa_db, lid2guid);
 	ret = acm_parse_access_v1_paths(p_ssa_db, lid2guid, ep);
-	free(lid2guid);
+	acm_parse_access_v1_paths_update(lid2guid, lid2guid_cached, ep);
+	if (lid2guid_cached)
+		free(lid2guid_cached);
+	lid2guid_cached = lid2guid;
 err:
 	ssa_db_destroy(p_ssa_db);
 	return ret;
