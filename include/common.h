@@ -180,8 +180,11 @@ struct ssa_conn {
 	int			sindex;
 	void			*sbuf2;
 	int			ssize2;
+	int			rdma_write;
 	struct ssa_db		*ssa_db;
 	uint64_t		epoch;
+	volatile be64_t		prdb_epoch;
+	uint32_t		epoch_len;
 };
 
 struct ssa_access_context {
@@ -210,6 +213,7 @@ struct ssa_svc {
 	int			sock_upctrl[2];
 	int			sock_downctrl[2];
 	int			sock_accessctrl[2];
+	int			sock_upmain[2];
 	int			sock_accessup[2];
 	int			sock_accessdown[2];
 	int			sock_updown[2];
@@ -230,6 +234,7 @@ struct ssa_svc {
 	enum ssa_svc_state	state;
 	struct ibv_path_data	primary;	/* parent */
 	struct ibv_path_data	secondary;	/* parent */
+	uint64_t		prdb_epoch;
 };
 
 int ssa_open_devices(struct ssa_class *ssa);
@@ -267,6 +272,11 @@ void ssa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
 		      uint8_t method, uint16_t attr_id);
 int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 		       union ibv_gid *sgid);
+#ifdef ACM
+int ssa_upstream_query_db(struct ssa_svc *svc);
+int ssa_get_svc_cnt(struct ssa_port *port);
+struct ssa_svc *ssa_get_svc(struct ssa_port *port, int index);
+#endif
 
 #ifdef __cplusplus
 }

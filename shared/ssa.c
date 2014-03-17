@@ -96,6 +96,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn);
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
+static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
 
 /*
  * needed for ssa_pr_create_context()
@@ -305,6 +306,16 @@ static int ssa_downstream_listen(struct ssa_svc *svc,
 			errno, strerror(errno), conn_listen->rsock);
 		goto err;
 	}
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS &&
+	    sport == prdb_port) {
+		ret = rsetsockopt(conn_listen->rsock, SOL_RDMA, RDMA_IOMAPSIZE,
+				  (void *) &val, sizeof(val));
+		if (ret) {
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"rsetsockopt rsock %d RDMA_IOMAPSIZE ERROR %d (%s)\n",
+				conn_listen->rsock, errno, strerror(errno));
+		}
+	}
 	ret = rfcntl(conn_listen->rsock, F_SETFL, O_NONBLOCK);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
@@ -477,8 +488,11 @@ static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type,
 	conn->sid = 0;
 	conn->sindex = 0;
 	conn->sbuf2 = NULL;
+	conn->rdma_write = 0;
 	conn->ssa_db = NULL;
 	conn->epoch = 0;
+	conn->prdb_epoch = 0;
+	conn->epoch_len = 0;
 }
 
 static void ssa_close_ssa_conn(struct ssa_conn *conn)
@@ -496,8 +510,53 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 static int ssa_upstream_send_query(int rsock, struct ssa_msg_hdr *msg,
 				   uint16_t op, uint32_t id)
 {
-	ssa_init_ssa_msg_hdr(msg, op, sizeof(*msg), SSA_MSG_FLAG_END, id, 0, 0);
+	uint32_t rdma_len;
+
+	if (op == SSA_MSG_DB_PUBLISH_EPOCH_BUF)
+		rdma_len = sizeof(((struct ssa_conn *) NULL)->prdb_epoch);
+	else
+		rdma_len = 0;
+	ssa_init_ssa_msg_hdr(msg, op, sizeof(*msg), SSA_MSG_FLAG_END,
+			     id, rdma_len, 0);
 	return rsend(rsock, msg, sizeof(*msg), MSG_DONTWAIT);
+}
+
+#ifdef ACM
+int ssa_get_svc_cnt(struct ssa_port *port)
+{
+	return port->svc_cnt;
+}
+
+struct ssa_svc *ssa_get_svc(struct ssa_port *port, int index)
+{
+	if (index >= port->svc_cnt)
+		return NULL;
+	return port->svc[index];
+}
+
+int ssa_upstream_query_db(struct ssa_svc *svc)
+{
+	struct ssa_db_query_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+	msg.hdr.type = SSA_DB_QUERY;
+	msg.hdr.len = sizeof(msg);
+	msg.status = 0;
+	write(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
+	read(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
+	return msg.status;
+}
+#endif
+
+static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status)
+{
+	struct ssa_db_query_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+	msg.hdr.type = SSA_DB_QUERY;
+	msg.hdr.len = sizeof(msg);
+	msg.status = status;
+	write(svc->sock_upmain[1], (char *) &msg, sizeof(msg));
 }
 
 static void ssa_upstream_update_phase(struct ssa_conn *conn, uint16_t op)
@@ -518,8 +577,12 @@ static void ssa_upstream_update_phase(struct ssa_conn *conn, uint16_t op)
 		conn->phase = SSA_DB_DATA;
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
-		ssa_log_warn(SSA_LOG_CTRL,
-			     "SSA_MSG_DB_PUBLISH_EPOCH_BUF not currently supported\n");
+		if (conn->phase != SSA_DB_IDLE) {
+			ssa_log(SSA_LOG_CTRL,
+				"SSA_MSG_DB_PUBLISH_EPOCH_BUF in state %d not SSA_DB_IDLE\n",
+				conn->phase);
+			conn->phase = SSA_DB_IDLE;
+		}
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL, "unknown op %u\n", op);
@@ -565,6 +628,56 @@ static short ssa_upstream_query(struct ssa_svc *svc, uint16_t op, short events)
 			    "ssa_upstream_send_query for op %u on rsock %d\n",
 			    op, svc->conn_dataup.rsock);
 	return events;
+}
+
+static short ssa_riowrite(struct ssa_conn *conn, short events)
+{
+	int ret;
+	short revents = events;
+
+	conn->sbuf = (void *) &conn->prdb_epoch;
+	conn->ssize = sizeof(conn->prdb_epoch);
+	conn->soffset = 0;
+	conn->sbuf2 = NULL;
+	conn->rdma_write = 1;
+	ret = riowrite(conn->rsock, conn->sbuf, conn->ssize,
+		       0, MSG_DONTWAIT /* 0 */);
+	if (ret < 0)
+		ssa_log(SSA_LOG_DEFAULT, "epoch riowrite ERROR %d (%s)\n",
+			errno, strerror(errno));
+	else if (ret < sizeof(conn->prdb_epoch)) {
+		revents = POLLOUT | POLLIN;
+		ssa_log(SSA_LOG_DEFAULT,
+			"epoch riowrite %d out of %d bytes written\n",
+			ret, sizeof(conn->prdb_epoch));
+	} else {
+		conn->rdma_write = 0;
+		conn->sbuf = NULL;
+	}
+
+	return revents;
+}
+
+static short ssa_riowrite_continue(struct ssa_conn *conn, short events)
+{
+	int ret;
+
+	ret = riowrite(conn->rsock, conn->sbuf + conn->soffset,
+		       conn->ssize - conn->soffset, conn->soffset, MSG_DONTWAIT);
+	if (ret >= 0) {
+		conn->soffset += ret;
+		if (conn->soffset == conn->ssize) {
+			conn->rdma_write = 0;
+			conn->sbuf = NULL;
+			return POLLIN;
+		} else
+			return POLLOUT | POLLIN;
+	} else {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "riowrite continuation failed: %d (%s) on rsock %d\n",
+			    errno, strerror(errno), conn->rsock);
+		return 0;	/* POLLIN ? */
+	}
 }
 
 static short ssa_rsend_continue(struct ssa_conn *conn, short events)
@@ -1064,7 +1177,7 @@ static void *ssa_upstream_handler(void *context)
 	struct ssa_svc *svc = context;
 	struct ssa_conn_req_msg *conn_req;
 	struct ssa_ctrl_msg_buf msg;
-	struct pollfd fds[3];
+	struct pollfd fds[4];
 	int ret, errnum;
 	short port;
 
@@ -1079,12 +1192,18 @@ static void *ssa_upstream_handler(void *context)
 	fds[1].fd = svc->sock_accessup[0];
 	fds[1].events = POLLIN;
 	fds[1].revents = 0;
-	fds[2].fd = -1;		/* placeholder for upstream connection */
-	fds[2].events = 0;
+	fds[2].fd = svc->sock_upmain[1];
+	if (svc->sock_upmain[1] >= 0)
+		fds[2].events = POLLIN;
+	else
+		fds[2].events = 0;
 	fds[2].revents = 0;
+	fds[3].fd = -1;		/* placeholder for upstream connection */
+	fds[3].events = 0;
+	fds[3].revents = 0;
 
 	for (;;) {
-		ret = rpoll(&fds[0], 3, -1);
+		ret = rpoll(&fds[0], 4, -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
@@ -1119,14 +1238,17 @@ static void *ssa_upstream_handler(void *context)
 					conn_req->svc->conn_dataup.dbtype = SSA_CONN_SMDB_TYPE;
 					port = smdb_port;
 				}
-				fds[2].fd = ssa_upstream_initiate_conn(conn_req->svc, port);
+				fds[3].fd = ssa_upstream_initiate_conn(conn_req->svc, port);
 				/* Change when more than 1 data connection supported !!! */
-				if (fds[2].fd >= 0) {
+				if (fds[3].fd >= 0) {
 					if (conn_req->svc->conn_dataup.state != SSA_CONN_CONNECTED)
-						fds[2].events = POLLOUT;
+						fds[3].events = POLLOUT;
 					else {
 						conn_req->svc->conn_dataup.ssa_db = calloc(1, sizeof(*conn_req->svc->conn_dataup.ssa_db));
-						if (!conn_req->svc->conn_dataup.ssa_db) {
+						if (conn_req->svc->conn_dataup.ssa_db) {
+							if (port == prdb_port)
+								fds[3].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[3].events);
+						} else {
 							ssa_log_err(SSA_LOG_DEFAULT,
 								    "could not allocate ssa_db struct\n");
 						}
@@ -1168,34 +1290,83 @@ static void *ssa_upstream_handler(void *context)
 		}
 
 		if (fds[2].revents) {
+			fds[2].revents = 0;
+			read(svc->sock_upmain[1], (char *) &msg, sizeof msg.hdr);
+			if (msg.hdr.len > sizeof msg.hdr) {
+				read(svc->sock_upmain[1],
+				     (char *) &msg.hdr.data,
+				     msg.hdr.len - sizeof msg.hdr);
+			}
+#if 0
+			if (svc->process_msg && svc->process_msg(svc, &msg))
+				continue;
+#endif
+
+			switch (msg.hdr.type) {
+			case SSA_DB_QUERY:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY message received\n");
+				if (svc->conn_dataup.rsock >= 0) {
+					if (svc->conn_dataup.epoch !=
+					    ntohll(svc->conn_dataup.prdb_epoch)) {
+						/* Should response be after DB is pulled successfully ??? */
+						ssa_upstream_query_db_resp(svc, 0);
+						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
+ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due to updated epoch 0x%" PRIx64 "\n", svc->conn_dataup.rsock, svc->conn_dataup.phase, svc->conn_dataup.epoch);
+						/* Check connection state ??? */
+						svc->conn_dataup.roffset = 0;
+						free(svc->conn_dataup.rbuf);
+						svc->conn_dataup.rhdr = NULL;
+						svc->conn_dataup.rbuf = NULL;
+						fds[3].events = ssa_upstream_update_conn(svc, fds[3].events);
+					} else {
+						/* No epoch change */
+						ssa_upstream_query_db_resp(svc, -1);
+					}
+				} else {
+					/* No upstream connection */
+					ssa_upstream_query_db_resp(svc, -2);
+				}
+				break;
+			default:
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "ignoring unexpected message type %d from main\n",
+				msg.hdr.type);
+				break;
+			}
+		}
+
+		if (fds[3].revents) {
 			/* Only 1 upstream data connection currently */
-			if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			if (fds[3].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"error event 0x%x on rsock %d\n",
-					fds[2].revents, fds[2].fd);
+					fds[3].revents, fds[3].fd);
 				if (svc->conn_dataup.rsock >= 0) {
 					ssa_log(SSA_LOG_DEFAULT,
 						"rsock %d should but is not already closed\n",
 						svc->conn_dataup.rsock);
 					ssa_close_ssa_conn(&svc->conn_dataup);
 				}
-				fds[2].fd = -1;
-				fds[2].events = 0;
-				fds[2].revents = 0;
+				fds[3].fd = -1;
+				fds[3].events = 0;
+				fds[3].revents = 0;
 			}
-			if (fds[2].revents & POLLOUT) {
+			if (fds[3].revents & POLLOUT) {
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
 					ssa_upstream_svc_client(svc, errnum);
 					svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
-					if (!svc->conn_dataup.ssa_db) {
-						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ssa_db struct for rsock %d\n", fds[2].fd);
+					if (svc->conn_dataup.ssa_db) {
+						if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
+							fds[3].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[3].events);
+					} else {
+						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ssa_db struct for rsock %d\n", fds[3].fd);
 					}
 				} else {
-					fds[2].events = ssa_rsend_continue(&svc->conn_dataup, fds[2].events);
+					fds[3].events = ssa_rsend_continue(&svc->conn_dataup, fds[3].events);
 				}
 			}
-			if (fds[2].revents & POLLIN) {
+			if (fds[3].revents & POLLIN) {
 				if (!svc->conn_dataup.rbuf) {
 					svc->conn_dataup.rbuf = malloc(sizeof(struct ssa_msg_hdr));
 					if (svc->conn_dataup.rbuf) {
@@ -1204,19 +1375,19 @@ static void *ssa_upstream_handler(void *context)
 						svc->conn_dataup.rhdr = NULL;
 					} else
 						ssa_log_err(SSA_LOG_CTRL,
-							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[2].fd);
+							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[3].fd);
 				}
 				if (svc->conn_dataup.rbuf)
-					fds[2].events = ssa_upstream_rrecv(svc, fds[2].events);
+					fds[3].events = ssa_upstream_rrecv(svc, fds[3].events);
 			}
-			if (fds[2].revents & ~(POLLOUT | POLLIN)) {
+			if (fds[3].revents & ~(POLLOUT | POLLIN)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"unexpected event 0x%x on upstream rsock %d\n",
-					fds[2].revents & ~(POLLOUT | POLLIN),
-					fds[2].fd);
+					fds[3].revents & ~(POLLOUT | POLLIN),
+					fds[3].fd);
 			}
 
-			fds[2].revents = 0;
+			fds[3].revents = 0;
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
 				continue;
@@ -1247,6 +1418,7 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 	int ret;
 
 	conn->sbuf = malloc(sizeof(struct ssa_msg_hdr));
+	conn->sbuf2 = NULL;
 	if (conn->sbuf) {
 		conn->ssize = sizeof(struct ssa_msg_hdr);
 		conn->soffset = 0;
@@ -1509,6 +1681,28 @@ ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d rsock %d\n", conn->sindex
 	return revents;
 }
 
+static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
+						 struct ssa_msg_hdr *hdr,
+						 short events)
+{
+	short revents = events;
+
+	conn->epoch_len = ntohl(hdr->rdma_len);
+	conn->roffset = 0;
+	free(conn->rbuf);
+	conn->rhdr = NULL;
+	conn->rbuf = NULL;
+	if (conn->ssa_db) {
+		epoch = ssa_db_get_epoch(conn->ssa_db, DB_DEF_TBL_ID);
+		if (epoch) {
+			/* RDMA write current epoch for the connnection/DB so (limited) ACM restart will work */
+			revents = ssa_riowrite(conn, events);
+		}
+	}
+
+	return revents;
+}
+
 static short ssa_downstream_handle_op(struct ssa_conn *conn,
 				      struct ssa_msg_hdr *hdr, short events)
 {
@@ -1540,8 +1734,7 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 		revents = ssa_downstream_handle_query_data(conn, hdr, events);
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
-		ssa_log_warn(SSA_LOG_CTRL,
-			     "SSA_MSG_DB_PUBLISH_EPOCH_BUF not supported yet\n");
+		revents = ssa_downstream_handle_epoch_publish(conn, hdr, events);
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL, "unknown op %u on rsock %d\n",
@@ -1600,7 +1793,10 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 		}
 	}
 	if (events & POLLOUT) {
-		revents = ssa_rsend_continue(conn, events);
+		if (!conn->rdma_write)
+			revents = ssa_rsend_continue(conn, events);
+		else
+			revents = ssa_riowrite_continue(conn, events);
 	}
 	if (events & ~(POLLOUT | POLLIN)) {
 		ssa_log(SSA_LOG_DEFAULT,
@@ -1830,13 +2026,23 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p epoch 0x%" PR
 				conn = svc->fd_to_conn[slot];
 				if (conn) {
 					conn->ssa_db = msg.data.db_upd.db;
-					conn->epoch = msg.data.db_upd.epoch;
-					/* for now, send update notification for PRDB downstream !!! */
+					if (++svc->prdb_epoch == 0)
+						svc->prdb_epoch++;
+					conn->epoch = svc->prdb_epoch;
+					ssa_db_set_epoch(conn->ssa_db,
+							 DB_DEF_TBL_ID,
+							 conn->epoch);
+					conn->prdb_epoch = htonll(conn->epoch);
+ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", conn->ssa_db, ntohll(conn->prdb_epoch));
+				}
+				if (conn && conn->epoch_len) {
 					pfd2 = (struct pollfd *)(fds + slot);
-					pfd2->events = ssa_downstream_notify_db_update(svc, conn, 0);	/* need to fill in PRDB epoch !!! */
-				} else
+					pfd2->events = ssa_riowrite(conn, POLLIN);
+				} else if (!conn) {
 					ssa_log_warn(SSA_LOG_CTRL,
-						     "DB update for rsock %d but no ssa_conn struct available\n");
+						     "DB update for rsock %d but no ssa_conn struct available\n",
+						     slot);
+				}
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2070,6 +2276,8 @@ static void *ssa_access_handler(void *context)
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
+				/* Recalculate PRDBs for all downstream ACMs!!! */
+				/* Then RDMA write the PRDB epochs */
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2453,6 +2661,18 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 	svc->conn_dataup.state = SSA_CONN_CONNECTED;
 	svc->state = SSA_STATE_CONNECTED;
 
+	if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
+		ret = riomap(svc->conn_dataup.rsock,
+			     (void *) &svc->conn_dataup.prdb_epoch,
+			     sizeof svc->conn_dataup.prdb_epoch,
+			     PROT_WRITE, 0, 0); 
+		if (ret) {
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"riomap epoch rsock %d ret %d\n",
+				svc->conn_dataup.rsock, ret);
+		}
+	}
+
 	ssa_upstream_conn_done(svc, &svc->conn_dataup);
 }
 
@@ -2582,6 +2802,15 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 			"rsetsockopt rsock %d TCP_NODELAY ERROR %d (%s)\n",
 			svc->conn_dataup.rsock, errno, strerror(errno));
 		goto close;
+	}
+	if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
+		ret = rsetsockopt(svc->conn_dataup.rsock, SOL_RDMA,
+				  RDMA_IOMAPSIZE, (void *) &val, sizeof(val));
+		if (ret) {
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"rsetsockopt rsock %d RDMA_IOMAPSIZE ERROR %d (%s)\n",
+				svc->conn_dataup.rsock, errno, strerror(errno));
+		}
 	}
 	ret = rfcntl(svc->conn_dataup.rsock, F_SETFL, O_NONBLOCK);
 	if (ret) {
@@ -2836,6 +3065,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	}
 
 	if (port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
+		svc->sock_upmain[0] = -1;
+		svc->sock_upmain[1] = -1;
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_downctrl);
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL,
@@ -2845,6 +3076,12 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	} else {
 		svc->sock_downctrl[0] = -1;
 		svc->sock_downctrl[1] = -1;
+		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_upmain);
+		if (ret) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "creating upstream/main socketpair\n");
+			goto err2;
+		}
 	}
 
 	if (port->dev->ssa->node_type & SSA_NODE_ACCESS) {
@@ -3051,6 +3288,9 @@ err3:
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
 		close(svc->sock_downctrl[0]);
 		close(svc->sock_downctrl[1]);
+	} else {
+		close(svc->sock_upmain[0]);
+		close(svc->sock_upmain[1]);
 	}
 err2:
 	close(svc->sock_upctrl[0]);

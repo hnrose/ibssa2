@@ -153,7 +153,7 @@ union socket_addr {
 };
 
 static struct ssa_class ssa;
-static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread;
+static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread;
 static pthread_mutex_t ssa_dev_open = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ssa_dev_open_cond_var = PTHREAD_COND_INITIALIZER;
 
@@ -2273,9 +2273,10 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 	struct acm_ep *ep;
 	struct acm_dest *dest;
 	struct ibv_path_record *path;
+	struct ssa_svc *svc;
 	uint8_t *addr;
 	uint8_t status;
-	int ret;
+	int ret, i;
 
 	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	if (msg->hdr.length < (ACM_MSG_HDR_LENGTH + ACM_MSG_EP_LENGTH)) {
@@ -2310,6 +2311,13 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 	if (!dest) {
 		ssa_log_err(0, "unable to allocate destination in client request\n");
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
+	}
+
+	if (acm_mode == ACM_MODE_SSA) {
+		for (i = 0; i < ssa_get_svc_cnt(ep->port); i++) {
+			svc = ssa_get_svc(ep->port, i);
+			ssa_upstream_query_db(svc);
+		}
 	}
 
 	pthread_mutex_lock(&dest->lock);
@@ -3286,6 +3294,23 @@ acm_alloc_ep(void *port, uint16_t pkey, uint16_t pkey_index)
 	return ep;
 }
 
+static void *acm_issue_query(void *context)
+{
+	struct ssa_svc *svc = context;
+	int i, ret;
+
+	usleep(11000);	/* 11 msec delay - so first attempt likely to succeed */
+
+	for (i = 0; i < 99; i++) {	/* for total max of ~1 second */
+		ret = ssa_upstream_query_db(svc);
+		if (!ret)
+			break;
+		usleep(10000);	/* 10 msec delay before next attempt */
+	}
+
+	return NULL;
+}
+
 void acm_ep_up(void *port, uint16_t pkey_index)
 {
 	struct acm_ep *ep;
@@ -3929,6 +3954,9 @@ static void *acm_ctrl_handler(void *context)
 		goto close;
 	}
 
+	if (acm_mode == ACM_MODE_SSA)
+		pthread_create(&query_thread, NULL, acm_issue_query, svc);
+
 	ret = ssa_ctrl_run(&ssa);
 	if (ret) {
 		ssa_log_err(0, "processing control\n");
@@ -3936,6 +3964,8 @@ static void *acm_ctrl_handler(void *context)
 	}
 close:
 	ssa_log(SSA_LOG_VERBOSE, "closing SSA framework\n");
+	if (acm_mode == ACM_MODE_SSA)
+		pthread_join(query_thread, NULL);
 	ssa_close_devices(&ssa);
 	return context;
 }
