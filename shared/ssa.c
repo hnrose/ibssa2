@@ -640,8 +640,7 @@ static short ssa_riowrite(struct ssa_conn *conn, short events)
 	conn->soffset = 0;
 	conn->sbuf2 = NULL;
 	conn->rdma_write = 1;
-	ret = riowrite(conn->rsock, conn->sbuf, conn->ssize,
-		       0, MSG_DONTWAIT /* 0 */);
+	ret = riowrite(conn->rsock, conn->sbuf, conn->ssize, 0, MSG_DONTWAIT);
 	if (ret < 0)
 		ssa_log(SSA_LOG_DEFAULT, "epoch riowrite ERROR %d (%s)\n",
 			errno, strerror(errno));
