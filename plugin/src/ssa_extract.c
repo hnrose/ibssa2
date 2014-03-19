@@ -445,11 +445,12 @@ ssa_db_extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 			   struct ssa_db_extract *p_ssa_db)
 {
 	osm_node_t *p_node = p_port->p_physp->p_node;
-	const osm_pkey_tbl_t * p_pkey_tbl;
-	cl_map_iterator_t pkey_map_iter;
+	const osm_pkey_tbl_t *p_pkey_tbl;
+	const ib_pkey_table_t *block;
 	osm_physp_t *p_physp;
 	uint32_t i;
-	uint16_t *p_pkey, lid_ho;
+	ib_net16_t pkey;
+	uint16_t lid_ho, block_index, max_pkeys, pkey_idx;
 
 	for (i = 0; i < p_node->physp_tbl_size; i++) {
 		p_physp = osm_node_get_physp_ptr(p_node, i);
@@ -460,20 +461,28 @@ ssa_db_extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 
 		if (i == 0) {
 			lid_ho = ntohs(osm_physp_get_base_lid(p_physp));
-			p_pkey_tbl = osm_physp_get_pkey_tbl(p_port->p_physp);
 
-			for (pkey_map_iter = cl_map_head(&p_pkey_tbl->keys);
-			     pkey_map_iter != cl_map_end(&p_pkey_tbl->keys);
-			     pkey_map_iter = cl_map_next(pkey_map_iter)) {
-				p_pkey = (uint16_t *)cl_map_obj(pkey_map_iter);
-				memcpy(&p_ssa_db->p_pkey_tbl[*p_pkey_base_offset + *p_pkey_offset],
-				       p_pkey,sizeof(*p_ssa_db->p_pkey_tbl));
-				*p_pkey_offset = *p_pkey_offset + 1;
+			max_pkeys = ntohs(p_node->node_info.partition_cap);
+			p_pkey_tbl = osm_physp_get_pkey_tbl(p_physp);
+			for (block_index = 0; block_index < p_pkey_tbl->used_blocks;
+			     block_index++) {
+				block = osm_pkey_tbl_block_get(p_pkey_tbl, block_index);
+				if (!block)
+					continue;
+				for (pkey_idx = 0; pkey_idx < IB_NUM_PKEY_ELEMENTS_IN_BLOCK;
+				     pkey_idx++) {
+					pkey = block->pkey_entry[pkey_idx];
+					if (ib_pkey_is_invalid(pkey))
+						continue;
+
+					p_ssa_db->p_pkey_tbl[*p_pkey_base_offset + *p_pkey_offset] = pkey;
+					*p_pkey_offset = *p_pkey_offset + 1;
+				}
 			}
+
 			ssa_db_extract_port_tbl_rec(p_physp, &lid_ho,
 						    htonll(*p_pkey_base_offset),
-						    htons(*p_pkey_offset *
-							  sizeof(*p_pkey)),
+						    htons(*p_pkey_offset * sizeof(pkey)),
 						    p_port_offset, p_ssa_db);
 		} else {
 			ssa_db_extract_port_tbl_rec(p_physp, &lid_ho, 0, 0,
@@ -497,22 +506,31 @@ ssa_db_extract_host_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 			 struct ssa_db_extract *p_ssa_db)
 {
 	const osm_pkey_tbl_t *p_pkey_tbl;
-	cl_map_iterator_t pkey_map_iter;
+	const ib_pkey_table_t *block;
 	osm_physp_t *p_physp = p_port->p_physp;
-	uint16_t *p_pkey;
+	ib_net16_t pkey;
+	uint16_t block_index, max_pkeys, pkey_idx;
 
+	max_pkeys = ntohs(p_port->p_node->node_info.partition_cap);
 	p_pkey_tbl = osm_physp_get_pkey_tbl(p_physp);
-	for (pkey_map_iter = cl_map_head(&p_pkey_tbl->keys);
-	     pkey_map_iter != cl_map_end(&p_pkey_tbl->keys);
-	     pkey_map_iter = cl_map_next(pkey_map_iter)) {
-		p_pkey = (uint16_t *) cl_map_obj(pkey_map_iter);
-		memcpy(&p_ssa_db->p_pkey_tbl[*p_pkey_base_offset + *p_pkey_offset],
-		       p_pkey, sizeof(*p_ssa_db->p_pkey_tbl));
-		*p_pkey_offset = *p_pkey_offset + 1;
+	for (block_index = 0; block_index < p_pkey_tbl->used_blocks;
+	     block_index++) {
+		block = osm_pkey_tbl_block_get(p_pkey_tbl, block_index);
+		if (!block)
+			continue;
+		for (pkey_idx = 0; pkey_idx < IB_NUM_PKEY_ELEMENTS_IN_BLOCK;
+		     pkey_idx++) {
+			pkey = block->pkey_entry[pkey_idx];
+			if (ib_pkey_is_invalid(pkey))
+				continue;
+
+			p_ssa_db->p_pkey_tbl[*p_pkey_base_offset + *p_pkey_offset] = pkey;
+			*p_pkey_offset = *p_pkey_offset + 1;
+		}
 	}
 
 	ssa_db_extract_port_tbl_rec(p_physp, NULL, htonll(*p_pkey_base_offset),
-				    htons(*p_pkey_offset * sizeof(*p_pkey)),
+				    htons(*p_pkey_offset * sizeof(pkey)),
 				    p_port_offset, p_ssa_db);
 
 	if (!osm_physp_get_remote(p_physp))
