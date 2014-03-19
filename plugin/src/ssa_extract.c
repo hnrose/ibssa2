@@ -481,7 +481,7 @@ ssa_db_extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 			}
 
 			ssa_db_extract_port_tbl_rec(p_physp, &lid_ho,
-						    htonll(*p_pkey_base_offset),
+						    htonll(*p_pkey_base_offset * sizeof(pkey)),
 						    htons(*p_pkey_offset * sizeof(pkey)),
 						    p_port_offset, p_ssa_db);
 		} else {
@@ -529,7 +529,7 @@ ssa_db_extract_host_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 		}
 	}
 
-	ssa_db_extract_port_tbl_rec(p_physp, NULL, htonll(*p_pkey_base_offset),
+	ssa_db_extract_port_tbl_rec(p_physp, NULL, htonll(*p_pkey_base_offset * sizeof(pkey)),
 				    htons(*p_pkey_offset * sizeof(pkey)),
 				    p_port_offset, p_ssa_db);
 

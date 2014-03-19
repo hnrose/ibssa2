@@ -418,8 +418,8 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 			(struct ep_port_tbl_rec *) p_data_tbl_old;
 	struct ep_port_tbl_rec *p_tbl_rec_new =
 			(struct ep_port_tbl_rec *) p_data_tbl_new;
-	uint16_t *p_tbl_ref_rec_old = (uint16_t *) p_data_ref_tbl_old;
-	uint16_t *p_tbl_ref_rec_new = (uint16_t *) p_data_ref_tbl_new;
+	uint8_t *p_tbl_ref_rec_old = (uint8_t *) p_data_ref_tbl_old;
+	uint8_t *p_tbl_ref_rec_new = (uint8_t *) p_data_ref_tbl_new;
 	int res = 0;
 
 	p_tbl_rec_old += p_map_rec_old->offset;
