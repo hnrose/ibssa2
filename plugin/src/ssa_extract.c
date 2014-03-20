@@ -42,6 +42,8 @@
 #include <unistd.h>
 #include <poll.h>
 
+#define SSA_EXTRACT_PKEYS_MAX	(1 << 15)
+
 const char *port_state_str[] = {
 	"No change",
 	"Down",
@@ -480,6 +482,14 @@ ssa_db_extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 				}
 			}
 
+			if (*p_pkey_offset >= SSA_EXTRACT_PKEYS_MAX) {
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "ERROR - truncating number of pkeys "
+					    "from %d to %d (maximum) for LID %u\n",
+					    *p_pkey_offset, SSA_EXTRACT_PKEYS_MAX - 1, lid_ho);
+				*p_pkey_offset = SSA_EXTRACT_PKEYS_MAX - 1;
+			}
+
 			ssa_db_extract_port_tbl_rec(p_physp, &lid_ho,
 						    htonll(*p_pkey_base_offset * sizeof(pkey)),
 						    htons(*p_pkey_offset * sizeof(pkey)),
@@ -527,6 +537,15 @@ ssa_db_extract_host_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 			p_ssa_db->p_pkey_tbl[*p_pkey_base_offset + *p_pkey_offset] = pkey;
 			*p_pkey_offset = *p_pkey_offset + 1;
 		}
+	}
+
+	if (*p_pkey_offset >= SSA_EXTRACT_PKEYS_MAX) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "ERROR - truncating number of pkeys "
+			    "from %d to %d (maximum) for LID %u\n",
+			    *p_pkey_offset, SSA_EXTRACT_PKEYS_MAX - 1,
+			    ntohs(osm_physp_get_base_lid(p_physp)));
+		*p_pkey_offset = SSA_EXTRACT_PKEYS_MAX - 1;
 	}
 
 	ssa_db_extract_port_tbl_rec(p_physp, NULL, htonll(*p_pkey_base_offset * sizeof(pkey)),
