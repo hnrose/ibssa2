@@ -122,7 +122,7 @@ static const struct db_field_def field_tbl[] = {
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LFT_TOP }, "lft_top", __constant_htonl(16), __constant_htonl(16) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_LID }, "lid", __constant_htonl(16), 0 },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM }, "block_num", __constant_htonl(16), __constant_htonl(16) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK }, "block", __constant_htonl(8 * IB_SMP_DATA_SIZE), __constant_htonl(32) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK }, "block", __constant_htonl(8 * UMAD_LEN_SMP_DATA), __constant_htonl(32) },
 	{ DB_VERSION_INVALID }
 };
 
@@ -282,7 +282,7 @@ void ep_lft_block_tbl_rec_init(osm_switch_t * p_sw, uint16_t lid, uint16_t block
 {
 	p_rec->lid		= htons(lid);
 	p_rec->block_num	= htons(block);
-	memcpy(p_rec->block, p_sw->lft + block * IB_SMP_DATA_SIZE, IB_SMP_DATA_SIZE);
+	memcpy(p_rec->block, p_sw->lft + block * UMAD_LEN_SMP_DATA, UMAD_LEN_SMP_DATA);
 }
 
 /** =========================================================================

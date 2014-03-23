@@ -867,7 +867,7 @@ static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 
 	size = sizeof(*p_lft_change_rec);
 	if (p_lft_change->flags == LFT_CHANGED_BLOCK)
-		size += sizeof(p_lft_change_rec->block[0]) * IB_SMP_DATA_SIZE;
+		size += sizeof(p_lft_change_rec->block[0]) * UMAD_LEN_SMP_DATA;
 
 	p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
 	if (!p_lft_change_rec) {
@@ -880,8 +880,8 @@ static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 
 	if (p_lft_change->flags == LFT_CHANGED_BLOCK)
 		memcpy(p_lft_change_rec->block, p_lft_change->p_sw->lft +
-		       p_lft_change->block_num * IB_SMP_DATA_SIZE,
-		       IB_SMP_DATA_SIZE);
+		       p_lft_change->block_num * UMAD_LEN_SMP_DATA,
+		       UMAD_LEN_SMP_DATA);
 
 	pthread_mutex_lock(&ssa_db->lft_rec_list_lock);
 	cl_qlist_insert_tail(&ssa_db->lft_rec_list, &p_lft_change_rec->list_item);

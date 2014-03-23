@@ -805,7 +805,7 @@ ssa_db_lft_block_handle(struct ssa_db_lft_change_rec *p_lft_change_rec)
 	ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num].block_num = htons(block_num);
 
 	memcpy(ssa_db->p_lft_db->p_dump_lft_block_tbl[rec_num].block,
-	       p_lft_change_rec->block, UMAD_LEN_SMP_DATA);
+	       p_lft_change_rec->block, IB_SMP_DATA_SIZE);
 }
 
 /** ===========================================================================
