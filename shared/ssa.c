@@ -375,28 +375,13 @@ int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 
 static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
-	int i;
-
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name,
 		ibv_event_type_str(msg->data.event));
 	switch (msg->data.event) {
 	case IBV_EVENT_PORT_ERR:
-		if (svc->conn_listen_smdb.rsock >= 0)
-			ssa_close_ssa_conn(&svc->conn_listen_smdb);
-		if (svc->conn_listen_prdb.rsock >= 0)
-			ssa_close_ssa_conn(&svc->conn_listen_prdb);
 	case IBV_EVENT_CLIENT_REREGISTER:
 		if (svc->conn_dataup.rsock >= 0)
 			ssa_close_ssa_conn(&svc->conn_dataup);
-		if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
-			for (i = 0; i < FD_SETSIZE; i++) {
-				if (svc->fd_to_conn[i] &&
-				    svc->fd_to_conn[i]->rsock >= 0) {
-					ssa_close_ssa_conn(svc->fd_to_conn[i]);
-					svc->fd_to_conn[i] = NULL;
-				}
-			}
-		}
 		svc->state = SSA_STATE_IDLE;
 		/* fall through to reactivate */
 	case IBV_EVENT_PORT_ACTIVE:
@@ -1908,6 +1893,32 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 			    "struct ssa_conn allocation failed\n");
 }
 
+static void ssa_downstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	int i;
+
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name,
+		ibv_event_type_str(msg->data.event));
+	switch (msg->data.event) {
+	case IBV_EVENT_PORT_ERR:
+		if (svc->conn_listen_smdb.rsock >= 0)
+			ssa_close_ssa_conn(&svc->conn_listen_smdb);
+		if (svc->conn_listen_prdb.rsock >= 0)
+			ssa_close_ssa_conn(&svc->conn_listen_prdb);
+	case IBV_EVENT_CLIENT_REREGISTER:
+		for (i = 0; i < FD_SETSIZE; i++) {
+			if (svc->fd_to_conn[i] &&
+			    svc->fd_to_conn[i]->rsock >= 0) {
+				ssa_close_ssa_conn(svc->fd_to_conn[i]);
+				svc->fd_to_conn[i] = NULL;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 static void *ssa_downstream_handler(void *context)
 {
 	struct ssa_svc *svc = context;
@@ -1993,6 +2004,9 @@ static void *ssa_downstream_handler(void *context)
 				break;
 			case SSA_CTRL_EXIT:
 				goto out;
+			case SSA_CTRL_DEV_EVENT:
+				ssa_downstream_dev_event(svc, &msg);
+				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "ignoring unexpected message "
@@ -2409,8 +2423,10 @@ out:
 static void ssa_ctrl_port_send(struct ssa_port *port, struct ssa_ctrl_msg *msg)
 {
 	int i;
-	for (i = 0; i < port->svc_cnt; i++)
+	for (i = 0; i < port->svc_cnt; i++) {
 		write(port->svc[i]->sock_upctrl[0], msg, msg->len);
+		write(port->svc[i]->sock_downctrl[0], msg, msg->len);
+	}
 }
 
 /*
