@@ -58,7 +58,7 @@ enum ssa_db_helper_mode {
  *	ssa_db_save
  *
  * DESCRIPTION
- *	Save the distributed SMDB to file system
+ *	Save the distributed SSA DB to file system
  *
  * SYNOPSIS
  * */
@@ -67,7 +67,7 @@ void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 /*
 * PARAMETERS
 *	path_dir
-*		[in] Path to the directory where the SMDB will be saved
+*		[in] Path to the directory where the SSA DB will be saved
 *
 *	p_data
 *		[in] The pointer to SMDB that is supposed to be distributed
@@ -87,7 +87,7 @@ void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
  *	ssa_db_load
  *
  * DESCRIPTION
- *	Load the distributed SMDB from file system
+ *	Load the distributed SSA DB from file system
  *
  * SYNOPSIS
  * */
@@ -95,7 +95,7 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode);
 /*
 * PARAMETERS
 *	path_dir
-*		[in] Path to the directory where the SMDB will be loaded from
+*		[in] Path to the directory where the SSA DB will be loaded from
 *
 *	mode
 *		[in] The mode of data loaded from disk
