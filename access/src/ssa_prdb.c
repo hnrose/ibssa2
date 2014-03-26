@@ -55,12 +55,12 @@ static const struct db_dataset field_dataset_tbl[] = {
 
 static const struct db_field_def field_tbl[] = {
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF,SSA_PR_FIELD_ID_PR_DGUID}, "guid", __constant_htonl(64), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_DLID }, "lid", __constant_htonl(16), __constant_htonl(64) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_PK }, "pk", __constant_htonl(16), __constant_htonl(80) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_DLID }, "dlid", __constant_htonl(16), __constant_htonl(64) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_PK }, "pkey", __constant_htonl(16), __constant_htonl(80) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_MTU }, "mtu", __constant_htonl(8), __constant_htonl(96) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_RATE }, "rate", __constant_htonl(8), __constant_htonl(104) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_SL }, "sl", __constant_htonl(8), __constant_htonl(112) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_REVERSIBLE }, "is_reversible", __constant_htonl(8), __constant_htonl(120) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_PR_TABLE_ID_FIELD_DEF, SSA_PR_FIELD_ID_PR_REVERSIBLE }, "reversible", __constant_htonl(8), __constant_htonl(120) },
 	{ DB_VERSION_INVALID }
 };
 
