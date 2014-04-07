@@ -501,6 +501,7 @@ static const char *distrib_node_type_str(int node_type)
 static void distrib_log_options(void)
 {
 	ssa_log_options();
+	ssa_log(SSA_LOG_DEFAULT, "config file %s\n", opts_file);
 	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
 	ssa_log(SSA_LOG_DEFAULT, "node type %d (%s)\n", node_type,
 		distrib_node_type_str(node_type));
