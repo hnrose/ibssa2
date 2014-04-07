@@ -41,6 +41,8 @@
 #include <ssa_log.h>
 #include <syslog.h>
 #include <time.h>
+#include <unistd.h>
+#include <limits.h>
 
 /* TODO: make static after access layer integration */
 FILE *flog;
@@ -162,5 +164,9 @@ void ssa_sprint_addr(int level, char *str, size_t str_size,
 
 void ssa_log_options()
 {
+	char hostname[HOST_NAME_MAX];
+
+	gethostname(hostname, HOST_NAME_MAX);
+	ssa_log(SSA_LOG_DEFAULT, "host name %s\n", hostname);
 	ssa_log(SSA_LOG_DEFAULT, "log level 0x%x\n", log_level);
 }
