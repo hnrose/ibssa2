@@ -323,7 +323,7 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 
 static void distrib_init_svc(struct ssa_svc *svc)
 {
-	struct ssa_distrib *distrib= container_of(svc, struct ssa_distrib, svc);
+	struct ssa_distrib *distrib = container_of(svc, struct ssa_distrib, svc);
 	DListInit(&distrib->orphan_list);
 }
 #else
