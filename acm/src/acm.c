@@ -3800,7 +3800,7 @@ static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 			"SSA MAD method 0x%x attribute 0x%x received with status 0x%x\n",
 			umad->packet.mad_hdr.method,
 			ntohs(umad->packet.mad_hdr.attr_id), umad->umad.status);
-		return 0;
+		return 1;	/* rerequest ? */
 	}
 
 	switch (umad->packet.mad_hdr.method) {
