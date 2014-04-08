@@ -45,7 +45,7 @@
 
 #include <infiniband/ssa_db_helper.h>
 
-#define INITIAL_SUBNET_UP_DELAY 100000		/* 100 msec */
+#define INITIAL_SUBNET_UP_DELAY 500000		/* 500 msec */
 
 /*
  * Service options - may be set through ibssa_opts.cfg file.
