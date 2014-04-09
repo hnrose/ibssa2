@@ -2348,7 +2348,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 							     prdb_dump_dir);
 						snprintf(dump_dir + n,
 							 sizeof(dump_dir) - n,
-							 "%" PRIx64,
+							 "0x%" PRIx64,
 							 ntohll(msg.data.conn->remote_gid.global.interface_id));
 						if (lstat(dump_dir, &dstat)) {
 							if (mkdir(dump_dir, 0755)) {
