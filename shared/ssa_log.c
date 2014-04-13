@@ -33,6 +33,10 @@
  *
  */
 
+#if HAVE_CONFIG_H
+#  include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #include <infiniband/sa.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -167,6 +171,7 @@ void ssa_log_options()
 	char hostname[HOST_NAME_MAX];
 
 	gethostname(hostname, HOST_NAME_MAX);
+	ssa_log(SSA_LOG_DEFAULT, "ibssa version %s\n", IB_SSA_VERSION);
 	ssa_log(SSA_LOG_DEFAULT, "host name %s\n", hostname);
 	ssa_log(SSA_LOG_DEFAULT, "log level 0x%x\n", log_level);
 }

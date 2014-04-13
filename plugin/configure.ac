@@ -108,6 +108,19 @@ AC_CHECK_HEADER(valgrind/memcheck.h, [],
 fi
 fi
 
+dnl Define package version
+commit="`git log -n 1 --pretty=format:"%h" 2> /dev/null`"
+if test "$commit" == "" ; then
+	ver="${PACKAGE_VERSION}"
+else
+	ver="${PACKAGE_VERSION}_${commit}"
+	git diff-index --quiet HEAD -- ./ > /dev/null 2>&1
+	if test "$?" == "1" ; then
+		ver="${ver}_dirty"
+	fi
+fi
+AC_DEFINE_UNQUOTED([IB_SSA_VERSION], ["$ver"], [ibssa package version])
+
 dnl We use --version-script with ld if possible
 AC_CACHE_CHECK(whether ld accepts --version-script, ac_cv_version_script,
     if test -n "`$LD --help < /dev/null 2>/dev/null | grep version-script`"; then

@@ -74,6 +74,19 @@ AC_CHECK_MEMBER(struct umad_hdr.base_version, [],
     [#include <infiniband/umad_types.h>])
 fi
 
+dnl Define package version
+commit="`git log -n 1 --pretty=format:"%h" 2> /dev/null`"
+if test "$commit" == "" ; then
+	ver="${PACKAGE_VERSION}"
+else
+	ver="${PACKAGE_VERSION}_${commit}"
+	git diff-index --quiet HEAD -- ./ > /dev/null 2>&1
+	if test "$?" == "1" ; then
+		ver="${ver}_dirty"
+	fi
+fi
+AC_DEFINE_UNQUOTED([IB_SSA_VERSION], ["$ver"], [ibssa package version])
+
 dnl Check for gcc atomic intrinsics
 AC_MSG_CHECKING(compiler support for atomics)
 AC_TRY_LINK([int i = 0;],
