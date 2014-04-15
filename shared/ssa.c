@@ -2343,9 +2343,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 					"connection done on rsock %d from GID %s\n",
 					msg.data.conn->rsock, log_data);
-				/* First, calculate half world PathRecords for GID */
-				/* ssa_calc_path_records(); */
-				/* Then "tell" downstream where this ssa_db struct is */
+				/* First, see if consumer GID in access map */
+				/* Then, calculate half world PathRecords for GID if needed */
+				/* Finally, "tell" downstream where this ssa_db struct is */
 #ifdef ACCESS
 				if (svc->access_context.smdb) {
 					tgid = tfind(msg.data.conn->remote_gid.raw,
