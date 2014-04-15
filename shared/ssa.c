@@ -2365,6 +2365,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 							     &svc->access_map,
 							     ssa_compare_gid)) {
 							free(consumer);
+							ssa_log(SSA_LOG_DEFAULT,
+								"failed to insert consumer GID %s into access map\n",
+								log_data);
 							continue;
 						}
 					} else {
