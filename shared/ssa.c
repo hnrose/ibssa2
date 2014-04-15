@@ -2293,7 +2293,7 @@ static void *ssa_access_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.data.db_upd.db);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
 				/* Recalculate PRDBs for all downstream ACMs!!! */
@@ -2408,7 +2408,7 @@ skip_save:
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract thread: ssa_db %p\n", msg.data.db_upd.db);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
 				/* Recalculate PRDBs for all downstream ACMs!!! */
