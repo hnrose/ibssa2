@@ -2033,7 +2033,7 @@ static void *ssa_downstream_handler(void *context)
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
 ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data, SSA_ADDR_GID, msg.data.db_upd.remote_gid->raw, sizeof msg.data.db_upd.remote_gid->raw);
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update: rsock %d GID %s ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.rsock, log_data, msg.data.db_upd.db, msg.data.db_upd.epoch);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update from access: rsock %d GID %s ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.rsock, log_data, msg.data.db_upd.db, msg.data.db_upd.epoch);
 				/* Now ready to rsend to downstream client upon request */
 				slot = msg.data.db_upd.rsock;
 				conn = svc->fd_to_conn[slot];
@@ -2082,7 +2082,7 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", conn->ssa_db, ntohll(c
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.db, msg.data.db_upd.epoch);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
 				epoch = msg.data.db_upd.epoch;
 				break;
@@ -2111,7 +2111,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB): ssa_db %p epoch 0x%" PRIx64 "\n"
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
 				ssa_log(SSA_LOG_DEFAULT,
-					"SSA DB update (SMDB): ssa_db %p epoch 0x%" PRIx64 "\n",
+					"SSA DB update (SMDB) from extract: ssa_db %p epoch 0x%" PRIx64 "\n",
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
 				epoch = msg.data.db_upd.epoch;
@@ -2290,7 +2290,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 				svc->access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
 				/* Recalculate PRDBs for all downstream ACMs!!! */
-				/* Then RDMA write the PRDB epochs */
+				/* Then cause RDMA write of the PRDB epochs */
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2326,11 +2326,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 					msg.data.conn->rsock, log_data);
 				/* First, calculate half world PathRecords for GID */
 				/* ssa_calc_path_records(); */
-				/* Now, tell downstream where this ssa_db struct is */
-				/* Replace NULL with pointer to real struct ssa_db */
+				/* Then "tell" downstream where this ssa_db struct is */
 #ifdef ACCESS
 				if (svc->access_context.smdb) {
-					/* This call pulls in access layer for all node types !!! */
+					/* This call pulls in access layer for all node types (if ACCESS defined) !!! */
 					prdb = ssa_pr_compute_half_world(svc->access_context.smdb,
 									 svc->access_context.context,
 									 msg.data.conn->remote_gid.global.interface_id);
@@ -2405,6 +2404,8 @@ skip_save:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract thread: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
+				/* Recalculate PRDBs for all downstream ACMs!!! */
+				/* Then cause RDMA write of the PRDB epochs */
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
