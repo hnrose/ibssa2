@@ -2421,9 +2421,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 					}
 					prdb = ssa_calculate_prdb(svc, &msg.data.conn->remote_gid);
 #endif
-					if (!prdb) {
+					if (!prdb)
 						continue;
-					}
 skip_prdb_calc:
 #ifdef ACCESS
 					consumer->prdb_current = prdb;
