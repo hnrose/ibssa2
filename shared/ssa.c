@@ -2215,15 +2215,53 @@ static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
 }
 
+#ifdef ACCESS
+static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid)
+{
+	struct ssa_db *prdb;
+	int n;
+	char dump_dir[1024];
+	struct stat dstat;
+
+	/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
+	prdb = ssa_pr_compute_half_world(svc->access_context.smdb,
+					 svc->access_context.context,
+					 gid->global.interface_id);
+	if (prdb) {
+		if (prdb_dump) {
+			n = snprintf(dump_dir, sizeof(dump_dir),
+				     "%s.", prdb_dump_dir);
+			snprintf(dump_dir + n, sizeof(dump_dir) - n,
+				 "0x%" PRIx64,
+				 ntohll(gid->global.interface_id));
+			if (lstat(dump_dir, &dstat)) {
+				if (mkdir(dump_dir, 0755)) {
+					ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+							log_data, sizeof log_data,
+							SSA_ADDR_GID,
+							gid->raw,
+							sizeof gid->raw);
+					ssa_log_err(SSA_LOG_CTRL,
+						    "prdb dump for GID %s: %d (%s)\n",
+						    log_data, errno, strerror(errno));
+					goto skip_prdb_save;
+				}
+			}
+			ssa_db_save(dump_dir, prdb, prdb_dump);
+		}
+	}
+skip_prdb_save:
+	return prdb;
+}
+#endif
+
 static void *ssa_access_handler(void *context)
 {
 	struct ssa_svc *svc = context;
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[4];
 	struct ssa_db *prdb = NULL;
-	int ret, n;
-	char dump_dir[1024];
-	struct stat dstat;
+	int ret;
 #ifdef ACCESS
 	struct ssa_access_member *consumer;
 	uint8_t **tgid;
@@ -2379,43 +2417,14 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 						if (consumer->smdb_epoch ==
 						    ssa_db_get_epoch(svc->access_context.smdb, DB_DEF_TBL_ID))
 							prdb = consumer->prdb_current;
-							goto skip_save;
+							goto skip_prdb_calc;
 					}
-					/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
-					prdb = ssa_pr_compute_half_world(svc->access_context.smdb,
-									 svc->access_context.context,
-									 msg.data.conn->remote_gid.global.interface_id);
+					prdb = ssa_calculate_prdb(svc, &msg.data.conn->remote_gid);
 #endif
 					if (!prdb) {
-						ssa_log_err(SSA_LOG_CTRL,
-							    "prdb creation for GID %s\n",
-							    log_data);
 						continue;
 					}
-					if (prdb_dump) {
-						n = snprintf(dump_dir,
-							     sizeof(dump_dir),
-							     "%s.",
-							     prdb_dump_dir);
-						snprintf(dump_dir + n,
-							 sizeof(dump_dir) - n,
-							 "0x%" PRIx64,
-							 ntohll(msg.data.conn->remote_gid.global.interface_id));
-						if (lstat(dump_dir, &dstat)) {
-							if (mkdir(dump_dir, 0755)) {
-								ssa_log_err(SSA_LOG_CTRL,
-									    "prdb dump for GID %s: %d (%s)\n",
-									    log_data,
-									    errno,
-									    strerror(errno));
-								goto skip_save;
-							}
-						}
-						ssa_db_save(dump_dir,
-							    prdb,
-							    prdb_dump);
-					}
-skip_save:
+skip_prdb_calc:
 #ifdef ACCESS
 					consumer->prdb_current = prdb;
 					consumer->smdb_epoch = ssa_db_get_epoch(svc->access_context.smdb, DB_DEF_TBL_ID);
