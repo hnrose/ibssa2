@@ -1387,8 +1387,6 @@ static void ssa_downstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
 {
 	struct ssa_conn_done_msg msg;
 
-	if (conn->dbtype != SSA_CONN_PRDB_TYPE)
-		return;
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
@@ -1866,10 +1864,19 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 					pfd2 = (struct  pollfd *)(fds + slot);
 					pfd2->fd = fd;
 					pfd2->events = POLLIN;
-					if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
+					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
 						ssa_downstream_conn_done(svc, conn_data);
-					if (conn_dbtype == SSA_CONN_SMDB_TYPE)
+					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
 						pfd2->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
+					else {
+						ssa_close_ssa_conn(conn_data);
+						free(conn_data);
+						conn_data = NULL;
+						svc->fd_to_conn[fd] = NULL;
+						ssa_log_warn(SSA_LOG_CTRL,
+							     "connection db type %d not PRDB or SMDB\n",
+							     conn_dbtype);
+					}
 				} else {
 					ssa_close_ssa_conn(conn_data);
 					free(conn_data);
