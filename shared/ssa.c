@@ -2236,7 +2236,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 				 ntohll(gid->global.interface_id));
 			if (lstat(dump_dir, &dstat)) {
 				if (mkdir(dump_dir, 0755)) {
-					ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					ssa_sprint_addr(SSA_LOG_CTRL,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID,
 							gid->raw,
