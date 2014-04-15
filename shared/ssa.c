@@ -2423,8 +2423,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 #endif
 					if (!prdb)
 						continue;
-skip_prdb_calc:
 #ifdef ACCESS
+skip_prdb_calc:
 					consumer->prdb_current = prdb;
 					consumer->smdb_epoch = ssa_db_get_epoch(svc->access_context.smdb, DB_DEF_TBL_ID);
 #endif
