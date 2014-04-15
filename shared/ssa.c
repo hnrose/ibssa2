@@ -91,6 +91,14 @@ short smdb_port = 7470;
 short prdb_port = 7471;
 int keepalive = 0;
 
+#ifdef ACCESS
+struct ssa_access_member {
+	union ibv_gid gid;		/* consumer GID */
+	struct ssa_db *prdb_current;
+	uint64_t smdb_epoch;
+};
+#endif
+
 /* Forward declarations */
 static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn);
@@ -2216,6 +2224,10 @@ static void *ssa_access_handler(void *context)
 	int ret, n;
 	char dump_dir[1024];
 	struct stat dstat;
+#ifdef ACCESS
+	struct ssa_access_member *consumer;
+	uint8_t **tgid;
+#endif
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
@@ -2336,7 +2348,37 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 				/* Then "tell" downstream where this ssa_db struct is */
 #ifdef ACCESS
 				if (svc->access_context.smdb) {
-					/* This call pulls in access layer for all node types (if ACCESS defined) !!! */
+					tgid = tfind(msg.data.conn->remote_gid.raw,
+						     &svc->access_map,
+						     ssa_compare_gid);
+					if (!tgid) {
+						consumer = calloc(1, sizeof *consumer);
+						if (!consumer) {
+							ssa_log(SSA_LOG_DEFAULT,
+								"no memory for ssa_access_member struct\n");
+							continue;
+						}
+						memcpy(&consumer->gid,
+						       msg.data.conn->remote_gid.raw,
+						       16);
+						if (!tsearch(&consumer->gid,
+							     &svc->access_map,
+							     ssa_compare_gid)) {
+							free(consumer);
+							continue;
+						}
+					} else {
+						consumer = container_of(*tgid,
+									struct ssa_access_member, gid);
+					}
+					if (consumer->prdb_current) {
+						/* Is SMDB epoch same as when PRDB was last calculated ? */
+						if (consumer->smdb_epoch ==
+						    ssa_db_get_epoch(svc->access_context.smdb, DB_DEF_TBL_ID))
+							prdb = consumer->prdb_current;
+							goto skip_save;
+					}
+					/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
 					prdb = ssa_pr_compute_half_world(svc->access_context.smdb,
 									 svc->access_context.context,
 									 msg.data.conn->remote_gid.global.interface_id);
@@ -2371,6 +2413,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 							    prdb_dump);
 					}
 skip_save:
+#ifdef ACCESS
+					consumer->prdb_current = prdb;
+					consumer->smdb_epoch = ssa_db_get_epoch(svc->access_context.smdb, DB_DEF_TBL_ID);
+#endif
 					ssa_access_send_db_update(svc, prdb,
 								  msg.data.conn->rsock, 0,
 								  &msg.data.conn->remote_gid);
