@@ -1668,6 +1668,7 @@ ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d rsock %d\n", conn->sindex
 						      events);
 			conn->sindex++;
 		} else {
+			conn->phase = SSA_DB_IDLE;
 			revents = ssa_downstream_send_resp(conn,
 							   SSA_MSG_DB_QUERY_DATA_DATASET,
 							   events);
