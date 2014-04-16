@@ -1309,7 +1309,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY message received\n");
 				if (svc->conn_dataup.rsock >= 0) {
 					if (svc->conn_dataup.epoch !=
 					    ntohll(svc->conn_dataup.prdb_epoch)) {
-						/* Should response be after DB is pulled successfully ??? */
+						/* Should response (and epoch update) be after DB is pulled successfully ??? */
 						ssa_upstream_query_db_resp(svc, 0);
 						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
 ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due to updated epoch 0x%" PRIx64 "\n", svc->conn_dataup.rsock, svc->conn_dataup.phase, svc->conn_dataup.epoch);
