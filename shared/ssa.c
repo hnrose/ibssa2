@@ -96,6 +96,15 @@ struct ssa_access_member {
 	union ibv_gid gid;		/* consumer GID */
 	struct ssa_db *prdb_current;
 	uint64_t smdb_epoch;
+	int rsock;
+};
+
+/* From libgcc (tsearch.c) so can walk binary tree and supply private pointer */
+struct node_t {
+	const void *key;
+	struct node_t *left;
+	struct node_t *right;
+	unsigned int red:1;
 };
 #endif
 
@@ -2253,6 +2262,71 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 skip_prdb_save:
 	return prdb;
 }
+
+static void ssa_access_map_callback(const void *nodep, const VISIT which,
+				    const void *priv)
+{
+	struct ssa_access_member *consumer;
+	struct ssa_svc *svc = (struct ssa_svc *) priv;
+	struct ssa_db *prdb;
+
+	switch (which) {
+	case preorder:
+		break;
+	case postorder:
+		consumer = container_of(* (struct ssa_access_member **) nodep,
+					struct ssa_access_member, gid);
+		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+				SSA_ADDR_GID, consumer->gid.raw,
+				sizeof consumer->gid.raw);
+		prdb = ssa_calculate_prdb(svc, &consumer->gid);
+		ssa_log(SSA_LOG_DEFAULT, "Internal GID %s PRDB %p rsock %d\n",
+			log_data, prdb, consumer->rsock);
+		if (prdb) {
+			consumer->prdb_current = prdb;
+			ssa_access_send_db_update(svc, prdb, consumer->rsock,
+						  0, &consumer->gid);
+		} else
+			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
+		break;
+	case endorder:
+		break;
+	case leaf:
+		consumer = container_of(* (struct ssa_access_member **) nodep,
+					struct ssa_access_member, gid);
+		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+				SSA_ADDR_GID, consumer->gid.raw,
+				sizeof consumer->gid.raw);
+		prdb = ssa_calculate_prdb(svc, &consumer->gid);
+		ssa_log(SSA_LOG_DEFAULT, "Leaf GID %s PRDB %p rsock %d\n",
+			log_data, prdb, consumer->rsock);
+		if (prdb) {
+			consumer->prdb_current = prdb;
+			ssa_access_send_db_update(svc, prdb, consumer->rsock,
+						  0, &consumer->gid);
+		} else
+			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
+		break;
+	}
+}
+
+static void ssa_twalk(const struct node_t *root,
+		      void (*callback)(const void *nodep, const VISIT which,
+				       const void *priv),
+		      const void *priv)
+{
+	if (root->left == NULL && root->right == NULL)
+		callback(root, leaf, priv);
+	else {
+		callback(root, preorder, priv);
+		if (root->left != NULL)
+			ssa_twalk(root->left, callback, priv);
+		callback(root, postorder, priv);
+		if (root->right != NULL)
+			ssa_twalk(root->right, callback, priv);
+		callback(root, endorder, priv);
+	}
+}
 #endif
 
 static void *ssa_access_handler(void *context)
@@ -2346,8 +2420,13 @@ static void *ssa_access_handler(void *context)
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
+#ifdef ACCESS
 				/* Recalculate PRDBs for all downstream ACMs!!! */
 				/* Then cause RDMA write of the PRDB epochs */
+				if (svc->access_map)
+					ssa_twalk(svc->access_map,
+						  ssa_access_map_callback, svc);
+#endif
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2399,6 +2478,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db
 						memcpy(&consumer->gid,
 						       msg.data.conn->remote_gid.raw,
 						       16);
+						consumer->rsock = msg.data.conn->rsock;
 						if (!tsearch(&consumer->gid,
 							     &svc->access_map,
 							     ssa_compare_gid)) {
@@ -2468,8 +2548,13 @@ skip_prdb_calc:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract: ssa_db %p\n", msg.data.db_upd.db);
 				svc->access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
+#ifdef ACCESS
 				/* Recalculate PRDBs for all downstream ACMs!!! */
 				/* Then cause RDMA write of the PRDB epochs */
+				if (svc->access_map)
+					ssa_twalk(svc->access_map,
+						  ssa_access_map_callback, svc);
+#endif
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
