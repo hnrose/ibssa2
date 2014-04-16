@@ -2212,6 +2212,7 @@ static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	msg.db_upd.rsock = rsock;
 	msg.db_upd.flags = flags;
 	msg.db_upd.remote_gid = remote_gid;
+	msg.db_upd.epoch = 0;	/* not used */
 	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
 }
 
