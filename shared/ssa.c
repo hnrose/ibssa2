@@ -2206,6 +2206,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x
 	}
 
 out:
+	if (fds)
+		free(fds);
 	return NULL;
 }
 
