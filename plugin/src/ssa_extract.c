@@ -393,7 +393,7 @@ static void ssa_db_extract_dump_port_qos(osm_port_t *p_port)
 //	if (osm_node_get_type(p_port->p_physp->p_node) ==
 //		IB_NODE_TYPE_SWITCH) {
 //		/* no need to print SL2VL table for port that is down */
-//		/* TODO:: not sure if it is needed */
+//		/* TODO: not sure if it is needed */
 //		/*if (!p_port->p_physp->p_remote_physp)
 //			continue; */
 //
@@ -741,7 +741,7 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 
 /** ===========================================================================
  */
-/* TODO:: Add meaningfull return value */
+/* TODO: Add meaningful return value */
 void ssa_db_update(struct ssa_database *ssa_db)
 {
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
