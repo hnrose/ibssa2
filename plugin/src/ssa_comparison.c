@@ -72,6 +72,7 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 {
 	if (p_ssa_db_diff) {
 		ssa_db_smdb_destroy(p_ssa_db_diff->p_smdb);
+		p_ssa_db_diff->p_smdb = NULL;
 
 		ssa_qmap_apply_func(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 				   ep_map_rec_delete_pfn);
