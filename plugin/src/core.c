@@ -827,13 +827,16 @@ static void *core_extract_handler(void *context)
 				first = 0;
 				break;
 			case SSA_DB_LFT_CHANGE:
-				ssa_log(SSA_LOG_VERBOSE, "Start handling LFT change events\n");
+				ssa_log(SSA_LOG_VERBOSE,
+					"Start handling LFT change events\n");
 				ssa_db_lft_handle();
 				break;
 			case SSA_DB_EXIT:
 				goto out;
 			default:
-				ssa_log(SSA_LOG_VERBOSE, "ERROR: Unknown msg type %d\n", msg.type);
+				ssa_log(SSA_LOG_VERBOSE,
+					"ERROR: Unknown msg type %d\n",
+					msg.type);
 				break;
 			}
 		}
@@ -848,8 +851,8 @@ static void core_send_msg(enum ssa_db_ctrl_msg_type type)
 	struct ssa_db_ctrl_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
-	ssa_log(SSA_LOG_VERBOSE, "Sending msg type %d from core "
-		"to extract thread\n", type);
+	ssa_log(SSA_LOG_VERBOSE,
+		"Sending msg type %d from core to extract thread\n", type);
 	msg.len = sizeof(msg);
 	msg.type = type;
 	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
