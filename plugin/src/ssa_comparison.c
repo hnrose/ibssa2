@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2011-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -127,7 +127,7 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db_extract * p_previous_d
 	p_subnet_opts->change_mask = 0;
 
 	if ((!p_previous_db->initialized && p_current_db->initialized) ||
-	     !smdb_deltas) {
+	    !smdb_deltas) {
 		p_subnet_opts->subnet_prefix = p_current_db->subnet_prefix;
 		p_subnet_opts->sm_state = p_current_db->sm_state;
 		p_subnet_opts->lmc = p_current_db->lmc;
@@ -198,8 +198,7 @@ static void ssa_db_guid_to_lid_insert(cl_qmap_t *p_map,
 	p_guid_to_lid_tbl_rec_dest = (struct ep_guid_to_lid_tbl_rec *) *p_data_tbl;
 	p_guid_to_lid_tbl_rec_src = (struct ep_guid_to_lid_tbl_rec *) p_data_tbl_src;
 
-	p_map_rec_new = (struct ep_map_rec *)
-			     malloc(sizeof(*p_map_rec_new));
+	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
@@ -232,15 +231,12 @@ static int ssa_db_guid_to_lid_cmp(cl_map_item_t * p_item_old,
 				  cl_map_item_t * p_item_new,
 				  void *p_data_tbl_new)
 {
-	struct ep_map_rec *p_map_rec_old =
-			(struct ep_map_rec *) p_item_old;
-	struct ep_map_rec *p_map_rec_new =
-			(struct ep_map_rec *) p_item_new;
+	struct ep_map_rec *p_map_rec_old = (struct ep_map_rec *) p_item_old;
+	struct ep_map_rec *p_map_rec_new = (struct ep_map_rec *) p_item_new;
 	struct ep_guid_to_lid_tbl_rec *p_tbl_rec_old =
 			(struct ep_guid_to_lid_tbl_rec *) p_data_tbl_old;
 	struct ep_guid_to_lid_tbl_rec *p_tbl_rec_new =
 			(struct ep_guid_to_lid_tbl_rec *) p_data_tbl_new;
-
 	int res = 0;
 
 	p_tbl_rec_old += p_map_rec_old->offset;
@@ -271,8 +267,7 @@ static void ssa_db_node_insert(cl_qmap_t *p_map,
 	p_node_tbl_rec_dest = (struct ep_node_tbl_rec *) *p_data_tbl;
 	p_node_tbl_rec_src = (struct ep_node_tbl_rec *) p_data_tbl_src;
 
-	p_map_rec_new = (struct ep_map_rec *)
-			     malloc(sizeof(*p_map_rec_new));
+	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
@@ -305,10 +300,8 @@ static int ssa_db_node_cmp(cl_map_item_t * p_item_old,
 			   cl_map_item_t * p_item_new,
 			   void *p_data_tbl_new)
 {
-	struct ep_map_rec *p_map_rec_old =
-			(struct ep_map_rec *) p_item_old;
-	struct ep_map_rec *p_map_rec_new =
-			(struct ep_map_rec *) p_item_new;
+	struct ep_map_rec *p_map_rec_old = (struct ep_map_rec *) p_item_old;
+	struct ep_map_rec *p_map_rec_new = (struct ep_map_rec *) p_item_new;
 	struct ep_node_tbl_rec *p_tbl_rec_old =
 			(struct ep_node_tbl_rec *) p_data_tbl_old;
 	struct ep_node_tbl_rec *p_tbl_rec_new =
@@ -352,8 +345,7 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 	p_port_tbl_rec_dest = (struct ep_port_tbl_rec *) *p_data_tbl;
 	p_port_tbl_rec_src = (struct ep_port_tbl_rec *) p_data_tbl_src;
 
-	p_map_rec_new = (struct ep_map_rec *)
-			     malloc(sizeof(*p_map_rec_new));
+	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
@@ -411,10 +403,8 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 			   void *p_data_tbl_new,
 			   void *p_data_ref_tbl_new)
 {
-	struct ep_map_rec *p_map_rec_old =
-			(struct ep_map_rec *) p_item_old;
-	struct ep_map_rec *p_map_rec_new =
-			(struct ep_map_rec *) p_item_new;
+	struct ep_map_rec *p_map_rec_old = (struct ep_map_rec *) p_item_old;
+	struct ep_map_rec *p_map_rec_new = (struct ep_map_rec *) p_item_new;
 	struct ep_port_tbl_rec *p_tbl_rec_old =
 			(struct ep_port_tbl_rec *) p_data_tbl_old;
 	struct ep_port_tbl_rec *p_tbl_rec_new =
@@ -461,8 +451,7 @@ static void ssa_db_link_insert(cl_qmap_t *p_map,
 	p_link_tbl_rec_dest = (struct ep_link_tbl_rec *) *p_data_tbl;
 	p_link_tbl_rec_src = (struct ep_link_tbl_rec *) p_data_tbl_src;
 
-	p_map_rec_new = (struct ep_map_rec *)
-			     malloc(sizeof(*p_map_rec_new));
+	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
 		/* handle failure - bad memory allocation */
 	}
@@ -495,10 +484,8 @@ static int ssa_db_link_cmp(cl_map_item_t * p_item_old,
 			   cl_map_item_t * p_item_new,
 			   void *p_data_tbl_new)
 {
-	struct ep_map_rec *p_map_rec_old =
-			(struct ep_map_rec *) p_item_old;
-	struct ep_map_rec *p_map_rec_new =
-			(struct ep_map_rec *) p_item_new;
+	struct ep_map_rec *p_map_rec_old = (struct ep_map_rec *) p_item_old;
+	struct ep_map_rec *p_map_rec_new = (struct ep_map_rec *) p_item_new;
 	struct ep_link_tbl_rec *p_tbl_rec_old =
 			(struct ep_link_tbl_rec *) p_data_tbl_old;
 	struct ep_link_tbl_rec *p_tbl_rec_new =
@@ -525,17 +512,17 @@ static uint8_t ssa_db_diff_table_cmp(cl_qmap_t * p_map_old,
 				     void *p_data_tbl_new,
 				     void (*qmap_insert_pfn)
 				            (cl_qmap_t *,
-					struct db_dataset *,
-					void **, uint64_t,
-					cl_map_item_t *,
-					void *),
+					     struct db_dataset *,
+					     void **, uint64_t,
+					     cl_map_item_t *,
+					     void *),
 				     int (*cmp_pfn)
 					(cl_map_item_t *, void *,
 					 cl_map_item_t *, void *),
 				     cl_qmap_t * p_map_added,
 				     cl_qmap_t * p_map_removed,
-					struct db_dataset *p_dataset,
-					void **p_data_tbl)
+				     struct db_dataset *p_dataset,
+				     void **p_data_tbl)
 {
 	cl_map_item_t *p_item_old, *p_item_new;
 	uint64_t key_old, key_new;
@@ -553,7 +540,8 @@ static uint8_t ssa_db_diff_table_cmp(cl_qmap_t * p_map_old,
 
 	p_item_old = cl_qmap_head(p_map_old);
 	p_item_new = cl_qmap_head(p_map_new);
-	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
+	while (p_item_old != cl_qmap_end(p_map_old) &&
+	       p_item_new != cl_qmap_end(p_map_new)) {
 		key_old = cl_qmap_key(p_item_old);
 		key_new = cl_qmap_key(p_item_new);
 		if (key_old < key_new) {
@@ -713,6 +701,7 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous
 					      boolean_t *tbl_changed)
 {
 	uint8_t dirty = 0;
+
 	/*
 	 * Comparing GUID2LID / ep_node_rec / ep_port_rec
 	 * 	     ep_link_rec records
@@ -880,8 +869,7 @@ static void ssa_db_diff_dump_field_rec(void * p_tbl, uint16_t max_rec)
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_node_rec(cl_map_item_t * p_item,
-				      void * p_tbl)
+static void ssa_db_diff_dump_node_rec(cl_map_item_t * p_item, void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
 	struct ep_node_tbl_rec *p_node_tbl, *p_node_tbl_rec;
@@ -925,8 +913,7 @@ static void ssa_db_diff_dump_guid_to_lid_rec(cl_map_item_t * p_item,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_port_rec(cl_map_item_t * p_item,
-				      void * p_tbl)
+static void ssa_db_diff_dump_port_rec(cl_map_item_t * p_item, void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
 	struct ep_port_tbl_rec *p_port_tbl, *p_port_tbl_rec;
@@ -954,8 +941,7 @@ static void ssa_db_diff_dump_port_rec(cl_map_item_t * p_item,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_lft_top_rec(cl_map_item_t * p_item,
-					 void * p_tbl)
+static void ssa_db_diff_dump_lft_top_rec(cl_map_item_t * p_item, void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
 	struct ep_lft_top_tbl_rec *p_lft_top_tbl, *p_lft_top_tbl_rec;
@@ -991,8 +977,7 @@ static void ssa_db_diff_dump_lft_block_rec(cl_map_item_t * p_item,
 
 /** =========================================================================
  */
-static void ssa_db_diff_dump_link_rec(cl_map_item_t * p_item,
-				      void * p_tbl)
+static void ssa_db_diff_dump_link_rec(cl_map_item_t * p_item, void * p_tbl)
 {
 	struct ep_map_rec *p_map_rec = (struct ep_map_rec *) p_item;
 	struct ep_link_tbl_rec *p_link_tbl, *p_link_tbl_rec;
@@ -1239,7 +1224,8 @@ static void ep_lft_top_qmap_copy(cl_qmap_t *p_dest_qmap,
 
 /** =========================================================================
  */
-static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old, cl_qmap_t * p_map_new)
+static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old,
+					  cl_qmap_t * p_map_new)
 {
 	cl_map_item_t *p_item_old, *p_item_new;
 	uint64_t key_old, key_new;
@@ -1247,7 +1233,8 @@ static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old, cl_qmap_t * p_m
 
 	p_item_old = cl_qmap_head(p_map_old);
 	p_item_new = cl_qmap_head(p_map_new);
-	while (p_item_old != cl_qmap_end(p_map_old) && p_item_new != cl_qmap_end(p_map_new)) {
+	while (p_item_old != cl_qmap_end(p_map_old) &&
+	       p_item_new != cl_qmap_end(p_map_new)) {
 		key_old = cl_qmap_key(p_item_old);
 		key_new = cl_qmap_key(p_item_new);
 		if (key_old < key_new) {
@@ -1406,7 +1393,7 @@ struct ssa_db_diff *
 ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
-	boolean_t tbl_changed[SSA_TABLE_ID_MAX] = {FALSE};
+	boolean_t tbl_changed[SSA_TABLE_ID_MAX] = { FALSE };
 	uint64_t data_rec_cnt[SSA_TABLE_ID_MAX];
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
@@ -1444,7 +1431,8 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 	p_ssa_db_diff = ssa_db_diff_init(epoch_prev, data_rec_cnt);
 	if (!p_ssa_db_diff) {
 		/* error handling */
-		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad diff struct initialization\n");
+		ssa_log(SSA_LOG_ALL,
+			"SMDB Comparison: bad diff struct initialization\n");
 		goto Exit;
 	}
 
