@@ -63,6 +63,7 @@ extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
 extern int keepalive;
+extern int sock_accessextract[2];
 
 int first = 1;
 
@@ -813,12 +814,11 @@ static void *core_extract_handler(void *context)
 								svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
 								ssa_extract_send_db_update(ssa_db_diff->p_smdb,
 											   svc->sock_extractdown[1], 0);
-								if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
-									ssa_extract_send_db_update(ssa_db_diff->p_smdb,
-												   svc->sock_accessextract[0], 0);
 							}
 						}
 					}
+					if (ssa.node_type & SSA_NODE_ACCESS)
+						ssa_extract_send_db_update(ssa_db_diff->p_smdb, sock_accessextract[0], 0);
 #endif
 
 				}
@@ -1069,6 +1069,11 @@ static void *core_construct(osm_opensm_t *opensm)
 			core_init_svc(svc);
 		}
 	}
+	ret = ssa_start_access(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR starting access thread\n");
+		goto err4;
+	}
 #endif
 
 	ret = pthread_create(&extract_thread, NULL, core_extract_handler,
@@ -1077,7 +1082,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		ssa_log(SSA_LOG_ALL,
 			"ERROR %d (%s): error creating smdb extract thread\n",
 			ret, strerror(ret));
-		goto err4;
+		goto err5;
 	}
 
 #ifndef SIM_SUPPORT
@@ -1086,7 +1091,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		ssa_log(SSA_LOG_ALL,
 			"ERROR %d (%s): error creating core ctrl thread\n",
 			ret, strerror(ret));
-		goto err5;
+		goto err6;
 	}
 #endif
 
@@ -1094,12 +1099,14 @@ static void *core_construct(osm_opensm_t *opensm)
 	return &ssa;
 
 #ifndef SIM_SUPPORT
-err5:
+err6:
 	core_send_msg(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 #endif
-err4:
+err5:
 #ifndef SIM_SUPPORT
+	ssa_stop_access(&ssa);
+err4:
 	ssa_close_devices(&ssa);
 err3:
 #endif
@@ -1127,6 +1134,9 @@ static void core_destroy(void *context)
 	pthread_join(extract_thread, NULL);
 
 #ifndef SIM_SUPPORT
+	ssa_log(SSA_LOG_CTRL, "shutting down access thread\n");
+	ssa_stop_access(&ssa);
+
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {

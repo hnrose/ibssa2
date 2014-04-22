@@ -212,14 +212,11 @@ struct ssa_svc {
 					       struct ssa_ctrl_msg_buf *msg);
 	int			sock_upctrl[2];
 	int			sock_downctrl[2];
-	int			sock_accessctrl[2];
 	int			sock_upmain[2];
 	int			sock_accessup[2];
 	int			sock_accessdown[2];
 	int			sock_updown[2];
 	int			sock_extractdown[2];
-	int			sock_accessextract[2];
-	struct ssa_access_context access_context;
 	struct ssa_conn		conn_listen_smdb;
 	struct ssa_conn		conn_listen_prdb;
 	struct ssa_conn		conn_dataup;
@@ -228,7 +225,6 @@ struct ssa_svc {
 	uint16_t		tid;
 	pthread_t		upstream;
 	pthread_t		downstream;
-	pthread_t		access;
 	//pthread_mutex_t		lock;
 	int			timeout;
 	enum ssa_svc_state	state;
@@ -248,6 +244,8 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			      size_t svc_size,
 			      int (*process_msg)(struct ssa_svc *svc,
 					         struct ssa_ctrl_msg_buf *msg));
+int ssa_start_access(struct ssa_class *ssa);
+void ssa_stop_access(struct ssa_class *ssa);
 int ssa_ctrl_run(struct ssa_class *ssa);
 void ssa_ctrl_conn(struct ssa_class *ssa, struct ssa_svc *svc);
 void ssa_ctrl_stop(struct ssa_class *ssa);

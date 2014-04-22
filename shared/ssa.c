@@ -64,7 +64,9 @@
 #define DEFAULT_TIMEOUT 1000
 #define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
 
-#define FIRST_DATA_FD_SLOT	6
+#define FIRST_DATA_FD_SLOT		6
+#define ACCESS_FDS_PER_SERVICE		2
+#define ACCESS_FIRST_SERVICE_FD_SLOT	2
 #define PRDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 1
 #define SMDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 2
 
@@ -81,6 +83,11 @@ static uint64_t epoch;
 
 __thread char log_data[128];
 //static atomic_t counter[SSA_MAX_COUNTER];
+
+static struct ssa_access_context access_context;
+static int sock_accessctrl[2];
+int sock_accessextract[2];
+static pthread_t access_thread;
 
 int smdb_dump = 0;
 int prdb_dump = 0;
@@ -2237,8 +2244,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	struct stat dstat;
 
 	/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
-	prdb = ssa_pr_compute_half_world(svc->access_context.smdb,
-					 svc->access_context.context,
+	prdb = ssa_pr_compute_half_world(access_context.smdb,
+					 access_context.context,
 					 gid->global.interface_id);
 	if (prdb) {
 		if (prdb_dump) {
@@ -2334,64 +2341,108 @@ static void ssa_twalk(const struct node_t *root,
 
 static void *ssa_access_handler(void *context)
 {
-	struct ssa_svc *svc = context;
+	struct ssa_class *ssa = context;
+	struct ssa_device *dev;
+	struct ssa_port *port;
+	struct ssa_svc **svc_arr = NULL;
+	struct pollfd **fds = NULL;
+	struct pollfd *pfd;
 	struct ssa_ctrl_msg_buf msg;
-	struct pollfd fds[4];
 	struct ssa_db *prdb = NULL;
-	int ret;
+	int i, ret, d, p, s, svc_cnt = 0;
 #ifdef ACCESS
+	int j;
 	struct ssa_access_member *consumer;
 	uint8_t **tgid;
 #endif
 
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
-	write(svc->sock_accessctrl[1], (char *) &msg, sizeof msg.hdr);
+	write(sock_accessctrl[1], (char *) &msg, sizeof msg.hdr);
 
-	fds[0].fd = svc->sock_accessctrl[1];
-	fds[0].events = POLLIN;
-	fds[0].revents = 0;
-	fds[1].fd = svc->sock_accessup[1];
-	fds[1].events = POLLIN;
-	fds[1].revents = 0;
-	fds[2].fd = svc->sock_accessdown[1];
-	fds[2].events = POLLIN;
-	fds[2].revents = 0;
-	fds[3].fd = svc->sock_accessextract[1];
-	fds[3].events = POLLIN;
-	fds[3].revents = 0;
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			svc_cnt += port->svc_cnt;
+		}
+	}
 
-	if (!svc->access_context.context) {
+	fds = calloc(ACCESS_FIRST_SERVICE_FD_SLOT + svc_cnt * ACCESS_FDS_PER_SERVICE,
+		     sizeof(**fds));
+	if (!fds) {
+		ssa_log_err(SSA_LOG_CTRL, "unable to allocate fds\n");
+		goto out;
+	}
+
+	svc_arr = malloc(svc_cnt * sizeof(*svc_arr));
+	if (!svc_arr) {
+		ssa_log_err(SSA_LOG_CTRL, "unable to allocate svc lookup table\n");
+		goto out;
+	}
+
+	i = 0;
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			for (s = 0; s < port->svc_cnt; s++) {
+				svc_arr[i++] = port->svc[s];
+			}
+		}
+	}
+
+	if (!access_context.context) {
 		ssa_log_err(SSA_LOG_CTRL, "access context is empty\n");
 		goto out;
 	}
 #ifdef ACCESS_INTEGRATION
-	if (!svc->access_context.smdb) {
+	if (!access_context.smdb) {
 		ssa_log_err(SSA_LOG_CTRL, "smdb database is empty\n");
 		goto out;
 	}
 #endif
 
+	pfd = (struct pollfd  *)fds;
+	pfd->fd = sock_accessctrl[1];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+	pfd = (struct pollfd  *)(fds + 1);
+	pfd->fd = sock_accessextract[1];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+	for (i = 0; i < svc_cnt; i++) {
+		pfd = (struct pollfd  *)(fds + ACCESS_FIRST_SERVICE_FD_SLOT +
+					 i * ACCESS_FDS_PER_SERVICE);
+		pfd->fd = svc_arr[i]->sock_accessup[1];
+		pfd->events = POLLIN;
+		pfd->revents = 0;
+		pfd = (struct pollfd  *)(fds + ACCESS_FIRST_SERVICE_FD_SLOT +
+					 i * ACCESS_FDS_PER_SERVICE + 1);
+		pfd->fd = svc_arr[i]->sock_accessdown[1];
+		pfd->events = POLLIN;
+		pfd->revents = 0;
+	}
+
 	for (;;) {
-		ret = poll(&fds[0], 4, -1);
+		ret = poll((struct pollfd *)fds,
+			    ACCESS_FIRST_SERVICE_FD_SLOT + svc_cnt * ACCESS_FDS_PER_SERVICE,
+			    -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
 			continue;
 		}
-		if (fds[0].revents) {
-			fds[0].revents = 0;
-			read(svc->sock_accessctrl[1], (char *) &msg, sizeof msg.hdr);
+
+		pfd = (struct pollfd *)fds;
+		if (pfd->revents) {
+			pfd->revents = 0;
+			read(sock_accessctrl[1], (char *) &msg, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_accessctrl[1],
-				     (char *) &msg.hdr.data,
+				read(sock_accessctrl[1], (char *) &msg.hdr.data,
 				     msg.hdr.len - sizeof msg.hdr);
 			}
-#if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
-				continue;
-#endif
 
 			switch (msg.hdr.type) {
 			case SSA_CTRL_EXIT:
@@ -2405,171 +2456,188 @@ static void *ssa_access_handler(void *context)
 			}
 		}
 
-		if (fds[1].revents) {
-			fds[1].revents = 0;
-			read(svc->sock_accessup[1], (char *) &msg, sizeof msg.hdr);
+		pfd = (struct pollfd *)(fds + 1);
+		if (pfd->revents) {
+			pfd->revents = 0;
+			read(sock_accessextract[1], (char *) &msg, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_accessup[1],
-				     (char *) &msg.hdr.data,
+				read(sock_accessextract[1], (char *) &msg.hdr.data,
 				     msg.hdr.len - sizeof msg.hdr);
 			}
-#if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
-				continue;
-#endif
-
-			switch (msg.hdr.type) {
-			case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream: ssa_db %p\n", msg.data.db_upd.db);
-				svc->access_context.smdb = msg.data.db_upd.db;
-				/* Should epoch be added to access context ? */
-#ifdef ACCESS
-				/* Recalculate PRDBs for all downstream ACMs!!! */
-				/* Then cause RDMA write of the PRDB epochs */
-				if (svc->access_map)
-					ssa_twalk(svc->access_map,
-						  ssa_access_map_callback, svc);
-#endif
-				break;
-			default:
-				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from upstream\n",
-					     msg.hdr.type);
-				break;
-			}
-		}
-
-		if (fds[2].revents) {
-			fds[2].revents = 0;
-			read(svc->sock_accessdown[1], (char *) &msg, sizeof msg.hdr);
-			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_accessdown[1],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
-			}
-#if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
-				continue;
-#endif
-
-			switch (msg.hdr.type) {
-			case SSA_CONN_DONE:
-				ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-						log_data, sizeof log_data,
-						SSA_ADDR_GID,
-						msg.data.conn->remote_gid.raw,
-						sizeof msg.data.conn->remote_gid.raw);
-				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-					"connection done on rsock %d from GID %s\n",
-					msg.data.conn->rsock, log_data);
-				/* First, see if consumer GID in access map */
-				/* Then, calculate half world PathRecords for GID if needed */
-				/* Finally, "tell" downstream where this ssa_db struct is */
-#ifdef ACCESS
-				if (svc->access_context.smdb) {
-					tgid = tfind(msg.data.conn->remote_gid.raw,
-						     &svc->access_map,
-						     ssa_compare_gid);
-					if (!tgid) {
-						consumer = calloc(1, sizeof *consumer);
-						if (!consumer) {
-							ssa_log(SSA_LOG_DEFAULT,
-								"no memory for ssa_access_member struct\n");
-							continue;
-						}
-						memcpy(&consumer->gid,
-						       msg.data.conn->remote_gid.raw,
-						       16);
-						consumer->rsock = msg.data.conn->rsock;
-						if (!tsearch(&consumer->gid,
-							     &svc->access_map,
-							     ssa_compare_gid)) {
-							free(consumer);
-							ssa_log(SSA_LOG_DEFAULT,
-								"failed to insert consumer GID %s into access map\n",
-								log_data);
-							continue;
-						}
-					} else {
-						consumer = container_of(*tgid,
-									struct ssa_access_member, gid);
-					}
-					if (consumer->prdb_current) {
-						/* Is SMDB epoch same as when PRDB was last calculated ? */
-						if (consumer->smdb_epoch ==
-						    ssa_db_get_epoch(svc->access_context.smdb, DB_DEF_TBL_ID))
-							prdb = consumer->prdb_current;
-							goto skip_prdb_calc;
-					}
-					prdb = ssa_calculate_prdb(svc, &msg.data.conn->remote_gid);
-#endif
-					if (!prdb)
-						continue;
-#ifdef ACCESS
-skip_prdb_calc:
-					consumer->prdb_current = prdb;
-					consumer->smdb_epoch = ssa_db_get_epoch(svc->access_context.smdb, DB_DEF_TBL_ID);
-#endif
-					ssa_access_send_db_update(svc, prdb,
-								  msg.data.conn->rsock, 0,
-								  &msg.data.conn->remote_gid);
-					/*
-					 * TODO: destroy prdb database
-					 * ssa_db_destroy(prdb);
-					 */
-#ifdef ACCESS
-				} else
-					ssa_log_err(SSA_LOG_CTRL,
-						    "smdb database is empty\n");
-#endif
-				break;
-			default:
-				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from downstream\n",
-					     msg.hdr.type);
-				break;
-			}
-		}
-
-		if (fds[3].revents) {
-			fds[3].revents = 0;
-			read(svc->sock_accessextract[1], (char *) &msg, sizeof msg.hdr);
-			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_accessextract[1],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
-			}
-#if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
-				continue;
-#endif
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract: ssa_db %p\n", msg.data.db_upd.db);
-				svc->access_context.smdb = msg.data.db_upd.db;
+				access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
 #ifdef ACCESS
 				/* Recalculate PRDBs for all downstream ACMs!!! */
 				/* Then cause RDMA write of the PRDB epochs */
-				if (svc->access_map)
-					ssa_twalk(svc->access_map,
-						  ssa_access_map_callback, svc);
+				for (j = 0; j < svc_cnt; j++) {
+					if (svc_arr[j]->access_map)
+						ssa_twalk(svc_arr[j]->access_map,
+							  ssa_access_map_callback,
+							  svc_arr[j]);
+				}
 #endif
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "ignoring unexpected message "
-					     "type %d from downstream\n",
+					     "type %d from extract\n",
 					     msg.hdr.type);
 				break;
+			}
+		}
+
+		for (i = 0; i < svc_cnt; i++) {
+			pfd = (struct pollfd *)(fds +
+						ACCESS_FIRST_SERVICE_FD_SLOT + i * ACCESS_FDS_PER_SERVICE);
+			if (pfd->revents) {
+				pfd->revents = 0;
+				read(svc_arr[i]->sock_accessup[1],
+				     (char *) &msg, sizeof msg.hdr);
+				if (msg.hdr.len > sizeof msg.hdr) {
+					read(svc_arr[i]->sock_accessup[1],
+					     (char *) &msg.hdr.data,
+					     msg.hdr.len - sizeof msg.hdr);
+				}
+#if 0
+				if (svc_arr[i]->process_msg &&
+				    svc_arr[i]->process_msg(svc_arr[i], &msg))
+					continue;
+#endif
+
+				switch (msg.hdr.type) {
+				case SSA_DB_UPDATE:
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.data.db_upd.db);
+					access_context.smdb = msg.data.db_upd.db;
+					/* Should epoch be added to access context ? */
+#ifdef ACCESS
+					/* Recalculate PRDBs for all downstream ACMs!!! */
+					/* Then cause RDMA write of the PRDB epochs */
+					if (svc_arr[i]->access_map)
+						ssa_twalk(svc_arr[i]->access_map,
+							  ssa_access_map_callback,
+							  svc_arr[i]);
+#endif
+					break;
+				default:
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "ignoring unexpected message "
+						     "type %d from upstream\n",
+						     msg.hdr.type);
+					break;
+				}
+			}
+			pfd = (struct pollfd *)(fds +
+						ACCESS_FIRST_SERVICE_FD_SLOT + i * ACCESS_FDS_PER_SERVICE + 1);
+			if (pfd->revents) {
+				pfd->revents = 0;
+				read(svc_arr[i]->sock_accessdown[1],
+				     (char *) &msg, sizeof msg.hdr);
+				if (msg.hdr.len > sizeof msg.hdr) {
+					read(svc_arr[i]->sock_accessdown[1],
+					     (char *) &msg.hdr.data,
+					     msg.hdr.len - sizeof msg.hdr);
+				}
+#if 0
+				if (svc_arr[i]->process_msg &&
+				    svc_arr[i]->process_msg(svc_arr[i], &msg))
+					continue;
+#endif
+
+				switch (msg.hdr.type) {
+				case SSA_CONN_DONE:
+					ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+							log_data, sizeof log_data,
+							SSA_ADDR_GID,
+							msg.data.conn->remote_gid.raw,
+							sizeof msg.data.conn->remote_gid.raw);
+					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+						"connection done on rsock %d from GID %s\n",
+						msg.data.conn->rsock, log_data);
+					/* First, see if consumer GID in access map */
+					/* Then, calculate half world PathRecords for GID if needed */
+					/* Finally, "tell" downstream where this ssa_db struct is */
+#ifdef ACCESS
+					if (access_context.smdb) {
+						tgid = tfind(msg.data.conn->remote_gid.raw,
+							     &svc_arr[i]->access_map,
+							     ssa_compare_gid);
+						if (!tgid) {
+							consumer = calloc(1, sizeof *consumer);
+							if (!consumer) {
+								ssa_log(SSA_LOG_DEFAULT,
+									"no memory for ssa_access_member struct\n");
+								continue;
+							}
+							memcpy(&consumer->gid,
+							       msg.data.conn->remote_gid.raw,
+							       16);
+							consumer->rsock = msg.data.conn->rsock;
+							if (!tsearch(&consumer->gid,
+								     &svc_arr[i]->access_map,
+								     ssa_compare_gid)) {
+								free(consumer);
+								ssa_log(SSA_LOG_DEFAULT,
+									"failed to insert consumer GID %s into access map\n",
+									log_data);
+								continue;
+							}
+						} else {
+							consumer = container_of(*tgid,
+										struct ssa_access_member, gid);
+						}
+						if (consumer->prdb_current) {
+							/* Is SMDB epoch same as when PRDB was last calculated ? */
+							if (consumer->smdb_epoch ==
+							    ssa_db_get_epoch(access_context.smdb,
+									     DB_DEF_TBL_ID))
+								prdb = consumer->prdb_current;
+								goto skip_prdb_calc;
+						}
+						prdb = ssa_calculate_prdb(svc_arr[i],
+									  &msg.data.conn->remote_gid);
+#endif
+						if (!prdb)
+							continue;
+#ifdef ACCESS
+skip_prdb_calc:
+						consumer->prdb_current = prdb;
+						consumer->smdb_epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
+#endif
+						ssa_access_send_db_update(svc_arr[i],
+									  prdb,
+									  msg.data.conn->rsock,
+									  0,
+									  &msg.data.conn->remote_gid);
+						/*
+						 * TODO: destroy prdb database
+						 * ssa_db_destroy(prdb);
+						 */
+#ifdef ACCESS
+					} else
+						ssa_log_err(SSA_LOG_CTRL,
+							    "smdb database is empty\n");
+#endif
+					break;
+				default:
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "ignoring unexpected message "
+						     "type %d from downstream\n",
+						     msg.hdr.type);
+					break;
+				}
 			}
 		}
 	}
 
 out:
+	if (svc_arr)
+		free(svc_arr);
+	if (fds)
+		free(fds);
 	return NULL;
 }
 
@@ -3253,27 +3321,19 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	}
 
 	if (port->dev->ssa->node_type & SSA_NODE_ACCESS) {
-		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessctrl);
-		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "creating access/ctrl socketpair\n");
-			goto err3;
-		}
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessup);
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "creating access/upstream socketpair\n");
-			goto err4;
+			goto err3;
 		}
 		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessdown);
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "creating access/downstream socketpair\n");
-			goto err5;
+			goto err4;
 		}
 	} else {
-		svc->sock_accessctrl[0] = -1;
-		svc->sock_accessctrl[1] = -1;
 		svc->sock_accessup[0] = -1;
 		svc->sock_accessup[1] = -1;
 		svc->sock_accessdown[0] = -1;
@@ -3285,7 +3345,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "creating upstream/downstream socketpair\n");
-			goto err6;
+			goto err5;
 		}
 	} else {
 		svc->sock_updown[0] = -1;
@@ -3297,47 +3357,12 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "creating extract/downstream socketpair\n");
-			goto err7;
+			goto err6;
 		}
 	} else {
 		svc->sock_extractdown[0] = -1;
 		svc->sock_extractdown[1] = -1;
 	}
-
-	if (port->dev->ssa->node_type == (SSA_NODE_CORE | SSA_NODE_ACCESS)) {
-		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_accessextract);
-		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "creating extract/access socketpair\n");
-			goto err8;
-		}
-	} else {
-		svc->sock_accessextract[0] = -1;
-		svc->sock_accessextract[1] = -1;
-	}
-
-#ifdef ACCESS
-	/*
-	 * TODO:
-	 * 1. Pass required log verbosity. Access layer now has:
-	 *  SSA_PR_NO_LOG = 0,
-	 *  SSA_PR_ERROR_LEVEL = 1,
-	 *  SSA_PR_INFO_LEVEL = 2,
-	 *  SSA_PR_DEBUG_LEVEL = 3
-	 * 2. Change errno
-	 *
-	 */
-	svc->access_context.context = ssa_pr_create_context(flog, 0);
-	if (!svc->access_context.context) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "unable to create access layer context\n");
-		goto err9;
-	}
-#endif
-
-#ifdef ACCESS_INTEGRATION
-	svc->access_context.smdb = smdb;
-#endif
 
 	svc->index = port->svc_cnt;
 	svc->port = port;
@@ -3364,14 +3389,13 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating upstream thread\n");
 		errno = ret;
-		goto err10;
+		goto err7;
 	}
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with upstream thread\n");
-		goto err11;
-
+		goto err8;
 	}
 
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
@@ -3380,77 +3404,42 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating downstream thread\n");
 			errno = ret;
-			goto err11;
+			goto err8;
 		}
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 			ssa_log_err(SSA_LOG_CTRL, "with downstream thread\n");
-			goto err12;
-		}
-	}
-
-	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
-		ret = pthread_create(&svc->access, NULL, ssa_access_handler, svc);
-		if (ret) {
-			ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
-			errno = ret;
-			goto err12;
-		}
-
-		ret = read(svc->sock_accessctrl[0], (char *) &msg, sizeof msg);
-		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
-			ssa_log_err(SSA_LOG_CTRL, "with access thread\n");
-			goto err13;
+			goto err9;
 		}
 	}
 
 	port->svc[port->svc_cnt++] = svc;
 	return svc;
 
-err13:
-	pthread_join(svc->access, NULL);
-err12:
-	pthread_join(svc->downstream, NULL);
-err11:
-	pthread_join(svc->upstream, NULL);
-err10:
-#ifdef ACCESS
-	if (svc->access_context.context) {
-		ssa_pr_destroy_context(svc->access_context.context);
-		svc->access_context.context = NULL;
-		svc->access_context.smdb = NULL;
-	}
 err9:
-#endif
-	if (svc->port->dev->ssa->node_type == (SSA_NODE_CORE | SSA_NODE_ACCESS)) {
-		close(svc->sock_accessextract[0]);
-		close(svc->sock_accessextract[1]);
-	}
+	pthread_join(svc->downstream, NULL);
 err8:
+	pthread_join(svc->upstream, NULL);
+err7:
 	if (svc->port->dev->ssa->node_type & SSA_NODE_CORE) {
 		close(svc->sock_extractdown[0]);
 		close(svc->sock_extractdown[1]);
 	}
-err7:
+err6:
 	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
 		close(svc->sock_updown[0]);
 		close(svc->sock_updown[1]);
 	}
-err6:
+err5:
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		close(svc->sock_accessdown[0]);
 		close(svc->sock_accessdown[1]);
 	}
-err5:
+err4:
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		close(svc->sock_accessup[0]);
 		close(svc->sock_accessup[1]);
-	}
-err4:
-	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
-		close(svc->sock_accessctrl[0]);
-		close(svc->sock_accessctrl[1]);
 	}
 err3:
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
@@ -3466,6 +3455,117 @@ err2:
 err1:
 	free(svc);
 	return NULL;
+}
+
+int ssa_start_access(struct ssa_class *ssa)
+{
+	struct ssa_ctrl_msg msg;
+	int ret;
+
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
+
+	if (!(ssa->node_type & SSA_NODE_ACCESS))
+		return 0;
+
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_accessctrl);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "creating access layer socketpair\n");
+		goto err1;
+	}
+
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_accessextract);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "creating extract/access socketpair\n");
+		goto err2;
+	}
+
+#ifdef ACCESS
+	/*
+	 * TODO:
+	 * 1. Pass required log verbosity. Access layer now has:
+	 *  SSA_PR_NO_LOG = 0,
+	 *  SSA_PR_ERROR_LEVEL = 1,
+	 *  SSA_PR_INFO_LEVEL = 2,
+	 *  SSA_PR_DEBUG_LEVEL = 3
+	 * 2. Change errno
+	 *
+	 */
+	access_context.context = ssa_pr_create_context(flog, 0);
+	if (!access_context.context) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "unable to create access layer context\n");
+		goto err3;
+	}
+#endif
+
+#ifdef ACCESS_INTEGRATION
+	access_context.smdb = smdb;
+#endif
+
+	ret = pthread_create(&access_thread, NULL, ssa_access_handler, ssa);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
+		errno = ret;
+		goto err4;
+	}
+
+	ret = read(sock_accessctrl[0], (char *) &msg, sizeof msg);
+	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
+		ssa_log_err(SSA_LOG_CTRL, "with access thread\n");
+		goto err5;
+	}
+
+	return 0;
+err5:
+	pthread_join(access_thread, NULL);
+err4:
+#ifdef ACCESS
+	if (access_context.context) {
+		ssa_pr_destroy_context(access_context.context);
+		access_context.context = NULL;
+		access_context.smdb = NULL;
+	}
+err3:
+#endif
+	close(sock_accessextract[0]);
+	close(sock_accessextract[1]);
+err2:
+	close(sock_accessctrl[0]);
+	close(sock_accessctrl[1]);
+err1:
+	return 1;
+}
+
+void ssa_stop_access(struct ssa_class *ssa)
+{
+	struct ssa_ctrl_msg msg;
+
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
+
+	if (ssa->node_type & SSA_NODE_ACCESS) {
+		msg.len = sizeof msg;
+		msg.type = SSA_CTRL_EXIT;
+		write(sock_accessctrl[0], (char *) &msg, sizeof msg);
+		pthread_join(access_thread, NULL);
+	}
+#ifdef ACCESS
+	if (access_context.context) {
+		ssa_pr_destroy_context(access_context.context);
+		access_context.context = NULL;
+	}
+	if (access_context.smdb != smdb)
+		ssa_db_destroy(access_context.smdb);
+	access_context.smdb = NULL;
+#endif
+
+	if (ssa->node_type & SSA_NODE_ACCESS) {
+		close(sock_accessextract[0]);
+		close(sock_accessextract[1]);
+		close(sock_accessctrl[0]);
+		close(sock_accessctrl[1]);
+	}
 }
 
 static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
@@ -3682,33 +3782,16 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	msg.type = SSA_CTRL_EXIT;
 	write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	pthread_join(svc->upstream, NULL);
-	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
-		write(svc->sock_accessctrl[0], (char *) &msg, sizeof msg);
-		pthread_join(svc->access, NULL);
-	}
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
 		write(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		pthread_join(svc->downstream, NULL);
 	}
 
 	svc->port->svc[svc->index] = NULL;
-#ifdef ACCESS
-	if (svc->access_context.context) {
-		ssa_pr_destroy_context(svc->access_context.context);
-		svc->access_context.context = NULL;
-	}
-	if (svc->access_context.smdb != smdb)
-		ssa_db_destroy(svc->access_context.smdb);
-	svc->access_context.smdb = NULL;
-#endif
 	if (svc->conn_listen_smdb.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_listen_smdb);
 	if (svc->conn_listen_prdb.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_listen_prdb);
-	if (svc->port->dev->ssa->node_type == (SSA_NODE_CORE | SSA_NODE_ACCESS)) {
-		close(svc->sock_accessextract[0]);
-		close(svc->sock_accessextract[1]);
-	}
 	if (svc->port->dev->ssa->node_type & SSA_NODE_CORE) {
 		close(svc->sock_extractdown[0]);
 		close(svc->sock_extractdown[1]);
@@ -3722,8 +3805,6 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 		close(svc->sock_accessdown[1]);
 		close(svc->sock_accessup[0]);
 		close(svc->sock_accessup[1]);
-		close(svc->sock_accessctrl[0]);
-		close(svc->sock_accessctrl[1]);
 	}
 	if (svc->conn_dataup.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_dataup);

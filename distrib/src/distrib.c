@@ -413,9 +413,16 @@ static void *distrib_ctrl_handler(void *context)
 		}
 	}
 
+	ret = ssa_start_access(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR starting access thread\n");
+		goto close;
+	}
+
 	ret = ssa_ctrl_run(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR processing control\n");
+		ssa_stop_access(&ssa);
 		goto close;
 	}
 close:
@@ -550,6 +557,8 @@ static void distrib_destroy()
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	ssa_ctrl_stop(&ssa);
+	ssa_log(SSA_LOG_CTRL, "shutting down access thread\n");
+	ssa_stop_access(&ssa);
 
 #ifdef INTEGRATION
 	for (d = 0; d < ssa.dev_cnt; d++) {
