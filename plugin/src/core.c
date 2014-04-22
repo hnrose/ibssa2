@@ -780,11 +780,11 @@ static void *core_extract_handler(void *context)
 				ssa_db_lft_handle();
 				CL_PLOCK_RELEASE(&p_osm->lock);
 
-				/* For verification */
+				/* For validation */
 				ssa_db_validate(ssa_db->p_dump_db);
 				ssa_db_validate_lft();
 
-				/* Updating SMDB versions */
+				/* Update SMDB versions */
 				ssa_db_update(ssa_db);
 
 				pthread_mutex_lock(&ssa_db_diff_lock);
