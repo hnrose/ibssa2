@@ -795,10 +795,11 @@ static void *core_extract_handler(void *context)
 
 				ssa_db_diff_destroy(ssa_db_diff);
 
-				ssa_db_diff =
-					ssa_db_compare(ssa_db, epoch_prev);
+				ssa_db_diff = ssa_db_compare(ssa_db,
+							     epoch_prev);
 				if (ssa_db_diff) {
-					ssa_log(SSA_LOG_VERBOSE, "SMDB was changed. Pushing the changes...\n");
+					ssa_log(SSA_LOG_VERBOSE,
+						"SMDB was changed. Pushing the changes...\n");
 					/*
 					 * TODO: use 'ssa_db_get_epoch(p_ssa_db_diff->p_smdb, DB_DEF_TBL_ID)'
 					 * for getting current epoch and sending it to children nodes.
