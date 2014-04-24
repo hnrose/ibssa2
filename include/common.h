@@ -188,8 +188,8 @@ struct ssa_conn {
 };
 
 struct ssa_access_context {
-	struct ssa_db *smdb;
-	void *context;
+	struct ssa_db			*smdb;
+	void				*context;
 };
 
 enum ssa_svc_state {
