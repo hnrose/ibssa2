@@ -736,6 +736,7 @@ static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 	msg.hdr.type = SSA_DB_UPDATE;
 	msg.hdr.len = sizeof(msg);
 	msg.db_upd.db = db;
+	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = flags;
 	msg.db_upd.epoch = ssa_db_get_epoch(db, DB_DEF_TBL_ID);
 	write(fd, (char *) &msg, sizeof(msg));

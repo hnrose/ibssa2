@@ -908,6 +908,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	msg.hdr.type = SSA_DB_UPDATE;
 	msg.hdr.len = sizeof(msg);
 	msg.db_upd.db = db;
+	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = flags;
 	msg.db_upd.remote_gid = gid;
 	msg.db_upd.epoch = epoch;
@@ -2228,6 +2229,7 @@ static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	msg.hdr.type = SSA_DB_UPDATE;
 	msg.hdr.len = sizeof(msg);
 	msg.db_upd.db = db;
+	msg.db_upd.svc = NULL;
 	msg.db_upd.rsock = rsock;
 	msg.db_upd.flags = flags;
 	msg.db_upd.remote_gid = remote_gid;
