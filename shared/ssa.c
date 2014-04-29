@@ -88,6 +88,9 @@ static struct ssa_access_context access_context;
 static int sock_accessctrl[2];
 int sock_accessextract[2];
 static pthread_t access_thread;
+#ifdef ACCESS
+static pthread_t access_prdb_handler;
+#endif
 
 int smdb_dump = 0;
 int prdb_dump = 0;
@@ -2219,6 +2222,7 @@ out:
 	return NULL;
 }
 
+#ifdef ACCESS
 static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 				      int rsock, int flags,
 				      union ibv_gid *remote_gid)
@@ -2237,7 +2241,6 @@ static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
 }
 
-#ifdef ACCESS
 static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid)
 {
 	struct ssa_db *prdb;
@@ -2275,11 +2278,81 @@ skip_prdb_save:
 	return prdb;
 }
 
+static void
+ssa_db_update_init(struct ssa_db *db, struct ssa_svc *svc,
+		   union ibv_gid *remote_gid, int rsock, int flags,
+		   uint64_t epoch, struct ssa_db_update *p_db_upd)
+{
+	p_db_upd->db = db;
+	p_db_upd->svc = svc;
+	p_db_upd->rsock = rsock;
+	p_db_upd->flags = flags;
+	p_db_upd->remote_gid = remote_gid;
+	p_db_upd->epoch = epoch;
+}
+
+static void ssa_wait_db_update(struct ssa_db_update_queue *p_queue)
+{
+	pthread_mutex_lock(&p_queue->cond_lock);
+	while (DListEmpty(&p_queue->list))
+		pthread_cond_wait(&p_queue->cond_var, &p_queue->cond_lock);
+	pthread_mutex_unlock(&p_queue->cond_lock);
+}
+
+static int ssa_push_db_update(struct ssa_db_update_queue *p_queue,
+			      struct ssa_db_update *db_upd)
+{
+	struct ssa_db_update_record *p_rec;
+
+	p_rec = (struct ssa_db_update_record *) malloc(sizeof(*p_rec));
+	if (!p_rec) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to allocate ssa_db_update queue record\n");
+		return -1;
+	}
+
+	p_rec->db_upd = *db_upd;
+
+	pthread_mutex_lock(&p_queue->lock);
+	DListInsertTail(&p_rec->list_entry, &p_queue->list);
+	pthread_mutex_unlock(&p_queue->lock);
+
+	/* send signal for start processing the queue */
+	pthread_mutex_lock(&p_queue->cond_lock);
+	pthread_cond_signal(&p_queue->cond_var);
+	pthread_mutex_unlock(&p_queue->cond_lock);
+
+	return 0;
+}
+
+static int ssa_pull_db_update(struct ssa_db_update_queue *p_queue,
+			      struct ssa_db_update *p_db_upd)
+{
+	struct ssa_db_update_record *p_rec;
+	DLIST_ENTRY *head;
+
+	pthread_mutex_lock(&p_queue->lock);
+	if (!DListEmpty(&p_queue->list)) {
+		head = p_queue->list.Next;
+		DListRemove(head);
+		pthread_mutex_unlock(&p_queue->lock);
+		p_rec = container_of(head, struct ssa_db_update_record,
+				     list_entry);
+		*p_db_upd = p_rec->db_upd;
+		free(p_rec);
+		return 1;
+	}
+	pthread_mutex_unlock(&p_queue->lock);
+
+	return 0;
+}
+
 static void ssa_access_map_callback(const void *nodep, const VISIT which,
 				    const void *priv)
 {
 	struct ssa_access_member *consumer;
 	struct ssa_svc *svc = (struct ssa_svc *) priv;
+	struct ssa_db_update db_upd;
 	struct ssa_db *prdb;
 
 	switch (which) {
@@ -2296,8 +2369,9 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 			log_data, prdb, consumer->rsock);
 		if (prdb) {
 			consumer->prdb_current = prdb;
-			ssa_access_send_db_update(svc, prdb, consumer->rsock,
-						  0, &consumer->gid);
+			ssa_db_update_init(prdb, svc, &consumer->gid,
+					   consumer->rsock, 0, 0, &db_upd);
+			ssa_push_db_update(&access_context.update_queue, &db_upd);
 		} else
 			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
 		break;
@@ -2314,12 +2388,29 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 			log_data, prdb, consumer->rsock);
 		if (prdb) {
 			consumer->prdb_current = prdb;
-			ssa_access_send_db_update(svc, prdb, consumer->rsock,
-						  0, &consumer->gid);
+			ssa_db_update_init(prdb, svc, &consumer->gid,
+					   consumer->rsock, 0, 0, &db_upd);
+			ssa_push_db_update(&access_context.update_queue, &db_upd);
 		} else
 			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
 		break;
 	}
+}
+
+static void *ssa_access_prdb_handler(void *context)
+{
+	struct ssa_db_update db_upd;
+
+	while (1) {
+		ssa_wait_db_update(&access_context.update_queue);
+		while (ssa_pull_db_update(&access_context.update_queue, &db_upd) > 0) {
+			ssa_access_send_db_update(db_upd.svc, db_upd.db,
+						  db_upd.rsock, db_upd.flags,
+						  db_upd.remote_gid);
+		}
+	}
+
+	return NULL;
 }
 
 static void ssa_twalk(const struct node_t *root,
@@ -2356,6 +2447,7 @@ static void *ssa_access_handler(void *context)
 	int j;
 	struct ssa_access_member *consumer;
 	uint8_t **tgid;
+	struct ssa_db_update db_upd;
 #endif
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
@@ -2608,12 +2700,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 skip_prdb_calc:
 						consumer->prdb_current = prdb;
 						consumer->smdb_epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
+						ssa_db_update_init(prdb, svc_arr[i], &msg.data.conn->remote_gid,
+								   msg.data.conn->rsock, 0, 0, &db_upd);
+						ssa_push_db_update(&access_context.update_queue, &db_upd);
 #endif
-						ssa_access_send_db_update(svc_arr[i],
-									  prdb,
-									  msg.data.conn->rsock,
-									  0,
-									  &msg.data.conn->remote_gid);
 						/*
 						 * TODO: destroy prdb database
 						 * ssa_db_destroy(prdb);
@@ -3459,6 +3549,64 @@ err1:
 	return NULL;
 }
 
+#ifdef ACCESS
+static int ssa_db_update_queue_init(struct ssa_db_update_queue *p_queue)
+{
+	int ret;
+
+	ret = pthread_mutex_init(&p_queue->cond_lock, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable initialize DB queue condition lock\n");
+		return ret;
+	}
+
+	ret = pthread_cond_init(&p_queue->cond_var, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable initialize DB queue condition variable\n");
+		pthread_mutex_destroy(&p_queue->cond_lock);
+		return ret;
+	}
+
+	ret = pthread_mutex_init(&p_queue->lock, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable initialize DB queue lock\n");
+		pthread_cond_destroy(&p_queue->cond_var);
+		pthread_mutex_destroy(&p_queue->lock);
+		return ret;
+	}
+
+	DListInit(&p_queue->list);
+	return ret;
+}
+
+static void ssa_db_update_queue_destroy(struct ssa_db_update_queue *p_queue)
+{
+	struct ssa_db_update_record *p_rec;
+	DLIST_ENTRY *list, *list_entry, *list_entry_tmp;
+
+	list = &p_queue->list;
+	if (!DListEmpty(list)) {
+		list_entry = list->Next;
+		while (list_entry != list) {
+			p_rec = container_of(list_entry,
+					     struct ssa_db_update_record,
+					     list_entry);
+			list_entry_tmp = list_entry;
+			list_entry = list_entry->Next;
+			DListRemove(list_entry_tmp);
+			free(p_rec);
+		}
+	}
+
+	pthread_mutex_destroy(&p_queue->lock);
+	pthread_cond_destroy(&p_queue->cond_var);
+	pthread_mutex_destroy(&p_queue->cond_lock);
+}
+#endif
+
 int ssa_start_access(struct ssa_class *ssa)
 {
 	struct ssa_ctrl_msg msg;
@@ -3500,6 +3648,12 @@ int ssa_start_access(struct ssa_class *ssa)
 			    "unable to create access layer context\n");
 		goto err3;
 	}
+
+	if (ssa_db_update_queue_init(&access_context.update_queue)) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "unable to create access layer prdb updates queue\n");
+		goto err4;
+	}
 #endif
 
 #ifdef ACCESS_INTEGRATION
@@ -3510,20 +3664,36 @@ int ssa_start_access(struct ssa_class *ssa)
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
 		errno = ret;
-		goto err4;
+		goto err5;
 	}
 
 	ret = read(sock_accessctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with access thread\n");
-		goto err5;
+		goto err6;
 	}
-
-	return 0;
-err5:
-	pthread_join(access_thread, NULL);
-err4:
 #ifdef ACCESS
+	ret = pthread_create(&access_prdb_handler, NULL, ssa_access_prdb_handler, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL, "creating access prdb handler thread\n");
+		errno = ret;
+		goto err7;
+	}
+#endif
+	return 0;
+
+#ifdef ACCESS
+err7:
+	msg.len = sizeof msg;
+	msg.type = SSA_CTRL_EXIT;
+	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
+#endif
+err6:
+	pthread_join(access_thread, NULL);
+err5:
+#ifdef ACCESS
+	ssa_db_update_queue_destroy(&access_context.update_queue);
+err4:
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
@@ -3553,6 +3723,8 @@ void ssa_stop_access(struct ssa_class *ssa)
 		pthread_join(access_thread, NULL);
 	}
 #ifdef ACCESS
+	ssa_db_update_queue_destroy(&access_context.update_queue);
+
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;

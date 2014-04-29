@@ -187,9 +187,22 @@ struct ssa_conn {
 	uint32_t		epoch_len;
 };
 
+struct ssa_db_update_record {
+	DLIST_ENTRY		list_entry;
+	struct ssa_db_update	db_upd;
+};
+
+struct ssa_db_update_queue {
+	pthread_mutex_t		lock;
+	pthread_mutex_t		cond_lock;
+	pthread_cond_t		cond_var;
+	DLIST_ENTRY		list;
+};
+
 struct ssa_access_context {
 	struct ssa_db			*smdb;
 	void				*context;
+	struct ssa_db_update_queue	update_queue;
 };
 
 enum ssa_svc_state {
