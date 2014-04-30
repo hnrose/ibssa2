@@ -96,6 +96,19 @@ AC_ARG_ENABLE(coverage,
 				 esac],[coverage=false])
 AM_CONDITIONAL(COVERAGE, test x$coverage = xtrue)
 
+dnl Define package version
+commit="`git log -n 1 --pretty=format:"%h" 2> /dev/null`"
+if test "$commit" == "" ; then
+	ver="${PACKAGE_VERSION}"
+else
+	ver="${PACKAGE_VERSION}_${commit}"
+	git diff-index --quiet HEAD -- ./ > /dev/null 2>&1
+	if test "$?" == "1" ; then
+		ver="${ver}_dirty"
+	fi
+fi
+AC_DEFINE_UNQUOTED([IB_SSA_VERSION], ["$ver"], [ibssa package version])
+
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_C_CONST
