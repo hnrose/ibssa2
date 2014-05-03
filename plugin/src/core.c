@@ -829,7 +829,7 @@ static void *core_extract_handler(void *context)
 				break;
 			case SSA_DB_LFT_CHANGE:
 				ssa_log(SSA_LOG_VERBOSE,
-					"Start handling LFT change events\n");
+					"Start handling LFT change event\n");
 				ssa_db_lft_handle();
 				break;
 			case SSA_DB_EXIT:
