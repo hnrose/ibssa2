@@ -2545,7 +2545,7 @@ enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_2_5_GBPS;
 		case 2: return IBV_RATE_5_GBPS;
 		case 4: return IBV_RATE_10_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 		case 8: return IBV_RATE_10_GBPS;
 		case 16: return IBV_RATE_14_GBPS;
 		case 32: return IBV_RATE_25_GBPS;
@@ -2557,7 +2557,7 @@ enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_10_GBPS;
 		case 2: return IBV_RATE_20_GBPS;
 		case 4: return IBV_RATE_40_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 		case 8: return IBV_RATE_40_GBPS;
 		case 16: return IBV_RATE_56_GBPS;
 		case 32: return IBV_RATE_100_GBPS;
@@ -2569,7 +2569,7 @@ enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_20_GBPS;
 		case 2: return IBV_RATE_40_GBPS;
 		case 4: return IBV_RATE_80_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 		case 8: return IBV_RATE_80_GBPS;
 		case 16: return IBV_RATE_112_GBPS;
 		case 32: return IBV_RATE_200_GBPS;
@@ -2581,7 +2581,7 @@ enum ibv_rate acm_get_rate(uint8_t width, uint8_t speed)
 		case 1: return IBV_RATE_30_GBPS;
 		case 2: return IBV_RATE_60_GBPS;
 		case 4: return IBV_RATE_120_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 		case 8: return IBV_RATE_120_GBPS;
 		case 16: return IBV_RATE_168_GBPS;
 		case 32: return IBV_RATE_300_GBPS;
@@ -2612,26 +2612,26 @@ static enum ibv_rate acm_convert_rate(int rate)
 	case 2:   return IBV_RATE_2_5_GBPS;
 	case 5:   return IBV_RATE_5_GBPS;
 	case 10:  return IBV_RATE_10_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 	case 14:  return IBV_RATE_14_GBPS;
 #endif
 	case 20:  return IBV_RATE_20_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 	case 25:  return IBV_RATE_25_GBPS;
 #endif
 	case 30:  return IBV_RATE_30_GBPS;
 	case 40:  return IBV_RATE_40_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 	case 56:  return IBV_RATE_56_GBPS;
 #endif
 	case 60:  return IBV_RATE_60_GBPS;
 	case 80:  return IBV_RATE_80_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 	case 100: return IBV_RATE_100_GBPS;
 	case 112: return IBV_RATE_112_GBPS;
 #endif
 	case 120: return IBV_RATE_120_GBPS;
-#ifdef IBV_RATE_14_GBPS
+#if HAVE_IBA_EXTENDED_RATES
 	case 168: return IBV_RATE_168_GBPS;
 	case 200: return IBV_RATE_200_GBPS;
 	case 300: return IBV_RATE_300_GBPS;

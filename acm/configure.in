@@ -41,6 +41,26 @@ AC_CHECK_HEADER(infiniband/verbs.h, [],
 AC_CHECK_HEADER(rdma/rsocket.h, [],
     AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librdmacm installed?]))
 
+dnl Checks for extended rates support in verbs
+AC_LANG(C)
+AC_MSG_CHECKING([extended rates verbs support])
+AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM(
+        [[#include <infiniband/verbs.h>]],
+	[[
+          enum ibv_rate rate;
+          if (rate == IBV_RATE_14_GBPS)
+              return 1;
+          return 0;
+        ]])],
+        [ AC_MSG_RESULT([yes])
+          AC_DEFINE([HAVE_IBA_EXTENDED_RATES], [1], [extended rates supported in verbs])
+        ],
+        [ AC_MSG_RESULT([no])
+          AC_DEFINE([HAVE_IBA_EXTENDED_RATES], [0], [extended rates not supported in verbs])
+        ]
+)
+
 dnl Checks for keepalive support in librdmacm rsockets.
 AC_LANG(C)
 AC_MSG_CHECKING([rsockets keepalive])
