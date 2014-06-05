@@ -528,8 +528,15 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 				parent->child_num++;
 		}
 		child->primary_state |= SSA_CHILD_PARENTED;
-ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data, SSA_ADDR_GID, (uint8_t *) &path->dgid, sizeof path->dgid); 
-ssa_log(SSA_LOG_DEFAULT, "child node type %d parent GID %s children %d access children %d\n", child->rec.node_type, log_data, parent->child_num, parent->access_child_num);
+
+		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				log_data, sizeof log_data, SSA_ADDR_GID,
+				(uint8_t *) &path->dgid, sizeof path->dgid); 
+		ssa_log(SSA_LOG_DEFAULT,
+			"child node type %d parent GID %s children %d access children %d\n",
+			child->rec.node_type, log_data, parent->child_num,
+			parent->access_child_num);
+
 	} else {
 		child->primary = NULL;
 		child->primary_state = SSA_CHILD_IDLE;
