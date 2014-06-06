@@ -3854,7 +3854,13 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", ((stru
 		if (acm_parse_ssa_db((struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
 			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to preload ACM cache\n");
 		return 1;
+	case SSA_CTRL_DEV_EVENT:
+	case SSA_CONN_REQ:
+		break;
 	default:
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "ignoring unexpected message type %d\n",
+			     msg->hdr.type);
 		break;
 	}
 	return 0;
