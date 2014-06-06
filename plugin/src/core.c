@@ -658,7 +658,12 @@ static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		return core_process_ssa_mad(svc, msg);
 	case SSA_SA_MAD:
 		return core_process_sa_mad(svc, msg);
+	case SSA_CTRL_DEV_EVENT:
+		break;
 	default:
+		ssa_log_warn(SSA_LOG_CTRL,
+			     "ignoring unexpected message type %d\n",
+			     msg->hdr.type);
 		break;
 	}
 	return 0;
