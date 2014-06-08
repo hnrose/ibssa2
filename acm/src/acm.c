@@ -197,6 +197,7 @@ static enum acm_route_preload route_preload;
 static enum acm_mode acm_mode = ACM_MODE_SSA;
 static uint64_t *lid2guid_cached = NULL;
 
+extern int accum_log_file;
 extern int prdb_dump;
 extern char prdb_dump_dir[128];
 extern short prdb_port;
@@ -3886,6 +3887,8 @@ static void acm_set_options(void)
 			strcpy(log_file, value);
 		else if (!strcasecmp("log_level", opt))
 			ssa_set_log_level(atoi(value));
+		else if (!strcasecmp("accum_log_file", opt))
+			accum_log_file = atoi(value);
 		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
 		else if (!strcasecmp("addr_prot", opt))

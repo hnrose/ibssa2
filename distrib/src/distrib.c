@@ -51,6 +51,7 @@ static int node_type = SSA_NODE_ACCESS;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
 
+extern int accum_log_file;
 extern int smdb_dump;
 extern int prdb_dump;
 extern char smdb_dump_dir[128];
@@ -495,6 +496,8 @@ static void distrib_set_options(void)
 			strcpy(log_file, value);
 		else if (!strcasecmp("log_level", opt))
 			ssa_set_log_level(atoi(value));
+		else if (!strcasecmp("accum_log_file", opt))
+			accum_log_file = atoi(value);
 		else if (!strcasecmp("lock_file", opt))
 			strcpy(lock_file, value);
 		else if (!strcasecmp("smdb_dump_dir", opt))

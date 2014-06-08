@@ -50,6 +50,7 @@
 
 /* TODO: make static after access layer integration */
 FILE *flog;
+int accum_log_file = 0;
 static int log_level = SSA_LOG_DEFAULT;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -85,7 +86,12 @@ int ssa_open_log(char *log_file)
 		return 0;
 	}
 
-	if ((flog = fopen(log_file, "w")))
+	if (accum_log_file)
+		flog = fopen(log_file, "a");
+	else
+		flog = fopen(log_file, "w");
+
+	if (flog)
 		return 0;
 
 	syslog(LOG_WARNING, "Failed to open log file %s\n", log_file);
@@ -174,4 +180,5 @@ void ssa_log_options()
 	ssa_log(SSA_LOG_DEFAULT, "ibssa version %s\n", IB_SSA_VERSION);
 	ssa_log(SSA_LOG_DEFAULT, "host name %s\n", hostname);
 	ssa_log(SSA_LOG_DEFAULT, "log level 0x%x\n", log_level);
+	ssa_log(SSA_LOG_DEFAULT, "accumulate log file: %s (%d)\n", accum_log_file ? "true" : "false", accum_log_file);
 }

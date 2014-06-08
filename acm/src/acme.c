@@ -138,6 +138,15 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Specifies the location of the ACM lock file used to ensure that only a\n");
 	fprintf(f, "# single instance of ACM is running.\n");
 	fprintf(f, "\n");
+	fprintf(f, "# accum_log_file:\n");
+	fprintf(f, "# Indicates if the log file will be accumulated\n");
+	fprintf(f, "# across multiple ACM sessions.\n");
+	fprintf(f, "# Should be one of the following values:\n");
+	fprintf(f, "#  0 - false (default)\n");
+	fprintf(f, "#  1 - true\n");
+	fprintf(f, "\n");
+	fprintf(f, "accum_log_file 0\n");
+	fprintf(f, "\n");
 	fprintf(f, "lock_file /var/run/ibacm.pid\n");
 	fprintf(f, "\n");
 	fprintf(f, "# addr_prot:\n");
