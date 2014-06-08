@@ -55,6 +55,10 @@ static int node_type = SSA_NODE_CORE;
 int smdb_deltas = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
+#if defined(SIM_SUPPORT) || defined(SIM_SUPPORT_SMDB)
+static char *smdb_lock_file = "ibssa_smdb.lock";
+static int smdb_lock_fd = -1;
+#endif
 
 extern int accum_log_file;
 extern int smdb_dump;
@@ -755,20 +759,91 @@ static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 	write(fd, (char *) &msg, sizeof(msg));
 #endif
 }
+
+static void ssa_extract_db_update(struct ssa_db *db)
+{
+	struct ssa_svc *svc;
+	int d, p, s;
+
+	if (!db)
+		return;
+
+	for (d = 0; d < ssa.dev_cnt; d++) {
+		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
+			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
+				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
+				ssa_extract_send_db_update(db,
+							   svc->sock_extractdown[1], 0);
+			}
+		}
+	}
+
+	if (ssa.node_type & SSA_NODE_ACCESS)
+		ssa_extract_send_db_update(db, sock_accessextract[0], 0);
+
+}
+#endif
+
+#ifdef SIM_SUPPORT_SMDB
+static int
+ssa_extract_load_smdb(struct ssa_db *p_smdb, struct timespec *last_mtime)
+{
+	struct stat smdb_dir_stats;
+	int ret;
+
+	if (!smdb_dump)
+		return 0;
+
+	ret = lockf(smdb_lock_fd, F_TLOCK, 0);
+	if (ret) {
+		if ((errno == EACCES) || (errno == EAGAIN)) {
+			ssa_log_warn(SSA_LOG_VERBOSE,
+				"smdb lock file is locked\n");
+			return 0;
+		} else {
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "locking smdb lock file ERROR %d (%s)\n",
+				    errno, strerror(errno));
+			return -1;
+		}
+	}
+
+	ret = stat(smdb_dump_dir, &smdb_dir_stats);
+	if (ret < 0) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to get SMDB directory stats\n");
+		lockf(smdb_lock_fd, F_ULOCK, 0);
+		return -1;
+	}
+
+	if (memcmp(&smdb_dir_stats.st_mtime, last_mtime, sizeof(*last_mtime))) {
+		if (p_smdb)
+			ssa_db_destroy(p_smdb);
+		p_smdb = ssa_db_load(smdb_dump_dir, smdb_dump);
+		ssa_extract_db_update(p_smdb);
+
+		memcpy(last_mtime, &smdb_dir_stats.st_mtime, sizeof(*last_mtime));
+	}
+
+	lockf(smdb_lock_fd, F_ULOCK, 0);
+
+	return 0;
+}
 #endif
 
 static void *core_extract_handler(void *context)
 {
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
-#ifndef SIM_SUPPORT
-	struct ssa_svc *svc;
-#endif
 	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
 	uint64_t epoch_prev = 0;
-	int ret;
-#ifndef SIM_SUPPORT
-	int d, p, s;
+	int ret, timeout_msec = -1;
+#ifdef SIM_SUPPORT_SMDB
+	struct timespec smdb_last_mtime;
+	struct ssa_db *p_smdb = NULL;
+
+	timeout_msec = 1000;	/* 1 sec */
+	memset(&smdb_last_mtime, 0, sizeof(smdb_last_mtime));
 #endif
 
 	pfds[0].fd	= sock_coreextract[1];
@@ -778,11 +853,19 @@ static void *core_extract_handler(void *context)
 	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
 
 	for (;;) {
-		ret = poll(pfds, 1, -1);
+		ret = poll(pfds, 1, timeout_msec);
 		if (ret < 0) {
 			ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
 			continue;
 		}
+
+#ifdef SIM_SUPPORT_SMDB
+		if (!ret) {
+			if (ssa_extract_load_smdb(p_smdb, &smdb_last_mtime) < 0)
+				goto out;
+			continue;
+		}
+#endif
 
 		if (pfds[0].revents) {
 			pfds[0].revents = 0;
@@ -818,22 +901,20 @@ static void *core_extract_handler(void *context)
 					 * TODO: use 'ssa_db_get_epoch(p_ssa_db_diff->p_smdb, DB_DEF_TBL_ID)'
 					 * for getting current epoch and sending it to children nodes.
 					 */
+#ifdef SIM_SUPPORT
+					if (smdb_dump && !lockf(smdb_lock_fd, F_LOCK, 0)) {
+						ssa_db_save(smdb_dump_dir,
+							    ssa_db_diff->p_smdb,
+							    smdb_dump);
+						lockf(smdb_lock_fd, F_ULOCK, 0);
+					}
+#else
 					if (smdb_dump)
 						ssa_db_save(smdb_dump_dir,
 							    ssa_db_diff->p_smdb,
 							    smdb_dump);
-#ifndef SIM_SUPPORT
-					for (d = 0; d < ssa.dev_cnt; d++) {
-						for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-							for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
-								svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
-								ssa_extract_send_db_update(ssa_db_diff->p_smdb,
-											   svc->sock_extractdown[1], 0);
-							}
-						}
-					}
-					if (ssa.node_type & SSA_NODE_ACCESS)
-						ssa_extract_send_db_update(ssa_db_diff->p_smdb, sock_accessextract[0], 0);
+
+					ssa_extract_db_update(ssa_db_diff->p_smdb);
 #endif
 
 				}
@@ -872,6 +953,7 @@ static void core_send_msg(enum ssa_db_ctrl_msg_type type)
 	write(sock_coreextract[0], (char *) &msg, sizeof(msg));
 }
 
+#ifndef SIM_SUPPORT_SMDB
 static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 {
 	struct ssa_db_lft_change_rec *p_lft_change_rec;
@@ -907,7 +989,41 @@ static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 
 	core_send_msg(SSA_DB_LFT_CHANGE);
 }
+#endif
 
+#ifdef SIM_SUPPORT_SMDB
+static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
+{
+	switch (event_id) {
+	case OSM_EVENT_ID_TRAP:
+		handle_trap_event((ib_mad_notice_attr_t *) event_data);
+		break;
+	case OSM_EVENT_ID_LFT_CHANGE:
+		ssa_log(SSA_LOG_VERBOSE, "LFT change event\n");
+		break;
+	case OSM_EVENT_ID_UCAST_ROUTING_DONE:
+		ssa_log(SSA_LOG_VERBOSE, "Ucast routing done event\n");
+		break;
+	case OSM_EVENT_ID_SUBNET_UP:
+		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
+		break;
+	case OSM_EVENT_ID_STATE_CHANGE:
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
+			"SM state (%u: %s) change event\n",
+			osm->subn.sm_state,
+			sm_state_str(osm->subn.sm_state));
+		break;
+	default:
+		/* Ignoring all other events for now... */
+		if (event_id >= OSM_EVENT_ID_MAX) {
+			ssa_log(SSA_LOG_ALL, "Unknown event (%d)\n", event_id);
+			osm_log(&osm->log, OSM_LOG_ERROR,
+				"Unknown event (%d) reported to SSA plugin\n",
+				event_id);
+		}
+	}
+}
+#else
 static void core_report(void *context, osm_epi_event_id_t event_id, void *event_data)
 {
 	osm_epi_ucast_routing_flags_t ucast_routing_flag;
@@ -951,6 +1067,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 		}
 	}
 }
+#endif
 
 static int core_convert_node_type(const char *node_type_string)
 {
@@ -1032,6 +1149,9 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
+#ifdef SIM_SUPPORT_SMDB
+	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
+#endif
 }
 
 static void *core_construct(osm_opensm_t *opensm)
@@ -1041,6 +1161,10 @@ static void *core_construct(osm_opensm_t *opensm)
 	int d, p;
 #endif
 	int ret;
+#if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
+	int i;
+	char buf[PATH_MAX];
+#endif
 
 	core_set_options();
 	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
@@ -1048,8 +1172,25 @@ static void *core_construct(osm_opensm_t *opensm)
 	if (ret)
 		return NULL;
 
+#if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
+	snprintf(buf, PATH_MAX, "%s", smdb_dump_dir);
+	for (i = strlen(buf); i > 0; i--) {
+		if (buf[i] == '/') {
+			buf[++i] = '\0';
+			break;
+		}
+	}
+	snprintf(buf + i, PATH_MAX - strlen(buf), "%s", smdb_lock_file);
+	smdb_lock_fd = open(buf, O_RDWR | O_CREAT, 0640);
+	if (smdb_lock_fd < 0) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable opening smdb lock file (%s)\n", buf);
+		goto err1;
+	}
+#else
 	if (ssa_open_lock_file(lock_file))
 		goto err1;
+#endif
 
 	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
@@ -1058,14 +1199,14 @@ static void *core_construct(osm_opensm_t *opensm)
 	ssa_db = ssa_database_init();
 	if (!ssa_db) {
 		ssa_log(SSA_LOG_ALL, "SSA database init failed\n");
-		goto err1;
+		goto err2;
 	}
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_coreextract);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL, "ERROR %d (%s): creating socketpair\n",
 			errno, strerror(errno));
-		goto err2;
+		goto err3;
 	}
 
 	pthread_mutex_init(&ssa_db_diff_lock, NULL);
@@ -1074,7 +1215,7 @@ static void *core_construct(osm_opensm_t *opensm)
 	ret = ssa_open_devices(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR opening devices\n");
-		goto err3;
+		goto err4;
 	}
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
@@ -1084,7 +1225,7 @@ static void *core_construct(osm_opensm_t *opensm)
 					    core_process_msg);
 			if (!svc) {
 				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
-				goto err4;
+				goto err5;
 			}
 			core_init_svc(svc);
 		}
@@ -1092,7 +1233,7 @@ static void *core_construct(osm_opensm_t *opensm)
 	ret = ssa_start_access(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR starting access thread\n");
-		goto err4;
+		goto err5;
 	}
 #endif
 
@@ -1102,7 +1243,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		ssa_log(SSA_LOG_ALL,
 			"ERROR %d (%s): error creating smdb extract thread\n",
 			ret, strerror(ret));
-		goto err5;
+		goto err6;
 	}
 
 #ifndef SIM_SUPPORT
@@ -1111,7 +1252,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		ssa_log(SSA_LOG_ALL,
 			"ERROR %d (%s): error creating core ctrl thread\n",
 			ret, strerror(ret));
-		goto err6;
+		goto err7;
 	}
 #endif
 
@@ -1119,21 +1260,26 @@ static void *core_construct(osm_opensm_t *opensm)
 	return &ssa;
 
 #ifndef SIM_SUPPORT
-err6:
+err7:
 	core_send_msg(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 #endif
-err5:
+err6:
 #ifndef SIM_SUPPORT
 	ssa_stop_access(&ssa);
-err4:
+err5:
 	ssa_close_devices(&ssa);
-err3:
+err4:
 #endif
 	close(sock_coreextract[0]);
 	close(sock_coreextract[1]);
-err2:
+err3:
 	ssa_database_delete(ssa_db);
+err2:
+#if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
+	if (smdb_lock_fd >= 0)
+		close(smdb_lock_fd);
+#endif
 err1:
 	ssa_cleanup(&ssa);
 	return NULL;
@@ -1181,6 +1327,11 @@ static void core_destroy(void *context)
 
 	ssa_log(SSA_LOG_CTRL, "destroying SMDB\n");
 	ssa_database_delete(ssa_db);
+
+#if defined(SIM_SUPPORT) || defined(SIM_SUPPORT_SMDB)
+	if (smdb_lock_fd >= 0)
+		close(smdb_lock_fd);
+#endif
 
 	ssa_log(SSA_LOG_VERBOSE, "that's all folks!\n");
 	ssa_close_log();
