@@ -1355,7 +1355,7 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 					fds[3].revents, fds[3].fd);
 				if (svc->conn_dataup.rsock >= 0) {
 					ssa_log(SSA_LOG_DEFAULT,
-						"rsock %d should but is not already closed\n",
+						"rsock %d should be but is not already closed\n",
 						svc->conn_dataup.rsock);
 					ssa_close_ssa_conn(&svc->conn_dataup);
 				}
@@ -2164,7 +2164,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x
 		pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
 			ssa_log(SSA_LOG_DEFAULT,
-				"error event 0x%x on SMDB listen rsock %x\n",
+				"error event 0x%x on SMDB listen rsock %d\n",
 				pfd->revents, pfd->fd);
 			if (svc->conn_listen_smdb.rsock >= 0)
 				ssa_close_ssa_conn(&svc->conn_listen_smdb);
@@ -2178,7 +2178,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x
 		pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
 			ssa_log(SSA_LOG_DEFAULT,
-				"error event 0x%x on PRDB listen rsock %x\n",
+				"error event 0x%x on PRDB listen rsock %d\n",
 				pfd->revents, pfd->fd);
 			if (svc->conn_listen_prdb.rsock >= 0)
 				ssa_close_ssa_conn(&svc->conn_listen_prdb);
@@ -2681,7 +2681,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.
 							}
 						} else {
 							consumer = container_of(*tgid,
-										struct ssa_access_member, gid);
+										struct ssa_access_member,
+										gid);
 						}
 						if (consumer->prdb_current) {
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
@@ -3722,6 +3723,7 @@ void ssa_stop_access(struct ssa_class *ssa)
 		write(sock_accessctrl[0], (char *) &msg, sizeof msg);
 		pthread_join(access_thread, NULL);
 	}
+
 #ifdef ACCESS
 	ssa_db_update_queue_destroy(&access_context.update_queue);
 
