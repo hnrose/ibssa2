@@ -2068,8 +2068,14 @@ static void *ssa_downstream_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data, SSA_ADDR_GID, msg.data.db_upd.remote_gid->raw, sizeof msg.data.db_upd.remote_gid->raw);
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update from access: rsock %d GID %s ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.rsock, log_data, msg.data.db_upd.db, msg.data.db_upd.epoch);
+				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data,
+						sizeof log_data, SSA_ADDR_GID,
+						msg.data.db_upd.remote_gid->raw,
+						sizeof msg.data.db_upd.remote_gid->raw);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA DB update from access: rsock %d GID %s ssa_db %p epoch 0x%" PRIx64 "\n",
+					msg.data.db_upd.rsock, log_data,
+					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				/* Now ready to rsend to downstream client upon request */
 				slot = msg.data.db_upd.rsock;
 				conn = svc->fd_to_conn[slot];
@@ -2118,7 +2124,9 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", conn->ssa_db, ntohll(c
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x%" PRIx64 "\n", msg.data.db_upd.db, msg.data.db_upd.epoch);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x%" PRIx64 "\n",
+					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
 				epoch = msg.data.db_upd.epoch;
 				break;
