@@ -173,10 +173,10 @@ static void ssa_db_diff_compare_subnet_opts(struct ssa_db_extract * p_previous_d
 		dirty = 1;
 	}
 Exit:
+	p_dataset->set_size = htonll(sizeof(*p_subnet_opts));
+	p_dataset->set_count = htonll(1);
 	if (dirty) {
 		p_ssa_db_diff->dirty = dirty;
-		p_dataset->set_size = htonll(sizeof(*p_subnet_opts));
-		p_dataset->set_count = htonll(1);
 		tbl_changed[SSA_TABLE_ID_SUBNET_OPTS] = TRUE;
 	}
 }
