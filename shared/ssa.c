@@ -1929,6 +1929,26 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 			    "struct ssa_conn allocation failed\n");
 }
 
+static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
+					     struct pollfd *fds,
+					     uint64_t epoch)
+{
+	struct ssa_conn *conn;
+	struct pollfd *pfd;
+	int slot;
+
+	for (slot = FIRST_DATA_FD_SLOT; slot < FD_SETSIZE; slot++) {
+		if (fds[slot].fd == -1)
+			continue;
+		conn = svc->fd_to_conn[fds[slot].fd];
+		if (conn && conn->dbtype == SSA_CONN_SMDB_TYPE) {
+			pfd = (struct pollfd *)(fds + slot);
+			pfd->events = ssa_downstream_notify_db_update(svc, conn,
+								      epoch);
+		}
+	}
+}
+
 static void ssa_downstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	int i;
@@ -2129,6 +2149,9 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", conn->ssa_db, ntohll(c
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
 				epoch = msg.data.db_upd.epoch;
+				ssa_downstream_notify_smdb_conns(svc,
+								 (struct pollfd *)fds,
+								 epoch);
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2159,6 +2182,9 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", conn->ssa_db, ntohll(c
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
 				epoch = msg.data.db_upd.epoch;
+				ssa_downstream_notify_smdb_conns(svc,
+								 (struct pollfd *)fds,
+								 epoch);
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
