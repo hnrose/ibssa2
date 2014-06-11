@@ -707,7 +707,7 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 		ssa_log(SSA_LOG_VERBOSE,
 			"Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
 			ntohll(guid_to_lid_tbl_rec.guid),
-			ntohll(guid_to_lid_tbl_rec.lid),
+			ntohs(guid_to_lid_tbl_rec.lid),
 			guid_to_lid_tbl_rec.lmc, guid_to_lid_tbl_rec.is_switch);
 
 	}
