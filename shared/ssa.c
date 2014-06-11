@@ -2569,7 +2569,9 @@ static void *ssa_access_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract: ssa_db %p\n", msg.data.db_upd.db);
+				ssa_log(SSA_LOG_DEFAULT,
+					"SSA DB update from extract: ssa_db %p\n",
+					msg.data.db_upd.db);
 				access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
 #ifdef ACCESS
@@ -2612,7 +2614,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update from extract: ssa_db %p\n", msg.data.db_
 
 				switch (msg.hdr.type) {
 				case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update from upstream thread: ssa_db %p\n", msg.data.db_upd.db);
+					ssa_log(SSA_LOG_DEFAULT,
+						"SSA DB update from upstream thread: ssa_db %p\n",
+						msg.data.db_upd.db);
 					access_context.smdb = msg.data.db_upd.db;
 					/* Should epoch be added to access context ? */
 #ifdef ACCESS
