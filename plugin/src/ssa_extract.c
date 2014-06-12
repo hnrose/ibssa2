@@ -54,7 +54,6 @@ const char *port_state_str[] = {
 
 extern struct ssa_database *ssa_db;
 extern int first;
-extern int smdb_deltas;
 
 /** ===========================================================================
  */
