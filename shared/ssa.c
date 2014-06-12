@@ -2598,8 +2598,8 @@ static void *ssa_access_handler(void *context)
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from extract: ssa_db %p\n",
 					msg.data.db_upd.db);
-				access_context.smdb = msg.data.db_upd.db;
 				/* Should epoch be added to access context ? */
+				access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
 				/* Recalculate PRDBs for all downstream ACMs!!! */
 				/* Then cause RDMA write of the PRDB epochs */
@@ -2643,8 +2643,8 @@ static void *ssa_access_handler(void *context)
 					ssa_log(SSA_LOG_DEFAULT,
 						"SSA DB update from upstream thread: ssa_db %p\n",
 						msg.data.db_upd.db);
-					access_context.smdb = msg.data.db_upd.db;
 					/* Should epoch be added to access context ? */
+					access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
 					/* Recalculate PRDBs for all downstream ACMs!!! */
 					/* Then cause RDMA write of the PRDB epochs */
