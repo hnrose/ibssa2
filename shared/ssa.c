@@ -1138,8 +1138,12 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 		free(svc->conn_dataup.rbuf);
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
-		if (svc->conn_dataup.ssa_db)
+		if (svc->conn_dataup.ssa_db) {
+			/* Should the next 2 lines be dependent on flags (full update) in DB update message ? */
+			svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
+			svc->conn_dataup.ssa_db->p_db_tables = NULL;
 			revents = ssa_upstream_update_conn(svc, events);
+		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
 		ssa_log_warn(SSA_LOG_CTRL,
