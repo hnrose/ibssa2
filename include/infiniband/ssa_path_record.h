@@ -68,6 +68,7 @@ typedef void (*ssa_pr_path_dump_t)(const struct ssa_path_parms *, void *);
 
 extern void *ssa_pr_create_context(FILE *log_fd, int log_level);
 extern void ssa_pr_destroy_context(void *ctx);
+extern void ssa_pr_reinit_context(void *ctx);
 
 /* ssa_pr_compute_half_world function computes "half world" path records
  * 					for given GUID. As result the function creates prdb

@@ -476,6 +476,13 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 	return SSA_PR_SUCCESS;
 }
 
+void ssa_pr_reinit_context(void *context)
+{
+	struct ssa_pr_context *p_context = context;
+
+	ssa_pr_destroy_indexes(p_context->p_index);
+}
+
 void *ssa_pr_create_context(FILE *log_fd, int log_level)
 {
 	struct ssa_pr_context *p_context = NULL;

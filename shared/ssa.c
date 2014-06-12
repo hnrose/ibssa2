@@ -2605,6 +2605,8 @@ static void *ssa_access_handler(void *context)
 				/* Should epoch be added to access context ? */
 				access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
+				/* Should reinit context be based on DB update flags ? */
+				ssa_pr_reinit_context(access_context.context);
 				/* Recalculate PRDBs for all downstream ACMs!!! */
 				/* Then cause RDMA write of the PRDB epochs */
 				for (j = 0; j < svc_cnt; j++) {
@@ -2650,6 +2652,8 @@ static void *ssa_access_handler(void *context)
 					/* Should epoch be added to access context ? */
 					access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
+					/* Should reinit context be based on DB update flags ? */
+					ssa_pr_reinit_context(access_context.context);
 					/* Recalculate PRDBs for all downstream ACMs!!! */
 					/* Then cause RDMA write of the PRDB epochs */
 					if (svc_arr[i]->access_map)
