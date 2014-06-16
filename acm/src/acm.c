@@ -3107,6 +3107,7 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 				tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
 			if (tdest) {
 				dest = *tdest;
+				ssa_log(SSA_LOG_VERBOSE, "removing cached dest %s\n", dest->name);
 				if (addr_type == ACM_ADDRESS_LID)
 					tdelete(addr, &ep->dest_map[addr_type - 1], acm_compare_dest_by_lid);
 				else if (addr_type == ACM_ADDRESS_GID)
