@@ -1324,6 +1324,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY message received\n");
 				if (svc->conn_dataup.rsock >= 0) {
 					if (svc->conn_dataup.epoch !=
 					    ntohll(svc->conn_dataup.prdb_epoch)) {
+						if (svc->conn_dataup.ssa_db) {
+							svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
+							svc->conn_dataup.ssa_db->p_db_tables = NULL;
+						}
 						/* Should response (and epoch update) be after DB is pulled successfully ??? */
 						ssa_upstream_query_db_resp(svc, 0);
 						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
