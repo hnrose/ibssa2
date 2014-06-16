@@ -1118,7 +1118,8 @@ acm_dest_sa_resp(struct acm_send_msg *msg, struct ibv_wc *wc, struct acm_mad *ma
 		acm_init_path_av(msg->ep->port, dest);
 		dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
 		dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
-		ssa_log(SSA_LOG_VERBOSE, "timeout addr %llu route %llu\n", dest->addr_timeout, dest->route_timeout);
+		ssa_log(SSA_LOG_VERBOSE, "timeout addr %llu route %llu\n",
+			dest->addr_timeout, dest->route_timeout);
 		dest->state = ACM_READY;
 	} else {
 		dest->state = ACM_INIT;
@@ -1284,7 +1285,8 @@ static void acm_process_acm_recv(struct acm_ep *ep, struct ibv_wc *wc, struct ac
 		ssa_log(SSA_LOG_VERBOSE, "received response\n");
 		req = acm_get_request(ep, mad->tid, &free);
 		if (!req) {
-			ssa_log(SSA_LOG_VERBOSE, "notice - response did not match active request\n");
+			ssa_log(SSA_LOG_VERBOSE,
+				"notice - response did not match active request\n");
 			return;
 		}
 		ssa_log(SSA_LOG_VERBOSE, "found matching request\n");
@@ -1361,7 +1363,8 @@ static void acm_process_sa_recv(struct acm_ep *ep, struct ibv_wc *wc, struct acm
 	
 	req = acm_get_request(ep, mad->tid, &free);
 	if (!req) {
-		ssa_log(SSA_LOG_VERBOSE, "notice - response did not match active request\n");
+		ssa_log(SSA_LOG_VERBOSE,
+			"notice - response did not match active request\n");
 		return;
 	}
 	ssa_log(SSA_LOG_VERBOSE, "found matching request\n");
@@ -1580,8 +1583,8 @@ static void acm_port_join(struct acm_port *port)
 		    (port->rate != min_rate || port->mtu != min_mtu))
 			acm_join_group(ep, &port_gid, 0, 0, 0, port->rate, port->mtu);
 	}
-	ssa_log(SSA_LOG_VERBOSE, "joins for device %s port %d complete\n", dev->verbs->device->name,
-		port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "joins for device %s port %d complete\n",
+		dev->verbs->device->name, port->port_num);
 }
 
 static void acm_process_timeouts(void)
@@ -2043,7 +2046,8 @@ static int acm_svr_select_src(struct acm_ep_addr_data *src, struct acm_ep_addr_d
 		len = sizeof(struct sockaddr_in6);
 		break;
 	default:
-		ssa_log(SSA_LOG_VERBOSE, "notice - bad destination type, cannot lookup source\n");
+		ssa_log(SSA_LOG_VERBOSE,
+			"notice - bad destination type, cannot lookup source\n");
 		return ACM_STATUS_EDESTTYPE;
 	}
 
@@ -2186,13 +2190,15 @@ acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	status = acm_svr_verify_resolve(msg, &saddr, &daddr);
 	if (status) {
-		ssa_log(SSA_LOG_DEFAULT, "notice - misformatted or unsupported request\n");
+		ssa_log(SSA_LOG_DEFAULT,
+			"notice - misformatted or unsupported request\n");
 		return acm_client_resolve_resp(client, msg, NULL, status);
 	}
 
 	status = acm_svr_select_src(saddr, daddr);
 	if (status) {
-		ssa_log(SSA_LOG_DEFAULT, "notice - unable to select suitable source address\n");
+		ssa_log(SSA_LOG_DEFAULT,
+			"notice - unable to select suitable source address\n");
 		return acm_client_resolve_resp(client, msg, NULL, status);
 	}
 
@@ -2244,7 +2250,8 @@ test:
 	default:
 queue:
 		if (daddr->flags & ACM_FLAGS_NODELAY) {
-			ssa_log(SSA_LOG_VERBOSE, "lookup initiated, but client wants no delay\n");
+			ssa_log(SSA_LOG_VERBOSE,
+				"lookup initiated, but client wants no delay\n");
 			status = ACM_STATUS_ENODATA;
 			break;
 		}
@@ -2281,7 +2288,8 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 
 	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	if (msg->hdr.length < (ACM_MSG_HDR_LENGTH + ACM_MSG_EP_LENGTH)) {
-		ssa_log(SSA_LOG_DEFAULT, "notice - invalid msg hdr length %d\n", msg->hdr.length);
+		ssa_log(SSA_LOG_DEFAULT, "notice - invalid msg hdr length %d\n",
+			msg->hdr.length);
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_EINVAL);
 	}
 
@@ -2344,7 +2352,8 @@ test:
 		/* fall through */
 	default:
 		if (msg->resolve_data[0].flags & ACM_FLAGS_NODELAY) {
-			ssa_log(SSA_LOG_VERBOSE, "lookup initiated, but client wants no delay\n");
+			ssa_log(SSA_LOG_VERBOSE,
+				"lookup initiated, but client wants no delay\n");
 			status = ACM_STATUS_ENODATA;
 			break;
 		}
@@ -2481,7 +2490,8 @@ static void acm_server(void)
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
 			if (client[i].sock != -1 &&
 				FD_ISSET(client[i].sock, &readfds)) {
-				ssa_log(SSA_LOG_VERBOSE, "receiving from client %d\n", i);
+				ssa_log(SSA_LOG_VERBOSE,
+					"receiving from client %d\n", i);
 				acm_svr_receive(&client[i]);
 			}
 		}
@@ -2857,7 +2867,8 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			}
 			dest = acm_acquire_dest(ep, addr_type, addr);
 			if (!dest) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create dest\n");
+				ssa_log(SSA_LOG_DEFAULT,
+					"ERROR - unable to create dest\n");
 				break;
 			}
 
@@ -2882,7 +2893,8 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			dest->remote_qpn = 1;
 			dest->state = ACM_READY;
 			acm_put_dest(dest);
-			ssa_log(SSA_LOG_VERBOSE, "added cached dest %s\n", dest->name);
+			ssa_log(SSA_LOG_VERBOSE, "added cached dest %s\n",
+				dest->name);
 	        }
 	}
 	return ret;
@@ -2895,13 +2907,15 @@ static int acm_parse_osm_fullv1(struct acm_ep *ep)
 	int ret = 1;
 
 	if (!(f = fopen(route_data_file, "r"))) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't open %s\n", route_data_file);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't open %s\n",
+			route_data_file);
 		return ret;
 	}
 
 	lid2guid = calloc(IB_LID_MCAST_START, sizeof(*lid2guid));
 	if (!lid2guid) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - no memory for path record parsing\n");
+		ssa_log(SSA_LOG_DEFAULT,
+			"ERROR - no memory for path record parsing\n");
 		goto err;
 	}
 
@@ -3013,7 +3027,8 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			}
 			dest = acm_acquire_dest(ep, addr_type, addr);
 			if (!dest) {
-				ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to create dest\n");
+				ssa_log(SSA_LOG_DEFAULT,
+					"ERROR - unable to create dest\n");
 				break;
 			}
 
@@ -3038,7 +3053,8 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			dest->remote_qpn = 1;
 			dest->state = ACM_READY;
 			acm_put_dest(dest);
-			ssa_log(SSA_LOG_VERBOSE, "added cached dest %s\n", dest->name);
+			ssa_log(SSA_LOG_VERBOSE, "added cached dest %s\n",
+				dest->name);
 	        }
 	}
 	return ret;
@@ -3091,7 +3107,8 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 			} else {
 				acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
 						addr_type, addr, ACM_MAX_ADDRESS);
-				ssa_log(SSA_LOG_VERBOSE, "ERROR: %s not found\n", log_data);
+				ssa_log(SSA_LOG_VERBOSE,
+					"ERROR: %s not found\n", log_data);
 			}
 			pthread_mutex_unlock(&ep->lock);
 		}
@@ -3105,7 +3122,8 @@ static int acm_parse_access_v1(struct acm_ep *ep)
 	int ret = 1;
 
 	if (!(p_ssa_db = ssa_db_load(route_data_dir, SSA_DB_HELPER_DEBUG))) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't load PRDB from %s\n", route_data_dir);
+		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't load PRDB from %s\n",
+			route_data_dir);
 		return ret;
 	}
 
@@ -3189,7 +3207,8 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 				strncpy((char *) ep->addr[index].addr, addr, ACM_MAX_ADDRESS);
 
 			if (++index == MAX_EP_ADDR) {
-				ssa_log(SSA_LOG_VERBOSE, "maximum number of names assigned to EP\n");
+				ssa_log(SSA_LOG_VERBOSE,
+					"maximum number of names assigned to EP\n");
 				break;
 			}
 		}
@@ -3574,7 +3593,8 @@ static void acm_port_up(struct acm_port *port)
 
 	acm_port_join(port);
 	port->state = IBV_PORT_ACTIVE;
-	ssa_log(SSA_LOG_VERBOSE, "%s %d is up\n", port->dev->verbs->device->name, port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d is up\n",
+		port->dev->verbs->device->name, port->port_num);
 }
 
 static void acm_port_down(struct acm_port *port)
@@ -3582,7 +3602,8 @@ static void acm_port_down(struct acm_port *port)
 	struct ibv_port_attr attr;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE, "%s %d\n", port->dev->verbs->device->name, port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d\n",
+		port->dev->verbs->device->name, port->port_num);
 	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
 	if (!ret && attr.state == IBV_PORT_ACTIVE) {
 		ssa_log(SSA_LOG_VERBOSE, "port active\n");
@@ -3600,7 +3621,8 @@ static void acm_port_down(struct acm_port *port)
 	while (atomic_get(&port->sa_dest.refcnt))
 		sleep(0);
 	ibv_destroy_ah(port->sa_dest.ah);
-	ssa_log(SSA_LOG_VERBOSE, "%s %d is down\n", port->dev->verbs->device->name, port->port_num);
+	ssa_log(SSA_LOG_VERBOSE, "%s %d is down\n",
+		port->dev->verbs->device->name, port->port_num);
 }
 
 /*
@@ -3853,7 +3875,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", ((stru
 				    ((struct ssa_db_update_msg *)msg)->db_upd.db,
 				    prdb_dump);
 		if (acm_parse_ssa_db((struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
-			ssa_log(SSA_LOG_DEFAULT, "ERROR - unable to preload ACM cache\n");
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - unable to preload ACM cache\n");
 		return 1;
 	case SSA_CTRL_DEV_EVENT:
 	case SSA_CONN_REQ:
