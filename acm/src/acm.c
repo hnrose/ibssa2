@@ -3093,16 +3093,26 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 				addr_type = ACM_ADDRESS_LID;
 				*((uint16_t *) addr) = htons(dlid);
 			} else {
-				dgid.global.interface_id = lid2guid[dlid];
+				dgid.global.interface_id = lid2guid_cached[dlid];
 				addr_type = ACM_ADDRESS_GID;
 				memcpy(addr, &dgid, sizeof(dgid));
 			}
 
 			pthread_mutex_lock(&ep->lock);
-			tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
+			if (addr_type == ACM_ADDRESS_LID)
+				tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest_by_lid);
+			else if (addr_type == ACM_ADDRESS_GID)
+				tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest_by_gid);
+			else
+				tdest = tfind(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
 			if (tdest) {
 				dest = *tdest;
-				tdelete(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
+				if (addr_type == ACM_ADDRESS_LID)
+					tdelete(addr, &ep->dest_map[addr_type - 1], acm_compare_dest_by_lid);
+				else if (addr_type == ACM_ADDRESS_GID)
+					tdelete(addr, &ep->dest_map[addr_type - 1], acm_compare_dest_by_gid);
+				else
+					tdelete(addr, &ep->dest_map[addr_type - 1], acm_compare_dest);
 				acm_put_dest(dest);
 			} else {
 				acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
