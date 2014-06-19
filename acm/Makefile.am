@@ -21,7 +21,7 @@ man_MANS = \
 
 EXTRA_DIST = src/acm_mad.h src/libacm.h ibacm.init.in \
 	     include/osd.h include/dlist.h \
-	     include/ssa_log.h include/common.h \
+	     include/ssa_log.h include/common.h include/ref_count.h \
 	     ibacm.spec.in $(man_MANS) ibacm_opts.cfg ibacm_addr.cfg
 
 install-exec-hook:

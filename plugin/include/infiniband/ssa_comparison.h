@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2011-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,6 +34,7 @@
 #ifndef _SSA_COMPARISON_H_
 #define _SSA_COMPARISON_H_
 
+#include <ref_count.h>
 #include <infiniband/osm_headers.h>
 #include <infiniband/ssa_database.h>
 #include <infiniband/ssa_smdb.h>
@@ -50,7 +51,7 @@ BEGIN_C_DECLS
 
 /* used for making comparison between two ssa databases */
 struct ssa_db_diff {
-	struct ssa_db		*p_smdb;
+	struct ref_count_obj	*p_smdb;
 
 	/***** guid_to_lid_tbl changes tracking **********/
 	cl_qmap_t ep_guid_to_lid_tbl_added;

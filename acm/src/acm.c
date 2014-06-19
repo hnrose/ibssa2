@@ -3871,6 +3871,8 @@ static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 
 static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
+	struct ssa_db *db;
+
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	switch(msg->hdr.type) {
 	case SSA_CTRL_MAD:
@@ -3880,12 +3882,11 @@ ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n",
 		/* Request ssa_db ? */
 		return 1;
 	case SSA_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", ((struct ssa_db_update_msg *)msg)->db_upd.db, ((struct ssa_db_update_msg *)msg)->db_upd.epoch);
+		db = ref_count_object_get(((struct ssa_db_update_msg *)msg)->db_upd.db);
+ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", db, ((struct ssa_db_update_msg *)msg)->db_upd.epoch);
 		if (prdb_dump)
-			ssa_db_save(prdb_dump_dir,
-				    ((struct ssa_db_update_msg *)msg)->db_upd.db,
-				    prdb_dump);
-		if (acm_parse_ssa_db((struct ssa_db *)(((struct ssa_db_update_msg *)msg)->db_upd.db), svc))
+			ssa_db_save(prdb_dump_dir, db, prdb_dump);
+		if (acm_parse_ssa_db(db, svc))
 			ssa_log(SSA_LOG_DEFAULT,
 				"ERROR - unable to preload ACM cache\n");
 		return 1;

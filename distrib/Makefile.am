@@ -16,7 +16,7 @@ svc_ibssa_LDADD = -lrdmacm -L$(libdir)
 ibssa_includedir = $(includedir)/infiniband
 
 EXTRA_DIST = include/osd.h include/dlist.h \
-	     include/ssa_log.h include/common.h \
+	     include/ssa_log.h include/common.h include/ref_count.h \
 	     ibssa.spec.in ibssa_opts.cfg
 
 install-exec-hook:

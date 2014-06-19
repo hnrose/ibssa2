@@ -744,9 +744,11 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 }
 
 #ifndef SIM_SUPPORT
-static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
+static void ssa_extract_send_db_update(struct ref_count_obj *db,
+				       int fd, int flags)
 {
 #ifndef CORE_INTEGRATION
+	struct ssa_db *ssa_db;
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -755,12 +757,13 @@ static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 	msg.db_upd.db = db;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = flags;
-	msg.db_upd.epoch = ssa_db_get_epoch(db, DB_DEF_TBL_ID);
+	ssa_db = ref_count_object_get(db);
+	msg.db_upd.epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
 	write(fd, (char *) &msg, sizeof(msg));
 #endif
 }
 
-static void ssa_extract_db_update(struct ssa_db *db)
+static void ssa_extract_db_update(struct ref_count_obj *db)
 {
 	struct ssa_svc *svc;
 	int d, p, s;
@@ -788,6 +791,7 @@ static void ssa_extract_db_update(struct ssa_db *db)
 static int
 ssa_extract_load_smdb(struct ssa_db *p_smdb, struct timespec *last_mtime)
 {
+	struct ref_count_obj *db;
 	struct stat smdb_dir_stats;
 	int ret;
 
@@ -820,9 +824,13 @@ ssa_extract_load_smdb(struct ssa_db *p_smdb, struct timespec *last_mtime)
 		if (p_smdb)
 			ssa_db_destroy(p_smdb);
 		p_smdb = ssa_db_load(smdb_dump_dir, smdb_dump);
-		ssa_extract_db_update(p_smdb);
-
-		memcpy(last_mtime, &smdb_dir_stats.st_mtime, sizeof(*last_mtime));
+		db = malloc(sizeof(*db));
+		if (db) {
+			ref_count_obj_init(db, p_smdb);
+			ssa_extract_db_update(db);
+			memcpy(last_mtime, &smdb_dir_stats.st_mtime,
+			       sizeof(*last_mtime));
+		}
 	}
 
 	lockf(smdb_lock_fd, F_ULOCK, 0);
@@ -834,13 +842,14 @@ ssa_extract_load_smdb(struct ssa_db *p_smdb, struct timespec *last_mtime)
 static void *core_extract_handler(void *context)
 {
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
+	struct ssa_db *p_smdb = NULL;
 	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
 	uint64_t epoch_prev = 0;
 	int ret, timeout_msec = -1;
 #ifdef SIM_SUPPORT_SMDB
 	struct timespec smdb_last_mtime;
-	struct ssa_db *p_smdb = NULL;
+	struct ssa_db *p_smdb2 = NULL;
 
 	timeout_msec = 1000;	/* 1 sec */
 	memset(&smdb_last_mtime, 0, sizeof(smdb_last_mtime));
@@ -861,7 +870,7 @@ static void *core_extract_handler(void *context)
 
 #ifdef SIM_SUPPORT_SMDB
 		if (!ret) {
-			if (ssa_extract_load_smdb(p_smdb, &smdb_last_mtime) < 0)
+			if (ssa_extract_load_smdb(p_smdb2, &smdb_last_mtime) < 0)
 				goto out;
 			continue;
 		}
@@ -886,9 +895,11 @@ static void *core_extract_handler(void *context)
 
 				pthread_mutex_lock(&ssa_db_diff_lock);
 				/* Clear previous version */
-				if (ssa_db_diff)
-					epoch_prev = ssa_db_get_epoch(
-					    ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
+				if (ssa_db_diff) {
+					p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
+					epoch_prev = ssa_db_get_epoch(p_smdb,
+								      DB_DEF_TBL_ID);
+				}
 
 				ssa_db_diff_destroy(ssa_db_diff);
 
@@ -897,21 +908,22 @@ static void *core_extract_handler(void *context)
 				if (ssa_db_diff) {
 					ssa_log(SSA_LOG_VERBOSE,
 						"SMDB was changed. Pushing the changes...\n");
+					p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
 					/*
-					 * TODO: use 'ssa_db_get_epoch(p_ssa_db_diff->p_smdb, DB_DEF_TBL_ID)'
+					 * TODO: use 'ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID)'
 					 * for getting current epoch and sending it to children nodes.
 					 */
 #ifdef SIM_SUPPORT
 					if (smdb_dump && !lockf(smdb_lock_fd, F_LOCK, 0)) {
 						ssa_db_save(smdb_dump_dir,
-							    ssa_db_diff->p_smdb,
+							    p_smdb,
 							    smdb_dump);
 						lockf(smdb_lock_fd, F_ULOCK, 0);
 					}
 #else
 					if (smdb_dump)
 						ssa_db_save(smdb_dump_dir,
-							    ssa_db_diff->p_smdb,
+							    p_smdb,
 							    smdb_dump);
 
 					ssa_extract_db_update(ssa_db_diff->p_smdb);

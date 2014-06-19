@@ -36,6 +36,7 @@
 #define _SSA_CTRL_H
 
 #include <linux/types.h>
+#include <ref_count.h>
 #include <infiniband/verbs.h>
 #include <infiniband/ssa_mad.h>
 
@@ -88,7 +89,7 @@ struct ssa_conn_done_msg {
 };
 
 struct ssa_db_update {
-	struct ssa_db		*db;
+	struct ref_count_obj	*db;
 	struct ssa_svc		*svc;
 	union ibv_gid		*remote_gid;
 	int			rsock;

@@ -41,6 +41,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <ref_count.h>
 #include <infiniband/umad.h>
 #include <infiniband/verbs.h>
 #include <ssa_ctrl.h>
@@ -181,7 +182,7 @@ struct ssa_conn {
 	void			*sbuf2;
 	int			ssize2;
 	int			rdma_write;
-	struct ssa_db		*ssa_db;
+	struct ref_count_obj	*ssa_db;
 	uint64_t		epoch;
 	volatile be64_t		prdb_epoch;
 	uint32_t		epoch_len;

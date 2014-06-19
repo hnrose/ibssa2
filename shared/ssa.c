@@ -76,9 +76,9 @@
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
 
 #ifdef ACCESS_INTEGRATION
-static struct ssa_db *prdb;
+static struct ref_count_obj *prdb;
 #endif
-static struct ssa_db *smdb;
+static struct ref_count_obj *smdb;
 static uint64_t epoch;
 
 __thread char log_data[128];
@@ -104,7 +104,7 @@ int keepalive = 0;
 #ifdef ACCESS
 struct ssa_access_member {
 	union ibv_gid gid;		/* consumer GID */
-	struct ssa_db *prdb_current;
+	struct ref_count_obj *prdb_current;
 	uint64_t smdb_epoch;
 	int rsock;
 };
@@ -740,6 +740,7 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 					   struct ssa_msg_hdr *hdr)
 {
+	struct ssa_db *ssa_db;
 	int ret, size;
 
 	if (conn->phase == SSA_DB_DEFS) {
@@ -762,10 +763,11 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 					ntohl(hdr->len), sizeof(*hdr) + size,
 					conn->rsock);
 			else {
+				ssa_db = ref_count_object_get(conn->ssa_db);
 				if (conn->rindex)
-					conn->rbuf = &conn->ssa_db->db_table_def;
+					conn->rbuf = &ssa_db->db_table_def;
 				else
-					conn->rbuf = &conn->ssa_db->db_def;
+					conn->rbuf = &ssa_db->db_def;
 				conn->rsize = ntohl(hdr->len) - sizeof(*hdr);
 				conn->roffset = 0;
 				ret = rrecv(conn->rsock, conn->rbuf,
@@ -902,9 +904,9 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 			conn->phase, conn->rsock);
 }
 
-static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
-					int flags, union ibv_gid *gid,
-					uint64_t epoch)
+static void ssa_upstream_send_db_update(struct ssa_svc *svc,
+					struct ref_count_obj *db, int flags,
+					union ibv_gid *gid, uint64_t epoch)
 {
 	struct ssa_db_update_msg msg;
 
@@ -925,6 +927,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 {
+	struct ssa_db *ssa_db;
 	uint64_t data_tbl_cnt, epoch;
 	short revents = events;
 
@@ -953,7 +956,8 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 	case SSA_DB_TBL_DEFS:
 		svc->conn_dataup.phase = SSA_DB_FIELD_DEFS;
 		svc->conn_dataup.roffset = 0;
-		svc->conn_dataup.ssa_db->p_def_tbl = svc->conn_dataup.rbuf;
+		ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+		ssa_db->p_def_tbl = svc->conn_dataup.rbuf;
 		free(svc->conn_dataup.rhdr);
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
@@ -966,15 +970,16 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 		    ntohs(((struct ssa_msg_hdr *)svc->conn_dataup.rhdr)->flags) & SSA_MSG_FLAG_END) {
 			svc->conn_dataup.phase = SSA_DB_DATA;
 		} else {
-			if (!svc->conn_dataup.ssa_db->p_db_field_tables) {
-				svc->conn_dataup.ssa_db->p_db_field_tables = svc->conn_dataup.rbuf;
-				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
-				svc->conn_dataup.ssa_db->pp_field_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_field_tables));
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p num tables %d rsock %d\n", svc->conn_dataup.ssa_db->pp_field_tables, data_tbl_cnt, svc->conn_dataup.rsock);
+			ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+			if (!ssa_db->p_db_field_tables) {
+				ssa_db->p_db_field_tables = svc->conn_dataup.rbuf;
+				data_tbl_cnt = ssa_db_calculate_data_tbl_num(ssa_db);
+				ssa_db->pp_field_tables = malloc(data_tbl_cnt * sizeof(*ssa_db->pp_field_tables));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p num tables %d rsock %d\n", ssa_db->pp_field_tables, data_tbl_cnt, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex = 0;
 			} else {
-				if (svc->conn_dataup.ssa_db->pp_field_tables)
-					svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+				if (ssa_db->pp_field_tables)
+					ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p rsock %d\n", svc->conn_dataup.rindex, svc->conn_dataup.rbuf, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex++;
 			}
@@ -994,15 +999,16 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p rsock %d\n", svc->conn_d
 		    ntohs(((struct ssa_msg_hdr *)svc->conn_dataup.rhdr)->flags) & SSA_MSG_FLAG_END) {
 			svc->conn_dataup.phase = SSA_DB_IDLE;
 		} else {
-			if (!svc->conn_dataup.ssa_db->p_db_tables) {
-				svc->conn_dataup.ssa_db->p_db_tables = svc->conn_dataup.rbuf;
-				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
-				svc->conn_dataup.ssa_db->pp_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_tables));
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %d rsock %d\n", svc->conn_dataup.ssa_db->pp_tables, data_tbl_cnt, svc->conn_dataup.rsock);
+			ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+			if (!ssa_db->p_db_tables) {
+				ssa_db->p_db_tables = svc->conn_dataup.rbuf;
+				data_tbl_cnt = ssa_db_calculate_data_tbl_num(ssa_db);
+				ssa_db->pp_tables = malloc(data_tbl_cnt * sizeof(*ssa_db->pp_tables));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %d rsock %d\n", ssa_db->pp_tables, data_tbl_cnt, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex = 0;
 			} else {
-				if (svc->conn_dataup.ssa_db->pp_tables)
-					svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+				if (ssa_db->pp_tables)
+					ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p rsock %d\n", svc->conn_dataup.rindex, svc->conn_dataup.rbuf, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex++;
 			}
@@ -1016,10 +1022,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p rsock %d\n", svc->conn_dataup.
 						     SSA_MSG_DB_QUERY_DATA_DATASET,
 						     events);
 		} else {
-			svc->conn_dataup.ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
-			epoch = ssa_db_get_epoch(svc->conn_dataup.ssa_db,
-						 DB_DEF_TBL_ID);
-ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", svc->conn_dataup.ssa_db, epoch, svc->conn_dataup.ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
+			ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+			ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(ssa_db);
+			epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
+ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", ssa_db, epoch, ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
 			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db,
 						    0, NULL, epoch);
 		}
@@ -1035,6 +1041,7 @@ ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables
 static short ssa_upstream_handle_op(struct ssa_svc *svc,
 				    struct ssa_msg_hdr *hdr, short events)
 {
+	struct ssa_db *ssa_db;
 	uint16_t op;
 	short revents = events;
 
@@ -1133,15 +1140,16 @@ cate check !!! */
 				svc->conn_dataup.phase, svc->conn_dataup.rsock);
 		break;
 	case SSA_MSG_DB_UPDATE:
-ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p epoch 0x%" PRIx64 " phase %d rsock %d\n", svc->conn_dataup.ssa_db, ntohll(hdr->rdma_addr), svc->conn_dataup.phase, svc->conn_dataup.rsock);
+		ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p epoch 0x%" PRIx64 " phase %d rsock %d\n", ssa_db, ntohll(hdr->rdma_addr), svc->conn_dataup.phase, svc->conn_dataup.rsock);
 		svc->conn_dataup.roffset = 0;
 		free(svc->conn_dataup.rbuf);
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
-		if (svc->conn_dataup.ssa_db) {
+		if (ssa_db) {
 			/* Should the next 2 lines be dependent on flags (full update) in DB update message ? */
-			svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
-			svc->conn_dataup.ssa_db->p_db_tables = NULL;
+			ssa_db->p_db_field_tables = NULL;
+			ssa_db->p_db_tables = NULL;
 			revents = ssa_upstream_update_conn(svc, events);
 		}
 		break;
@@ -1192,6 +1200,7 @@ static void *ssa_upstream_handler(void *context)
 {
 	struct ssa_svc *svc = context;
 	struct ssa_conn_req_msg *conn_req;
+	struct ssa_db *ssa_db;
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[4];
 	int ret, errnum;
@@ -1260,13 +1269,17 @@ static void *ssa_upstream_handler(void *context)
 					if (conn_req->svc->conn_dataup.state != SSA_CONN_CONNECTED)
 						fds[3].events = POLLOUT;
 					else {
-						conn_req->svc->conn_dataup.ssa_db = calloc(1, sizeof(*conn_req->svc->conn_dataup.ssa_db));
-						if (conn_req->svc->conn_dataup.ssa_db) {
+						conn_req->svc->conn_dataup.ssa_db = malloc(sizeof(*conn_req->svc->conn_dataup.ssa_db));
+						ssa_db = calloc(1, sizeof(*ssa_db));
+						if (conn_req->svc->conn_dataup.ssa_db && ssa_db) {
+							ref_count_obj_init(conn_req->svc->conn_dataup.ssa_db, ssa_db);
 							if (port == prdb_port)
 								fds[3].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[3].events);
 						} else {
 							ssa_log_err(SSA_LOG_DEFAULT,
-								    "could not allocate ssa_db struct\n");
+								    "could not allocate ref_count_obj or ssa_db struct\n");
+							free(ssa_db);
+							free(conn_req->svc->conn_dataup.ssa_db);
 						}
 					}
 				}
@@ -1325,8 +1338,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY message received\n");
 					if (svc->conn_dataup.epoch !=
 					    ntohll(svc->conn_dataup.prdb_epoch)) {
 						if (svc->conn_dataup.ssa_db) {
-							svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
-							svc->conn_dataup.ssa_db->p_db_tables = NULL;
+							ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+							ssa_db->p_db_field_tables = NULL;
+							ssa_db->p_db_tables = NULL;
 						}
 						/* Should response (and epoch update) be after DB is pulled successfully ??? */
 						ssa_upstream_query_db_resp(svc, 0);
@@ -1375,12 +1389,16 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
 					ssa_upstream_svc_client(svc, errnum);
-					svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
-					if (svc->conn_dataup.ssa_db) {
+					svc->conn_dataup.ssa_db = malloc(sizeof(*svc->conn_dataup.ssa_db));
+					ssa_db = calloc(1, sizeof(*ssa_db));
+					if (svc->conn_dataup.ssa_db && ssa_db) {
+						ref_count_obj_init(svc->conn_dataup.ssa_db, ssa_db);
 						if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
 							fds[3].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[3].events);
 					} else {
-						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ssa_db struct for rsock %d\n", fds[3].fd);
+						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[3].fd);
+						free(ssa_db);
+						free(svc->conn_dataup.ssa_db);
 					}
 				} else {
 					fds[3].events = ssa_rsend_continue(&svc->conn_dataup, fds[3].events);
@@ -1518,12 +1536,12 @@ static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 {
 	/* Use SSA DB if available; otherwise use preloaded DB */
 	if (conn->ssa_db)
-		return conn->ssa_db;
+		return ref_count_object_get(conn->ssa_db);
 #ifdef ACCESS_INTEGRATION
-	return prdb;
+	return ref_count_object_get(prdb);
 #else
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
-		return smdb;
+		return ref_count_object_get(smdb);
 	return NULL;
 #endif
 }
@@ -1704,6 +1722,7 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 						 struct ssa_msg_hdr *hdr,
 						 short events)
 {
+	struct ssa_db *ssa_db;
 	short revents = events;
 
 	conn->epoch_len = ntohl(hdr->rdma_len);
@@ -1712,7 +1731,8 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 	conn->rhdr = NULL;
 	conn->rbuf = NULL;
 	if (conn->ssa_db) {
-		epoch = ssa_db_get_epoch(conn->ssa_db, DB_DEF_TBL_ID);
+		ssa_db = ref_count_object_get(conn->ssa_db);
+		epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
 		if (epoch) {
 			/* RDMA write current epoch for the connnection/DB so (limited) ACM restart will work */
 			revents = ssa_riowrite(conn, events);
@@ -1990,6 +2010,7 @@ static void *ssa_downstream_handler(void *context)
 	struct pollfd **fds;
 	struct pollfd *pfd, *pfd2;
 	struct ssa_conn *conn;
+	struct ssa_db *ssa_db;
 	int ret, i, slot;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
@@ -2112,11 +2133,11 @@ static void *ssa_downstream_handler(void *context)
 					if (++svc->prdb_epoch == 0)
 						svc->prdb_epoch++;
 					conn->epoch = svc->prdb_epoch;
-					ssa_db_set_epoch(conn->ssa_db,
-							 DB_DEF_TBL_ID,
+					ssa_db = ref_count_object_get(conn->ssa_db);
+					ssa_db_set_epoch(ssa_db, DB_DEF_TBL_ID,
 							 conn->epoch);
 					conn->prdb_epoch = htonll(conn->epoch);
-ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", conn->ssa_db, ntohll(conn->prdb_epoch));
+ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->prdb_epoch));
 				}
 				if (conn && conn->epoch_len) {
 					pfd2 = (struct pollfd *)(fds + slot);
@@ -2265,9 +2286,9 @@ out:
 }
 
 #ifdef ACCESS
-static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
-				      int rsock, int flags,
-				      union ibv_gid *remote_gid)
+static void ssa_access_send_db_update(struct ssa_svc *svc,
+				      struct ref_count_obj *db, int rsock,
+				      int flags, union ibv_gid *remote_gid)
 {
 	struct ssa_db_update_msg msg;
 
@@ -2321,7 +2342,7 @@ skip_prdb_save:
 }
 
 static void
-ssa_db_update_init(struct ssa_db *db, struct ssa_svc *svc,
+ssa_db_update_init(struct ref_count_obj *db, struct ssa_svc *svc,
 		   union ibv_gid *remote_gid, int rsock, int flags,
 		   uint64_t epoch, struct ssa_db_update *p_db_upd)
 {
@@ -2396,6 +2417,7 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 	struct ssa_svc *svc = (struct ssa_svc *) priv;
 	struct ssa_db_update db_upd;
 	struct ssa_db *prdb;
+	struct ref_count_obj *db;
 
 	switch (which) {
 	case preorder:
@@ -2410,10 +2432,20 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		ssa_log(SSA_LOG_DEFAULT, "Internal GID %s PRDB %p rsock %d\n",
 			log_data, prdb, consumer->rsock);
 		if (prdb) {
-			consumer->prdb_current = prdb;
-			ssa_db_update_init(prdb, svc, &consumer->gid,
-					   consumer->rsock, 0, 0, &db_upd);
-			ssa_push_db_update(&access_context.update_queue, &db_upd);
+			db = malloc(sizeof(*db));
+			if (db) {
+				ref_count_obj_init(db, prdb);
+				consumer->prdb_current = db;
+				ssa_db_update_init(db, svc, &consumer->gid,
+						   consumer->rsock, 0, 0,
+						   &db_upd);
+				ssa_push_db_update(&access_context.update_queue,
+						   &db_upd);
+			} else {
+				ssa_log(SSA_LOG_DEFAULT,
+					"PRDB ref count memory allocation failed\n");
+				ssa_db_destroy(prdb);
+			}
 		} else
 			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
 		break;
@@ -2429,10 +2461,20 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		ssa_log(SSA_LOG_DEFAULT, "Leaf GID %s PRDB %p rsock %d\n",
 			log_data, prdb, consumer->rsock);
 		if (prdb) {
-			consumer->prdb_current = prdb;
-			ssa_db_update_init(prdb, svc, &consumer->gid,
-					   consumer->rsock, 0, 0, &db_upd);
-			ssa_push_db_update(&access_context.update_queue, &db_upd);
+			db = malloc(sizeof(*db));
+			if (db) {
+				ref_count_obj_init(db, prdb);
+				consumer->prdb_current = db;
+				ssa_db_update_init(db, svc, &consumer->gid,
+						   consumer->rsock, 0, 0,
+						   &db_upd);
+				ssa_push_db_update(&access_context.update_queue,
+						   &db_upd);
+			} else {
+				ssa_log(SSA_LOG_DEFAULT,
+					"PRDB ref count memory allocation failed\n");
+				ssa_db_destroy(prdb);
+			}
 		} else
 			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
 		break;
@@ -2484,9 +2526,11 @@ static void *ssa_access_handler(void *context)
 	struct pollfd *pfd;
 	struct ssa_ctrl_msg_buf msg;
 	struct ssa_db *prdb = NULL;
+	struct ssa_db *db;
 	int i, ret, d, p, s, svc_cnt = 0;
 #ifdef ACCESS
 	int j;
+	struct ref_count_obj *dbr;
 	struct ssa_access_member *consumer;
 	uint8_t **tgid;
 	struct ssa_db_update db_upd;
@@ -2603,11 +2647,12 @@ static void *ssa_access_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE:
+				db = ref_count_object_get(msg.data.db_upd.db);
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from extract: ssa_db %p\n",
-					msg.data.db_upd.db);
+					db);
 				/* Should epoch be added to access context ? */
-				access_context.smdb = msg.data.db_upd.db;
+				access_context.smdb = db;
 #ifdef ACCESS
 				/* Reinit context should be based on DB update flags indicating full update */
 				ssa_pr_reinit_context(access_context.context);
@@ -2650,11 +2695,12 @@ static void *ssa_access_handler(void *context)
 
 				switch (msg.hdr.type) {
 				case SSA_DB_UPDATE:
+					db = ref_count_object_get(msg.data.db_upd.db);
 					ssa_log(SSA_LOG_DEFAULT,
 						"SSA DB update from upstream thread: ssa_db %p\n",
-						msg.data.db_upd.db);
+						db);
 					/* Should epoch be added to access context ? */
-					access_context.smdb = msg.data.db_upd.db;
+					access_context.smdb = db;
 #ifdef ACCESS
 					/* Reinit context should be based on DB update flags indicating full update */
 					ssa_pr_reinit_context(access_context.context);
@@ -2739,7 +2785,7 @@ static void *ssa_access_handler(void *context)
 							if (consumer->smdb_epoch ==
 							    ssa_db_get_epoch(access_context.smdb,
 									     DB_DEF_TBL_ID))
-								prdb = consumer->prdb_current;
+								prdb = ref_count_object_get(consumer->prdb_current);
 								goto skip_prdb_calc;
 						}
 						prdb = ssa_calculate_prdb(svc_arr[i],
@@ -2749,11 +2795,25 @@ static void *ssa_access_handler(void *context)
 							continue;
 #ifdef ACCESS
 skip_prdb_calc:
-						consumer->prdb_current = prdb;
 						consumer->smdb_epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
-						ssa_db_update_init(prdb, svc_arr[i], &msg.data.conn->remote_gid,
-								   msg.data.conn->rsock, 0, 0, &db_upd);
-						ssa_push_db_update(&access_context.update_queue, &db_upd);
+						dbr = malloc(sizeof(*dbr));
+						if (dbr) {
+							ref_count_obj_init(dbr,
+									   prdb);
+							consumer->prdb_current = dbr;
+							ssa_db_update_init(dbr,
+									   svc_arr[i],
+									   &msg.data.conn->remote_gid,
+									   msg.data.conn->rsock,
+									   0, 0,
+									   &db_upd);
+							ssa_push_db_update(&access_context.update_queue,
+									   &db_upd);
+						} else {
+							ssa_log(SSA_LOG_DEFAULT,
+								"PRDB ref count memory allocation failed\n");
+							ssa_db_destroy(prdb);
+						}
 #endif
 						/*
 						 * TODO: destroy prdb database
@@ -3764,6 +3824,9 @@ err1:
 void ssa_stop_access(struct ssa_class *ssa)
 {
 	struct ssa_ctrl_msg msg;
+#ifdef ACCESS
+	struct ssa_db *db;
+#endif
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 
@@ -3781,7 +3844,8 @@ void ssa_stop_access(struct ssa_class *ssa)
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
 	}
-	if (access_context.smdb != smdb)
+	db = ref_count_object_get(smdb);
+	if (access_context.smdb != db)
 		ssa_db_destroy(access_context.smdb);
 	access_context.smdb = NULL;
 #endif
@@ -3850,6 +3914,9 @@ err:
 static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			 struct ibv_device *ibdev)
 {
+#if defined(ACCESS_INTEGRATION) || defined(CORE_INTEGRATION)
+	struct ssa_db *db;
+#endif
 	struct ibv_device_attr attr;
 	int i, ret;
 
@@ -3902,8 +3969,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	if (dev->ssa->node_type & SSA_NODE_CORE) {
 		/* if configured, invoke SMDB preloading */
 		/* HACK: loading mode is determined by dump mode */
-		smdb = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
-		if (!smdb) {
+		db = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
+		if (!db) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "unable to preload smdb database. path:\"%s\"\n",
 				    SMDB_PRELOAD_PATH);
@@ -3911,6 +3978,14 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 				"smdb is preloaded from \"%s\"\n",
 				SMDB_PRELOAD_PATH);
+			smdb = malloc(sizeof(*smdb));
+			if (smdb) {
+				ref_count_obj_init(smdb, db);
+			} else {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "smdb ref count obj memory allocation failed\n");
+				ssa_destroy_db(db);
+			}
 		}
 	}
 #endif
@@ -3919,8 +3994,8 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
 		/* if configured, invoke PR and/or SSA DB preloading */
 		/* HACK: loading mode is determined by dump mode */
-		prdb = ssa_db_load(PRDB_PRELOAD_PATH, prdb_dump);
-		if (!prdb) {
+		db = ssa_db_load(PRDB_PRELOAD_PATH, prdb_dump);
+		if (!db) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "unable to preload prdb database. path:\"%s\"\n",
 				    PRDB_PRELOAD_PATH);
@@ -3928,12 +4003,20 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 				"prdb is preloaded from \"%s\"\n",
 				PRDB_PRELOAD_PATH);
+			prdb = malloc(sizeof(*prdb));
+			if (prdb) {
+				ref_count_obj_init(prdb, db);
+			} else {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "prdb ref count obj memory allocation failed\n");
+				ssa_destroy_db(db);
+			}
 		}
 
 		/* HACK: loading mode is determined by dump mode */
 		if (!smdb)
-			smdb = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
-		if (!smdb) {
+			db = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
+		if (!db) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "unable to preload smdb database. path:\"%s\"\n",
 				    SMDB_PRELOAD_PATH);
@@ -3942,6 +4025,14 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 			"smdb is preloaded from \"%s\"\n",
 			SMDB_PRELOAD_PATH);
+		smdb = malloc(sizeof(*smdb));
+		if (smdb) {
+			ref_count_obj_init(smdb, db);
+		} else { 
+			ssa_log_err(SSA_LOG_CTRL,
+				    "smdb ref count obj memory allocation failed\n");
+			ssa_destroy_db(db);
+		}
 	}
 #endif
 
@@ -3960,11 +4051,15 @@ err1:
 #ifdef ACCESS_INTEGRATION
 ctx_create_err:
 	if (prdb) {
-		ssa_db_destroy(prdb);
+		db = ref_count_object_get(prdb);
+		ssa_db_destroy(db);
+		prb->object = NULL;	/* ??? */
 		prdb = NULL;
 	}
 	if (smdb) {
-		ssa_db_destroy(smdb);
+		db = ref_count_object_get(smdb);
+		ssa_db_destroy(db);
+		smdb->object = NULL;	/* ??? */
 		smdb = NULL;
 	}
 #endif
@@ -4072,6 +4167,7 @@ static void ssa_close_port(struct ssa_port *port)
 void ssa_close_devices(struct ssa_class *ssa)
 {
 	struct ssa_device *dev;
+	struct ssa_db *db;
 	int d, p;
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
@@ -4089,12 +4185,16 @@ void ssa_close_devices(struct ssa_class *ssa)
 
 #ifdef ACCESS_INTEGRATION
 	if (prdb) {
-		ssa_db_destroy(prdb);
+		db = ref_count_object_get(prdb);
+		ssa_db_destroy(db);
+		prdb->object = NULL;	/* ??? */
 		prdb = NULL;
 	}
 #endif
 	if (smdb) {
-		ssa_db_destroy(smdb);
+		db = ref_count_object_get(smdb);
+		ssa_db_destroy(db);
+		smdb->object = NULL;	/* ??? */
 		smdb = NULL;
 	}
 }
