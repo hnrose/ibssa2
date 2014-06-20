@@ -2218,7 +2218,7 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "ignoring unexpected message "
-					     "type %d from upstream\n",
+					     "type %d from extract\n",
 					     msg.hdr.type);
 				break;
 			}
