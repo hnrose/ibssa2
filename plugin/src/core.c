@@ -42,7 +42,6 @@
 #include <infiniband/ssa_comparison.h>
 #include <ssa_ctrl.h>
 #include <ssa_log.h>
-
 #include <infiniband/ssa_db_helper.h>
 
 #define INITIAL_SUBNET_UP_DELAY 500000		/* 500 msec */
@@ -903,8 +902,7 @@ static void *core_extract_handler(void *context)
 
 				ssa_db_diff_destroy(ssa_db_diff);
 
-				ssa_db_diff = ssa_db_compare(ssa_db,
-							     epoch_prev);
+				ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev);
 				if (ssa_db_diff) {
 					ssa_log(SSA_LOG_VERBOSE,
 						"SMDB was changed. Pushing the changes...\n");
@@ -942,7 +940,7 @@ static void *core_extract_handler(void *context)
 				goto out;
 			default:
 				ssa_log(SSA_LOG_VERBOSE,
-					"ERROR: Unknown msg type %d\n",
+					"ERROR: Unknown msg type %d from extract\n",
 					msg.type);
 				break;
 			}
