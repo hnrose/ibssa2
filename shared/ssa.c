@@ -1147,7 +1147,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
 		if (ssa_db) {
-			/* Should the next 2 lines be dependent on flags (full update) in DB update message ? */
+			/* Should the next 2 lines be dependent on flags (full update) in DB update msg ? */
 			ssa_db->p_db_field_tables = NULL;
 			ssa_db->p_db_tables = NULL;
 			revents = ssa_upstream_update_conn(svc, events);
@@ -1290,7 +1290,8 @@ static void *ssa_upstream_handler(void *context)
 				goto out;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message type %d from ctrl\n",
+					     "ignoring unexpected msg type %d "
+					     "from ctrl\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -1312,7 +1313,8 @@ static void *ssa_upstream_handler(void *context)
 			switch (msg.hdr.type) {
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message type %d from access\n",
+					     "ignoring unexpected msg type %d "
+					     "from access\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -1333,7 +1335,7 @@ static void *ssa_upstream_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_DB_QUERY:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY message received\n");
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY msg received\n");
 				if (svc->conn_dataup.rsock >= 0) {
 					if (svc->conn_dataup.epoch !=
 					    ntohll(svc->conn_dataup.prdb_epoch)) {
@@ -1363,8 +1365,9 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message type %d from main\n",
-				msg.hdr.type);
+					     "ignoring unexpected msg type %d "
+					     "from main\n",
+					     msg.hdr.type);
 				break;
 			}
 		}
@@ -2094,8 +2097,8 @@ static void *ssa_downstream_handler(void *context)
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from ctrl\n",
+					     "ignoring unexpected msg type %d "
+					     "from ctrl\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -2150,8 +2153,8 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from access\n",
+					     "ignoring unexpected msg type %d "
+					     "from access\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -2184,8 +2187,8 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from upstream\n",
+					     "ignoring unexpected msg type %d "
+					     "from upstream\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -2217,8 +2220,8 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from extract\n",
+					     "ignoring unexpected msg type %d "
+					     "from extract\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -2629,8 +2632,8 @@ static void *ssa_access_handler(void *context)
 				goto out;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from ctrl\n",
+					     "ignoring unexpected msg type %d "
+					     "from ctrl\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -2668,8 +2671,8 @@ static void *ssa_access_handler(void *context)
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
-					     "ignoring unexpected message "
-					     "type %d from extract\n",
+					     "ignoring unexpected msg type %d "
+					     "from extract\n",
 					     msg.hdr.type);
 				break;
 			}
@@ -2677,7 +2680,8 @@ static void *ssa_access_handler(void *context)
 
 		for (i = 0; i < svc_cnt; i++) {
 			pfd = (struct pollfd *)(fds +
-						ACCESS_FIRST_SERVICE_FD_SLOT + i * ACCESS_FDS_PER_SERVICE);
+						ACCESS_FIRST_SERVICE_FD_SLOT +
+						i * ACCESS_FDS_PER_SERVICE);
 			if (pfd->revents) {
 				pfd->revents = 0;
 				read(svc_arr[i]->sock_accessup[1],
@@ -2714,14 +2718,15 @@ static void *ssa_access_handler(void *context)
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
-						     "ignoring unexpected message "
+						     "ignoring unexpected msg "
 						     "type %d from upstream\n",
 						     msg.hdr.type);
 					break;
 				}
 			}
 			pfd = (struct pollfd *)(fds +
-						ACCESS_FIRST_SERVICE_FD_SLOT + i * ACCESS_FDS_PER_SERVICE + 1);
+						ACCESS_FIRST_SERVICE_FD_SLOT +
+						i * ACCESS_FDS_PER_SERVICE + 1);
 			if (pfd->revents) {
 				pfd->revents = 0;
 				read(svc_arr[i]->sock_accessdown[1],
@@ -2827,7 +2832,7 @@ skip_prdb_calc:
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
-						     "ignoring unexpected message "
+						     "ignoring unexpected msg "
 						     "type %d from downstream\n",
 						     msg.hdr.type);
 					break;
@@ -3421,7 +3426,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 					goto out;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
-						     "ignoring unexpected message type %d\n",
+						     "ignoring unexpected msg type %d\n",
 						     msg.hdr.type);
 					break;
 				}
