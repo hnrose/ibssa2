@@ -99,7 +99,7 @@ char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 //static short server_port = 6125;
 short smdb_port = 7470;
 short prdb_port = 7471;
-int keepalive = 0;
+int keepalive = 60;		/* seconds */
 
 #ifdef ACCESS
 struct ssa_access_member {
