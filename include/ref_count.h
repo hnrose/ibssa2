@@ -36,6 +36,7 @@
 #define _REF_COUNT_H
 
 #include <linux/types.h>
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
