@@ -53,7 +53,7 @@ static inline int ref_count_obj_inc(struct ref_count_obj *robj)
 	int v;
 
 	pthread_mutex_lock(&robj->mutex);
-	v == ++(robj->ref_count);
+	v = ++(robj->ref_count);
 	pthread_mutex_unlock(&robj->mutex);
 	return v;
 }
@@ -63,7 +63,7 @@ static inline int ref_count_obj_dec(struct ref_count_obj *robj)
 	int v;
 
 	pthread_mutex_lock(&robj->mutex);
-	v == --(robj->ref_count);
+	v = --(robj->ref_count);
 	pthread_mutex_unlock(&robj->mutex);
 	return v;
 }
