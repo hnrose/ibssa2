@@ -826,13 +826,13 @@ static void ssa_db_diff_compare_subnet_tables(struct ssa_db_extract * p_previous
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 static void ssa_db_diff_dump_fabric_params(struct ssa_db_diff * p_ssa_db_diff)
 {
-	struct ep_subnet_opts_tbl_rec *p_subnet_opts =
-		(struct ep_subnet_opts_tbl_rec *)
-			p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
+	struct ssa_db *p_smdb = ref_count_object_get(p_ssa_db_diff->p_smdb);
+	struct ep_subnet_opts_tbl_rec *p_subnet_opts;
 	uint8_t is_changed = 0;
 
 	ssa_log(SSA_LOG_VERBOSE, "Fabric parameters:\n");
 
+	p_subnet_opts = p_smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
 		ssa_log(SSA_LOG_VERBOSE, "Subnet Prefix: 0x%" PRIx64 "\n",
 			p_subnet_opts->subnet_prefix);
@@ -1034,9 +1034,14 @@ static void ssa_db_diff_dump_qmap(cl_qmap_t * p_qmap,
  */
 static void ssa_db_diff_dump(struct ssa_db_diff * p_ssa_db_diff)
 {
+	struct ssa_db *p_smdb;
 	int ssa_log_level = SSA_LOG_VERBOSE;
 
 	if (!p_ssa_db_diff)
+		return;
+
+	p_smdb = ref_count_object_get(p_ssa_db_diff->p_smdb);
+	if (!p_smdb)
 		return;
 
 	ssa_log(ssa_log_level, "Dumping SMDB changes\n");
@@ -1047,87 +1052,87 @@ static void ssa_db_diff_dump(struct ssa_db_diff * p_ssa_db_diff)
 	ssa_log(ssa_log_level, "NODE records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "NODE field definitions:\n");
-	ssa_db_diff_dump_field_rec(p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_NODE],
+	ssa_db_diff_dump_field_rec(p_smdb->pp_field_tables[SSA_TABLE_ID_NODE],
 				   SSA_FIELD_ID_NODE_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_added,
 			      ssa_db_diff_dump_node_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_node_tbl_removed,
 			      ssa_db_diff_dump_node_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_NODE]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "GUID to LID field definitions:\n");
-	ssa_db_diff_dump_field_rec(p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_GUID_TO_LID],
+	ssa_db_diff_dump_field_rec(p_smdb->pp_field_tables[SSA_TABLE_ID_GUID_TO_LID],
 				   SSA_FIELD_ID_GUID_TO_LID_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_added,
 			      ssa_db_diff_dump_guid_to_lid_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_guid_to_lid_tbl_removed,
 			      ssa_db_diff_dump_guid_to_lid_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "PORT field definitions:\n");
-	ssa_db_diff_dump_field_rec(p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_PORT],
+	ssa_db_diff_dump_field_rec(p_smdb->pp_field_tables[SSA_TABLE_ID_PORT],
 				   SSA_FIELD_ID_PORT_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_port_tbl_added,
 			      ssa_db_diff_dump_port_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PORT]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_PORT]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_port_tbl_removed,
 			      ssa_db_diff_dump_port_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_PORT]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_PORT]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT block records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT block field definitions:\n");
-	ssa_db_diff_dump_field_rec(p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_LFT_BLOCK],
+	ssa_db_diff_dump_field_rec(p_smdb->pp_field_tables[SSA_TABLE_ID_LFT_BLOCK],
 				   SSA_FIELD_ID_LFT_BLOCK_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_lft_block_tbl,
 			      ssa_db_diff_dump_lft_block_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT top records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LFT top field definitions:\n");
-	ssa_db_diff_dump_field_rec(p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_LFT_TOP],
+	ssa_db_diff_dump_field_rec(p_smdb->pp_field_tables[SSA_TABLE_ID_LFT_TOP],
 				   SSA_FIELD_ID_LFT_TOP_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_lft_top_tbl,
 			      ssa_db_diff_dump_lft_top_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP]);
 
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Link Records:\n");
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "LINK field definitions:\n");
-	ssa_db_diff_dump_field_rec(p_ssa_db_diff->p_smdb->pp_field_tables[SSA_TABLE_ID_LINK],
+	ssa_db_diff_dump_field_rec(p_smdb->pp_field_tables[SSA_TABLE_ID_LINK],
 				   SSA_FIELD_ID_LINK_MAX);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "Added records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_added,
 			      ssa_db_diff_dump_link_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "Removed records:\n");
 	ssa_db_diff_dump_qmap(&p_ssa_db_diff->ep_link_tbl_removed,
 			      ssa_db_diff_dump_link_rec,
-			      p_ssa_db_diff->p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
+			      p_smdb->pp_tables[SSA_TABLE_ID_LINK]);
 	ssa_log(ssa_log_level, "-----------------------------------\n");
 	ssa_log(ssa_log_level, "===================================\n");
 }
