@@ -1182,6 +1182,10 @@ static void *core_construct(osm_opensm_t *opensm)
 	if (ret)
 		return NULL;
 
+	ssa_open_log(log_file);
+	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
+	core_log_options();
+
 #if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
 	snprintf(buf, PATH_MAX, "%s", smdb_dump_dir);
 	for (i = strlen(buf); i > 0; i--) {
@@ -1194,17 +1198,15 @@ static void *core_construct(osm_opensm_t *opensm)
 	smdb_lock_fd = open(buf, O_RDWR | O_CREAT, 0640);
 	if (smdb_lock_fd < 0) {
 		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable opening smdb lock file (%s)\n", buf);
+			    "can't open smdb lock file: %s\n", buf);
 		goto err1;
 	}
 #else
-	if (ssa_open_lock_file(lock_file))
+	if (ssa_open_lock_file(lock_file)) {
+		ssa_log(SSA_LOG_DEFAULT, "can't open lock file: %s\n", lock_file);
 		goto err1;
+	}
 #endif
-
-	ssa_open_log(log_file);
-	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
-	core_log_options();
 
 	ssa_db = ssa_database_init();
 	if (!ssa_db) {
