@@ -558,12 +558,15 @@ static void *distrib_construct(int node_type)
 	if (ret)
 		return NULL;
 
-	if (ssa_open_lock_file(lock_file))
-		return NULL;
-
 	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
 	distrib_log_options();
+
+	if (ssa_open_lock_file(lock_file)) {
+		ssa_log(SSA_LOG_DEFAULT, "can't open lock file: %s\n", lock_file);
+		return NULL;
+	}
+
 	return &ssa;
 }
 
