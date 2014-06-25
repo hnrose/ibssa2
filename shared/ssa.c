@@ -2488,6 +2488,8 @@ static void *ssa_access_prdb_handler(void *context)
 {
 	struct ssa_db_update db_upd;
 
+	ssa_log_func(SSA_LOG_CTRL);
+
 	while (1) {
 		ssa_wait_db_update(&access_context.update_queue);
 		while (ssa_pull_db_update(&access_context.update_queue, &db_upd) > 0) {
