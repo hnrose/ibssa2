@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2011-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -152,7 +152,8 @@ struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SSA_TABLE_
 	num_field_recs_arr[SSA_TABLE_ID_LFT_TOP] = SSA_FIELD_ID_LFT_TOP_MAX;
 	num_field_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = SSA_FIELD_ID_LFT_BLOCK_MAX;
 
-	p_ssa_db = ssa_db_create(data_rec_cnt, recs_size_arr, num_field_recs_arr, SSA_TABLE_ID_MAX);
+	p_ssa_db = ssa_db_create(data_rec_cnt, recs_size_arr,
+				 num_field_recs_arr, SSA_TABLE_ID_MAX);
 
 	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, epoch, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);
@@ -206,7 +207,8 @@ void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec *p_rec)
 	else
 		p_rec->is_enhanced_sp0 = 0;
 	p_rec->node_type = p_node->node_info.node_type;
-	memcpy(p_rec->description, p_node->node_desc.description, sizeof(p_rec->description));
+	memcpy(p_rec->description, p_node->node_desc.description,
+	       sizeof(p_rec->description));
 	memset(&p_rec->pad, 0, sizeof(p_rec->pad));
 }
 
@@ -226,10 +228,9 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 
 	p_remote_physp = osm_physp_get_remote(p_physp);
 
-	if (osm_node_get_type(p_remote_physp->p_node) ==
-						IB_NODE_TYPE_SWITCH) {
+	if (osm_node_get_type(p_remote_physp->p_node) == IB_NODE_TYPE_SWITCH) {
 		p_rec->to_lid = osm_node_get_base_lid(p_remote_physp->p_node, 0);
-		p_rec->to_port_num =osm_physp_get_port_num(p_remote_physp);
+		p_rec->to_port_num = osm_physp_get_port_num(p_remote_physp);
 	} else {
 		p_rec->to_lid = osm_physp_get_base_lid(p_remote_physp);
 		p_rec->to_port_num = 0;
