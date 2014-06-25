@@ -3348,6 +3348,8 @@ static void *acm_issue_query(void *context)
 	struct ssa_svc *svc = context;
 	int i, ret;
 
+	ssa_log_func(SSA_LOG_CTRL);
+
 	usleep(11000);	/* 11 msec delay - so first attempt likely to succeed */
 
 	for (i = 0; i < 99; i++) {	/* for total max of ~1 second */
