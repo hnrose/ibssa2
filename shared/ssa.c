@@ -1896,11 +1896,11 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 
 static int ssa_find_pollfd_slot(struct pollfd *fds, int nfds)
 {
-	int i;
+	int slot;
 
-	for (i = FIRST_DATA_FD_SLOT; i < nfds; i++)
-		if (fds[i].fd == -1)
-			return i;
+	for (slot = FIRST_DATA_FD_SLOT; slot < nfds; slot++)
+		if (fds[slot].fd == -1)
+			return slot;
 	return -1;
 }
 
