@@ -1962,14 +1962,14 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 }
 
 static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
-					     struct pollfd *fds,
+					     struct pollfd *fds, int nfds,
 					     uint64_t epoch)
 {
 	struct ssa_conn *conn;
 	struct pollfd *pfd;
 	int slot;
 
-	for (slot = FIRST_DATA_FD_SLOT; slot < FD_SETSIZE; slot++) {
+	for (slot = FIRST_DATA_FD_SLOT; slot < nfds; slot++) {
 		if (fds[slot].fd == -1)
 			continue;
 		conn = svc->fd_to_conn[fds[slot].fd];
@@ -2184,6 +2184,7 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 				epoch = msg.data.db_upd.epoch;
 				ssa_downstream_notify_smdb_conns(svc,
 								 (struct pollfd *)fds,
+								 FD_SETSIZE,
 								 epoch);
 				break;
 			default:
@@ -2217,6 +2218,7 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 				epoch = msg.data.db_upd.epoch;
 				ssa_downstream_notify_smdb_conns(svc,
 								 (struct pollfd *)fds,
+								 FD_SETSIZE,
 								 epoch);
 				break;
 			default:
