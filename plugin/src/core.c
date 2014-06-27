@@ -1242,6 +1242,7 @@ static void *core_construct(osm_opensm_t *opensm)
 			core_init_svc(svc);
 		}
 	}
+
 	ret = ssa_start_access(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR starting access thread\n");
