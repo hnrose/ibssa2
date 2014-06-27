@@ -972,7 +972,7 @@ static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 	if (!p_lft_change || !p_lft_change->p_sw)
 		return;
 
-	ssa_log(SSA_LOG_VERBOSE, "LFT change event for SW 0x%" PRIx64"\n",
+	ssa_log(SSA_LOG_VERBOSE, "LFT change event for switch GUID 0x%" PRIx64"\n",
 		ntohll(osm_node_get_node_guid(p_lft_change->p_sw->p_node)));
 
 	size = sizeof(*p_lft_change_rec);
