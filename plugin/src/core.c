@@ -849,7 +849,11 @@ static void *core_extract_handler(void *context)
 #ifdef SIM_SUPPORT_SMDB
 	struct timespec smdb_last_mtime;
 	struct ssa_db *p_smdb2 = NULL;
+#endif
 
+	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
+
+#ifdef SIM_SUPPORT_SMDB
 	timeout_msec = 1000;	/* 1 sec */
 	memset(&smdb_last_mtime, 0, sizeof(smdb_last_mtime));
 #endif
@@ -857,8 +861,6 @@ static void *core_extract_handler(void *context)
 	pfds[0].fd	= sock_coreextract[1];
 	pfds[0].events	= POLLIN;
 	pfds[0].revents = 0;
-
-	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
 
 	for (;;) {
 		ret = poll(pfds, 1, timeout_msec);
