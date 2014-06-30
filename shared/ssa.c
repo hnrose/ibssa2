@@ -1766,12 +1766,10 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 		revents = ssa_downstream_handle_query_tbl_def(conn, hdr, events);
 		break;
 	case SSA_MSG_DB_QUERY_TBL_DEF_DATASET:
-		revents = ssa_downstream_handle_query_tbl_defs(conn, hdr,
-							       events);
+		revents = ssa_downstream_handle_query_tbl_defs(conn, hdr, events);
 		break;
 	case SSA_MSG_DB_QUERY_FIELD_DEF_DATASET:
-		revents = ssa_downstream_handle_query_field_defs(conn, hdr,
-								 events);
+		revents = ssa_downstream_handle_query_field_defs(conn, hdr, events);
 		break;
 	case SSA_MSG_DB_QUERY_DATA_DATASET:
 		revents = ssa_downstream_handle_query_data(conn, hdr, events);
