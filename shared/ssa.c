@@ -2422,48 +2422,33 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 	struct ssa_db_update db_upd;
 	struct ssa_db *prdb;
 	struct ref_count_obj *db;
+	const char *node_type = NULL;
+	short update_prdb = 0;
 
 	switch (which) {
 	case preorder:
 		break;
 	case postorder:
-		consumer = container_of(* (struct ssa_access_member **) nodep,
-					struct ssa_access_member, gid);
-		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-				SSA_ADDR_GID, consumer->gid.raw,
-				sizeof consumer->gid.raw);
-		prdb = ssa_calculate_prdb(svc, &consumer->gid);
-		ssa_log(SSA_LOG_DEFAULT, "Internal GID %s PRDB %p rsock %d\n",
-			log_data, prdb, consumer->rsock);
-		if (prdb) {
-			db = malloc(sizeof(*db));
-			if (db) {
-				ref_count_obj_init(db, prdb);
-				consumer->prdb_current = db;
-				ssa_db_update_init(db, svc, &consumer->gid,
-						   consumer->rsock, 0, 0,
-						   &db_upd);
-				ssa_push_db_update(&access_context.update_queue,
-						   &db_upd);
-			} else {
-				ssa_log(SSA_LOG_DEFAULT,
-					"PRDB ref count memory allocation failed\n");
-				ssa_db_destroy(prdb);
-			}
-		} else
-			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
+		node_type = "Internal";
+		update_prdb = 1;
 		break;
 	case endorder:
 		break;
 	case leaf:
+		node_type = "Leaf";
+		update_prdb = 1;
+		break;
+	}
+
+	if (update_prdb) {
 		consumer = container_of(* (struct ssa_access_member **) nodep,
 					struct ssa_access_member, gid);
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, consumer->gid.raw,
 				sizeof consumer->gid.raw);
 		prdb = ssa_calculate_prdb(svc, &consumer->gid);
-		ssa_log(SSA_LOG_DEFAULT, "Leaf GID %s PRDB %p rsock %d\n",
-			log_data, prdb, consumer->rsock);
+		ssa_log(SSA_LOG_DEFAULT, "%s GID %s PRDB %p rsock %d\n",
+			node_type, log_data, prdb, consumer->rsock);
 		if (prdb) {
 			db = malloc(sizeof(*db));
 			if (db) {
@@ -2481,7 +2466,6 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 			}
 		} else
 			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
-		break;
 	}
 }
 
