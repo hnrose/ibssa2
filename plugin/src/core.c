@@ -1054,7 +1054,7 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 			/* We get here in case of subnet rerouting not followed by SUBNET_UP */
 			/* TODO: notify the distribution thread and push the LFT changes */
 			ssa_log(SSA_LOG_VERBOSE,
-				"Unicast rerouting completed event handling - not implemented yet\n");
+				"Unicast rerouting completed event - not implemented yet\n");
 		}
 		break;
 	case OSM_EVENT_ID_SUBNET_UP:
