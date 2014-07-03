@@ -54,6 +54,18 @@ if test "x$with_simulator_smdb" == xtrue; then
 	AC_MSG_NOTICE([simulator smdb mode is enabled])
 fi
 
+AC_ARG_ENABLE(verbose_logging,
+	AS_HELP_STRING([--enable-verbose-logging],
+		       [enable verbose logging mode [default=disable]]),
+	with_verbose_logging="true", with_verbose_logging="false")
+
+if test "x$with_verbose_logging" == xtrue; then
+	AC_DEFINE([SSA_PLUGIN_VERBOSE_LOGGING], [], ["using verbose logging"])
+	AC_MSG_NOTICE([verbose logging mode is enabled])
+else
+	AC_MSG_NOTICE([verbose logging mode is disabled by default])
+fi
+
 dnl Check for libraries
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
