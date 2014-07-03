@@ -838,17 +838,65 @@ ssa_extract_load_smdb(struct ssa_db *p_smdb, struct timespec *last_mtime)
 }
 #endif
 
+static void core_extract_db(osm_opensm_t *p_osm)
+{
+	struct ssa_db *p_smdb = NULL;
+	uint64_t epoch_prev = 0;
+
+	CL_PLOCK_ACQUIRE(&p_osm->lock);
+	ssa_db->p_dump_db = ssa_db_extract(p_osm);
+	ssa_db_lft_handle();
+	CL_PLOCK_RELEASE(&p_osm->lock);
+
+	/* For validation */
+	ssa_db_validate(ssa_db->p_dump_db);
+	ssa_db_validate_lft();
+
+	/* Update SMDB versions */
+	ssa_db_update(ssa_db);
+
+	pthread_mutex_lock(&ssa_db_diff_lock);
+	/* Clear previous version */
+	if (ssa_db_diff) {
+		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
+		epoch_prev = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
+	}
+
+	ssa_db_diff_destroy(ssa_db_diff);
+
+	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev);
+	if (ssa_db_diff) {
+		ssa_log(SSA_LOG_VERBOSE,
+			"SMDB was changed. Pushing the changes...\n");
+		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
+		/*
+		 * TODO: use 'ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID)'
+		 * for getting current epoch and sending it to children nodes.
+		 */
+#ifdef SIM_SUPPORT
+		if (smdb_dump && !lockf(smdb_lock_fd, F_LOCK, 0)) {
+			ssa_db_save(smdb_dump_dir, p_smdb, smdb_dump);
+			lockf(smdb_lock_fd, F_ULOCK, 0);
+		}
+#else
+		if (smdb_dump)
+			ssa_db_save(smdb_dump_dir, p_smdb, smdb_dump);
+		ssa_extract_db_update(ssa_db_diff->p_smdb);
+#endif
+	}
+	pthread_mutex_unlock(&ssa_db_diff_lock);
+	first = 0;
+}
+
 static void *core_extract_handler(void *context)
 {
 	osm_opensm_t *p_osm = (osm_opensm_t *) context;
-	struct ssa_db *p_smdb = NULL;
 	struct pollfd pfds[1];
 	struct ssa_db_ctrl_msg msg;
-	uint64_t epoch_prev = 0;
 	int ret, timeout_msec = -1;
 #ifdef SIM_SUPPORT_SMDB
 	struct timespec smdb_last_mtime;
-	struct ssa_db *p_smdb2 = NULL;
+	struct ssa_db *p_smdb = NULL;
 #endif
 
 	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
@@ -871,7 +919,7 @@ static void *core_extract_handler(void *context)
 
 #ifdef SIM_SUPPORT_SMDB
 		if (!ret) {
-			if (ssa_extract_load_smdb(p_smdb2, &smdb_last_mtime) < 0)
+			if (ssa_extract_load_smdb(p_smdb, &smdb_last_mtime) < 0)
 				goto out;
 			continue;
 		}
@@ -882,56 +930,7 @@ static void *core_extract_handler(void *context)
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
-				CL_PLOCK_ACQUIRE(&p_osm->lock);
-				ssa_db->p_dump_db = ssa_db_extract(p_osm);
-				ssa_db_lft_handle();
-				CL_PLOCK_RELEASE(&p_osm->lock);
-
-				/* For validation */
-				ssa_db_validate(ssa_db->p_dump_db);
-				ssa_db_validate_lft();
-
-				/* Update SMDB versions */
-				ssa_db_update(ssa_db);
-
-				pthread_mutex_lock(&ssa_db_diff_lock);
-				/* Clear previous version */
-				if (ssa_db_diff) {
-					p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
-					epoch_prev = ssa_db_get_epoch(p_smdb,
-								      DB_DEF_TBL_ID);
-				}
-
-				ssa_db_diff_destroy(ssa_db_diff);
-
-				ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev);
-				if (ssa_db_diff) {
-					ssa_log(SSA_LOG_VERBOSE,
-						"SMDB was changed. Pushing the changes...\n");
-					p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
-					/*
-					 * TODO: use 'ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID)'
-					 * for getting current epoch and sending it to children nodes.
-					 */
-#ifdef SIM_SUPPORT
-					if (smdb_dump && !lockf(smdb_lock_fd, F_LOCK, 0)) {
-						ssa_db_save(smdb_dump_dir,
-							    p_smdb,
-							    smdb_dump);
-						lockf(smdb_lock_fd, F_ULOCK, 0);
-					}
-#else
-					if (smdb_dump)
-						ssa_db_save(smdb_dump_dir,
-							    p_smdb,
-							    smdb_dump);
-
-					ssa_extract_db_update(ssa_db_diff->p_smdb);
-#endif
-
-				}
-				pthread_mutex_unlock(&ssa_db_diff_lock);
-				first = 0;
+				core_extract_db(p_osm);
 				break;
 			case SSA_DB_LFT_CHANGE:
 				ssa_log(SSA_LOG_VERBOSE,
