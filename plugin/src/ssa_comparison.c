@@ -79,7 +79,7 @@ void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff)
 	struct ssa_db *p_smdb;
 
 	if (p_ssa_db_diff) {
-		p_smdb = p_ssa_db_diff->p_smdb->object;
+		p_smdb = ref_count_object_get(p_ssa_db_diff->p_smdb);
 		ssa_db_smdb_destroy(p_smdb);
 		p_ssa_db_diff->p_smdb->object = NULL;
 		free(p_ssa_db_diff->p_smdb);
