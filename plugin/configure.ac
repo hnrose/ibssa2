@@ -37,21 +37,27 @@ AC_CHECK_SIZEOF(long)
 
 dnl Define input options for running mode
 AC_ARG_ENABLE(simulator,
-	[  --enable-simulator      enable running on simulated fabric],
+	AS_HELP_STRING([--enable-simulator],
+		       [enable running on simulated fabric [default=disable]]),
 	with_sim="true", with_sim="false")
 
 if test "x$with_sim" == xtrue; then
 	AC_DEFINE([SIM_SUPPORT], [], ["running in simulator mode"])
 	AC_MSG_NOTICE([simulator mode is enabled])
+else
+	AC_MSG_NOTICE([simulator mode is disabled by default])
 fi
 
 AC_ARG_ENABLE(simulator_smdb,
-	[  --enable-simulator-smdb   enable using simulated smdb],
+	AS_HELP_STRING([--enable-simulator-smdb],
+		       [enable using simulated smdb [default=disable]]),
 	with_simulator_smdb="true", with_simulator_smdb="false")
 
 if test "x$with_simulator_smdb" == xtrue; then
 	AC_DEFINE([SIM_SUPPORT_SMDB], [], ["using simulated smdb"])
 	AC_MSG_NOTICE([simulator smdb mode is enabled])
+else
+	AC_MSG_NOTICE([simulator smdb mode is disabled by default])
 fi
 
 AC_ARG_ENABLE(verbose_logging,
