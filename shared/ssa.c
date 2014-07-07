@@ -1542,9 +1542,11 @@ static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 	if (conn->ssa_db)
 		return ref_count_object_get(conn->ssa_db);
 #ifdef ACCESS_INTEGRATION
-	return ref_count_object_get(prdb);
+	if (prdb)
+		return ref_count_object_get(prdb);
+	return NULL;
 #else
-	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
+	if (conn->dbtype == SSA_CONN_SMDB_TYPE && smdb)
 		return ref_count_object_get(smdb);
 	return NULL;
 #endif
