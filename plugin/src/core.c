@@ -1261,6 +1261,8 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err6;
 	}
 
+	SET_THREAD_NAME(extract_thread, "EXTRACT");
+
 #ifndef SIM_SUPPORT
 	ret = pthread_create(&ctrl_thread, NULL, core_ctrl_handler, NULL);
 	if (ret) {
@@ -1269,6 +1271,7 @@ static void *core_construct(osm_opensm_t *opensm)
 			ret, strerror(ret));
 		goto err7;
 	}
+	SET_THREAD_NAME(ctrl_thread, "CTRL");
 #endif
 
 	osm = opensm;

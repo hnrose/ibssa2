@@ -3709,7 +3709,9 @@ static void acm_activate_devices()
 
 			dev = container_of(dev_entry, struct acm_device, entry);
 			pthread_create(&event_thread, NULL, acm_event_handler, dev);
+			SET_THREAD_NAME(event_thread, "EVENT 0x%" PRIx64, dev->guid);
 			pthread_create(&comp_thread, NULL, acm_comp_handler, dev);
+			SET_THREAD_NAME(comp_thread, "COMP 0x%" PRIx64, dev->guid);
 		}
 	} else { /* ACM_MODE_SSA */
 		/*
@@ -3719,6 +3721,7 @@ static void acm_activate_devices()
 		for (d = 0; d < ssa.dev_cnt; d++) {
 			ssa_dev1 = ssa_dev(&ssa, d);
 			pthread_create(&comp_thread, NULL, acm_comp_handler, ssa_dev1);
+			SET_THREAD_NAME(comp_thread, "COMP %s", ssa_dev1->name);
 		}
 	}
 }
@@ -4024,8 +4027,10 @@ static void *acm_ctrl_handler(void *context)
 		goto close;
 	}
 
-	if (acm_mode == ACM_MODE_SSA)
+	if (acm_mode == ACM_MODE_SSA) {
 		pthread_create(&query_thread, NULL, acm_issue_query, svc);
+		SET_THREAD_NAME(query_thread, "QUERY");
+	}
 
 	ret = ssa_ctrl_run(&ssa);
 	if (ret) {
@@ -4106,11 +4111,13 @@ int main(int argc, char **argv)
 		}
 	} else { /* ACM_MODE_SSA */
 		pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
+		SET_THREAD_NAME(ctrl_thread, "CTRL");
 	}
 
 	acm_activate_devices();
 	ssa_log(SSA_LOG_VERBOSE, "starting timeout/retry thread\n");
 	pthread_create(&retry_thread, NULL, acm_retry_handler, NULL);
+	SET_THREAD_NAME(retry_thread, "RETRY");
 
 	ssa_log(SSA_LOG_VERBOSE, "starting server\n");
 	acm_server();

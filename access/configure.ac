@@ -107,6 +107,10 @@ AC_C_INLINE
 dnl Checks for library functions.
 AC_CHECK_FUNCS([])
 
+dnl Check for pthread_setname_np function
+AC_CHECK_FUNC(pthread_setname_np,
+    AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, [1], [Define if using pthread_setname_np]))
+
 AC_CONFIG_FILES([ssaaccesslayer.spec])
 
 dnl Create the following Makefiles

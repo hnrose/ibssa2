@@ -92,6 +92,10 @@ AC_TRY_LINK([int i = 0;],
         AC_DEFINE(DEFINE_ATOMICS, 1, [Set to 1 to implement atomics])
     ])
 
+dnl Check for pthread_setname_np function
+AC_CHECK_FUNC(pthread_setname_np,
+    AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, [1], [Define if using pthread_setname_np]))
+
 dnl Checks for header files.
 AC_HEADER_STDC
 dnl OpenSM headers are in $includedir/infiniband

@@ -634,6 +634,7 @@ int main(int argc, char **argv)
 		return -1;
 
 	pthread_create(&ctrl_thread, NULL, distrib_ctrl_handler, NULL);
+	SET_THREAD_NAME(ctrl_thread, "CTRL");
 	pthread_join(ctrl_thread, NULL);
 
 	distrib_destroy();
