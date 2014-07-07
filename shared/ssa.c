@@ -107,6 +107,7 @@ struct ssa_access_member {
 	struct ref_count_obj *prdb_current;
 	uint64_t smdb_epoch;
 	int rsock;
+	uint16_t lid;
 };
 
 /* From libgcc (tsearch.c) so can walk binary tree and supply private pointer */
@@ -917,6 +918,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc,
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = flags;
 	msg.db_upd.remote_gid = gid;
+	msg.db_upd.remote_lid = 0;
 	msg.db_upd.epoch = epoch;
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
 		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
@@ -2126,8 +2128,8 @@ static void *ssa_downstream_handler(void *context)
 						msg.data.db_upd.remote_gid->raw,
 						sizeof msg.data.db_upd.remote_gid->raw);
 				ssa_log(SSA_LOG_DEFAULT,
-					"SSA DB update from access: rsock %d GID %s ssa_db %p epoch 0x%" PRIx64 "\n",
-					msg.data.db_upd.rsock, log_data,
+					"SSA DB update from access: rsock %d GID %s LID %u ssa_db %p epoch 0x%" PRIx64 "\n",
+					msg.data.db_upd.rsock, log_data, msg.data.db_upd.remote_lid,
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				/* Now ready to rsend to downstream client upon request */
 				slot = msg.data.db_upd.rsock;
@@ -2294,7 +2296,8 @@ out:
 #ifdef ACCESS
 static void ssa_access_send_db_update(struct ssa_svc *svc,
 				      struct ref_count_obj *db, int rsock,
-				      int flags, union ibv_gid *remote_gid)
+				      int flags, uint16_t remote_lid,
+				      union ibv_gid *remote_gid)
 {
 	struct ssa_db_update_msg msg;
 
@@ -2306,6 +2309,7 @@ static void ssa_access_send_db_update(struct ssa_svc *svc,
 	msg.db_upd.rsock = rsock;
 	msg.db_upd.flags = flags;
 	msg.db_upd.remote_gid = remote_gid;
+	msg.db_upd.remote_lid = remote_lid;
 	msg.db_upd.epoch = 0;	/* not used */
 	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
 }
@@ -2349,14 +2353,16 @@ skip_prdb_save:
 
 static void
 ssa_db_update_init(struct ref_count_obj *db, struct ssa_svc *svc,
-		   union ibv_gid *remote_gid, int rsock, int flags,
-		   uint64_t epoch, struct ssa_db_update *p_db_upd)
+		   uint16_t remote_lid, union ibv_gid *remote_gid,
+		   int rsock, int flags, uint64_t epoch,
+		   struct ssa_db_update *p_db_upd)
 {
 	p_db_upd->db = db;
 	p_db_upd->svc = svc;
 	p_db_upd->rsock = rsock;
 	p_db_upd->flags = flags;
 	p_db_upd->remote_gid = remote_gid;
+	p_db_upd->remote_lid = remote_lid;
 	p_db_upd->epoch = epoch;
 }
 
@@ -2456,9 +2462,9 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 			if (db) {
 				ref_count_obj_init(db, prdb);
 				consumer->prdb_current = db;
-				ssa_db_update_init(db, svc, &consumer->gid,
-						   consumer->rsock, 0, 0,
-						   &db_upd);
+				ssa_db_update_init(db, svc, consumer->lid,
+						   &consumer->gid, consumer->rsock,
+						   0, 0, &db_upd);
 				ssa_push_db_update(&access_context.update_queue,
 						   &db_upd);
 			} else {
@@ -2482,6 +2488,7 @@ static void *ssa_access_prdb_handler(void *context)
 		while (ssa_pull_db_update(&access_context.update_queue, &db_upd) > 0) {
 			ssa_access_send_db_update(db_upd.svc, db_upd.db,
 						  db_upd.rsock, db_upd.flags,
+						  db_upd.remote_lid,
 						  db_upd.remote_gid);
 		}
 	}
@@ -2739,8 +2746,9 @@ static void *ssa_access_handler(void *context)
 							msg.data.conn->remote_gid.raw,
 							sizeof msg.data.conn->remote_gid.raw);
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-						"connection done on rsock %d from GID %s\n",
-						msg.data.conn->rsock, log_data);
+						"connection done on rsock %d from GID %s LID %u\n",
+						msg.data.conn->rsock, log_data,
+						msg.data.conn->remote_lid);
 					/* First, see if consumer GID in access map */
 					/* Then, calculate half world PathRecords for GID if needed */
 					/* Finally, "tell" downstream where this ssa_db struct is */
@@ -2760,6 +2768,7 @@ static void *ssa_access_handler(void *context)
 							       msg.data.conn->remote_gid.raw,
 							       16);
 							consumer->rsock = msg.data.conn->rsock;
+							consumer->lid = msg.data.conn->remote_lid;
 							if (!tsearch(&consumer->gid,
 								     &svc_arr[i]->access_map,
 								     ssa_compare_gid)) {
@@ -2797,6 +2806,7 @@ skip_prdb_calc:
 							consumer->prdb_current = dbr;
 							ssa_db_update_init(dbr,
 									   svc_arr[i],
+									   msg.data.conn->remote_lid,
 									   &msg.data.conn->remote_gid,
 									   msg.data.conn->rsock,
 									   0, 0,
@@ -3114,7 +3124,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	struct ssa_conn *conn_listen;
 	int fd, val, ret;
 	struct sockaddr_ib peer_addr;
-	socklen_t peer_len;
+	struct ibv_path_data route;
+	socklen_t peer_len, route_len;
 
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
 		conn_listen = &svc->conn_listen_smdb;
@@ -3196,6 +3207,13 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		return -1;
 	}
 
+	route_len = sizeof(route);
+	if (!rgetsockopt(fd, SOL_RDMA, RDMA_ROUTE, &route, &route_len))
+		conn->remote_lid = ntohs(route.path.dlid);
+	else
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rgetsockopt RDMA_ROUTE rsock %d ERROR %d (%s)\n",
+			fd, errno, strerror(errno));
 	conn->rsock = fd;
 
 	memcpy(&conn->remote_gid, &peer_addr.sib_addr, sizeof(union ibv_gid));

@@ -756,6 +756,8 @@ static void ssa_extract_send_db_update(struct ref_count_obj *db,
 	msg.db_upd.db = db;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = flags;
+	memset(&msg.db_upd.remote_gid, 0, sizeof(msg.db_upd.remote_gid));
+	msg.db_upd.remote_lid = 0;
 	ssa_db = ref_count_object_get(db);
 	msg.db_upd.epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
 	write(fd, (char *) &msg, sizeof(msg));

@@ -194,6 +194,7 @@ struct ssa_conn {
 	uint64_t		epoch;
 	volatile be64_t		prdb_epoch;
 	uint32_t		epoch_len;
+	uint16_t		remote_lid;
 };
 
 struct ssa_db_update_record {

@@ -95,6 +95,7 @@ struct ssa_db_update {
 	int			rsock;
 	int			flags;
 	uint64_t		epoch;
+	uint16_t		remote_lid;
 };
 
 struct ssa_db_update_msg {
