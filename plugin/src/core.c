@@ -873,7 +873,7 @@ static void core_extract_db(osm_opensm_t *p_osm)
 		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
 		/*
 		 * TODO: use 'ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID)'
-		 * for getting current epoch and sending it to children nodes.
+		 * for getting current epoch and sending it to children.
 		 */
 #ifdef SIM_SUPPORT
 		if (smdb_dump && !lockf(smdb_lock_fd, F_LOCK, 0)) {
