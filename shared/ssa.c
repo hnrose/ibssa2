@@ -1884,10 +1884,6 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 		} else {
 			return POLLIN | POLLOUT;
 		}
-	} else {
-		ssa_log_err(SSA_LOG_CTRL, "rsend failed: %d (%s) on rsock %d\n",
-			    errno, strerror(errno), conn->rsock);
-		return POLLIN;
 	}
 
 	ssa_log_err(SSA_LOG_CTRL,
