@@ -82,6 +82,8 @@ static struct ref_count_obj *smdb;
 static uint64_t epoch;
 
 __thread char log_data[128];
+__thread int update_pending;
+__thread int update_waiting;
 //static atomic_t counter[SSA_MAX_COUNTER];
 
 static struct ssa_access_context access_context;
@@ -125,6 +127,9 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
+static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
+						struct pollfd *fds, int nfds);
+static void ssa_downstream_send_db_update_ready(struct ref_count_obj *db, int fd);
 
 /*
  * needed for ssa_pr_create_context()
@@ -1554,6 +1559,20 @@ static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 #endif
 }
 
+static struct ref_count_obj *ssa_downstream_db_ref_obj(struct ssa_conn *conn)
+{
+	/* Use SSA DB if available; otherwise use preloaded DB */
+	if (conn->ssa_db)
+		return conn->ssa_db;
+#ifdef ACCESS_INTEGRATION
+	return prdb;
+#else
+	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
+		return smdb;
+	return NULL;
+#endif
+}
+
 static short ssa_downstream_handle_query_defs(struct ssa_conn *conn,
 					      struct ssa_msg_hdr *hdr,
 					      short events)
@@ -1573,6 +1592,8 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 	}
 
 	if (conn->phase == SSA_DB_IDLE) {
+		int count = ref_count_obj_inc(ssa_downstream_db_ref_obj(conn));
+ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just incremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count); 
 		conn->phase = SSA_DB_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
@@ -1713,6 +1734,8 @@ ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d rsock %d\n", conn->sindex
 						      events);
 			conn->sindex++;
 		} else {
+			int count = ref_count_obj_dec(ssa_downstream_db_ref_obj(conn));
+ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just decremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count); 
 			conn->phase = SSA_DB_IDLE;
 			revents = ssa_downstream_send_resp(conn,
 							   SSA_MSG_DB_QUERY_DATA_DATASET,
@@ -1751,7 +1774,8 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 }
 
 static short ssa_downstream_handle_op(struct ssa_conn *conn,
-				      struct ssa_msg_hdr *hdr, short events)
+				      struct ssa_msg_hdr *hdr, short events,
+				      struct ssa_svc *svc, struct pollfd **fds)
 {
 	uint16_t op;
 	short revents = events;
@@ -1777,6 +1801,20 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 		break;
 	case SSA_MSG_DB_QUERY_DATA_DATASET:
 		revents = ssa_downstream_handle_query_data(conn, hdr, events);
+		if (conn->phase == SSA_DB_IDLE && update_pending) {
+ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with update pending\n", conn->rsock);
+if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+			if (!ssa_downstream_smdb_xfer_in_progress(svc,
+								  (struct pollfd *)fds,
+								  FD_SETSIZE)) {
+ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
+				ssa_downstream_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+								    svc->sock_extractdown[0]);
+				update_waiting = 1;
+				update_pending = 0;
+			}
+else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
+		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
 		revents = ssa_downstream_handle_epoch_publish(conn, hdr, events);
@@ -1789,7 +1827,8 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 	return revents;
 }
 
-static short ssa_downstream_rrecv(struct ssa_conn *conn, short events)
+static short ssa_downstream_rrecv(struct ssa_conn *conn, short events,
+				  struct ssa_svc *svc, struct pollfd **fds)
 {
 	struct ssa_msg_hdr *hdr;
 	int ret;
@@ -1802,7 +1841,7 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events)
 		if (conn->roffset == conn->rsize) {
 			hdr = conn->rbuf;
 			if (validate_ssa_msg_hdr(hdr)) {
-				revents = ssa_downstream_handle_op(conn, hdr, events);
+				revents = ssa_downstream_handle_op(conn, hdr, events, svc, fds);
 			} else
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "validate_ssa_msg_hdr failed: "
@@ -1817,7 +1856,9 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events)
 }
 
 static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
-						 short events)
+						 short events,
+						 struct ssa_svc *svc,
+						 struct pollfd **fds)
 {
 	short revents = events;
 
@@ -1834,7 +1875,7 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 					    conn->rsock);
 		}
 		if (conn->rbuf) {
-			revents = ssa_downstream_rrecv(conn, events);
+			revents = ssa_downstream_rrecv(conn, events, svc, fds);
 		}
 	}
 	if (events & POLLOUT) {
@@ -1902,6 +1943,25 @@ static int ssa_find_pollfd_slot(struct pollfd *fds, int nfds)
 	return -1;
 }
 
+static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
+						struct pollfd *fds, int nfds)
+{
+	struct ssa_conn *conn;
+	int slot;
+
+	for (slot = FIRST_DATA_FD_SLOT; slot < nfds; slot++) {
+		if (fds[slot].fd == -1)
+			continue;
+		conn = svc->fd_to_conn[fds[slot].fd];
+		if (conn && conn->dbtype == SSA_CONN_SMDB_TYPE) {
+			if (conn->phase != SSA_DB_IDLE)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
 static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 				    struct pollfd **fds, int conn_dbtype)
 {
@@ -1926,7 +1986,9 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
 						ssa_downstream_conn_done(svc, conn_data);
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
-						pfd2->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
+						if (!update_pending && !update_waiting)
+							pfd2->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
+else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update deferred since update is pending %d or waiting %d\n", update_pending, update_waiting);
 					else {
 						ssa_close_ssa_conn(conn_data);
 						free(conn_data);
@@ -1977,6 +2039,22 @@ static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
 								      epoch);
 		}
 	}
+}
+
+static void ssa_downstream_send_db_update_ready(struct ref_count_obj *db, int fd)
+{
+	struct ssa_db_update_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+	msg.hdr.type = SSA_DB_UPDATE_READY;
+	msg.hdr.len = sizeof(msg);
+	msg.db_upd.db = db;
+	msg.db_upd.svc = NULL;
+	msg.db_upd.flags = 0;
+	memset(&msg.db_upd.remote_gid, 0, sizeof(msg.db_upd.remote_gid));
+	msg.db_upd.remote_lid = 0;
+	msg.db_upd.epoch = 0;
+	write(fd, (char *) &msg, sizeof(msg));
 }
 
 static void ssa_downstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
@@ -2053,6 +2131,8 @@ static void *ssa_downstream_handler(void *context)
 		pfd->events = 0;
 		pfd->revents = 0;
 	}
+	update_pending = 0;
+	update_waiting = 0;
 
 	for (;;) {
 		ret = rpoll((struct pollfd *)fds, FD_SETSIZE, -1);
@@ -2118,6 +2198,9 @@ static void *ssa_downstream_handler(void *context)
 #endif
 
 			switch (msg.hdr.type) {
+			case SSA_DB_UPDATE_PREPARE:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from access - not implemented yet\n");
+				break;
 			case SSA_DB_UPDATE:
 				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data,
 						sizeof log_data, SSA_ADDR_GID,
@@ -2174,6 +2257,9 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 #endif
 
 			switch (msg.hdr.type) {
+			case SSA_DB_UPDATE_PREPARE:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream - not implemented yet\n");
+				break;
 			case SSA_DB_UPDATE:
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x%" PRIx64 "\n",
@@ -2208,11 +2294,28 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 				continue;
 #endif
 			switch (msg.hdr.type) {
+			case SSA_DB_UPDATE_PREPARE:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract\n");
+if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+				if (ssa_downstream_smdb_xfer_in_progress(svc,
+									 (struct pollfd *)fds,
+									 FD_SETSIZE)) {
+ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
+					update_pending = 1;
+				} else {
+ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
+					ssa_downstream_send_db_update_ready(msg.data.db_upd.db,
+									    svc->sock_extractdown[0]);
+					update_waiting = 1;
+if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+				}
+				break;
 			case SSA_DB_UPDATE:
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update (SMDB) from extract: ssa_db %p epoch 0x%" PRIx64 "\n",
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
+				update_waiting = 0;
 				epoch = msg.data.db_upd.epoch;
 				ssa_downstream_notify_smdb_conns(svc,
 								 (struct pollfd *)fds,
@@ -2270,7 +2373,7 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 					pfd->fd = -1;
 				} else {
 					if (svc->fd_to_conn[pfd->fd])
-						pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents);
+						pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents, svc, fds);
 					else
 						ssa_log_warn(SSA_LOG_CTRL,
 							     "event 0x%x on data rsock %d pollfd slot %d but fd_to_conn slot is empty\n",
@@ -2458,6 +2561,7 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 			if (db) {
 				ref_count_obj_init(db, prdb);
 				consumer->prdb_current = db;
+ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", db, ref_count_object_get(db));
 				ssa_db_update_init(db, svc, consumer->lid,
 						   &consumer->gid, consumer->rsock,
 						   0, 0, &db_upd);
@@ -2641,6 +2745,9 @@ static void *ssa_access_handler(void *context)
 			}
 
 			switch (msg.hdr.type) {
+			case SSA_DB_UPDATE_PREPARE:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract - not implemented yet\n");
+				break;
 			case SSA_DB_UPDATE:
 				db = ref_count_object_get(msg.data.db_upd.db);
 				ssa_log(SSA_LOG_DEFAULT,
@@ -2690,6 +2797,9 @@ static void *ssa_access_handler(void *context)
 #endif
 
 				switch (msg.hdr.type) {
+				case SSA_DB_UPDATE_PREPARE:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream - not implemented yet\n");
+					break;
 				case SSA_DB_UPDATE:
 					db = ref_count_object_get(msg.data.db_upd.db);
 					ssa_log(SSA_LOG_DEFAULT,

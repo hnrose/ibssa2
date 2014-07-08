@@ -102,12 +102,19 @@ struct ssa_core {
 	DLIST_ENTRY			access_list;
 };
 
+struct ssa_extract_data {
+	void				*opensm;
+	int				num_svcs;
+	struct ssa_svc			**svcs;
+};
+
 static struct ssa_class ssa;
 struct ssa_database *ssa_db;
 static struct ssa_db_diff *ssa_db_diff = NULL;
 pthread_mutex_t ssa_db_diff_lock;
 pthread_t ctrl_thread, extract_thread;
 static osm_opensm_t *osm;
+static struct ssa_extract_data extract_data;
 
 static int sock_coreextract[2];
 
@@ -743,6 +750,22 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 }
 
 #ifndef SIM_SUPPORT
+static void ssa_extract_send_db_update_prepare(struct ref_count_obj *db, int fd)
+{
+#ifndef CORE_INTEGRATION
+	struct ssa_db_update_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+	msg.hdr.type = SSA_DB_UPDATE_PREPARE;
+	msg.hdr.len = sizeof(msg);
+	msg.db_upd.db = db;
+	msg.db_upd.svc = NULL;
+	msg.db_upd.flags = 0;
+	msg.db_upd.epoch = 0;
+	write(fd, (char *) &msg, sizeof(msg));
+#endif
+}
+
 static void ssa_extract_send_db_update(struct ref_count_obj *db,
 				       int fd, int flags)
 {
@@ -762,6 +785,35 @@ static void ssa_extract_send_db_update(struct ref_count_obj *db,
 	msg.db_upd.epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
 	write(fd, (char *) &msg, sizeof(msg));
 #endif
+}
+
+static int ssa_extract_db_update_prepare(struct ref_count_obj *db)
+{
+	struct ssa_svc *svc;
+	int d, p, s, count = 0;
+
+	if (!db)
+		return count;
+
+	for (d = 0; d < ssa.dev_cnt; d++) {
+		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
+			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
+				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
+				ssa_extract_send_db_update_prepare(db,
+								   svc->sock_extractdown[1]);
+				count++;
+			}
+		}
+	}
+
+#if 0
+	if (ssa.node_type & SSA_NODE_ACCESS) {
+		ssa_extract_send_db_update_prepare(db, sock_accessextract[0]);
+		count++;
+	}
+#endif
+
+	return count;
 }
 
 static void ssa_extract_db_update(struct ref_count_obj *db)
@@ -883,7 +935,6 @@ static void core_extract_db(osm_opensm_t *p_osm)
 #else
 		if (smdb_dump)
 			ssa_db_save(smdb_dump_dir, p_smdb, smdb_dump);
-		ssa_extract_db_update(ssa_db_diff->p_smdb);
 #endif
 	}
 	pthread_mutex_unlock(&ssa_db_diff_lock);
@@ -892,10 +943,16 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 static void *core_extract_handler(void *context)
 {
-	osm_opensm_t *p_osm = (osm_opensm_t *) context;
-	struct pollfd pfds[1];
+	struct ssa_extract_data *p_extract_data = (struct ssa_extract_data *) context;
+	osm_opensm_t *p_osm = p_extract_data->opensm;
+	struct pollfd **fds;
+	struct pollfd *pfd;
 	struct ssa_db_ctrl_msg msg;
-	int ret, timeout_msec = -1;
+	struct ssa_ctrl_msg_buf msg2;
+	int ret, i, timeout_msec = -1;
+#ifndef SIM_SUPPORT
+	int extract_pending = 0, outstanding_count = 0;
+#endif
 #ifdef SIM_SUPPORT_SMDB
 	struct timespec smdb_last_mtime;
 	struct ssa_db *p_smdb = NULL;
@@ -908,12 +965,23 @@ static void *core_extract_handler(void *context)
 	memset(&smdb_last_mtime, 0, sizeof(smdb_last_mtime));
 #endif
 
-	pfds[0].fd	= sock_coreextract[1];
-	pfds[0].events	= POLLIN;
-	pfds[0].revents = 0;
+	fds = calloc(p_extract_data->num_svcs + 1, sizeof(**fds));
+	if (!fds)
+		goto out;
+	pfd = (struct pollfd *)fds;
+	pfd->fd = sock_coreextract[1];
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+	for (i = 0; i < p_extract_data->num_svcs; i++) {
+		pfd = (struct pollfd *)(fds + i + 1);
+		pfd->fd = p_extract_data->svcs[i]->sock_extractdown[1];
+		pfd->events = POLLIN;
+		pfd->revents = 0;
+	}
 
 	for (;;) {
-		ret = poll(pfds, 1, timeout_msec);
+		ret = poll((struct pollfd *)fds, p_extract_data->num_svcs + 1,
+			   timeout_msec);
 		if (ret < 0) {
 			ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
 			continue;
@@ -927,12 +995,31 @@ static void *core_extract_handler(void *context)
 		}
 #endif
 
-		if (pfds[0].revents) {
-			pfds[0].revents = 0;
+		pfd = (struct pollfd *)fds;
+		if (pfd->revents) {
+			pfd->revents = 0;
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
+#ifndef SIM_SUPPORT
+				if (!extract_pending) {
+					outstanding_count = 0;
+					if (ssa_db_diff)
+						outstanding_count = ssa_extract_db_update_prepare(ssa_db_diff->p_smdb);
+ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", outstanding_count);
+					if (outstanding_count == 0) {
+						core_extract_db(p_osm);
+						ssa_extract_db_update(ssa_db_diff->p_smdb);
+ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
+					} else
+{
+						extract_pending = 1;
+ssa_log(SSA_LOG_DEFAULT, "extract event but extract pending with outstanding count %d\n", outstanding_count);
+}
+				}
+#else
 				core_extract_db(p_osm);
+#endif
 				break;
 			case SSA_DB_LFT_CHANGE:
 				ssa_log(SSA_LOG_VERBOSE,
@@ -948,9 +1035,51 @@ static void *core_extract_handler(void *context)
 				break;
 			}
 		}
+
+		for (i = 0; i < p_extract_data->num_svcs; i++) {
+			pfd = (struct pollfd *)(fds + i + 1);
+			if (pfd->revents) {
+				pfd->revents = 0;
+				read(p_extract_data->svcs[i]->sock_extractdown[1],
+				     (char *) &msg2, sizeof msg2.hdr);
+				if (msg2.hdr.len > sizeof msg2.hdr) {
+					read(p_extract_data->svcs[i]->sock_extractdown[1],
+					     (char *) &msg2.hdr.data,
+					     msg2.hdr.len - sizeof msg2.hdr);
+				}
+#if 0
+				if (svc->process_msg && svc->process_msg(svc, &msg2))
+					continue;
+#endif
+
+				switch (msg2.hdr.type) {
+#ifndef SIM_SUPPORT
+				case SSA_DB_UPDATE_READY:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count %d extract pending %d\n", i, outstanding_count, extract_pending);
+					if (outstanding_count > 0) {
+						if (--outstanding_count == 0) {
+							if (extract_pending) {
+								core_extract_db(p_osm);
+								extract_pending = 0;
+							}
+							ssa_extract_db_update(ssa_db_diff->p_smdb);
+						}
+					}
+					break;
+#endif
+				default:
+					ssa_log(SSA_LOG_VERBOSE,
+						"ERROR: Unknown msg type %d " 
+						"from downstream\n",
+						msg2.hdr.type);
+					break;
+				}
+			}
+		}
 	}
 out:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
+	free(fds);
 	pthread_exit(NULL);
 }
 
@@ -1172,7 +1301,7 @@ static void *core_construct(osm_opensm_t *opensm)
 {
 #ifndef SIM_SUPPORT
 	struct ssa_svc *svc;
-	int d, p;
+	int d, p, j;
 #endif
 	int ret;
 #if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
@@ -1189,6 +1318,10 @@ static void *core_construct(osm_opensm_t *opensm)
 	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
 	core_log_options();
+
+	extract_data.opensm = opensm;
+	extract_data.num_svcs = 0;
+	extract_data.svcs = NULL;
 
 #if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
 	snprintf(buf, PATH_MAX, "%s", smdb_dump_dir);
@@ -1234,6 +1367,12 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err4;
 	}
 
+	for (d = 0; d < ssa.dev_cnt; d++)
+		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++)
+			extract_data.num_svcs++;
+	extract_data.svcs = calloc(1, extract_data.num_svcs * sizeof(extract_data.svcs));
+
+	j = 0;
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
@@ -1244,6 +1383,8 @@ static void *core_construct(osm_opensm_t *opensm)
 				goto err5;
 			}
 			core_init_svc(svc);
+			extract_data.svcs[j] = svc;
+			j++;
 		}
 	}
 
@@ -1255,7 +1396,7 @@ static void *core_construct(osm_opensm_t *opensm)
 #endif
 
 	ret = pthread_create(&extract_thread, NULL, core_extract_handler,
-			     (void *) opensm);
+			     (void *) &extract_data);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL,
 			"ERROR %d (%s): error creating smdb extract thread\n",
@@ -1288,6 +1429,7 @@ err6:
 #ifndef SIM_SUPPORT
 	ssa_stop_access(&ssa);
 err5:
+	free(extract_data.svcs);
 	ssa_close_devices(&ssa);
 err4:
 #endif
@@ -1318,6 +1460,7 @@ static void core_destroy(void *context)
 	ssa_log(SSA_LOG_CTRL, "shutting down smdb extract thread\n");
 	core_send_msg(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
+	free(extract_data.svcs);
 
 #ifndef SIM_SUPPORT
 	ssa_log(SSA_LOG_CTRL, "shutting down access thread\n");
