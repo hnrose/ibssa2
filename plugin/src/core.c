@@ -45,6 +45,7 @@
 #include <infiniband/ssa_db_helper.h>
 
 #define INITIAL_SUBNET_UP_DELAY 500000		/* 500 msec */
+#define FIRST_DOWNSTREAM_FD_SLOT 1
 
 /*
  * Service options - may be set through ibssa_opts.cfg file.
@@ -965,7 +966,8 @@ static void *core_extract_handler(void *context)
 	memset(&smdb_last_mtime, 0, sizeof(smdb_last_mtime));
 #endif
 
-	fds = calloc(p_extract_data->num_svcs + 1, sizeof(**fds));
+	fds = calloc(p_extract_data->num_svcs + FIRST_DOWNSTREAM_FD_SLOT,
+		     sizeof(**fds));
 	if (!fds)
 		goto out;
 	pfd = (struct pollfd *)fds;
@@ -973,14 +975,15 @@ static void *core_extract_handler(void *context)
 	pfd->events = POLLIN;
 	pfd->revents = 0;
 	for (i = 0; i < p_extract_data->num_svcs; i++) {
-		pfd = (struct pollfd *)(fds + i + 1);
+		pfd = (struct pollfd *)(fds + i + FIRST_DOWNSTREAM_FD_SLOT);
 		pfd->fd = p_extract_data->svcs[i]->sock_extractdown[1];
 		pfd->events = POLLIN;
 		pfd->revents = 0;
 	}
 
 	for (;;) {
-		ret = poll((struct pollfd *)fds, p_extract_data->num_svcs + 1,
+		ret = poll((struct pollfd *)fds,
+			   p_extract_data->num_svcs + FIRST_DOWNSTREAM_FD_SLOT,
 			   timeout_msec);
 		if (ret < 0) {
 			ssa_log(SSA_LOG_VERBOSE, "ERROR polling fds\n");
@@ -1037,7 +1040,7 @@ ssa_log(SSA_LOG_DEFAULT, "extract event but extract pending with outstanding cou
 		}
 
 		for (i = 0; i < p_extract_data->num_svcs; i++) {
-			pfd = (struct pollfd *)(fds + i + 1);
+			pfd = (struct pollfd *)(fds + i + FIRST_DOWNSTREAM_FD_SLOT);
 			if (pfd->revents) {
 				pfd->revents = 0;
 				read(p_extract_data->svcs[i]->sock_extractdown[1],
