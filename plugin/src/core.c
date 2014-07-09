@@ -1403,7 +1403,6 @@ static void *core_construct(osm_opensm_t *opensm)
 			ret, strerror(ret));
 		goto err6;
 	}
-
 	SET_THREAD_NAME(extract_thread, "EXTRACT");
 
 #ifndef SIM_SUPPORT
