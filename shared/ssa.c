@@ -129,7 +129,7 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
-static void ssa_downstream_send_db_update_ready(struct ref_count_obj *db, int fd);
+static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd);
 
 /*
  * needed for ssa_pr_create_context()
@@ -1808,8 +1808,8 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 								  (struct pollfd *)fds,
 								  FD_SETSIZE)) {
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
-				ssa_downstream_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-								    svc->sock_extractdown[0]);
+				ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+							 svc->sock_extractdown[0]);
 				update_waiting = 1;
 				update_pending = 0;
 			}
@@ -2041,7 +2041,7 @@ static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
 	}
 }
 
-static void ssa_downstream_send_db_update_ready(struct ref_count_obj *db, int fd)
+static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd)
 {
 	struct ssa_db_update_msg msg;
 
@@ -2304,8 +2304,8 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 					update_pending = 1;
 				} else {
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
-					ssa_downstream_send_db_update_ready(msg.data.db_upd.db,
-									    svc->sock_extractdown[0]);
+					ssa_send_db_update_ready(msg.data.db_upd.db,
+								 svc->sock_extractdown[0]);
 					update_waiting = 1;
 if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				}
