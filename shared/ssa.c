@@ -3712,7 +3712,6 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		errno = ret;
 		goto err7;
 	}
-
 	SET_THREAD_NAME(svc->upstream, "UPSTR %s", svc->name);
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
@@ -3729,7 +3728,6 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			errno = ret;
 			goto err8;
 		}
-
 		SET_THREAD_NAME(svc->downstream, "DNSTR  %s", svc->name);
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
@@ -3899,7 +3897,6 @@ int ssa_start_access(struct ssa_class *ssa)
 		errno = ret;
 		goto err5;
 	}
-
 	SET_THREAD_NAME(access_thread, "ACCESS");
 
 	ret = read(sock_accessctrl[0], (char *) &msg, sizeof msg);
@@ -3914,7 +3911,6 @@ int ssa_start_access(struct ssa_class *ssa)
 		errno = ret;
 		goto err7;
 	}
-
 	SET_THREAD_NAME(access_prdb_handler, "ACCESS PRDB");
 #endif
 	return 0;
