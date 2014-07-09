@@ -1017,9 +1017,10 @@ ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
 					} else
 {
 						extract_pending = 1;
-ssa_log(SSA_LOG_DEFAULT, "extract event but extract pending with outstanding count %d\n", outstanding_count);
+ssa_log(SSA_LOG_DEFAULT, "extract event but extract now pending with outstanding count %d\n", outstanding_count);
 }
 				}
+else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 #else
 				core_extract_db(p_osm);
 #endif
