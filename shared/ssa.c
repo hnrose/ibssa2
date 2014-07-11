@@ -3848,6 +3848,11 @@ int ssa_start_access(struct ssa_class *ssa)
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 
+	sock_accessctrl[0] = -1;
+	sock_accessctrl[1] = -1;
+	sock_accessextract[0] = -1;
+	sock_accessextract[1] = -1;
+
 	if (!(ssa->node_type & SSA_NODE_ACCESS))
 		return 0;
 
