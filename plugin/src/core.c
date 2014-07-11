@@ -45,7 +45,7 @@
 #include <infiniband/ssa_db_helper.h>
 
 #define INITIAL_SUBNET_UP_DELAY 500000		/* 500 msec */
-#define FIRST_DOWNSTREAM_FD_SLOT 1
+#define FIRST_DOWNSTREAM_FD_SLOT 2
 
 /*
  * Service options - may be set through ibssa_opts.cfg file.
@@ -974,6 +974,13 @@ static void *core_extract_handler(void *context)
 	pfd->fd = sock_coreextract[1];
 	pfd->events = POLLIN;
 	pfd->revents = 0;
+	pfd = (struct pollfd *)(fds + 1);
+	pfd->fd = sock_accessextract[0];
+	if (sock_accessextract[0] >= 0)
+		pfd->events = POLLIN;
+	else
+		pfd->events = 0;
+	pfd->revents = 0;
 	for (i = 0; i < p_extract_data->num_svcs; i++) {
 		pfd = (struct pollfd *)(fds + i + FIRST_DOWNSTREAM_FD_SLOT);
 		pfd->fd = p_extract_data->svcs[i]->sock_extractdown[1];
@@ -1036,6 +1043,39 @@ else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 				ssa_log(SSA_LOG_VERBOSE,
 					"ERROR: Unknown msg type %d from extract\n",
 					msg.type);
+				break;
+			}
+		}
+
+		pfd = (struct pollfd *)(fds + 1);
+		if (pfd->revents) {
+			pfd->revents = 0;
+			read(sock_accessextract[0], (char *) &msg2,
+			     sizeof(msg2.hdr));
+			if (msg2.hdr.len > sizeof msg2.hdr) {
+				read(sock_accessextract[0],
+				     (char *) &msg2.hdr.data,
+				     msg2.hdr.len - sizeof msg2.hdr);
+			}
+			switch (msg2.hdr.type) {
+#ifndef SIM_SUPPORT
+			case SSA_DB_UPDATE_READY:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d extract pending %d\n", outstanding_count, extract_pending);
+				if (outstanding_count > 0) {
+					if (--outstanding_count == 0) {
+						if (extract_pending) {
+							core_extract_db(p_osm);
+							extract_pending = 0;
+						}
+						ssa_extract_db_update(ssa_db_diff->p_smdb);
+					}
+				}
+				break;
+#endif
+			default:
+				ssa_log(SSA_LOG_VERBOSE,
+					"ERROR: Unknown msg type %d from access\n",
+					msg2.hdr.type);
 				break;
 			}
 		}
