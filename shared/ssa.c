@@ -1801,19 +1801,22 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 		break;
 	case SSA_MSG_DB_QUERY_DATA_DATASET:
 		revents = ssa_downstream_handle_query_data(conn, hdr, events);
-		if (conn->phase == SSA_DB_IDLE && update_pending) {
+		if (conn->phase == SSA_DB_IDLE &&
+		    conn->dbtype == SSA_CONN_SMDB_TYPE) {
+			if (update_pending) {
 ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with update pending\n", conn->rsock);
 if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
-			if (!ssa_downstream_smdb_xfer_in_progress(svc,
-								  (struct pollfd *)fds,
-								  FD_SETSIZE)) {
-ssa_log(SSA_LOG_DEFAULT, "No DB transfer currently in progress\n");
-				ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-							 svc->sock_extractdown[0]);
-				update_waiting = 1;
-				update_pending = 0;
+				if (!ssa_downstream_smdb_xfer_in_progress(svc,
+									  (struct pollfd *)fds,
+									  FD_SETSIZE)) {
+ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
+					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+								 svc->sock_extractdown[0]);
+					update_waiting = 1;
+					update_pending = 0;
+				}
+else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 			}
-else ssa_log(SSA_LOG_DEFAULT, "DB transfer currently in progress\n");
 		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
