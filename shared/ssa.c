@@ -3863,11 +3863,13 @@ int ssa_start_access(struct ssa_class *ssa)
 		goto err1;
 	}
 
-	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_accessextract);
-	if (ret) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "creating extract/access socketpair\n");
-		goto err2;
+	if (ssa->node_type & SSA_NODE_CORE) {
+		ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_accessextract);
+		if (ret) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "creating extract/access socketpair\n");
+			goto err2;
+		}
 	}
 
 #ifdef ACCESS
@@ -3942,8 +3944,10 @@ err4:
 	}
 err3:
 #endif
-	close(sock_accessextract[0]);
-	close(sock_accessextract[1]);
+	if (sock_accessextract[0] >= 0)
+		close(sock_accessextract[0]);
+	if (sock_accessextract[1] >= 0)
+		close(sock_accessextract[1]);
 err2:
 	close(sock_accessctrl[0]);
 	close(sock_accessctrl[1]);
@@ -3981,8 +3985,10 @@ void ssa_stop_access(struct ssa_class *ssa)
 #endif
 
 	if (ssa->node_type & SSA_NODE_ACCESS) {
-		close(sock_accessextract[0]);
-		close(sock_accessextract[1]);
+		if (ssa->node_type & SSA_NODE_CORE) {
+			close(sock_accessextract[0]);
+			close(sock_accessextract[1]);
+		}
 		close(sock_accessctrl[0]);
 		close(sock_accessctrl[1]);
 	}
