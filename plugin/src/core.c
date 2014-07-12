@@ -952,7 +952,7 @@ static void *core_extract_handler(void *context)
 	struct ssa_ctrl_msg_buf msg2;
 	int ret, i, timeout_msec = -1;
 #ifndef SIM_SUPPORT
-	int extract_pending = 0, outstanding_count = 0;
+	int outstanding_count = 0;
 #endif
 #ifdef SIM_SUPPORT_SMDB
 	struct timespec smdb_last_mtime;
@@ -1012,8 +1012,7 @@ static void *core_extract_handler(void *context)
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
 #ifndef SIM_SUPPORT
-				if (!extract_pending) {
-					outstanding_count = 0;
+				if (outstanding_count == 0) {
 					if (ssa_db_diff)
 						outstanding_count = ssa_extract_db_update_prepare(ssa_db_diff->p_smdb);
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", outstanding_count);
@@ -1021,11 +1020,8 @@ ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", outstanding_count);
 						core_extract_db(p_osm);
 						ssa_extract_db_update(ssa_db_diff->p_smdb);
 ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
-					} else
-{
-						extract_pending = 1;
-ssa_log(SSA_LOG_DEFAULT, "extract event but extract now pending with outstanding count %d\n", outstanding_count);
-}
+					}
+else ssa_log(SSA_LOG_DEFAULT, "extract event but extract now pending with outstanding count %d\n", outstanding_count);
 				}
 else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 #else
@@ -1060,13 +1056,10 @@ else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 			switch (msg2.hdr.type) {
 #ifndef SIM_SUPPORT
 			case SSA_DB_UPDATE_READY:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d extract pending %d\n", outstanding_count, extract_pending);
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
-						if (extract_pending) {
-							core_extract_db(p_osm);
-							extract_pending = 0;
-						}
+						core_extract_db(p_osm);
 						ssa_extract_db_update(ssa_db_diff->p_smdb);
 					}
 				}
@@ -1099,13 +1092,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 				switch (msg2.hdr.type) {
 #ifndef SIM_SUPPORT
 				case SSA_DB_UPDATE_READY:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count %d extract pending %d\n", i, outstanding_count, extract_pending);
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count %d\n", i, outstanding_count);
 					if (outstanding_count > 0) {
 						if (--outstanding_count == 0) {
-							if (extract_pending) {
-								core_extract_db(p_osm);
-								extract_pending = 0;
-							}
+							core_extract_db(p_osm);
 							ssa_extract_db_update(ssa_db_diff->p_smdb);
 						}
 					}
