@@ -1163,10 +1163,11 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
 		ssa_log_warn(SSA_LOG_CTRL,
-			     "SSA_MSG_DB_PUBLISH_EPOCH_BUF not supported yet\n");
+			     "ignoring SSA_MSG_DB_PUBLISH_EPOCH_BUF on rsock %d\n",
+			     svc->conn_dataup.rsock);
 		break;
 	default:
-		ssa_log_warn(SSA_LOG_CTRL, "unknown op %u on rsock %d\n",
+		ssa_log_warn(SSA_LOG_CTRL, "ignoring unknown op %u on rsock %d\n",
 			     op, svc->conn_dataup.rsock);
 		break;
 	}
