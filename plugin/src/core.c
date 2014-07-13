@@ -837,7 +837,6 @@ static void ssa_extract_db_update(struct ref_count_obj *db)
 
 	if (ssa.node_type & SSA_NODE_ACCESS)
 		ssa_extract_send_db_update(db, sock_accessextract[0], 0);
-
 }
 #endif
 
