@@ -841,10 +841,10 @@ static void ssa_extract_db_update(struct ref_count_obj *db)
 #endif
 
 #ifdef SIM_SUPPORT_SMDB
-static int
-ssa_extract_load_smdb(struct ssa_db *p_smdb, struct timespec *last_mtime)
+static int ssa_extract_load_smdb(struct ref_count_obj *p_ref_smdb,
+				 struct timespec *last_mtime)
 {
-	struct ref_count_obj *db;
+	struct ssa_db *p_smdb;
 	struct stat smdb_dir_stats;
 	int ret;
 
@@ -874,16 +874,15 @@ ssa_extract_load_smdb(struct ssa_db *p_smdb, struct timespec *last_mtime)
 	}
 
 	if (memcmp(&smdb_dir_stats.st_mtime, last_mtime, sizeof(*last_mtime))) {
+		p_smdb = ref_count_object_get(p_ref_smdb);
 		if (p_smdb)
 			ssa_db_destroy(p_smdb);
+
 		p_smdb = ssa_db_load(smdb_dump_dir, smdb_dump);
-		db = malloc(sizeof(*db));
-		if (db) {
-			ref_count_obj_init(db, p_smdb);
-			ssa_extract_db_update(db);
-			memcpy(last_mtime, &smdb_dir_stats.st_mtime,
-			       sizeof(*last_mtime));
-		}
+		ref_count_obj_init(p_ref_smdb, p_smdb);
+		ssa_extract_db_update(p_ref_smdb);
+		memcpy(last_mtime, &smdb_dir_stats.st_mtime,
+		       sizeof(*last_mtime));
 	}
 
 	lockf(smdb_lock_fd, F_ULOCK, 0);
@@ -959,7 +958,7 @@ static void *core_extract_handler(void *context)
 {
 	struct ssa_extract_data *p_extract_data = (struct ssa_extract_data *) context;
 	osm_opensm_t *p_osm = p_extract_data->opensm;
-	struct pollfd **fds;
+	struct pollfd **fds = NULL;
 	struct pollfd *pfd;
 	struct ssa_db_ctrl_msg msg;
 	struct ssa_ctrl_msg_buf msg2;
@@ -969,7 +968,7 @@ static void *core_extract_handler(void *context)
 #endif
 #ifdef SIM_SUPPORT_SMDB
 	struct timespec smdb_last_mtime;
-	struct ssa_db *p_smdb = NULL;
+	struct ref_count_obj *p_ref_smdb = NULL;
 #endif
 
 	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
@@ -977,6 +976,13 @@ static void *core_extract_handler(void *context)
 #ifdef SIM_SUPPORT_SMDB
 	timeout_msec = 1000;	/* 1 sec */
 	memset(&smdb_last_mtime, 0, sizeof(smdb_last_mtime));
+
+	p_ref_smdb = calloc(1, sizeof(*p_ref_smdb));
+	if (!p_ref_smdb) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to allocate ref_cnt object for SMDB\n");
+		goto out;
+	}
 #endif
 
 	fds = calloc(p_extract_data->num_svcs + FIRST_DOWNSTREAM_FD_SLOT,
@@ -1012,7 +1018,7 @@ static void *core_extract_handler(void *context)
 
 #ifdef SIM_SUPPORT_SMDB
 		if (!ret) {
-			if (ssa_extract_load_smdb(p_smdb, &smdb_last_mtime) < 0)
+			if (ssa_extract_load_smdb(p_ref_smdb, &smdb_last_mtime) < 0)
 				goto out;
 			continue;
 		}
@@ -1119,6 +1125,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count
 out:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	free(fds);
+#ifdef SIM_SUPPORT_SMDB
+	ssa_db_destroy(ref_count_object_get(p_ref_smdb));
+	free(p_ref_smdb);
+#endif
 	pthread_exit(NULL);
 }
 
