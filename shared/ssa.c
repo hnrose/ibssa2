@@ -911,6 +911,39 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 			conn->phase, conn->rsock);
 }
 
+static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc,
+					       struct ref_count_obj *db)
+{
+	int count = 0;
+	struct ssa_db_update_msg msg;
+
+	ssa_log_func(SSA_LOG_CTRL);
+
+	if (!db)
+		return count;
+
+	msg.hdr.type = SSA_DB_UPDATE_PREPARE;
+	msg.hdr.len = sizeof(msg);
+	msg.db_upd.db = db;
+	msg.db_upd.svc = NULL;
+	msg.db_upd.flags = 0;
+	msg.db_upd.epoch = 0;
+
+#if 0
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
+		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
+		count++;
+	}
+#endif
+
+	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
+		write(svc->sock_updown[0], (char *) &msg, sizeof(msg));
+		count++;
+	}
+
+	return count;
+}
+
 static void ssa_upstream_send_db_update(struct ssa_svc *svc,
 					struct ref_count_obj *db, int flags,
 					union ibv_gid *gid, uint64_t epoch)
@@ -1047,7 +1080,8 @@ ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables
 }
 
 static short ssa_upstream_handle_op(struct ssa_svc *svc,
-				    struct ssa_msg_hdr *hdr, short events)
+				    struct ssa_msg_hdr *hdr, short events,
+				    int *count)
 {
 	struct ssa_db *ssa_db;
 	uint16_t op;
@@ -1158,7 +1192,11 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 			/* Should the next 2 lines be dependent on flags (full update) in DB update msg ? */
 			ssa_db->p_db_field_tables = NULL;
 			ssa_db->p_db_tables = NULL;
-			revents = ssa_upstream_update_conn(svc, events);
+			if (*count == 0) {
+				*count = ssa_upstream_send_db_update_prepare(svc, svc->conn_dataup.ssa_db);
+				if (*count == 0)
+					revents = ssa_upstream_update_conn(svc, events);
+			}
 		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
@@ -1174,7 +1212,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 	return revents;
 }
 
-static short ssa_upstream_rrecv(struct ssa_svc *svc, short events)
+static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 {
 	struct ssa_msg_hdr *hdr;
 	int ret;
@@ -1190,7 +1228,7 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events)
 			if (!svc->conn_dataup.rhdr) {
 				hdr = svc->conn_dataup.rbuf;
 				if (validate_ssa_msg_hdr(hdr))
-					revents = ssa_upstream_handle_op(svc, hdr, events);
+					revents = ssa_upstream_handle_op(svc, hdr, events, count);
 				else
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "validate_ssa_msg_hdr failed: version %d class %d op %u id 0x%x on rsock %d\n",
@@ -1211,8 +1249,9 @@ static void *ssa_upstream_handler(void *context)
 	struct ssa_conn_req_msg *conn_req;
 	struct ssa_db *ssa_db;
 	struct ssa_ctrl_msg_buf msg;
-	struct pollfd fds[4];
+	struct pollfd fds[5];
 	int ret, errnum;
+	int outstanding_count = 0;
 	short port;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
@@ -1232,12 +1271,18 @@ static void *ssa_upstream_handler(void *context)
 	else
 		fds[2].events = 0;
 	fds[2].revents = 0;
-	fds[3].fd = -1;		/* placeholder for upstream connection */
-	fds[3].events = 0;
+	fds[3].fd = svc->sock_updown[0];
+	if (svc->sock_updown[0] >= 0)
+		fds[3].events = POLLIN;
+	else
+		fds[3].events = 0;
 	fds[3].revents = 0;
+	fds[4].fd = -1;		/* placeholder for upstream connection */
+	fds[4].events = 0;
+	fds[4].revents = 0;
 
 	for (;;) {
-		ret = rpoll(&fds[0], 4, -1);
+		ret = rpoll(&fds[0], 5, -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
@@ -1272,18 +1317,18 @@ static void *ssa_upstream_handler(void *context)
 					conn_req->svc->conn_dataup.dbtype = SSA_CONN_SMDB_TYPE;
 					port = smdb_port;
 				}
-				fds[3].fd = ssa_upstream_initiate_conn(conn_req->svc, port);
+				fds[4].fd = ssa_upstream_initiate_conn(conn_req->svc, port);
 				/* Change when more than 1 data connection supported !!! */
-				if (fds[3].fd >= 0) {
+				if (fds[4].fd >= 0) {
 					if (conn_req->svc->conn_dataup.state != SSA_CONN_CONNECTED)
-						fds[3].events = POLLOUT;
+						fds[4].events = POLLOUT;
 					else {
 						conn_req->svc->conn_dataup.ssa_db = malloc(sizeof(*conn_req->svc->conn_dataup.ssa_db));
 						ssa_db = calloc(1, sizeof(*ssa_db));
 						if (conn_req->svc->conn_dataup.ssa_db && ssa_db) {
 							ref_count_obj_init(conn_req->svc->conn_dataup.ssa_db, ssa_db);
 							if (port == prdb_port)
-								fds[3].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[3].events);
+								fds[4].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[4].events);
 						} else {
 							ssa_log_err(SSA_LOG_DEFAULT,
 								    "could not allocate ref_count_obj or ssa_db struct\n");
@@ -1362,7 +1407,7 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 						free(svc->conn_dataup.rbuf);
 						svc->conn_dataup.rhdr = NULL;
 						svc->conn_dataup.rbuf = NULL;
-						fds[3].events = ssa_upstream_update_conn(svc, fds[3].events);
+						fds[4].events = ssa_upstream_update_conn(svc, fds[4].events);
 					} else {
 						/* No epoch change */
 						ssa_upstream_query_db_resp(svc, -1);
@@ -1382,22 +1427,53 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 		}
 
 		if (fds[3].revents) {
+			fds[3].revents = 0;
+			read(svc->sock_updown[0], (char *) &msg, sizeof msg.hdr);
+			if (msg.hdr.len > sizeof msg.hdr) {
+				read(svc->sock_updown[0],
+				     (char *) &msg.hdr.data,
+				     msg.hdr.len - sizeof msg.hdr);
+			}
+#if 0
+			if (svc->process_msg && svc->process_msg(svc, &msg))
+				continue;
+#endif
+
+			switch (msg.hdr.type) {
+			case SSA_DB_UPDATE_READY:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding count %d\n", outstanding_count);
+				if (outstanding_count > 0) {
+					if (--outstanding_count == 0) {
+						fds[4].events = ssa_upstream_update_conn(svc, fds[4].events);
+					}
+				}
+				break;
+			default:
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "ignoring unexpected msg type %d "
+					     "from downstream\n",
+					     msg.hdr.type);
+				break;
+			}
+		}
+
+		if (fds[4].revents) {
 			/* Only 1 upstream data connection currently */
-			if (fds[3].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			if (fds[4].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"error event 0x%x on rsock %d\n",
-					fds[3].revents, fds[3].fd);
+					fds[4].revents, fds[4].fd);
 				if (svc->conn_dataup.rsock >= 0) {
 					ssa_log(SSA_LOG_DEFAULT,
 						"rsock %d should be but is not already closed\n",
 						svc->conn_dataup.rsock);
 					ssa_close_ssa_conn(&svc->conn_dataup);
 				}
-				fds[3].fd = -1;
-				fds[3].events = 0;
-				fds[3].revents = 0;
+				fds[4].fd = -1;
+				fds[4].events = 0;
+				fds[4].revents = 0;
 			}
-			if (fds[3].revents & POLLOUT) {
+			if (fds[4].revents & POLLOUT) {
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
 					ssa_upstream_svc_client(svc, errnum);
@@ -1406,17 +1482,17 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 					if (svc->conn_dataup.ssa_db && ssa_db) {
 						ref_count_obj_init(svc->conn_dataup.ssa_db, ssa_db);
 						if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
-							fds[3].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[3].events);
+							fds[4].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[4].events);
 					} else {
-						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[3].fd);
+						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[4].fd);
 						free(ssa_db);
 						free(svc->conn_dataup.ssa_db);
 					}
 				} else {
-					fds[3].events = ssa_rsend_continue(&svc->conn_dataup, fds[3].events);
+					fds[4].events = ssa_rsend_continue(&svc->conn_dataup, fds[4].events);
 				}
 			}
-			if (fds[3].revents & POLLIN) {
+			if (fds[4].revents & POLLIN) {
 				if (!svc->conn_dataup.rbuf) {
 					svc->conn_dataup.rbuf = malloc(sizeof(struct ssa_msg_hdr));
 					if (svc->conn_dataup.rbuf) {
@@ -1425,19 +1501,19 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 						svc->conn_dataup.rhdr = NULL;
 					} else
 						ssa_log_err(SSA_LOG_CTRL,
-							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[3].fd);
+							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[4].fd);
 				}
 				if (svc->conn_dataup.rbuf)
-					fds[3].events = ssa_upstream_rrecv(svc, fds[3].events);
+					fds[4].events = ssa_upstream_rrecv(svc, fds[4].events, &outstanding_count);
 			}
-			if (fds[3].revents & ~(POLLOUT | POLLIN)) {
+			if (fds[4].revents & ~(POLLOUT | POLLIN)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"unexpected event 0x%x on upstream rsock %d\n",
-					fds[3].revents & ~(POLLOUT | POLLIN),
-					fds[3].fd);
+					fds[4].revents & ~(POLLOUT | POLLIN),
+					fds[4].fd);
 			}
 
-			fds[3].revents = 0;
+			fds[4].revents = 0;
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
 				continue;
@@ -1778,6 +1854,7 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 				      struct ssa_msg_hdr *hdr, short events,
 				      struct ssa_svc *svc, struct pollfd **fds)
 {
+	int sock;
 	uint16_t op;
 	short revents = events;
 
@@ -1811,8 +1888,14 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 									  (struct pollfd *)fds,
 									  FD_SETSIZE)) {
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
+					if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
+						sock = svc->sock_extractdown[0];
+					else if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
+						sock = svc->sock_updown[1];
+					else
+						sock = -1;
 					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-								 svc->sock_extractdown[0]);
+								 sock);
 					update_waiting = 1;
 					update_pending = 0;
 				}
@@ -2262,13 +2345,27 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE_PREPARE:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream - not implemented yet\n");
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream\n");
+if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+				if (ssa_downstream_smdb_xfer_in_progress(svc,
+									 (struct pollfd *)fds,
+									 FD_SETSIZE)) {
+ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
+					update_pending = 1;
+				} else {
+ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
+					ssa_send_db_update_ready(msg.data.db_upd.db,
+								 svc->sock_updown[1]);
+					update_waiting = 1;
+if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+				}
 				break;
 			case SSA_DB_UPDATE:
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update (SMDB) from upstream: ssa_db %p epoch 0x%" PRIx64 "\n",
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
+				update_waiting = 0;
 				epoch = msg.data.db_upd.epoch;
 				ssa_downstream_notify_smdb_conns(svc,
 								 (struct pollfd *)fds,
