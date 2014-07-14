@@ -3417,9 +3417,11 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	}
 
 	route_len = sizeof(route);
-	if (!rgetsockopt(fd, SOL_RDMA, RDMA_ROUTE, &route, &route_len))
+	if (!rgetsockopt(fd, SOL_RDMA, RDMA_ROUTE, &route, &route_len)) {
 		conn->remote_lid = ntohs(route.path.dlid);
-	else
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"peer LID %u\n", conn->remote_lid);
+	} else
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rgetsockopt RDMA_ROUTE rsock %d ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
