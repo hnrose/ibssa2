@@ -3502,7 +3502,8 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, (uint8_t *) &dst_addr.sib_addr,
 			sizeof dst_addr.sib_addr);
-	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL, "dest GID %s\n", log_data);
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+		"dest GID %s LID %u\n", log_data, ntohs(svc->primary.path.dlid));
 
 	ret = rconnect(svc->conn_dataup.rsock,
 		       (const struct sockaddr *) &dst_addr, sizeof(dst_addr));
