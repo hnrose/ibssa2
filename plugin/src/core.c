@@ -941,6 +941,20 @@ static void core_extract_db(osm_opensm_t *p_osm)
 	first = 0;
 }
 
+#ifndef SIM_SUPPORT
+static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
+					     struct ref_count_obj *p_smdb,
+					     int *outstanding_count)
+{
+	if (*outstanding_count > 0) {
+		if (--(*outstanding_count) == 0) {
+			core_extract_db(p_osm);
+			ssa_extract_db_update(p_smdb);
+		}
+	}
+}
+#endif
+
 static void *core_extract_handler(void *context)
 {
 	struct ssa_extract_data *p_extract_data = (struct ssa_extract_data *) context;
@@ -1056,12 +1070,8 @@ else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 #ifndef SIM_SUPPORT
 			case SSA_DB_UPDATE_READY:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
-				if (outstanding_count > 0) {
-					if (--outstanding_count == 0) {
-						core_extract_db(p_osm);
-						ssa_extract_db_update(ssa_db_diff->p_smdb);
-					}
-				}
+				ssa_extract_update_ready_process(p_osm, ssa_db_diff->p_smdb,
+								 &outstanding_count);
 				break;
 #endif
 			default:
@@ -1092,12 +1102,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 #ifndef SIM_SUPPORT
 				case SSA_DB_UPDATE_READY:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count %d\n", i, outstanding_count);
-					if (outstanding_count > 0) {
-						if (--outstanding_count == 0) {
-							core_extract_db(p_osm);
-							ssa_extract_db_update(ssa_db_diff->p_smdb);
-						}
-					}
+					ssa_extract_update_ready_process(p_osm, ssa_db_diff->p_smdb,
+									 &outstanding_count);
 					break;
 #endif
 				default:
