@@ -69,6 +69,7 @@
 #define ACCESS_FIRST_SERVICE_FD_SLOT	2
 #define PRDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 1
 #define SMDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 2
+#define UPSTREAM_DATA_FD_SLOT		4
 
 #define SMDB_PRELOAD_PATH RDMA_CONF_DIR "/smdb"
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
@@ -1277,9 +1278,9 @@ static void *ssa_upstream_handler(void *context)
 	else
 		fds[3].events = 0;
 	fds[3].revents = 0;
-	fds[4].fd = -1;		/* placeholder for upstream connection */
-	fds[4].events = 0;
-	fds[4].revents = 0;
+	fds[UPSTREAM_DATA_FD_SLOT].fd = -1; /* placeholder for upstream connection */
+	fds[UPSTREAM_DATA_FD_SLOT].events = 0;
+	fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 
 	for (;;) {
 		ret = rpoll(&fds[0], 5, -1);
@@ -1317,18 +1318,18 @@ static void *ssa_upstream_handler(void *context)
 					conn_req->svc->conn_dataup.dbtype = SSA_CONN_SMDB_TYPE;
 					port = smdb_port;
 				}
-				fds[4].fd = ssa_upstream_initiate_conn(conn_req->svc, port);
+				fds[UPSTREAM_DATA_FD_SLOT].fd = ssa_upstream_initiate_conn(conn_req->svc, port);
 				/* Change when more than 1 data connection supported !!! */
-				if (fds[4].fd >= 0) {
+				if (fds[UPSTREAM_DATA_FD_SLOT].fd >= 0) {
 					if (conn_req->svc->conn_dataup.state != SSA_CONN_CONNECTED)
-						fds[4].events = POLLOUT;
+						fds[UPSTREAM_DATA_FD_SLOT].events = POLLOUT;
 					else {
 						conn_req->svc->conn_dataup.ssa_db = malloc(sizeof(*conn_req->svc->conn_dataup.ssa_db));
 						ssa_db = calloc(1, sizeof(*ssa_db));
 						if (conn_req->svc->conn_dataup.ssa_db && ssa_db) {
 							ref_count_obj_init(conn_req->svc->conn_dataup.ssa_db, ssa_db);
 							if (port == prdb_port)
-								fds[4].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[4].events);
+								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						} else {
 							ssa_log_err(SSA_LOG_DEFAULT,
 								    "could not allocate ref_count_obj or ssa_db struct\n");
@@ -1407,7 +1408,7 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 						free(svc->conn_dataup.rbuf);
 						svc->conn_dataup.rhdr = NULL;
 						svc->conn_dataup.rbuf = NULL;
-						fds[4].events = ssa_upstream_update_conn(svc, fds[4].events);
+						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					} else {
 						/* No epoch change */
 						ssa_upstream_query_db_resp(svc, -1);
@@ -1444,7 +1445,7 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
-						fds[4].events = ssa_upstream_update_conn(svc, fds[4].events);
+						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					}
 				}
 				break;
@@ -1457,23 +1458,24 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			}
 		}
 
-		if (fds[4].revents) {
+		if (fds[UPSTREAM_DATA_FD_SLOT].revents) {
 			/* Only 1 upstream data connection currently */
-			if (fds[4].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			if (fds[UPSTREAM_DATA_FD_SLOT].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"error event 0x%x on rsock %d\n",
-					fds[4].revents, fds[4].fd);
+					fds[UPSTREAM_DATA_FD_SLOT].revents,
+					fds[UPSTREAM_DATA_FD_SLOT].fd);
 				if (svc->conn_dataup.rsock >= 0) {
 					ssa_log(SSA_LOG_DEFAULT,
 						"rsock %d should be but is not already closed\n",
 						svc->conn_dataup.rsock);
 					ssa_close_ssa_conn(&svc->conn_dataup);
 				}
-				fds[4].fd = -1;
-				fds[4].events = 0;
-				fds[4].revents = 0;
+				fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
+				fds[UPSTREAM_DATA_FD_SLOT].events = 0;
+				fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 			}
-			if (fds[4].revents & POLLOUT) {
+			if (fds[UPSTREAM_DATA_FD_SLOT].revents & POLLOUT) {
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
 					ssa_upstream_svc_client(svc, errnum);
@@ -1482,17 +1484,17 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 					if (svc->conn_dataup.ssa_db && ssa_db) {
 						ref_count_obj_init(svc->conn_dataup.ssa_db, ssa_db);
 						if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
-							fds[4].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[4].events);
+							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 					} else {
-						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[4].fd);
+						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
 						free(ssa_db);
 						free(svc->conn_dataup.ssa_db);
 					}
 				} else {
-					fds[4].events = ssa_rsend_continue(&svc->conn_dataup, fds[4].events);
+					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_rsend_continue(&svc->conn_dataup, fds[UPSTREAM_DATA_FD_SLOT].events);
 				}
 			}
-			if (fds[4].revents & POLLIN) {
+			if (fds[UPSTREAM_DATA_FD_SLOT].revents & POLLIN) {
 				if (!svc->conn_dataup.rbuf) {
 					svc->conn_dataup.rbuf = malloc(sizeof(struct ssa_msg_hdr));
 					if (svc->conn_dataup.rbuf) {
@@ -1501,19 +1503,19 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 						svc->conn_dataup.rhdr = NULL;
 					} else
 						ssa_log_err(SSA_LOG_CTRL,
-							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[4].fd);
+							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
 				}
 				if (svc->conn_dataup.rbuf)
-					fds[4].events = ssa_upstream_rrecv(svc, fds[4].events, &outstanding_count);
+					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_rrecv(svc, fds[UPSTREAM_DATA_FD_SLOT].events, &outstanding_count);
 			}
-			if (fds[4].revents & ~(POLLOUT | POLLIN)) {
+			if (fds[UPSTREAM_DATA_FD_SLOT].revents & ~(POLLOUT | POLLIN)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"unexpected event 0x%x on upstream rsock %d\n",
-					fds[4].revents & ~(POLLOUT | POLLIN),
-					fds[4].fd);
+					fds[UPSTREAM_DATA_FD_SLOT].revents & ~(POLLOUT | POLLIN),
+					fds[UPSTREAM_DATA_FD_SLOT].fd);
 			}
 
-			fds[4].revents = 0;
+			fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
 				continue;
