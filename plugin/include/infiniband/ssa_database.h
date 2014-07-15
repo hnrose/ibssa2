@@ -71,7 +71,7 @@ struct ssa_db_extract {
 	struct ep_node_tbl_rec		*p_node_tbl;
 	struct ep_link_tbl_rec		*p_link_tbl;
 	struct ep_port_tbl_rec		*p_port_tbl;
-	uint16_t			*p_pkey_tbl;
+	be16_t				*p_pkey_tbl;
 	uint64_t			pkey_tbl_rec_num;
 
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> offset */
