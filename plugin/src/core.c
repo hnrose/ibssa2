@@ -1076,7 +1076,8 @@ else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 #ifndef SIM_SUPPORT
 			case SSA_DB_UPDATE_READY:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
-				ssa_extract_update_ready_process(p_osm, ssa_db_diff->p_smdb,
+				ssa_extract_update_ready_process(p_osm,
+								 ssa_db_diff->p_smdb,
 								 &outstanding_count);
 				break;
 #endif
@@ -1108,7 +1109,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 #ifndef SIM_SUPPORT
 				case SSA_DB_UPDATE_READY:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count %d\n", i, outstanding_count);
-					ssa_extract_update_ready_process(p_osm, ssa_db_diff->p_smdb,
+					ssa_extract_update_ready_process(p_osm,
+									 ssa_db_diff->p_smdb,
 									 &outstanding_count);
 					break;
 #endif
