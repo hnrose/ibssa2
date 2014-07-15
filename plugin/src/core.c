@@ -593,7 +593,7 @@ static int core_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 			umad_sa->packet.mad_hdr.method,
 			ntohs(umad_sa->packet.mad_hdr.attr_id),
 			umad_sa->umad.status);
-		return 0;
+		return 1;
 	}
 
 	core = container_of(svc, struct ssa_core, svc);
