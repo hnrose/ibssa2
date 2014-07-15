@@ -835,7 +835,7 @@ static void ssa_db_diff_dump_fabric_params(struct ssa_db_diff * p_ssa_db_diff)
 	p_subnet_opts = p_smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
 	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_SUBNET_PREFIX) {
 		ssa_log(SSA_LOG_VERBOSE, "Subnet Prefix: 0x%" PRIx64 "\n",
-			p_subnet_opts->subnet_prefix);
+			ntohll(p_subnet_opts->subnet_prefix));
 		is_changed = 1;
 	}
 	if (p_subnet_opts->change_mask & SSA_DB_CHANGEMASK_SM_STATE) {

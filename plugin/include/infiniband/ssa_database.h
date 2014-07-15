@@ -80,7 +80,7 @@ struct ssa_db_extract {
 	cl_qmap_t ep_link_tbl;		/* LID + port_num based */
 
 	/* Fabric/SM related */
-	uint64_t subnet_prefix;		/* even if full PortInfo used */
+	be64_t subnet_prefix;		/* even if full PortInfo used */
 	uint8_t sm_state;
 	uint8_t lmc;
 	uint8_t subnet_timeout;

@@ -33,8 +33,8 @@
 
 #include <stdlib.h>
 #include <stddef.h>
-#include <infiniband/ssa_database.h>
 #include <infiniband/ssa_smdb.h>
+#include <infiniband/ssa_database.h>
 #include <opensm/osm_switch.h>
 
 struct ssa_db_lft *ssa_database_lft_init()

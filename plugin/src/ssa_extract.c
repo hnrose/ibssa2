@@ -60,7 +60,7 @@ extern int first;
 static void
 ssa_db_extract_subnet_opts(osm_subn_t *p_subn, struct ssa_db_extract *p_ssa_db)
 {
-	p_ssa_db->subnet_prefix = ntohll(p_subn->opt.subnet_prefix);
+	p_ssa_db->subnet_prefix = p_subn->opt.subnet_prefix;
 	p_ssa_db->sm_state = p_subn->sm_state;
 	p_ssa_db->lmc = p_subn->opt.lmc;
 	p_ssa_db->subnet_timeout = p_subn->opt.subnet_timeout;
@@ -682,7 +682,7 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 
 	/* First, most Fabric/SM related parameters */
 	ssa_log(SSA_LOG_VERBOSE, "Subnet prefix 0x%" PRIx64 "\n",
-		p_ssa_db->subnet_prefix);
+		ntohll(p_ssa_db->subnet_prefix));
 	ssa_log(SSA_LOG_VERBOSE,
 		"LMC %u Subnet timeout %u Both Pkeys %sabled\n",
 		p_ssa_db->lmc, p_ssa_db->subnet_timeout,
