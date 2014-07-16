@@ -134,6 +134,13 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "log_level 1\n");
 	fprintf(f, "\n");
+	fprintf(f, "# log_flush:\n");
+	fprintf(f, "# Indicates whether log is flushed after every log message\n");
+	fprintf(f, "# 0 - don't flush every message\n");
+	fprintf(f, "# 1 - flush on every message (default)\n");
+	fprintf(f, "\n");
+	fprintf(f, "log_flush 1\n");
+	fprintf(f, "\n");
 	fprintf(f, "# lock_file:\n");
 	fprintf(f, "# Specifies the location of the ACM lock file used to ensure that only a\n");
 	fprintf(f, "# single instance of ACM is running.\n");

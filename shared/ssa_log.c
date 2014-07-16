@@ -51,6 +51,7 @@
 /* TODO: make static after access layer integration */
 FILE *flog;
 int accum_log_file = 0;
+int log_flush = 1;
 static int log_level = SSA_LOG_DEFAULT;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -129,7 +130,8 @@ void ssa_write_log(int level, const char *format, ...)
 		result.tm_mday, result.tm_hour, result.tm_min,
 		result.tm_sec, (unsigned int)tv.tv_usec, tid);
 	vfprintf(flog, format, args);
-	fflush(flog);
+	if (log_flush)
+		fflush(flog);
 	pthread_mutex_unlock(&log_lock);
 	va_end(args);
 }

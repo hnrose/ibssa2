@@ -60,6 +60,7 @@ static char *smdb_lock_file = "ibssa_smdb.lock";
 static int smdb_lock_fd = -1;
 #endif
 
+extern int log_flush;
 extern int accum_log_file;
 extern int smdb_dump;
 extern int prdb_dump;
@@ -1289,6 +1290,8 @@ static void core_set_options(void)
 			strcpy(log_file, value);
 		else if (!strcasecmp("log_level", opt))
 			ssa_set_log_level(atoi(value));
+		else if (!strcasecmp("log_flush", opt))
+			log_flush = atoi(value);
 		else if (!strcasecmp("accum_log_file", opt))
 			accum_log_file = atoi(value);
 		else if (!strcasecmp("lock_file", opt))
