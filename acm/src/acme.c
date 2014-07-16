@@ -104,7 +104,7 @@ static void show_usage(char *program)
 
 static void gen_opts_temp(FILE *f)
 {
-	fprintf(f, "# InfiniBand Multicast Communication Manager for clusters configuration file\n");
+	fprintf(f, "# InfiniBand Assistant to Communication Manager for clusters configuration file\n");
 	fprintf(f, "#\n");
 	fprintf(f, "# Use ib_acme utility with -O option to automatically generate a sample\n");
 	fprintf(f, "# ibacm_opts.cfg file for the current system.\n");
@@ -145,6 +145,8 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Specifies the location of the ACM lock file used to ensure that only a\n");
 	fprintf(f, "# single instance of ACM is running.\n");
 	fprintf(f, "\n");
+	fprintf(f, "lock_file /var/run/ibacm.pid\n");
+	fprintf(f, "\n");
 	fprintf(f, "# accum_log_file:\n");
 	fprintf(f, "# Indicates if the log file will be accumulated\n");
 	fprintf(f, "# across multiple ACM sessions.\n");
@@ -153,8 +155,6 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "#  1 - true\n");
 	fprintf(f, "\n");
 	fprintf(f, "accum_log_file 0\n");
-	fprintf(f, "\n");
-	fprintf(f, "lock_file /var/run/ibacm.pid\n");
 	fprintf(f, "\n");
 	fprintf(f, "# addr_prot:\n");
 	fprintf(f, "# Default resolution protocol to resolve IP addresses into IB GIDs.\n");
@@ -167,7 +167,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Number of minutes to maintain IP address to GID mapping before\n");
 	fprintf(f, "# repeating address resolution.  A value of -1 indicates that the\n");
 	fprintf(f, "# mapping will not time out.\n");
-	fprintf(f, "# 1 hour = 60, 1 day = 1440, 1 week = 10080, 1 month ~ 43200");
+	fprintf(f, "# 1 hour = 60, 1 day = 1440, 1 week = 10080, 1 month ~ 43200\n");
 	fprintf(f, "\n");
 	fprintf(f, "addr_timeout 1440\n");
 	fprintf(f, "\n");
@@ -184,7 +184,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# repeating route resolution.  A value of -1 indicates that the\n");
 	fprintf(f, "# mapping will not time out.  However, the route will\n");
 	fprintf(f, "# automatically time out when the address times out.\n");
-	fprintf(f, "# 1 hour = 60, 1 day = 1440, 1 week = 10080, 1 month ~ 43200");
+	fprintf(f, "# 1 hour = 60, 1 day = 1440, 1 week = 10080, 1 month ~ 43200\n");
 	fprintf(f, "\n");
 	fprintf(f, "route_timeout -1\n");
 	fprintf(f, "\n");
@@ -207,7 +207,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Indicates port used for rsocket connection for PRDB\n");
 	fprintf(f, "# default is 7471\n");
 	fprintf(f, "\n");
-	fprintf(f, "# prdb_port 7471\n");
+	fprintf(f, "prdb_port 7471\n");
 	fprintf(f, "\n");
 	fprintf(f, "# prdb_dump:\n");
 	fprintf(f, "# Indicates whether to dump PRDB. Should be\n");
@@ -216,6 +216,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# 1 - dump in binary mode\n");
 	fprintf(f, "# 2 - dump in debug mode\n");
 	fprintf(f, "# 3 - dump in human readable mode\n");
+	fprintf(f, "\n");
 	fprintf(f, "prdb_dump 0\n");
 	fprintf(f, "\n");
 	fprintf(f, "# prdb_dump_dir\n");
@@ -305,6 +306,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# the ACM cache.  This option is only valid if route_preload\n");
 	fprintf(f, "# indicates that routing data should be read from a file (opensm_full_v1 option).\n");
 	fprintf(f, "# Default is ACM_CONF_DIR/ibacm_route.data\n");
+	fprintf(f, "\n");
 	fprintf(f, "# route_data_file /etc/rdma/ibacm_route.data\n");
 	fprintf(f, "\n");
 	fprintf(f, "# route_data_dir:\n");
@@ -312,6 +314,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# the ACM cache.  This option is only valid if route_preload\n");
 	fprintf(f, "# indicates that routing data should be read from a directory (access_v1 option).\n");
 	fprintf(f, "# Default is ACM_CONF_DIR/ssa_db\n");
+	fprintf(f, "\n");
 	fprintf(f, "# route_data_dir /etc/rdma/ssa_db\n");
 	fprintf(f, "\n");
 	fprintf(f, "# acm_mode:\n");
