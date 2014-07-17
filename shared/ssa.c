@@ -4068,12 +4068,13 @@ void ssa_stop_access(struct ssa_class *ssa)
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 
-	if (ssa->node_type & SSA_NODE_ACCESS) {
-		msg.len = sizeof msg;
-		msg.type = SSA_CTRL_EXIT;
-		write(sock_accessctrl[0], (char *) &msg, sizeof msg);
-		pthread_join(access_thread, NULL);
-	}
+	if (!(ssa->node_type & SSA_NODE_ACCESS))
+		return;
+
+	msg.len = sizeof msg;
+	msg.type = SSA_CTRL_EXIT;
+	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
+	pthread_join(access_thread, NULL);
 
 #ifdef ACCESS
 	ssa_db_update_queue_destroy(&access_context.update_queue);
@@ -4088,14 +4089,12 @@ void ssa_stop_access(struct ssa_class *ssa)
 	access_context.smdb = NULL;
 #endif
 
-	if (ssa->node_type & SSA_NODE_ACCESS) {
-		if (ssa->node_type & SSA_NODE_CORE) {
-			close(sock_accessextract[0]);
-			close(sock_accessextract[1]);
-		}
-		close(sock_accessctrl[0]);
-		close(sock_accessctrl[1]);
+	if (ssa->node_type & SSA_NODE_CORE) {
+		close(sock_accessextract[0]);
+		close(sock_accessextract[1]);
 	}
+	close(sock_accessctrl[0]);
+	close(sock_accessctrl[1]);
 }
 
 static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
