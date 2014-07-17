@@ -196,6 +196,8 @@ static uint8_t min_rate = IBV_RATE_10_GBPS;
 static enum acm_route_preload route_preload;
 static enum acm_mode acm_mode = ACM_MODE_SSA;
 static uint64_t *lid2guid_cached = NULL;
+static useconds_t acm_query_timeout = ACM_DEFAULT_QUERY_TIMEOUT;
+static int acm_query_retries = ACM_DEFAULT_QUERY_RETRIES;
 
 extern int log_flush;
 extern int accum_log_file;
@@ -3351,13 +3353,13 @@ static void *acm_issue_query(void *context)
 
 	ssa_log_func(SSA_LOG_CTRL);
 
-	usleep(11000);	/* 11 msec delay - so first attempt likely to succeed */
+	usleep(acm_query_timeout);	/* delay - so first attempt likely to succeed */
 
-	for (i = 0; i < 99; i++) {	/* for total max of ~1 second */
+	for (i = 0; i < acm_query_retries; i++) {	/* for total default max of ~1 second */
 		ret = ssa_upstream_query_db(svc);
 		if (!ret)
 			break;
-		usleep(10000);	/* 10 msec delay before next attempt */
+		usleep(acm_query_timeout);	/* delay before next attempt */
 	}
 
 	return NULL;
@@ -3976,6 +3978,10 @@ static void acm_set_options(void)
 		        strcpy(route_data_dir, value);
 		else if (!strcasecmp("acm_mode", opt))
 			acm_mode = acm_convert_mode(value);
+		else if (!strcasecmp("acm_query_timeout", opt))
+			acm_query_timeout = atol(value);
+		else if (!strcasecmp("acm_query_retries", opt))
+			acm_query_retries = atoi(value);
 	}
 
 	fclose(f);
@@ -4007,6 +4013,8 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "routing data file %s\n", route_data_file);
 	ssa_log(SSA_LOG_DEFAULT, "routing data directory %s\n", route_data_dir);
 	ssa_log(SSA_LOG_DEFAULT, "acm mode %d\n", acm_mode);
+	ssa_log(SSA_LOG_DEFAULT, "acm_query_timeout %lu\n",acm_query_timeout);
+	ssa_log(SSA_LOG_DEFAULT, "acm_query_retries %d\n", acm_query_retries);
 }
 
 static void *acm_ctrl_handler(void *context)

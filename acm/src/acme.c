@@ -49,6 +49,7 @@
 #include <osd.h>
 #include <infiniband/verbs.h>
 #include <infiniband/acm.h>
+#include <acm_shared.h>
 #include "libacm.h"
 
 static char *dest_dir = RDMA_CONF_DIR;
@@ -325,6 +326,18 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# ssa\n");
 	fprintf(f, "\n");
 	fprintf(f, "acm_mode acm\n");
+	fprintf(f, "\n");
+	fprintf(f, "# acm_query_timeout:\n");
+	fprintf(f, "# Specifies acm query timeout in microseconds.\n");
+	fprintf(f, "# Default is %lu\n", ACM_DEFAULT_QUERY_TIMEOUT);
+	fprintf(f, "\n");
+	fprintf(f, "acm_query_timeout %lu\n", ACM_DEFAULT_QUERY_TIMEOUT);
+	fprintf(f, "\n");
+	fprintf(f, "# acm_query_retries:\n");
+	fprintf(f, "# Specifies the maximum number of times that the ACM service will retry a query request.\n");
+	fprintf(f, "# Default is %d\n", ACM_DEFAULT_QUERY_RETRIES); 
+	fprintf(f, "\n");
+	fprintf(f, "acm_query_retries %d\n", ACM_DEFAULT_QUERY_RETRIES);
 	fprintf(f, "\n");
 }
 

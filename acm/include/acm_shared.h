@@ -46,6 +46,9 @@
 #define ACM_ADDRESS_LID        0x05
 #define ACM_ADDRESS_RESERVED   0x06  /* start of reserved range */
 
+#define ACM_DEFAULT_QUERY_TIMEOUT 11000L
+#define ACM_DEFAULT_QUERY_RETRIES 99
+
 enum acm_state {
 	ACM_INIT,
 	ACM_QUERY_ADDR,
