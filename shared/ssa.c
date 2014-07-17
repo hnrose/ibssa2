@@ -4428,7 +4428,6 @@ void ssa_close_devices(struct ssa_class *ssa)
 		db = ref_count_object_get(prdb);
 		ssa_db_destroy(db);
 		prdb->object = NULL;	/* ??? */
-		free(prdb);
 		prdb = NULL;
 	}
 #endif
@@ -4436,7 +4435,6 @@ void ssa_close_devices(struct ssa_class *ssa)
 		db = ref_count_object_get(smdb);
 		ssa_db_destroy(db);
 		smdb->object = NULL;	/* ??? */
-		free(smdb);
 		smdb = NULL;
 	}
 }
