@@ -1204,6 +1204,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 			ssa_db->p_db_tables = NULL;
 			if (*count == 0) {
 				*count = ssa_upstream_send_db_update_prepare(svc, svc->conn_dataup.ssa_db);
+ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
 				if (*count == 0)
 					revents = ssa_upstream_update_conn(svc, events);
 			}
