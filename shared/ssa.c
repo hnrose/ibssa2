@@ -85,7 +85,10 @@ static uint64_t epoch;
 __thread char log_data[128];
 __thread int update_pending;
 __thread int update_waiting;
+static int access_update_pending;
+static int access_update_waiting;
 //static atomic_t counter[SSA_MAX_COUNTER];
+static atomic_t prdb_xfers_in_progress;
 
 static struct ssa_access_context access_context;
 static int sock_accessctrl[2];
@@ -128,6 +131,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
+static int ssa_access_prdb_xfer_in_progress();
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
 static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd);
@@ -932,10 +936,15 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc,
 
 #if 0
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
+#else
+	/* Enable for pure access and combined distribution & access node for now */
+	/* Don't yet enabled combined core & access node */
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS &&
+	    !(svc->port->dev->ssa->node_type & SSA_NODE_CORE)) {
+#endif
 		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
 		count++;
 	}
-#endif
 
 	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
 		write(svc->sock_updown[0], (char *) &msg, sizeof(msg));
@@ -1366,6 +1375,14 @@ static void *ssa_upstream_handler(void *context)
 #endif
 
 			switch (msg.hdr.type) {
+                        case SSA_DB_UPDATE_READY:
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
+				if (outstanding_count > 0) {
+					if (--outstanding_count == 0) {
+						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
+					}
+				}
+				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "ignoring unexpected msg type %d "
@@ -1673,6 +1690,8 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 	if (conn->phase == SSA_DB_IDLE) {
 		int count = ref_count_obj_inc(ssa_downstream_db_ref_obj(conn));
 ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just incremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count); 
+		if (conn->dbtype == SSA_CONN_PRDB_TYPE)
+			count = atomic_inc(&prdb_xfers_in_progress);
 		conn->phase = SSA_DB_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
@@ -1903,6 +1922,32 @@ ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
 				}
 else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 			}
+		} else if (conn->phase == SSA_DB_IDLE &&
+			   conn->dbtype == SSA_CONN_PRDB_TYPE) {
+			atomic_dec(&prdb_xfers_in_progress);
+			if (access_update_pending) {
+ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with access update pending\n", conn->rsock);
+if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected access update waiting!\n");
+				/* could just use result of atomic_dec above */
+				if (!ssa_access_prdb_xfer_in_progress()) {
+ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
+					/* response is from downstream rather than access thread which received prepare message */
+					/* it doesn't matter that response comes from different thread than request was issued as responses are just counted */
+					/* use svc->sock_extractdown[0] rather than sock_accessextract[1] as downstream cannot use accessextract socket in downstream thread */
+					/* different socket for distribution (updown) ! */
+					if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
+						sock = svc->sock_extractdown[0];
+					else if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
+						sock = svc->sock_updown[1];
+					else
+						sock = -1;
+					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+								 sock);
+					access_update_waiting = 1;
+					access_update_pending = 0;
+				}
+else ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
+			}
 		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
@@ -2030,6 +2075,14 @@ static int ssa_find_pollfd_slot(struct pollfd *fds, int nfds)
 		if (fds[slot].fd == -1)
 			return slot;
 	return -1;
+}
+
+static int ssa_access_prdb_xfer_in_progress()
+{
+	/* Single threaded access layer can't be using smdb when this is invoked */
+	if (atomic_get(&prdb_xfers_in_progress))
+		return 1;
+	return 0;
 }
 
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
@@ -2287,9 +2340,6 @@ static void *ssa_downstream_handler(void *context)
 #endif
 
 			switch (msg.hdr.type) {
-			case SSA_DB_UPDATE_PREPARE:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from access - not implemented yet\n");
-				break;
 			case SSA_DB_UPDATE:
 				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data,
 						sizeof log_data, SSA_ADDR_GID,
@@ -2806,6 +2856,8 @@ static void *ssa_access_handler(void *context)
 		pfd->events = POLLIN;
 		pfd->revents = 0;
 	}
+	access_update_pending = 0;
+	access_update_waiting = 0;
 
 	for (;;) {
 		ret = poll((struct pollfd *)fds,
@@ -2856,6 +2908,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract - not implemented y
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from extract: ssa_db %p\n",
 					db);
+				access_update_waiting = 0;
 				/* Should epoch be added to access context ? */
 				access_context.smdb = db;
 #ifdef ACCESS
@@ -2901,13 +2954,25 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract - not implemented y
 
 				switch (msg.hdr.type) {
 				case SSA_DB_UPDATE_PREPARE:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream - not implemented yet\n");
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream\n");
+if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+					if (ssa_access_prdb_xfer_in_progress()) {
+ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
+						access_update_pending = 1;
+                                	} else {
+ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
+						ssa_send_db_update_ready(msg.data.db_upd.db,
+									 svc_arr[i]->sock_accessup[1]);
+						access_update_waiting = 1;
+if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+					}
 					break;
 				case SSA_DB_UPDATE:
 					db = ref_count_object_get(msg.data.db_upd.db);
 					ssa_log(SSA_LOG_DEFAULT,
 						"SSA DB update from upstream thread: ssa_db %p\n",
 						db);
+					access_update_waiting = 0;
 					/* Should epoch be added to access context ? */
 					access_context.smdb = db;
 #ifdef ACCESS
@@ -4486,6 +4551,7 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 	ssa->node_type = node_type;
 	ssa->dev_size = dev_size;
 	ssa->port_size = port_size;
+	atomic_init(&prdb_xfers_in_progress);
 	ret = umad_init();
 	if (ret)
 		return ret;
