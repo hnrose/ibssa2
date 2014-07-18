@@ -934,14 +934,7 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc,
 	msg.db_upd.flags = 0;
 	msg.db_upd.epoch = 0;
 
-#if 0
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
-#else
-	/* Enable for pure access and combined distribution & access node for now */
-	/* Don't yet enabled combined core & access node */
-	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS &&
-	    !(svc->port->dev->ssa->node_type & SSA_NODE_CORE)) {
-#endif
 		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
 		count++;
 	}
