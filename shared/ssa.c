@@ -2895,7 +2895,18 @@ static void *ssa_access_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE_PREPARE:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract - not implemented yet\n");
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract\n");
+if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+				if (ssa_access_prdb_xfer_in_progress()) {
+ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
+					access_update_pending = 1;
+				} else {
+ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
+					ssa_send_db_update_ready(msg.data.db_upd.db,
+								 sock_accessextract[1]);
+					access_update_waiting = 1;
+if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+				}
 				break;
 			case SSA_DB_UPDATE:
 				db = ref_count_object_get(msg.data.db_upd.db);

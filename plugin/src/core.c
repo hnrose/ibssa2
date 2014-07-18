@@ -808,12 +808,10 @@ static int ssa_extract_db_update_prepare(struct ref_count_obj *db)
 		}
 	}
 
-#if 0
 	if (ssa.node_type & SSA_NODE_ACCESS) {
 		ssa_extract_send_db_update_prepare(db, sock_accessextract[0]);
 		count++;
 	}
-#endif
 
 	return count;
 }
