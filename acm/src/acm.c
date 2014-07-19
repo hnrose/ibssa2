@@ -3355,9 +3355,11 @@ static void *acm_issue_query(void *context)
 
 	usleep(acm_query_timeout);	/* delay - so first attempt likely to succeed */
 
-	for (i = 0; i < acm_query_retries; i++) {	/* for total default max of ~1 second */
+	for (i = 0; i <= acm_query_retries; i++) {	/* for total default max of ~1 second */
 		ret = ssa_upstream_query_db(svc);
 		if (!ret)
+			break;
+		if (!acm_query_retries)
 			break;
 		usleep(acm_query_timeout);	/* delay before next attempt */
 	}
