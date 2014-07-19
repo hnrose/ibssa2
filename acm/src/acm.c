@@ -3349,7 +3349,7 @@ acm_alloc_ep(void *port, uint16_t pkey, uint16_t pkey_index)
 static void *acm_issue_query(void *context)
 {
 	struct ssa_svc *svc = context;
-	int i, ret;
+	int i, ret = -2;
 
 	ssa_log_func(SSA_LOG_CTRL);
 
@@ -3364,6 +3364,8 @@ static void *acm_issue_query(void *context)
 		usleep(acm_query_timeout);	/* delay before next attempt */
 	}
 
+	if (ret)
+		ssa_log(SSA_LOG_DEFAULT, "terminating without successful DB query\n");
 	return NULL;
 }
 
