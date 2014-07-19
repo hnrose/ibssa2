@@ -3354,7 +3354,7 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 	if (errnum == EINPROGRESS)
 		return;
 
-	if (svc->conn_dataup.state!= SSA_CONN_CONNECTING) {
+	if (svc->conn_dataup.state != SSA_CONN_CONNECTING) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"Unexpected consumer event in state %d on rsock %d\n",
 			svc->conn_dataup.state, svc->conn_dataup.rsock);
