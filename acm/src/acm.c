@@ -169,6 +169,8 @@ static struct acm_client client[FD_SETSIZE - 1];
 
 static atomic_t counter[ACM_MAX_COUNTER];
 
+static int acm_issue_query_done;
+
 /*
  * Service options - may be set through ibacm_opts.cfg file.
  */
@@ -2325,7 +2327,7 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
 	}
 
-	if (acm_mode == ACM_MODE_SSA) {
+	if (acm_mode == ACM_MODE_SSA && acm_issue_query_done) {
 		for (i = 0; i < ssa_get_svc_cnt(ep->port); i++) {
 			svc = ssa_get_svc(ep->port, i);
 			ssa_upstream_query_db(svc);
@@ -3366,6 +3368,7 @@ static void *acm_issue_query(void *context)
 
 	if (ret)
 		ssa_log(SSA_LOG_DEFAULT, "terminating without successful DB query\n");
+	acm_issue_query_done = 1;
 	return NULL;
 }
 
