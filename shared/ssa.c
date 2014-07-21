@@ -103,8 +103,8 @@ int prdb_dump = 0;
 char smdb_dump_dir[128] = SMDB_DUMP_PATH;
 char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 //static short server_port = 6125;
-short smdb_port = 7470;
-short prdb_port = 7471;
+short smdb_port = 7472;
+short prdb_port = 7473;
 int keepalive = 60;		/* seconds */
 
 #ifdef ACCESS
