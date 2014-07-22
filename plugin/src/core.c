@@ -376,7 +376,8 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	rec = (struct ssa_member_record *) &umad->packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s node type %d\n",
+		core->svc.name, log_data, rec->node_type);
 
 	tgid = tfind(rec->port_gid, &core->member_map, ssa_compare_gid);
 	if (!tgid) {
