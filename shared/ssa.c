@@ -129,7 +129,7 @@ struct node_t {
 static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn);
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
-static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
+static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
 static int ssa_access_prdb_xfer_in_progress();
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
@@ -1489,17 +1489,27 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & POLLOUT) {
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
-					ssa_upstream_svc_client(svc, errnum);
-					svc->conn_dataup.ssa_db = malloc(sizeof(*svc->conn_dataup.ssa_db));
-					ssa_db = calloc(1, sizeof(*ssa_db));
-					if (svc->conn_dataup.ssa_db && ssa_db) {
-						ref_count_obj_init(svc->conn_dataup.ssa_db, ssa_db);
-						if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
-							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
+					if (ssa_upstream_svc_client(svc, errnum)) {
+						ssa_log(SSA_LOG_DEFAULT,
+							"ssa_upstream_svc_client error on rsock %d\n",
+							fds[UPSTREAM_DATA_FD_SLOT].fd);
+						if (svc->conn_dataup.rsock >= 0)
+							ssa_close_ssa_conn(&svc->conn_dataup);
+						fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
+						fds[UPSTREAM_DATA_FD_SLOT].events = 0;
+						fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 					} else {
-						ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
-						free(ssa_db);
-						free(svc->conn_dataup.ssa_db);
+						svc->conn_dataup.ssa_db = malloc(sizeof(*svc->conn_dataup.ssa_db));
+						ssa_db = calloc(1, sizeof(*ssa_db));
+						if (svc->conn_dataup.ssa_db && ssa_db) {
+							ref_count_obj_init(svc->conn_dataup.ssa_db, ssa_db);
+							if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
+								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
+						} else {
+							ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
+							free(ssa_db);
+							free(svc->conn_dataup.ssa_db);
+						}
 					}
 				} else {
 					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_rsend_continue(&svc->conn_dataup, fds[UPSTREAM_DATA_FD_SLOT].events);
@@ -3346,19 +3356,19 @@ static void ssa_upstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
 	write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 }
 
-static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
+static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 {
 	int ret, err;
 	socklen_t len;
 
 	if (errnum == EINPROGRESS)
-		return;
+		return 0;
 
 	if (svc->conn_dataup.state != SSA_CONN_CONNECTING) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"Unexpected consumer event in state %d on rsock %d\n",
 			svc->conn_dataup.state, svc->conn_dataup.rsock);
-		return;
+		return 1;
 	}
 
 	len = sizeof err;
@@ -3368,14 +3378,14 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rgetsockopt rsock %d ERROR %d (%s)\n",
 			svc->conn_dataup.rsock, errno, strerror(errno));
-		return;
+		return ret;
 	}
 	if (err) {
 		errno = err;
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"async rconnect rsock %d ERROR %d (%s)\n",
 			svc->conn_dataup.rsock, errno, strerror(errno));
-		return;
+		return err;
 	}
 
 	memcpy(&svc->conn_dataup.remote_gid, &svc->primary.path.dgid,
@@ -3393,9 +3403,13 @@ static void ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 				"riomap epoch rsock %d ret %d\n",
 				svc->conn_dataup.rsock, ret);
 		}
+
+		return ret;
 	}
 
 	ssa_upstream_conn_done(svc, &svc->conn_dataup);
+
+	return 0;
 }
 
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
@@ -3588,8 +3602,11 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	svc->conn_dataup.state = SSA_CONN_CONNECTING;
 	svc->state = SSA_STATE_CONNECTING;
 
-	if (ret == 0)
-		ssa_upstream_svc_client(svc, 0);
+	if (ret == 0) {
+		ret = ssa_upstream_svc_client(svc, 0);
+		if (ret && (errno != EINPROGRESS))
+			goto close;
+	}
 
 	return svc->conn_dataup.rsock;
 
