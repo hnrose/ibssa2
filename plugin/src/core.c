@@ -369,6 +369,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 {
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
+	DLIST_ENTRY *entry;
 	uint8_t **tgid, node_type;
 	int ret;
 
@@ -398,6 +399,11 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	} else {
 		rec = container_of(*tgid, struct ssa_member_record, port_gid);
 		member = container_of(rec, struct ssa_member, rec);
+		entry = DListFind(&member->entry, &core->orphan_list);
+		if (entry) {
+			ssa_log(SSA_LOG_CTRL, "removing member in orphan list\n");
+			DListRemove(&member->entry);
+		}
 		/* Can more than just the node type change ? */
 		member->rec.node_type = node_type;
 		/* Need to handle child_list/access_child_list */
