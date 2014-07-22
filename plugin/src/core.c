@@ -369,15 +369,16 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 {
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
-	uint8_t **tgid;
+	uint8_t **tgid, node_type;
 	int ret;
 
 	/* TODO: verify ssa_key with core nodes */
 	rec = (struct ssa_member_record *) &umad->packet.data;
+	node_type = rec->node_type;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s node type %d\n",
-		core->svc.name, log_data, rec->node_type);
+		core->svc.name, log_data, node_type);
 
 	tgid = tfind(rec->port_gid, &core->member_map, ssa_compare_gid);
 	if (!tgid) {
@@ -397,6 +398,10 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	} else {
 		rec = container_of(*tgid, struct ssa_member_record, port_gid);
 		member = container_of(rec, struct ssa_member, rec);
+		/* Can more than just the node type change ? */
+		member->rec.node_type = node_type;
+		/* Need to handle child_list/access_child_list */
+		/* and other fields in member struct */
 	}
 
 	ssa_log(SSA_LOG_CTRL, "sending join response\n");
