@@ -1909,10 +1909,10 @@ ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
 						sock = svc->sock_updown[1];
 					else
 						sock = -1;
-					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-								 sock);
 					update_waiting = 1;
 					update_pending = 0;
+					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+								 sock);
 				}
 else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 			}
@@ -1935,10 +1935,10 @@ ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
 						sock = svc->sock_updown[1];
 					else
 						sock = -1;
-					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-								 sock);
 					access_update_waiting = 1;
 					access_update_pending = 0;
+					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+								 sock);
 				}
 else ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
 			}
@@ -2400,10 +2400,10 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 					update_pending = 1;
 				} else {
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
-					ssa_send_db_update_ready(msg.data.db_upd.db,
-								 svc->sock_updown[1]);
 					update_waiting = 1;
 if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+					ssa_send_db_update_ready(msg.data.db_upd.db,
+								 svc->sock_updown[1]);
 				}
 				break;
 			case SSA_DB_UPDATE:
@@ -2451,10 +2451,10 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 					update_pending = 1;
 				} else {
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
-					ssa_send_db_update_ready(msg.data.db_upd.db,
-								 svc->sock_extractdown[0]);
 					update_waiting = 1;
 if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+					ssa_send_db_update_ready(msg.data.db_upd.db,
+								 svc->sock_extractdown[0]);
 				}
 				break;
 			case SSA_DB_UPDATE:
@@ -2902,10 +2902,10 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
 					access_update_pending = 1;
 				} else {
 ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
-					ssa_send_db_update_ready(msg.data.db_upd.db,
-								 sock_accessextract[1]);
 					access_update_waiting = 1;
 if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+					ssa_send_db_update_ready(msg.data.db_upd.db,
+								 sock_accessextract[1]);
 				}
 				break;
 			case SSA_DB_UPDATE:
@@ -2966,10 +2966,10 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
 						access_update_pending = 1;
                                 	} else {
 ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
-						ssa_send_db_update_ready(msg.data.db_upd.db,
-									 svc_arr[i]->sock_accessup[1]);
 						access_update_waiting = 1;
 if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
+						ssa_send_db_update_ready(msg.data.db_upd.db,
+									 svc_arr[i]->sock_accessup[1]);
 					}
 					break;
 				case SSA_DB_UPDATE:
