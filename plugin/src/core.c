@@ -44,7 +44,7 @@
 #include <ssa_log.h>
 #include <infiniband/ssa_db_helper.h>
 
-#define INITIAL_SUBNET_UP_DELAY 500000		/* 500 msec */
+#define INITIAL_SUBNET_UP_DELAY 1000000		/* 1000 msec (1 sec) */
 #define FIRST_DOWNSTREAM_FD_SLOT 2
 
 /*
