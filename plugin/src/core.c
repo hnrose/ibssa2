@@ -44,13 +44,14 @@
 #include <ssa_log.h>
 #include <infiniband/ssa_db_helper.h>
 
+#define SSA_CORE_OPTS_FILE SSA_FILE_PREFIX "_core" SSA_OPTS_FILE_SUFFIX
 #define INITIAL_SUBNET_UP_DELAY 1000000		/* 1000 msec (1 sec) */
 #define FIRST_DOWNSTREAM_FD_SLOT 2
 
 /*
  * Service options - may be set through ibssa_opts.cfg file.
  */
-static char *opts_file = RDMA_CONF_DIR "/" SSA_OPTS_FILE;
+static char *opts_file = RDMA_CONF_DIR "/" SSA_CORE_OPTS_FILE;
 static int node_type = SSA_NODE_CORE;
 int smdb_deltas = 0;
 static char log_file[128] = "/var/log/ibssa.log";
