@@ -325,7 +325,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# acm (default)\n");
 	fprintf(f, "# ssa\n");
 	fprintf(f, "\n");
-	fprintf(f, "acm_mode acm\n");
+	fprintf(f, "acm_mode ssa\n");
 	fprintf(f, "\n");
 	fprintf(f, "# acm_query_timeout:\n");
 	fprintf(f, "# Specifies acm query timeout in microseconds.\n");
