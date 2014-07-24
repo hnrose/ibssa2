@@ -3071,6 +3071,8 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							consumer = container_of(*tgid,
 										struct ssa_access_member,
 										gid);
+							consumer->rsock = msg.data.conn->rsock;
+							consumer->lid = msg.data.conn->remote_lid;
 						}
 						if (consumer->prdb_current) {
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
