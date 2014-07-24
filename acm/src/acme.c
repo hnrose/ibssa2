@@ -822,15 +822,31 @@ static int resolve_gid(struct ibv_path_record *path)
 	return ret;
 }
 
+static int
+verify_compare(struct ibv_path_record *path1, struct ibv_path_record *path2)
+{
+	/* TODO: add more path parameters for comparison */
+	if ((path1->mtu != path2->mtu) ||
+	    (path1->rate != path2->rate))
+		return 1;
+
+	return 0;
+}
+
 static int verify_resolve(struct ibv_path_record *path)
 {
 	int ret;
+	struct ibv_path_record cached_path = *path;
 
 	ret = ib_acm_resolve_path(path, ACM_FLAGS_QUERY_SA);
 	if (ret)
 		printf("SA verification: failed %s\n", strerror(errno));
-	else
-		printf("SA verification: success\n");
+	else {
+		if (!verify_compare(&cached_path, path))
+			printf("SA verification: success\n");
+		else
+			printf("SA verification: failed (different path params)\n");
+	}
 
 	return ret;
 }
