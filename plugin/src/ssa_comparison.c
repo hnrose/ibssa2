@@ -210,19 +210,29 @@ static void ssa_db_guid_to_lid_insert(cl_qmap_t *p_map,
 	p_guid_to_lid_tbl_rec_dest = (struct ep_guid_to_lid_tbl_rec *) *p_data_tbl;
 	p_guid_to_lid_tbl_rec_src = (struct ep_guid_to_lid_tbl_rec *) p_data_tbl_src;
 
+	if (!p_guid_to_lid_tbl_rec_dest) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized guid2lid records destination table\n");
+		return;
+	}
+
+	if (!p_guid_to_lid_tbl_rec_src) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized guid2lid records source table\n");
+		return;
+	}
+
 	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
-		/* handle failure - bad memory allocation */
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to allocate offset object\n");
+		return;
 	}
 	set_size = ntohll(p_dataset->set_size);
 	set_count = ntohll(p_dataset->set_count);
 
 	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
-
-	if (!p_guid_to_lid_tbl_rec_dest) {
-		/* handle failure - bad memory allocation */
-	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
 	memcpy(&p_guid_to_lid_tbl_rec_dest[set_count],
@@ -279,19 +289,29 @@ static void ssa_db_node_insert(cl_qmap_t *p_map,
 	p_node_tbl_rec_dest = (struct ep_node_tbl_rec *) *p_data_tbl;
 	p_node_tbl_rec_src = (struct ep_node_tbl_rec *) p_data_tbl_src;
 
+	if (!p_node_tbl_rec_dest) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized node records destination table\n");
+		return;
+	}
+
+	if (!p_node_tbl_rec_src) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized node records source table\n");
+		return;
+	}
+
 	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
-		/* handle failure - bad memory allocation */
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to allocate offset object\n");
+		return;
 	}
 	set_size = ntohll(p_dataset->set_size);
 	set_count = ntohll(p_dataset->set_count);
 
 	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
-
-	if (!p_node_tbl_rec_dest) {
-		/* handle failure - bad memory allocation */
-	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
 	memcpy(&p_node_tbl_rec_dest[set_count],
@@ -357,19 +377,29 @@ static void ssa_db_port_insert(cl_qmap_t *p_map,
 	p_port_tbl_rec_dest = (struct ep_port_tbl_rec *) *p_data_tbl;
 	p_port_tbl_rec_src = (struct ep_port_tbl_rec *) p_data_tbl_src;
 
+	if (!p_port_tbl_rec_dest) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized port records destination table\n");
+		return;
+	}
+
+	if (!p_port_tbl_rec_src) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized port records source table\n");
+		return;
+	}
+
 	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
-		/* handle failure - bad memory allocation */
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to allocate offset object\n");
+		return;
 	}
 	set_size = ntohll(p_dataset->set_size);
 	set_count = ntohll(p_dataset->set_count);
 
 	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
-
-	if (!p_port_tbl_rec_dest) {
-		/* handle failure - bad memory allocation */
-	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
 	memcpy(&p_port_tbl_rec_dest[set_count],
@@ -463,19 +493,29 @@ static void ssa_db_link_insert(cl_qmap_t *p_map,
 	p_link_tbl_rec_dest = (struct ep_link_tbl_rec *) *p_data_tbl;
 	p_link_tbl_rec_src = (struct ep_link_tbl_rec *) p_data_tbl_src;
 
+	if (!p_link_tbl_rec_dest) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized link records destination table\n");
+		return;
+	}
+
+	if (!p_link_tbl_rec_src) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized link records source table\n");
+		return;
+	}
+
 	p_map_rec_new = (struct ep_map_rec *) malloc(sizeof(*p_map_rec_new));
 	if (!p_map_rec_new) {
-		/* handle failure - bad memory allocation */
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to allocate offset object\n");
+		return;
 	}
 	set_size = ntohll(p_dataset->set_size);
 	set_count = ntohll(p_dataset->set_count);
 
 	p_map_rec_new->offset = set_count;
 	cl_qmap_insert(p_map, key, &p_map_rec_new->map_item);
-
-	if (!p_link_tbl_rec_dest) {
-		/* handle failure - bad memory allocation */
-	}
 
 	p_map_rec_old = (struct ep_map_rec *) p_item;
 	memcpy(&p_link_tbl_rec_dest[set_count],
