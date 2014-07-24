@@ -1173,7 +1173,9 @@ static void core_process_lft_change(osm_epi_lft_change_event_t *p_lft_change)
 
 	p_lft_change_rec = (struct ssa_db_lft_change_rec *) malloc(size);
 	if (!p_lft_change_rec) {
-		/* TODO: handle failure in memory allocation */
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to allocate LFT change object\n");
+		return;
 	}
 
 	memcpy(&p_lft_change_rec->lft_change, p_lft_change,
