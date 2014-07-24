@@ -3177,7 +3177,8 @@ static void ssa_ctrl_update_port(struct ssa_port *port)
 
 	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
 	if (ret) {
-		ssa_log_err(0, "unable to get port state\n");
+		ssa_log_err(0, "unable to get port state ERROR %d (%s)\n",
+			    errno, strerror(errno));
 		return;
 	}
 
@@ -4401,7 +4402,8 @@ int ssa_open_devices(struct ssa_class *ssa)
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	ibdev = ibv_get_device_list(&ssa->dev_cnt);
 	if (!ibdev) {
-		ssa_log_err(SSA_LOG_CTRL, "unable to get device list\n");
+		ssa_log_err(SSA_LOG_CTRL, "unable to get device list ERROR %d (%s)\n",
+			    errno, strerror(errno));
 		return -1;
 	}
 
