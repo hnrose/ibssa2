@@ -2818,7 +2818,12 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 		if (lid != *port_lid)
 		        continue;
 
-		ibv_query_port(verbs, *port_num, &attr);
+		ret = ibv_query_port(verbs, *port_num, &attr);
+		if (ret) {
+			ssa_log_err(0, "unable to get port state ERROR %d (%s)\n",
+				    errno, strerror(errno));
+			return ret;
+		}
 		ret = 0;
 		break;
 	}
@@ -3000,7 +3005,12 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 		if (lid != *port_lid)
 		        continue;
 
-		ibv_query_port(verbs, *port_num, &attr);
+		ret = ibv_query_port(verbs, *port_num, &attr);
+		if (ret) {
+			ssa_log_err(0, "unable to get port state ERROR %d (%s)\n",
+				    errno, strerror(errno));
+			return ret;
+		}
 		ret = 0;
 		break;
 	}
@@ -3569,9 +3579,11 @@ static void acm_port_up(struct acm_port *port)
 	ssa_log(SSA_LOG_VERBOSE, "%s %d\n", port->dev->verbs->device->name, port->port_num);
 	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
 	if (ret) {
-		ssa_log_err(0, "unable to get port state\n");
+		ssa_log_err(0, "unable to get port state ERROR %d (%s)\n",
+			    errno, strerror(errno));
 		return;
 	}
+
 	if (attr.state != IBV_PORT_ACTIVE) {
 		ssa_log(SSA_LOG_VERBOSE, "port not active\n");
 		return;
@@ -3626,6 +3638,11 @@ static void acm_port_down(struct acm_port *port)
 	ssa_log(SSA_LOG_VERBOSE, "%s %d\n",
 		port->dev->verbs->device->name, port->port_num);
 	ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
+	if (ret) {
+		ssa_log_err(0, "unable to get port state ERROR %d (%s)\n",
+			    errno, strerror(errno));
+		return;
+	}
 	if (!ret && attr.state == IBV_PORT_ACTIVE) {
 		ssa_log(SSA_LOG_VERBOSE, "port active\n");
 		return;
@@ -3829,7 +3846,8 @@ static int acm_open_devices(void)
 	ssa_log_func(SSA_LOG_VERBOSE);
 	ibdev = ibv_get_device_list(&dev_cnt);
 	if (!ibdev) {
-		ssa_log_err(0, "unable to get device list\n");
+		ssa_log_err(0, "unable to get device list ERROR %d (%s)\n",
+			    errno, strerror(errno));
 		return -1;
 	}
 
