@@ -4268,7 +4268,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 		ssa_log_warn(SSA_LOG_CTRL, "event fd is blocking\n");
 
 	dev->port = (struct ssa_port *) calloc(attr.phys_port_cnt, ssa->port_size);
-	if (!dev)
+	if (!dev->port)
 		goto err1;
 
 	dev->ssa = ssa;
