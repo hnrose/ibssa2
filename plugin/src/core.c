@@ -45,7 +45,7 @@
 #include <infiniband/ssa_db_helper.h>
 
 #define SSA_CORE_OPTS_FILE SSA_FILE_PREFIX "_core" SSA_OPTS_FILE_SUFFIX
-#define INITIAL_SUBNET_UP_DELAY 1000000		/* 1000 msec (1 sec) */
+#define INITIAL_SUBNET_UP_DELAY 2000000		/* 2000 msec (2 sec) */
 #define FIRST_DOWNSTREAM_FD_SLOT 2
 
 /*
