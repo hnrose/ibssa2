@@ -45,7 +45,7 @@
 #include <infiniband/ssa_db_helper.h>
 
 #define SSA_CORE_OPTS_FILE SSA_FILE_PREFIX "_core" SSA_OPTS_FILE_SUFFIX
-#define INITIAL_SUBNET_UP_DELAY 2000000		/* 2000 msec (2 sec) */
+#define DEFAULT_INITIAL_SUBNET_UP_DELAY 2000000		/* 2000 msec (2 sec) */
 #define FIRST_DOWNSTREAM_FD_SLOT 2
 
 /*
@@ -56,6 +56,7 @@ static int node_type = SSA_NODE_CORE;
 int smdb_deltas = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
+static useconds_t subnet_up_delay = DEFAULT_INITIAL_SUBNET_UP_DELAY;
 #if defined(SIM_SUPPORT) || defined(SIM_SUPPORT_SMDB)
 static char *smdb_lock_file = "ibssa_smdb.lock";
 static int smdb_lock_fd = -1;
@@ -421,7 +422,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	 * Just a one time artificial delay for now.
 	 */
 	if (first) {
-		usleep(INITIAL_SUBNET_UP_DELAY);
+		usleep(subnet_up_delay);
 		first = 0;
 	}
 
@@ -1327,6 +1328,8 @@ static void core_set_options(void)
 			smdb_deltas = atoi(value);
 		else if (!strcasecmp("keepalive", opt))
 			keepalive = atoi(value);
+		else if (!strcasecmp("subnet_up_delay", opt))
+			subnet_up_delay = atol(value);
 	}
 
 	fclose(f);
@@ -1356,6 +1359,8 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
+	ssa_log(SSA_LOG_DEFAULT, "subnet up delay %ld microseconds\n",
+		subnet_up_delay);
 #ifdef SIM_SUPPORT_SMDB
 	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
 #endif
