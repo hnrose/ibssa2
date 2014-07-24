@@ -2524,7 +2524,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 						"error event 0x%x on rsock %d\n",
 						pfd->revents, pfd->fd);
 					/* Update distribution tree (at least when core) ? */
-					/* Also, when not core, need to notify core via MAD */
+					/* Also, when not core, need to notify core via SSA MAD */
 					ssa_close_ssa_conn(svc->fd_to_conn[pfd->fd]);
 					svc->fd_to_conn[pfd->fd] = NULL;
 					pfd->fd = -1;
