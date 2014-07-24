@@ -2685,7 +2685,7 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 	struct ssa_svc *svc = (struct ssa_svc *) priv;
 	struct ssa_db_update db_upd;
 	struct ssa_db *prdb;
-	struct ref_count_obj *db;
+	struct ref_count_obj *dbr;
 	const char *node_type = NULL;
 	short update_prdb = 0;
 
@@ -2714,12 +2714,12 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		ssa_log(SSA_LOG_DEFAULT, "%s GID %s PRDB %p rsock %d\n",
 			node_type, log_data, prdb, consumer->rsock);
 		if (prdb) {
-			db = malloc(sizeof(*db));
-			if (db) {
-				ref_count_obj_init(db, prdb);
-				consumer->prdb_current = db;
-ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", db, ref_count_object_get(db));
-				ssa_db_update_init(db, svc, consumer->lid,
+			dbr = malloc(sizeof(*dbr));
+			if (dbr) {
+				ref_count_obj_init(dbr, prdb);
+				consumer->prdb_current = dbr;
+ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_get(dbr));
+				ssa_db_update_init(dbr, svc, consumer->lid,
 						   &consumer->gid, consumer->rsock,
 						   0, 0, &db_upd);
 				ssa_push_db_update(&access_context.update_queue,
