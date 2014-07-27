@@ -3375,7 +3375,8 @@ static void *acm_issue_query(void *context)
 	}
 
 	if (ret)
-		ssa_log(SSA_LOG_DEFAULT, "terminating without successful DB query ERROR %d\n", ret);
+		ssa_log(SSA_LOG_DEFAULT,
+			"terminating without successful DB query last ERROR %d\n", ret);
 	acm_issue_query_done = 1;
 	return NULL;
 }
