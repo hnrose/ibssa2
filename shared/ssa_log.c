@@ -75,6 +75,11 @@ void ssa_set_log_level(int level)
 	log_level = level;
 }
 
+int ssa_get_log_level()
+{
+	return log_level;
+}
+
 int ssa_open_log(char *log_file)
 {
 	if (!strcasecmp(log_file, "stdout")) {

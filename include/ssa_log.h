@@ -58,6 +58,7 @@ enum {
 };
 
 void ssa_set_log_level(int level);
+int ssa_get_log_level(void);
 int  ssa_open_log(char *log_file);
 void ssa_close_log(void);
 void ssa_write_log(int level, const char *format, ...);
