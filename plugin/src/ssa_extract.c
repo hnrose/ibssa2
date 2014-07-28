@@ -649,7 +649,7 @@ void ssa_db_validate_lft()
 	for (i = 0;
 	     i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl); i++) {
 		lft_block_tbl_rec = ssa_db->p_lft_db->p_db_lft_block_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE,
+		ssa_log(SSA_LOG_DB,
 			"LFT Block Record: LID %u Block num %u\n",
 			ntohs(lft_block_tbl_rec.lid),
 			ntohs(lft_block_tbl_rec.block_num));
@@ -658,7 +658,7 @@ void ssa_db_validate_lft()
 	for (i = 0;
 	     i < cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_top_tbl); i++) {
 		lft_top_tbl_rec = ssa_db->p_lft_db->p_db_lft_top_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE, "LFT Top Record: LID %u New Top %u\n",
+		ssa_log(SSA_LOG_DB, "LFT Top Record: LID %u New Top %u\n",
 			ntohs(lft_top_tbl_rec.lid),
 			ntohs(lft_top_tbl_rec.lft_top));
 	}
@@ -678,12 +678,12 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 	if (!p_ssa_db || !p_ssa_db->initialized)
 		return;
 
-	ssa_log(SSA_LOG_VERBOSE, "[\n");
+	ssa_log(SSA_LOG_DB, "[\n");
 
 	/* First, most Fabric/SM related parameters */
-	ssa_log(SSA_LOG_VERBOSE, "Subnet prefix 0x%" PRIx64 "\n",
+	ssa_log(SSA_LOG_DB, "Subnet prefix 0x%" PRIx64 "\n",
 		ntohll(p_ssa_db->subnet_prefix));
-	ssa_log(SSA_LOG_VERBOSE,
+	ssa_log(SSA_LOG_DB,
 		"LMC %u Subnet timeout %u Both Pkeys %sabled\n",
 		p_ssa_db->lmc, p_ssa_db->subnet_timeout,
 		p_ssa_db->allow_both_pkeys ? "en" : "dis");
@@ -696,14 +696,14 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 				"Enhanced" : "Base");
 		else
 			sprintf(buffer, "\n");
-		ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
+		ssa_log(SSA_LOG_DB, "Node GUID 0x%" PRIx64 " Type %d%s",
 			ntohll(node_tbl_rec.node_guid), node_tbl_rec.node_type,
 			buffer);
 	}
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_guid_to_lid_tbl); i++) {
 		guid_to_lid_tbl_rec = p_ssa_db->p_guid_to_lid_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE,
+		ssa_log(SSA_LOG_DB,
 			"Port GUID 0x%" PRIx64 " LID %u LMC %u is_switch %d\n",
 			ntohll(guid_to_lid_tbl_rec.guid),
 			ntohs(guid_to_lid_tbl_rec.lid),
@@ -713,29 +713,29 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_port_tbl); i++) {
 		port_tbl_rec = p_ssa_db->p_port_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
+		ssa_log(SSA_LOG_DB, "Port LID %u Port Num %u\n",
 			ntohs(port_tbl_rec.port_lid), port_tbl_rec.port_num);
-		ssa_log(SSA_LOG_VERBOSE, "NeighborMTU %u rate %u\n",
+		ssa_log(SSA_LOG_DB, "NeighborMTU %u rate %u\n",
 			port_tbl_rec.neighbor_mtu,
 			port_tbl_rec.rate & SSA_DB_PORT_RATE_MASK);
-		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
+		ssa_log(SSA_LOG_DB, "FDR10 %s active\n",
 			(port_tbl_rec.rate & SSA_DB_PORT_IS_FDR10_ACTIVE_MASK)
 			? "" : "not");
-		ssa_log(SSA_LOG_VERBOSE, "PKeys %u\n",
+		ssa_log(SSA_LOG_DB, "PKeys %u\n",
 			ntohs(port_tbl_rec.pkey_tbl_size) /
 			      sizeof(*p_ssa_db->p_pkey_tbl));
 	}
 
 	for (i = 0; i < cl_qmap_count(&p_ssa_db->ep_link_tbl); i++) {
 		link_tbl_rec = p_ssa_db->p_link_tbl[i];
-		ssa_log(SSA_LOG_VERBOSE,
+		ssa_log(SSA_LOG_DB,
 			"Link Record: from LID %u port %u to LID %u port %u\n",
 			ntohs(link_tbl_rec.from_lid),
 			link_tbl_rec.from_port_num, ntohs(link_tbl_rec.to_lid),
 			link_tbl_rec.to_port_num);
 	}
 
-	ssa_log(SSA_LOG_VERBOSE, "]\n");
+	ssa_log(SSA_LOG_DB, "]\n");
 }
 
 /** ===========================================================================
