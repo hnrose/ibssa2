@@ -643,7 +643,7 @@ void ssa_db_validate_lft()
 	struct ep_lft_top_tbl_rec lft_top_tbl_rec;
 	int i;
 
-	if (!first)
+	if (!first || !(ssa_get_log_level() & SSA_LOG_DB))
 		return;
 
 	for (i = 0;
@@ -675,7 +675,8 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 	uint64_t i;
 	char buffer[64];
 
-	if (!p_ssa_db || !p_ssa_db->initialized)
+	if (!p_ssa_db || !p_ssa_db->initialized ||
+	    !(ssa_get_log_level() & SSA_LOG_DB))
 		return;
 
 	ssa_log(SSA_LOG_DB, "[\n");
