@@ -3585,6 +3585,12 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	dst_addr.sib_sid = htonll(((uint64_t) RDMA_PS_TCP << 16) + dport);
 	dst_addr.sib_sid_mask = htonll(RDMA_IB_IP_PS_MASK);
 	dst_addr.sib_scope_id = 0;
+	ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
+			SSA_ADDR_GID, (uint8_t *) &svc->primary.path.sgid,
+			sizeof svc->primary.path.sgid);
+	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+		"source GID %s LID %u\n",
+		log_data, ntohs(svc->primary.path.slid));
 	memcpy(&dst_addr.sib_addr, &svc->primary.path.dgid,
 	       sizeof(union ibv_gid));
 	ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data, sizeof log_data,
