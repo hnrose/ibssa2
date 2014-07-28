@@ -3078,9 +3078,10 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
 							if (consumer->smdb_epoch ==
 							    ssa_db_get_epoch(access_context.smdb,
-									     DB_DEF_TBL_ID))
+									     DB_DEF_TBL_ID)) {
 								prdb = ref_count_object_get(consumer->prdb_current);
 								goto skip_prdb_calc;
+							}
 						}
 						prdb = ssa_calculate_prdb(svc_arr[i],
 									  &msg.data.conn->remote_gid);
