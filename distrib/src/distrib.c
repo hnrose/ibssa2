@@ -565,6 +565,7 @@ static void *distrib_construct(int node_type)
 
 	if (ssa_open_lock_file(lock_file)) {
 		ssa_log(SSA_LOG_DEFAULT, "can't open lock file: %s\n", lock_file);
+		ssa_close_log();
 		return NULL;
 	}
 

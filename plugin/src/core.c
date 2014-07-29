@@ -1511,6 +1511,7 @@ err2:
 		close(smdb_lock_fd);
 #endif
 err1:
+	ssa_close_log();
 	ssa_cleanup(&ssa);
 	return NULL;
 }
