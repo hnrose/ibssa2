@@ -825,9 +825,13 @@ static int resolve_gid(struct ibv_path_record *path)
 static int
 verify_compare(struct ibv_path_record *path1, struct ibv_path_record *path2)
 {
+	uint8_t rate1 = path1->rate & 0x3F;
+	uint8_t rate2 = path2->rate & 0x3F;
+	uint8_t mtu1 = path1->mtu & 0x3F;
+	uint8_t mtu2 = path2->mtu & 0x3F;
+
 	/* TODO: add more path parameters for comparison */
-	if ((path1->mtu != path2->mtu) ||
-	    (path1->rate != path2->rate))
+	if ((mtu1 != mtu2) || (rate1 != rate2))
 		return 1;
 
 	return 0;
