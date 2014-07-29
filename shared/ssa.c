@@ -4537,10 +4537,17 @@ void ssa_close_devices(struct ssa_class *ssa)
 	}
 }
 
+/*
+ * Return value:
+ * 0 - success
+ * 1 - lock_file is locked
+ * < 0 - error
+ */
 int ssa_open_lock_file(char *lock_file)
 {
 	int lock_fd;
 	char pid[16];
+	int ret;
 
 	lock_fd = open(lock_file, O_RDWR | O_CREAT, 0640);
 	if (lock_fd < 0)
@@ -4548,11 +4555,15 @@ int ssa_open_lock_file(char *lock_file)
 
 	if (lockf(lock_fd, F_TLOCK, 0)) {
 		close(lock_fd);
-		return -1;
+		return 1;
 	}
 
-	snprintf(pid, sizeof pid, "%d\n", getpid());
-	write(lock_fd, pid, strlen(pid));
+	ret = snprintf(pid, sizeof pid, "%d\n", getpid());
+	if (ret <= 0)
+		return -1;
+	ret = write(lock_fd, pid, strlen(pid));
+	if (ret <= 0)
+		return -1;
 	return 0;
 }
 

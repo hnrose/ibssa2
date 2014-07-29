@@ -4132,10 +4132,28 @@ int main(int argc, char **argv)
 		return ret;
 
 	acm_set_options();
-	if (ssa_open_lock_file(lock_file))
-		return -1;
-
 	ssa_open_log(log_file);
+
+	ret = ssa_open_lock_file(lock_file);
+	if (ret) {
+		char msg[1024] = {};
+
+		if (ret == 1)
+			snprintf(msg, 1024,
+				 "Another instance of %s is already running. "
+				 "Lock file: %s",
+				 argv[0], lock_file);
+		else
+			snprintf(msg, 1024, "Could not open lock file. "
+				 "Lock file: %s ERROR %d (%s)",
+				 lock_file, errno, strerror(errno));
+		if (!daemon)
+			fprintf(stderr, "%s\n", msg);
+		ssa_log_err(0, "%s\n", msg);
+		ssa_close_log();
+		return -1;
+	}
+
 	ssa_log(SSA_LOG_DEFAULT, "Assistant to the InfiniBand Communication Manager\n");
 	acm_log_options();
 
