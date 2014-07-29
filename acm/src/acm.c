@@ -3546,6 +3546,10 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	if (ret)
 		goto err;
 
+	ssa_log(SSA_LOG_VERBOSE,
+		"updating cache with new prdb epoch 0x%" PRIx64 "\n",
+		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
+
 	acm_ep = acm_find_ep(port, pkey);
 	if (!acm_ep) {
 		ret = 1;
@@ -3564,6 +3568,10 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	if (lid2guid_cached)
 		free(lid2guid_cached);
 	lid2guid_cached = lid2guid;
+
+	ssa_log(SSA_LOG_VERBOSE,
+		"cache update complete with prdb epoch 0x%" PRIx64 "\n",
+		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
 err:
 	/* TODO: decide whether the destroy call is needed */
 	/* ssa_db_destroy(p_ssa_db); */
