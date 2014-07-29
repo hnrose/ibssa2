@@ -550,7 +550,7 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
 }
 
-static void *distrib_construct(int node_type)
+static void *distrib_construct(int node_type, unsigned short daemon)
 {
 	int ret;
 
@@ -560,14 +560,29 @@ static void *distrib_construct(int node_type)
 		return NULL;
 
 	ssa_open_log(log_file);
-	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
-	distrib_log_options();
 
-	if (ssa_open_lock_file(lock_file)) {
-		ssa_log(SSA_LOG_DEFAULT, "can't open lock file: %s\n", lock_file);
+	ret = ssa_open_lock_file(lock_file);
+	if (ret) {
+		char msg[1024] = {};
+
+		if (ret == 1)
+			snprintf(msg, 1024,
+				 "Another instance of %s is already running. "
+				 "Lock file: %s",
+				 program_invocation_short_name, lock_file);
+		else
+			snprintf(msg, 1024, "Could not open lock file. "
+				 "Lock file: %s ERROR %d (%s)",
+				 lock_file, errno, strerror(errno));
+		if (!daemon)
+			fprintf(stderr, "%s\n", msg);
+		ssa_log_err(0, "%s\n", msg);
 		ssa_close_log();
 		return NULL;
 	}
+
+	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
+	distrib_log_options();
 
 	return &ssa;
 }
@@ -631,7 +646,7 @@ int main(int argc, char **argv)
 		ssa_daemonize();
 
 	distrib_set_options();
-	ssa = distrib_construct(node_type);
+	ssa = distrib_construct(node_type, daemon);
 	if (!ssa)
 		return -1;
 
