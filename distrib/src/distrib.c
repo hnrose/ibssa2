@@ -566,12 +566,12 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 		char msg[1024] = {};
 
 		if (ret == 1)
-			snprintf(msg, 1024,
+			snprintf(msg, sizeof msg,
 				 "Another instance of %s is already running. "
 				 "Lock file: %s",
 				 program_invocation_short_name, lock_file);
 		else
-			snprintf(msg, 1024, "Could not open lock file. "
+			snprintf(msg, sizeof msg, "Could not open lock file. "
 				 "Lock file: %s ERROR %d (%s)",
 				 lock_file, errno, strerror(errno));
 		if (!daemon)
