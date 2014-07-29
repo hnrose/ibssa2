@@ -710,9 +710,9 @@ static void show_path(struct ibv_path_record *path)
 	printf("  reversible: %d\n", path->reversible_numpath >> 7);
 	printf("  pkey: 0x%x\n", ntohs(path->pkey));
 	printf("  sl: %d\n", ntohs(path->qosclass_sl) & 0xF);
-	printf("  mtu: %d\n", path->mtu & 0x1F);
-	printf("  rate: %d\n", path->rate & 0x1F);
-	printf("  packet lifetime: %d\n", path->packetlifetime & 0x1F);
+	printf("  mtu: %d\n", path->mtu & 0x3F);
+	printf("  rate: %d\n", path->rate & 0x3F);
+	printf("  packet lifetime: %d\n", path->packetlifetime & 0x3F);
 }
 
 static uint32_t get_resolve_flags()
