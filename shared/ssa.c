@@ -1476,12 +1476,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 					"error event 0x%x on rsock %d\n",
 					fds[UPSTREAM_DATA_FD_SLOT].revents,
 					fds[UPSTREAM_DATA_FD_SLOT].fd);
-				if (svc->conn_dataup.rsock >= 0) {
-					ssa_log(SSA_LOG_DEFAULT,
-						"rsock %d should be but is not already closed\n",
-						svc->conn_dataup.rsock);
+				if (svc->conn_dataup.rsock >= 0)
 					ssa_close_ssa_conn(&svc->conn_dataup);
-				}
 				fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
 				fds[UPSTREAM_DATA_FD_SLOT].events = 0;
 				fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
