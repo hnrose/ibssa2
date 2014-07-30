@@ -58,6 +58,9 @@ extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
 extern int keepalive;
+#ifdef SIM_SUPPORT_FAKE_ACM
+extern int fake_acm_num;
+#endif
 
 #ifdef INTEGRATION
 struct ssa_member {
@@ -518,6 +521,10 @@ static void distrib_set_options(void)
 			prdb_port = (short) atoi(value);
 		else if (!strcasecmp("keepalive", opt))
 			keepalive = atoi(value);
+#ifdef SIM_SUPPORT_FAKE_ACM
+		else if (!strcasecmp("fake_acm_num", opt))
+			fake_acm_num = atoi(value);
+#endif
 	}
 
 	fclose(f);

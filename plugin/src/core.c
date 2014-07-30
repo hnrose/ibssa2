@@ -72,6 +72,9 @@ extern short smdb_port;
 extern short prdb_port;
 extern int keepalive;
 extern int sock_accessextract[2];
+#ifdef SIM_SUPPORT_FAKE_ACM
+extern int fake_acm_num;
+#endif
 
 int first = 1;
 
@@ -1330,6 +1333,10 @@ static void core_set_options(void)
 			keepalive = atoi(value);
 		else if (!strcasecmp("subnet_up_delay", opt))
 			subnet_up_delay = atol(value);
+#ifdef SIM_SUPPORT_FAKE_ACM
+		else if (!strcasecmp("fake_acm_num", opt))
+			fake_acm_num = atoi(value);
+#endif
 	}
 
 	fclose(f);
@@ -1363,6 +1370,12 @@ static void core_log_options(void)
 		subnet_up_delay);
 #ifdef SIM_SUPPORT_SMDB
 	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
+#endif
+#ifdef SIM_SUPPORT_FAKE_ACM
+	ssa_log(SSA_LOG_DEFAULT, "running in ACM clients simulated mode.");
+	if (fake_acm_num >= 0)
+		ssa_log(SSA_LOG_DEFAULT, " Max. number is %d", fake_acm_num);
+	ssa_log(SSA_LOG_DEFAULT, "\n");
 #endif
 }
 

@@ -60,6 +60,18 @@ else
 	AC_MSG_NOTICE([simulator smdb mode is disabled by default])
 fi
 
+AC_ARG_ENABLE(fake-acm,
+	AS_HELP_STRING([--enable-fake-acm],
+		       [enable using fake ACM clients [default=disable]]),
+	with_fake_acm="true", with_fake_acm="false")
+
+if test "x$with_fake_acm" == xtrue; then
+	AC_DEFINE([SIM_SUPPORT_FAKE_ACM], [], ["using fake ACM clients in access"])
+	AC_MSG_NOTICE([fake ACM mode is enabled])
+else
+	AC_MSG_NOTICE([fake ACM mode is disabled by default])
+fi
+
 AC_ARG_ENABLE(verbose_logging,
 	AS_HELP_STRING([--enable-verbose-logging],
 		       [enable verbose logging mode [default=disable]]),

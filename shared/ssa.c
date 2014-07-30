@@ -51,6 +51,9 @@
 #include <infiniband/ssa.h>
 #include <infiniband/ib.h>
 #include <infiniband/ssa_db.h>
+#ifdef SIM_SUPPORT_FAKE_ACM
+#include <infiniband/ssa_smdb.h>
+#endif
 #include <infiniband/ssa_path_record.h>
 #include <infiniband/ssa_db_helper.h>
 #include <dlist.h>
@@ -75,6 +78,10 @@
 #define PRDB_PRELOAD_PATH RDMA_CONF_DIR "/prdb"
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
+
+#ifdef SIM_SUPPORT_FAKE_ACM
+#define ACM_FAKE_RSOCKET_ID 0
+#endif
 
 #ifdef ACCESS_INTEGRATION
 static struct ref_count_obj *prdb;
@@ -108,6 +115,10 @@ short prdb_port = 7473;
 int keepalive = 60;		/* seconds */
 
 #ifdef ACCESS
+#ifdef SIM_SUPPORT_FAKE_ACM
+int fake_acm_num = 0;
+#endif
+
 struct ssa_access_member {
 	union ibv_gid gid;		/* consumer GID */
 	struct ref_count_obj *prdb_current;
@@ -2709,6 +2720,10 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		prdb = ssa_calculate_prdb(svc, &consumer->gid);
 		ssa_log(SSA_LOG_DEFAULT, "%s GID %s PRDB %p rsock %d\n",
 			node_type, log_data, prdb, consumer->rsock);
+#ifdef SIM_SUPPORT_FAKE_ACM
+		if (ACM_FAKE_RSOCKET_ID == consumer->rsock)
+			return;
+#endif
 		if (prdb) {
 			dbr = malloc(sizeof(*dbr));
 			if (dbr) {
@@ -2766,6 +2781,93 @@ static void ssa_twalk(const struct node_t *root,
 		callback(root, endorder, priv);
 	}
 }
+
+static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
+							 union ibv_gid remote_gid,
+							 uint16_t remote_lid,
+							 int rsock,
+							 uint64_t smdb_epoch)
+{
+	struct ssa_access_member *consumer = NULL;
+	uint8_t **tgid;
+
+	tgid = tfind(remote_gid.raw, &svc->access_map, ssa_compare_gid);
+	if (!tgid) {
+		consumer = calloc(1, sizeof *consumer);
+		if (!consumer) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"no memory for ssa_access_member struct\n");
+			return NULL;
+		}
+		memcpy(&consumer->gid, remote_gid.raw, 16);
+		consumer->rsock = rsock;
+		consumer->lid = remote_lid;
+		if (!tsearch(&consumer->gid, &svc->access_map, ssa_compare_gid)) {
+			free(consumer);
+			ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					log_data, sizeof log_data, SSA_ADDR_GID,
+					remote_gid.raw, sizeof remote_gid.raw);
+			ssa_log(SSA_LOG_DEFAULT,
+				"failed to insert consumer GID %s into access map\n",
+				log_data);
+			return NULL;
+		}
+	} else {
+		consumer = container_of(*tgid, struct ssa_access_member, gid);
+		consumer->rsock = rsock;
+		consumer->lid = remote_lid;
+	}
+
+	return consumer;
+}
+
+#ifdef SIM_SUPPORT_FAKE_ACM
+void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
+				    struct ssa_db *smdb)
+{
+	int i, j, count, n;
+	const struct ep_guid_to_lid_tbl_rec *tbl;
+	const struct ep_subnet_opts_tbl_rec *opt_rec;
+	uint64_t epoch;
+
+	if (!fake_acm_num)
+		return;
+
+	opt_rec = (const struct ep_subnet_opts_tbl_rec *)smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
+	tbl = (struct ep_guid_to_lid_tbl_rec *)smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
+	n = ntohll(smdb->p_db_tables[SSA_TABLE_ID_GUID_TO_LID].set_count);
+	if (fake_acm_num < 0)
+		fake_acm_num = n;
+
+	/* Add fake clients with previous epoch */
+	epoch = min(ssa_db_get_epoch(smdb,DB_DEF_TBL_ID) - 1, 0);
+
+	for (j = 0; j < svc_cnt; j++) {
+		count = 0;
+		for (i = 0; i < n && count <= fake_acm_num; i++) {
+			if (!tbl[i].is_switch) {
+				union ibv_gid gid;	/* consumer GID */
+
+				gid.global.interface_id = tbl[i].guid;
+				gid.global.subnet_prefix = opt_rec->subnet_prefix;
+				if (ssa_add_access_consumer(svc_arr[j], gid,
+							    tbl[i].lid,
+							    ACM_FAKE_RSOCKET_ID,
+							    epoch)) {
+					count++;
+
+					ssa_sprint_addr(SSA_LOG_DEFAULT,
+							log_data, sizeof log_data,
+							SSA_ADDR_GID, gid.raw,sizeof gid.raw);
+					ssa_log(SSA_LOG_DEFAULT,
+						"add fake consumer GID %s into %s\n",
+						log_data,svc_arr[j]->name);
+				}
+			}
+		}
+	}
+}
+#endif
 #endif
 
 static void *ssa_access_handler(void *context)
@@ -2784,7 +2886,6 @@ static void *ssa_access_handler(void *context)
 	int j;
 	struct ref_count_obj *dbr;
 	struct ssa_access_member *consumer;
-	uint8_t **tgid;
 	struct ssa_db_update db_upd;
 #endif
 
@@ -2920,6 +3021,14 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					"SSA DB update from extract: ssa_db %p\n",
 					db);
 				access_update_waiting = 0;
+#ifdef ACCESS
+#ifdef SIM_SUPPORT_FAKE_ACM
+				if (NULL == access_context.smdb)
+					ssa_access_insert_fake_clients(svc_arr,
+								       svc_cnt,
+								       db);
+#endif
+#endif
 				/* Should epoch be added to access context ? */
 				access_context.smdb = db;
 #ifdef ACCESS
@@ -2984,6 +3093,14 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						"SSA DB update from upstream thread: ssa_db %p\n",
 						db);
 					access_update_waiting = 0;
+#ifdef ACCESS
+#ifdef SIM_SUPPORT_FAKE_ACM
+				if (NULL == access_context.smdb)
+					ssa_access_insert_fake_clients(svc_arr,
+								       svc_cnt,
+								       db);
+#endif
+#endif
 					/* Should epoch be added to access context ? */
 					access_context.smdb = db;
 #ifdef ACCESS
@@ -3039,37 +3156,14 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					/* Finally, "tell" downstream where this ssa_db struct is */
 #ifdef ACCESS
 					if (access_context.smdb) {
-						tgid = tfind(msg.data.conn->remote_gid.raw,
-							     &svc_arr[i]->access_map,
-							     ssa_compare_gid);
-						if (!tgid) {
-							consumer = calloc(1, sizeof *consumer);
-							if (!consumer) {
-								ssa_log(SSA_LOG_DEFAULT,
-									"no memory for ssa_access_member struct\n");
-								continue;
-							}
-							memcpy(&consumer->gid,
-							       msg.data.conn->remote_gid.raw,
-							       16);
-							consumer->rsock = msg.data.conn->rsock;
-							consumer->lid = msg.data.conn->remote_lid;
-							if (!tsearch(&consumer->gid,
-								     &svc_arr[i]->access_map,
-								     ssa_compare_gid)) {
-								free(consumer);
-								ssa_log(SSA_LOG_DEFAULT,
-									"failed to insert consumer GID %s into access map\n",
-									log_data);
-								continue;
-							}
-						} else {
-							consumer = container_of(*tgid,
-										struct ssa_access_member,
-										gid);
-							consumer->rsock = msg.data.conn->rsock;
-							consumer->lid = msg.data.conn->remote_lid;
-						}
+						consumer = ssa_add_access_consumer(svc_arr[i],
+										   msg.data.conn->remote_gid,
+										   msg.data.conn->remote_lid,
+										   msg.data.conn->rsock,
+										   ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID));
+						if (NULL == consumer)
+							continue;
+
 						if (consumer->prdb_current) {
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
 							if (consumer->smdb_epoch ==
