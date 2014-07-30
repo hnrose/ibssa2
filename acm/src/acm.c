@@ -4142,7 +4142,7 @@ int main(int argc, char **argv)
 			snprintf(msg, sizeof msg,
 				 "Another instance of %s is already running. "
 				 "Lock file: %s",
-				 argv[0], lock_file);
+				 program_invocation_short_name, lock_file);
 		else
 			snprintf(msg, sizeof msg, "Could not open lock file. "
 				 "Lock file: %s ERROR %d (%s)",
