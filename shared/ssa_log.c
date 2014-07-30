@@ -48,6 +48,20 @@
 #include <unistd.h>
 #include <limits.h>
 
+static inline void get_thread_id(char *buff, int size)
+{
+	int ret = 1;
+	pthread_t self;
+
+	self = pthread_self();
+#ifdef HAVE_PTHREAD_SET_NAME_NP
+	ret = pthread_getname_np(self, buff, size);
+#endif
+	if (ret || !buff[0])
+		ret = snprintf(buff, size, "%04X", (unsigned) self);
+}
+
+
 /* TODO: make static after access layer integration */
 FILE *flog;
 int accum_log_file = 0;
@@ -113,7 +127,7 @@ void ssa_close_log()
 void ssa_write_log(int level, const char *format, ...)
 {
 	va_list args;
-	pid_t tid;
+	char tid[16] = {};
 	struct timeval tv;
 	time_t tim;
 	struct tm result;
@@ -127,10 +141,10 @@ void ssa_write_log(int level, const char *format, ...)
 	gettimeofday(&tv, NULL);
 	tim = tv.tv_sec;
 	localtime_r(&tim, &result);
-	tid = pthread_self();
+	get_thread_id(tid, sizeof tid);
 	va_start(args, format);
 	pthread_mutex_lock(&log_lock);
-	fprintf(flog, "%s %02d %02d:%02d:%02d %06d [%04X]: ",
+	fprintf(flog, "%s %02d %02d:%02d:%02d %06d [%.16s]: ",
 		(result.tm_mon < 12 ? month_str[result.tm_mon] : "???"),
 		result.tm_mday, result.tm_hour, result.tm_min,
 		result.tm_sec, (unsigned int)tv.tv_usec, tid);
