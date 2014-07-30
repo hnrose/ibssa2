@@ -2788,7 +2788,7 @@ static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 							 int rsock,
 							 uint64_t smdb_epoch)
 {
-	struct ssa_access_member *consumer = NULL;
+	struct ssa_access_member *consumer;
 	uint8_t **tgid;
 
 	tgid = tfind(remote_gid.raw, &svc->access_map, ssa_compare_gid);
