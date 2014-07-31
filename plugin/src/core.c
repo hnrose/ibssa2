@@ -1372,10 +1372,15 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
 #endif
 #ifdef SIM_SUPPORT_FAKE_ACM
-	ssa_log(SSA_LOG_DEFAULT, "running in ACM clients simulated mode.");
-	if (fake_acm_num >= 0)
-		ssa_log(SSA_LOG_DEFAULT, " Max. number is %d", fake_acm_num);
-	ssa_log(SSA_LOG_DEFAULT, "\n");
+	if (node_type & SSA_NODE_ACCESS) {
+		ssa_log(SSA_LOG_DEFAULT, "running in ACM clients simulated mode\n");
+		if (fake_acm_num >= 0)
+			ssa_log(SSA_LOG_DEFAULT, "Max. number of simulated"
+				" clients is %d\n", fake_acm_num);
+		else
+			ssa_log(SSA_LOG_DEFAULT, "Max. number of simulated"
+				" clients is unlimited\n");
+	}
 #endif
 }
 

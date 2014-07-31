@@ -33,6 +33,10 @@
  *
  */
 
+#if HAVE_CONFIG_H
+#  include <config.h>
+#endif /* HAVE_CONFIG_H */
+
 #include <search.h>
 #include <common.h>
 #include <inttypes.h>
@@ -555,6 +559,17 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
+#ifdef SIM_SUPPORT_FAKE_ACM
+	if (node_type & SSA_NODE_ACCESS) {
+		ssa_log(SSA_LOG_DEFAULT, "running in ACM clients simulated mode\n");
+		if (fake_acm_num >= 0)
+			ssa_log(SSA_LOG_DEFAULT, "Max. number of simulated"
+				" clients is %d\n", fake_acm_num);
+		else
+			ssa_log(SSA_LOG_DEFAULT, "Max. number of simulated"
+				" clients is unlimited\n");
+	}
+#endif
 }
 
 static void *distrib_construct(int node_type, unsigned short daemon)
