@@ -2125,7 +2125,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
 {
 	struct ssa_conn *conn_data;
 	struct pollfd *pfd2;
-	int fd, slot;
+	int fd, slot, i;
 
 	conn_data = malloc(sizeof(*conn_data));
 	if (conn_data) {
@@ -2177,6 +2177,31 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 	} else
 		ssa_log_err(SSA_LOG_DEFAULT,
 			    "struct ssa_conn allocation failed\n");
+
+	if (conn_data && keepalive == 0) {
+		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
+			if (svc->fd_to_conn[i] &&
+			    svc->fd_to_conn[i]->rsock >= 0 &&
+			    svc->fd_to_conn[i] != conn_data &&
+			    !memcmp(svc->fd_to_conn[i]->remote_gid.raw,
+				    conn_data->remote_gid.raw, 16)) {
+				ssa_sprint_addr(SSA_LOG_CTRL, log_data,
+						sizeof log_data, SSA_ADDR_GID,
+						conn_data->remote_gid.raw,
+						sizeof conn_data->remote_gid.raw);
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "removing old connection for "
+					     "rsock %d GID %s LID %u\n",
+					     i, log_data, conn_data->remote_lid);
+				ssa_close_ssa_conn(svc->fd_to_conn[i]);
+				svc->fd_to_conn[i] = NULL;
+				pfd = (struct pollfd *)(fds + i);
+				pfd->fd = -1;
+				pfd->events = 0;
+				pfd->revents = 0;
+			}
+		}
+	}
 }
 
 static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
