@@ -537,6 +537,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 
 	ssa_log(SSA_LOG_DEFAULT, "closing rsock %d\n", conn->rsock);
 	rclose(conn->rsock);
+	ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", conn->rsock);
 	conn->rsock = -1;
 	conn->dbtype = SSA_CONN_NODB_TYPE;
 	conn->state = SSA_CONN_IDLE;
