@@ -397,6 +397,7 @@ static int ssa_downstream_listen(struct ssa_svc *svc,
 		goto err;
 	}
 	conn_listen->state = SSA_CONN_LISTENING;
+	ssa_log(SSA_LOG_VERBOSE, "rlistening on port %d\n", sport);
 
 	return conn_listen->rsock;
 
