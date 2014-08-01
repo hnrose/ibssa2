@@ -970,7 +970,10 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc,
 	msg.db_upd.db = db;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = flags;
-	msg.db_upd.remote_gid = gid;
+	if (gid)
+		memcpy(&msg.db_upd.remote_gid, gid, 16);
+	else
+		memset(&msg.db_upd.remote_gid, 0, 16);
 	msg.db_upd.remote_lid = 0;
 	msg.db_upd.epoch = epoch;
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
@@ -2355,8 +2358,8 @@ static void *ssa_downstream_handler(void *context)
 			case SSA_DB_UPDATE:
 				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data,
 						sizeof log_data, SSA_ADDR_GID,
-						msg.data.db_upd.remote_gid->raw,
-						sizeof msg.data.db_upd.remote_gid->raw);
+						msg.data.db_upd.remote_gid.raw,
+						sizeof msg.data.db_upd.remote_gid.raw);
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from access: rsock %d GID %s LID %u ssa_db %p epoch 0x%" PRIx64 "\n",
 					msg.data.db_upd.rsock, log_data, msg.data.db_upd.remote_lid,
@@ -2572,7 +2575,10 @@ static void ssa_access_send_db_update(struct ssa_svc *svc,
 	msg.db_upd.svc = NULL;
 	msg.db_upd.rsock = rsock;
 	msg.db_upd.flags = flags;
-	msg.db_upd.remote_gid = remote_gid;
+	if (remote_gid)
+		memcpy(&msg.db_upd.remote_gid, remote_gid, 16);
+	else
+		memset(&msg.db_upd.remote_gid, 0, 16);
 	msg.db_upd.remote_lid = remote_lid;
 	msg.db_upd.epoch = 0;	/* not used */
 	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
@@ -2625,7 +2631,10 @@ ssa_db_update_init(struct ref_count_obj *db, struct ssa_svc *svc,
 	p_db_upd->svc = svc;
 	p_db_upd->rsock = rsock;
 	p_db_upd->flags = flags;
-	p_db_upd->remote_gid = remote_gid;
+	if (remote_gid)
+		memcpy(&p_db_upd->remote_gid, remote_gid, 16);
+	else
+		memset(&p_db_upd->remote_gid, 0, 16);
 	p_db_upd->remote_lid = remote_lid;
 	p_db_upd->epoch = epoch;
 }
@@ -2758,7 +2767,7 @@ static void *ssa_access_prdb_handler(void *context)
 			ssa_access_send_db_update(db_upd.svc, db_upd.db,
 						  db_upd.rsock, db_upd.flags,
 						  db_upd.remote_lid,
-						  db_upd.remote_gid);
+						  &db_upd.remote_gid);
 		}
 	}
 

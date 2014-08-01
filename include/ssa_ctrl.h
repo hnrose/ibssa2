@@ -93,7 +93,7 @@ struct ssa_conn_done_msg {
 struct ssa_db_update {
 	struct ref_count_obj	*db;
 	struct ssa_svc		*svc;
-	union ibv_gid		*remote_gid;
+	union ibv_gid		remote_gid;
 	int			rsock;
 	int			flags;
 	uint64_t		epoch;
