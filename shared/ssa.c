@@ -2784,7 +2784,7 @@ static void ssa_twalk(const struct node_t *root,
 }
 
 static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
-							 union ibv_gid remote_gid,
+							 union ibv_gid *remote_gid,
 							 uint16_t remote_lid,
 							 int rsock,
 							 uint64_t smdb_epoch)
@@ -2792,7 +2792,7 @@ static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 	struct ssa_access_member *consumer;
 	uint8_t **tgid;
 
-	tgid = tfind(remote_gid.raw, &svc->access_map, ssa_compare_gid);
+	tgid = tfind(remote_gid->raw, &svc->access_map, ssa_compare_gid);
 	if (!tgid) {
 		consumer = calloc(1, sizeof *consumer);
 		if (!consumer) {
@@ -2800,14 +2800,14 @@ static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 				"no memory for ssa_access_member struct\n");
 			return NULL;
 		}
-		memcpy(&consumer->gid, remote_gid.raw, 16);
+		memcpy(&consumer->gid, remote_gid, 16);
 		consumer->rsock = rsock;
 		consumer->lid = remote_lid;
 		if (!tsearch(&consumer->gid, &svc->access_map, ssa_compare_gid)) {
 			free(consumer);
 			ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 					log_data, sizeof log_data, SSA_ADDR_GID,
-					remote_gid.raw, sizeof remote_gid.raw);
+					remote_gid->raw, sizeof remote_gid->raw);
 			ssa_log(SSA_LOG_DEFAULT,
 				"failed to insert consumer GID %s into access map\n",
 				log_data);
@@ -2851,7 +2851,7 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 
 				gid.global.interface_id = tbl[i].guid;
 				gid.global.subnet_prefix = opt_rec->subnet_prefix;
-				if (ssa_add_access_consumer(svc_arr[j], gid,
+				if (ssa_add_access_consumer(svc_arr[j], &gid,
 							    tbl[i].lid,
 							    ACM_FAKE_RSOCKET_ID,
 							    epoch)) {
@@ -3158,7 +3158,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 #ifdef ACCESS
 					if (access_context.smdb) {
 						consumer = ssa_add_access_consumer(svc_arr[i],
-										   msg.data.conn->remote_gid,
+										   &msg.data.conn->remote_gid,
 										   msg.data.conn->remote_lid,
 										   msg.data.conn->rsock,
 										   ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID));
