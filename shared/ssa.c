@@ -2642,6 +2642,10 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 			}
 			ssa_db_save(dump_dir, prdb, prdb_dump);
 		}
+	} else {
+		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
+		ssa_log(SSA_LOG_DEFAULT, "PRDB calculation for GID %s failed\n", log_data);
 	}
 skip_prdb_save:
 	return prdb;
