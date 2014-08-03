@@ -2757,9 +2757,13 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, consumer->gid.raw,
 				sizeof consumer->gid.raw);
+		ssa_log(SSA_LOG_DEFAULT,
+			"calculating PRDB for GID %s LID %u client\n",
+			log_data, consumer->lid);
 		prdb = ssa_calculate_prdb(svc, &consumer->gid);
-		ssa_log(SSA_LOG_DEFAULT, "%s GID %s PRDB %p rsock %d\n",
-			node_type, log_data, prdb, consumer->rsock);
+		ssa_log(SSA_LOG_DEFAULT,
+			"%s GID %s LID %u rsock %d PRDB %p calculation complete\n",
+			node_type, log_data, consumer->lid, consumer->rsock, prdb);
 #ifdef SIM_SUPPORT_FAKE_ACM
 		if (ACM_FAKE_RSOCKET_ID == consumer->rsock)
 			return;
@@ -3182,7 +3186,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 
 				switch (msg.hdr.type) {
 				case SSA_CONN_DONE:
-					ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID,
 							msg.data.conn->remote_gid.raw,
@@ -3213,12 +3217,19 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 								goto skip_prdb_calc;
 							}
 						}
+
+						ssa_log(SSA_LOG_DEFAULT,
+							"calculating PRDB for GID %s LID %u client\n",
+							log_data, consumer->lid);
 						prdb = ssa_calculate_prdb(svc_arr[i],
 									  &msg.data.conn->remote_gid);
 #endif
 						if (!prdb)
 							continue;
 #ifdef ACCESS
+						ssa_log(SSA_LOG_DEFAULT,
+							"GID %s LID %u rsock %d PRDB %p calculation complete\n",
+							log_data, msg.data.conn->remote_lid, msg.data.conn->rsock, prdb);
 skip_prdb_calc:
 						consumer->smdb_epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
 						dbr = malloc(sizeof(*dbr));
