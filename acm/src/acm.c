@@ -4137,16 +4137,22 @@ int main(int argc, char **argv)
 	ret = ssa_open_lock_file(lock_file);
 	if (ret) {
 		char msg[1024] = {};
+		pid_t pid, ppid;
+
+		pid = getpid();
+		ppid = getppid();
 
 		if (ret == 1)
 			snprintf(msg, sizeof msg,
 				 "Another instance of %s is already running. "
-				 "Lock file: %s",
-				 program_invocation_short_name, lock_file);
+				 "Lock file: %s Our PID %d PPID %d",
+				 program_invocation_short_name, lock_file,
+				 pid, ppid);
 		else
 			snprintf(msg, sizeof msg, "Could not open lock file. "
-				 "Lock file: %s ERROR %d (%s)",
-				 lock_file, errno, strerror(errno));
+				 "Lock file: %s ERROR %d (%s) Our PID %d PPID %d",
+				 lock_file, errno, strerror(errno),
+				 pid, ppid);
 		if (!daemon)
 			fprintf(stderr, "%s\n", msg);
 		ssa_log_err(0, "%s\n", msg);
