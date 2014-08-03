@@ -4685,7 +4685,10 @@ int ssa_open_lock_file(char *lock_file)
 
 	if (lockf(lock_fd, F_TLOCK, 0)) {
 		close(lock_fd);
-		return 1;
+		if (errno == EACCES || errno == EAGAIN)
+			return 1;
+		else
+			return -1;
 	}
 
 	ret = snprintf(pid, sizeof pid, "%d\n", getpid());
