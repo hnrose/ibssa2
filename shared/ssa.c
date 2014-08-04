@@ -797,8 +797,12 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 				conn->roffset = 0;
 				ret = rrecv(conn->rsock, conn->rbuf,
 					    conn->rsize, MSG_DONTWAIT);
-				if (ret > 0) {
+				if (ret >= 0) {
 					conn->roffset += ret;
+				} else {
+					ssa_log_err(SSA_LOG_CTRL,
+						    "rrecv failed: %d (%s) on rsock %d\n",
+						    errno, strerror(errno), conn->rsock);
 				}
 			}
 		}
@@ -836,8 +840,12 @@ static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-					if (ret > 0) {
+					if (ret >= 0) {
 						conn->roffset += ret;
+					} else {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "rrecv failed: %d (%s) on rsock %d\n",
+							    errno, strerror(errno), conn->rsock);
 					}
 				}
 			}
@@ -1270,6 +1278,11 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 				revents = ssa_upstream_update_conn(svc, events);
 		}
 	}
+
+	if (ret < 0)
+	      ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
+			  errno, strerror(errno), svc->conn_dataup.rsock);
+
 	return revents;
 }
 
@@ -2012,6 +2025,11 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events,
 					     conn->rsock);
 		}
 	}
+
+	if (ret < 0)
+	      ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
+			  errno, strerror(errno), conn->rsock);
+
 	return revents;
 }
 
