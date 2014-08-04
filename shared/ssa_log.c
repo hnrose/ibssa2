@@ -47,6 +47,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <limits.h>
+#include <errno.h>
 
 static inline void get_thread_id(char *buff, int size)
 {
@@ -114,7 +115,8 @@ int ssa_open_log(char *log_file)
 	if (flog)
 		return 0;
 
-	syslog(LOG_WARNING, "Failed to open log file %s\n", log_file);
+	syslog(LOG_WARNING, "Failed to open log file %s ERROR %d (%s)\n",
+	       log_file, errno, strerror(errno));
 	flog = stderr;
 	return -1;
 }
