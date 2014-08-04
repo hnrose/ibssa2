@@ -34,6 +34,7 @@
  */
 
 #include <limits.h>
+#include <syslog.h>
 #include <infiniband/osm_headers.h>
 #include <search.h>
 #include <common.h>
@@ -1429,6 +1430,9 @@ static void *core_construct(osm_opensm_t *opensm)
 #else
 	if (ssa_open_lock_file(lock_file, msg, sizeof msg)) {
 		ssa_log(SSA_LOG_DEFAULT, "%s\n", msg);
+		openlog("ibssa", LOG_PERROR | LOG_PID, LOG_USER);
+		syslog(LOG_INFO, msg);
+		closelog();
 		goto err1;
 	}
 #endif

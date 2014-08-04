@@ -37,6 +37,7 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <syslog.h>
 #include <search.h>
 #include <common.h>
 #include <inttypes.h>
@@ -582,17 +583,17 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 	if (ret)
 		return NULL;
 
-	ssa_open_log(log_file);
-
 	ret = ssa_open_lock_file(lock_file, msg, sizeof msg);
 	if (ret) {
 		if (!daemon)
 			fprintf(stderr, "%s\n", msg);
-		ssa_log_err(0, "%s\n", msg);
-		ssa_close_log();
+		openlog("ibssa", LOG_PERROR | LOG_PID, LOG_USER);
+		syslog(LOG_INFO, msg);
+		closelog();
 		return NULL;
 	}
 
+	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
 	distrib_log_options();
 

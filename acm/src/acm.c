@@ -41,6 +41,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#include <syslog.h>
 #include <rdma/rsocket.h>
 #include <infiniband/verbs.h>
 #include <infiniband/ssa_mad.h>
@@ -4133,16 +4134,18 @@ int main(int argc, char **argv)
 		return ret;
 
 	acm_set_options();
-	ssa_open_log(log_file);
 
 	ret = ssa_open_lock_file(lock_file, msg, sizeof msg);
 	if (ret) {
 		if (!daemon)
 			fprintf(stderr, "%s\n", msg);
-		ssa_log_err(0, "%s\n", msg);
-		ssa_close_log();
+		openlog("ibacm", LOG_PERROR | LOG_PID, LOG_USER);
+		syslog(LOG_INFO, msg);
+		closelog();
 		return -1;
 	}
+
+	ssa_open_log(log_file);
 
 	ssa_log(SSA_LOG_DEFAULT, "Assistant to the InfiniBand Communication Manager\n");
 	acm_log_options();
