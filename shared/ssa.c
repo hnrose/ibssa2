@@ -876,8 +876,13 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-					if (ret > 0) {
+
+					if (ret >= 0) {
 						conn->roffset += ret;
+					} else {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "rrecv failed: %d (%s) on rsock %d\n",
+							    errno, strerror(errno), conn->rsock);
 					}
 				}
 			}
@@ -916,8 +921,13 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-					if (ret > 0) {
+
+					if (ret >= 0) {
 						conn->roffset += ret;
+					} else {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "rrecv failed: %d (%s) on rsock %d\n",
+							    errno, strerror(errno), conn->rsock);
 					}
 				}
 			}
