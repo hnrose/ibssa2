@@ -66,7 +66,7 @@ extern "C" {
 #endif
 
 void ssa_daemonize(void);
-int ssa_open_lock_file(char *lock_file);
+int ssa_open_lock_file(char *lock_file, char *msg, int n);
 
 extern __thread char log_data[128];
 

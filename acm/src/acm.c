@@ -4102,6 +4102,7 @@ static void show_usage(char *program)
 int main(int argc, char **argv)
 {
 	int ret, i, op, daemon = 1;
+	char msg[1024] = {};
 
 	while ((op = getopt(argc, argv, "DPA:O:")) != -1) {
 		switch (op) {
@@ -4134,25 +4135,8 @@ int main(int argc, char **argv)
 	acm_set_options();
 	ssa_open_log(log_file);
 
-	ret = ssa_open_lock_file(lock_file);
+	ret = ssa_open_lock_file(lock_file, msg, sizeof msg);
 	if (ret) {
-		char msg[1024] = {};
-		pid_t pid, ppid;
-
-		pid = getpid();
-		ppid = getppid();
-
-		if (ret == 1)
-			snprintf(msg, sizeof msg,
-				 "Another instance of %s is already running. "
-				 "Lock file: %s Our PID %d PPID %d",
-				 program_invocation_short_name, lock_file,
-				 pid, ppid);
-		else
-			snprintf(msg, sizeof msg, "Could not open lock file. "
-				 "Lock file: %s ERROR %d (%s) Our PID %d PPID %d",
-				 lock_file, errno, strerror(errno),
-				 pid, ppid);
 		if (!daemon)
 			fprintf(stderr, "%s\n", msg);
 		ssa_log_err(0, "%s\n", msg);

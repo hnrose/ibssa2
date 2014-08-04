@@ -575,6 +575,7 @@ static void distrib_log_options(void)
 static void *distrib_construct(int node_type, unsigned short daemon)
 {
 	int ret;
+	char msg[1024] = {};
 
 	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
 			sizeof(struct ssa_port));
@@ -583,25 +584,8 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 
 	ssa_open_log(log_file);
 
-	ret = ssa_open_lock_file(lock_file);
+	ret = ssa_open_lock_file(lock_file, msg, sizeof msg);
 	if (ret) {
-		char msg[1024] = {};
-		pid_t pid, ppid;
-
-		pid = getpid();
-		ppid = getppid();
-
-		if (ret == 1)
-			snprintf(msg, sizeof msg,
-				 "Another instance of %s is already running. "
-				 "Lock file: %s Our PID %d PPID %d",
-				 program_invocation_short_name, lock_file,
-				 pid, ppid);
-		else
-			snprintf(msg, sizeof msg, "Could not open lock file. "
-				 "Lock file: %s ERROR %d (%s) Our PID %d PPID %d",
-				 lock_file, errno, strerror(errno),
-				 pid, ppid);
 		if (!daemon)
 			fprintf(stderr, "%s\n", msg);
 		ssa_log_err(0, "%s\n", msg);

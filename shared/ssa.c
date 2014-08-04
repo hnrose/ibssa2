@@ -4694,31 +4694,57 @@ void ssa_close_devices(struct ssa_class *ssa)
  * 1 - lock_file is locked
  * < 0 - error
  */
-int ssa_open_lock_file(char *lock_file)
+int ssa_open_lock_file(char *lock_file, char *msg, int n)
 {
 	int lock_fd;
-	char pid[16];
+	char buf[16];
 	int ret;
+	int result = 0;
+	pid_t pid, ppid;
+
+	pid = getpid();
+	ppid = getppid();
 
 	lock_fd = open(lock_file, O_RDWR | O_CREAT, 0640);
-	if (lock_fd < 0)
-		return lock_fd;
+	if (lock_fd < 0) {
+		result = lock_fd;
+		goto out;
+	}
 
 	if (lockf(lock_fd, F_TLOCK, 0)) {
 		close(lock_fd);
 		if (errno == EACCES || errno == EAGAIN)
-			return 1;
+			result = 1;
 		else
-			return -1;
+			result = -1;
+		goto out;
 	}
 
-	ret = snprintf(pid, sizeof pid, "%d\n", getpid());
-	if (ret <= 0)
-		return -1;
-	ret = write(lock_fd, pid, strlen(pid));
-	if (ret <= 0)
-		return -1;
-	return 0;
+	ret = snprintf(buf, sizeof buf, "%d\n", getpid());
+	if (ret <= 0) {
+		result = -1;
+		goto out;
+	}
+	ret = write(lock_fd, buf, strlen(buf));
+	if (ret <= 0) {
+		result = -1;
+		goto out;
+	}
+out:
+	if (result) {
+		if (result == 1)
+			snprintf(msg, n,
+				 "Another instance of %s is already running. "
+				 "Lock file: %s Our PID %d PPID %d",
+				 program_invocation_short_name, lock_file,
+				 pid, ppid);
+		else
+			snprintf(msg, n, "Could not open lock file. "
+				 "Lock file: %s ERROR %d (%s) Our PID %d PPID %d",
+				 lock_file, errno, strerror(errno),
+				 pid, ppid);
+	}
+	return result;
 }
 
 void ssa_daemonize(void)

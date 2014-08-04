@@ -1426,7 +1426,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err1;
 	}
 #else
-	if (ssa_open_lock_file(lock_file)) {
+	if (ssa_open_lock_file(lock_file, NULL, 0)) {
 		ssa_log(SSA_LOG_DEFAULT, "can't open lock file: %s\n", lock_file);
 		goto err1;
 	}
