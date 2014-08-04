@@ -884,7 +884,6 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-
 					if (ret >= 0) {
 						conn->roffset += ret;
 					} else {
@@ -929,7 +928,6 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-
 					if (ret >= 0) {
 						conn->roffset += ret;
 					} else {
