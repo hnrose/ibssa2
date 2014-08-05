@@ -142,7 +142,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
-static int ssa_access_prdb_xfer_in_progress();
+static int ssa_access_prdb_xfer_in_progress(void);
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
 static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd);
@@ -2119,7 +2119,7 @@ static int ssa_find_pollfd_slot(struct pollfd *fds, int nfds)
 	return -1;
 }
 
-static int ssa_access_prdb_xfer_in_progress()
+static int ssa_access_prdb_xfer_in_progress(void)
 {
 	/* Single threaded access layer can't be using smdb when this is invoked */
 	if (atomic_get(&prdb_xfers_in_progress))
