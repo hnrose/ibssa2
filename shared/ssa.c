@@ -1983,7 +1983,7 @@ ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
 					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
 								 sock);
 				}
-else ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
+else ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
 			}
 		}
 		break;
@@ -3075,7 +3075,7 @@ static void *ssa_access_handler(void *context)
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract\n");
 if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				if (ssa_access_prdb_xfer_in_progress()) {
-ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
+ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
 					access_update_pending = 1;
 				} else {
 ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
@@ -3147,7 +3147,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream\n");
 if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 					if (ssa_access_prdb_xfer_in_progress()) {
-ssa_log(SSA_LOG_DEFAULT, "PRDB transfer currently in progress\n");
+ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
 						access_update_pending = 1;
                                 	} else {
 ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
