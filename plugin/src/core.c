@@ -834,26 +834,30 @@ static int ssa_extract_db_update_prepare(struct ref_count_obj *db)
 	return count;
 }
 
-static void ssa_extract_db_update(struct ref_count_obj *db)
+static void ssa_extract_db_update(struct ref_count_obj *db, int db_changed)
 {
 	struct ssa_svc *svc;
 	int d, p, s;
+	enum ssa_db_update_flag flags = 0;
 
 	if (!db)
 		return;
+
+	if (!db_changed)
+		flags |= SSA_DB_UPDATE_NO_CHANGE;
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
 				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
 				ssa_extract_send_db_update(db,
-							   svc->sock_extractdown[1], 0);
+							   svc->sock_extractdown[1], flags);
 			}
 		}
 	}
 
 	if (ssa.node_type & SSA_NODE_ACCESS)
-		ssa_extract_send_db_update(db, sock_accessextract[0], 0);
+		ssa_extract_send_db_update(db, sock_accessextract[0], flags);
 }
 #endif
 
@@ -897,7 +901,7 @@ static int ssa_extract_load_smdb(struct ref_count_obj *p_ref_smdb,
 
 		p_smdb = ssa_db_load(smdb_dump_dir, smdb_dump);
 		ref_count_obj_init(p_ref_smdb, p_smdb);
-		ssa_extract_db_update(p_ref_smdb);
+		ssa_extract_db_update(p_ref_smdb, 0);
 		memcpy(last_mtime, &smdb_dir_stats.st_mtime,
 		       sizeof(*last_mtime));
 	}
@@ -936,8 +940,6 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev);
 	if (ssa_db_diff) {
-		ssa_log(SSA_LOG_VERBOSE,
-			"SMDB was changed. Pushing the changes...\n");
 		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
 		/*
 		 * TODO: use 'ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID)'
@@ -951,6 +953,8 @@ static void core_extract_db(osm_opensm_t *p_osm)
 #else
 		if (smdb_dump)
 			ssa_db_save(smdb_dump_dir, p_smdb, smdb_dump);
+
+		ssa_extract_db_update(ssa_db_diff->p_smdb, ssa_db_diff->dirty);
 #endif
 	}
 	pthread_mutex_unlock(&ssa_db_diff_lock);
@@ -964,7 +968,6 @@ static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
 	if (*outstanding_count > 0) {
 		if (--(*outstanding_count) == 0) {
 			core_extract_db(p_osm);
-			ssa_extract_db_update(ssa_db_diff->p_smdb);
 		}
 	}
 }
@@ -1053,7 +1056,6 @@ static void *core_extract_handler(void *context)
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", outstanding_count);
 					if (outstanding_count == 0) {
 						core_extract_db(p_osm);
-						ssa_extract_db_update(ssa_db_diff->p_smdb);
 ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
 					}
 else ssa_log(SSA_LOG_DEFAULT, "extract event but extract now pending with outstanding count %d\n", outstanding_count);

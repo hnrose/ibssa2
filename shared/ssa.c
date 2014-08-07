@@ -2537,10 +2537,11 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				smdb = msg.data.db_upd.db;
 				update_waiting = 0;
 				epoch = msg.data.db_upd.epoch;
-				ssa_downstream_notify_smdb_conns(svc,
-								 (struct pollfd *)fds,
-								 FD_SETSIZE,
-								 epoch);
+				if (!(msg.data.db_upd.flags & SSA_DB_UPDATE_NO_CHANGE))
+					ssa_downstream_notify_smdb_conns(svc,
+									 (struct pollfd *)fds,
+									 FD_SETSIZE,
+									 epoch);
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -3088,9 +3089,11 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 			case SSA_DB_UPDATE:
 				db = ref_count_object_get(msg.data.db_upd.db);
 				ssa_log(SSA_LOG_DEFAULT,
-					"SSA DB update from extract: ssa_db %p\n",
-					db);
+					"SSA DB update from extract: ssa_db %p flags 0x%x\n",
+					db, msg.data.db_upd.flags);
 				access_update_waiting = 0;
+				if (msg.data.db_upd.flags & SSA_DB_UPDATE_NO_CHANGE)
+					break;
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
 				if (NULL == access_context.smdb)

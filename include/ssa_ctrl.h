@@ -90,6 +90,11 @@ struct ssa_conn_done_msg {
 	struct ssa_conn		*conn;
 };
 
+enum ssa_db_update_flag {
+	/* current ssa db version is identical to previous one */
+	SSA_DB_UPDATE_NO_CHANGE		= (1 << 0)
+};
+
 struct ssa_db_update {
 	struct ref_count_obj	*db;
 	struct ssa_svc		*svc;

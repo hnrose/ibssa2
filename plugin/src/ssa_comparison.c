@@ -1505,8 +1505,6 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 
 	if (!p_ssa_db_diff->dirty) {
                 ssa_log(SSA_LOG_VERBOSE, "SMDB was not changed\n");
-                ssa_db_diff_destroy(p_ssa_db_diff);
-                p_ssa_db_diff = NULL;
                 goto Exit;
         }
 
