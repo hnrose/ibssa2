@@ -1460,8 +1460,7 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 	if (!ssa_db || !ssa_db->p_previous_db ||
 	    !ssa_db->p_current_db || !ssa_db->p_dump_db ||
 	    !ssa_db->p_lft_db) {
-		/* bad arguments - error handling */
-		ssa_log(SSA_LOG_ALL, "SMDB Comparison: bad arguments\n");
+		ssa_log_err(SSA_LOG_DEFAULT, "bad arguments\n");
 		goto Exit;
 	}
 
@@ -1489,9 +1488,8 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
 
 	p_ssa_db_diff = ssa_db_diff_init(epoch_prev, data_rec_cnt);
 	if (!p_ssa_db_diff) {
-		/* error handling */
-		ssa_log(SSA_LOG_ALL,
-			"SMDB Comparison: bad diff struct initialization\n");
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to initialize diff structure\n");
 		goto Exit;
 	}
 
