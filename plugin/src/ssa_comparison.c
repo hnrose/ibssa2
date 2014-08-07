@@ -1444,6 +1444,10 @@ ssa_db_diff_update_lfts(struct ssa_database *ssa_db, struct ssa_db_diff *p_ssa_d
 		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 		ep_qmap_clear(&ssa_db->p_lft_db->ep_dump_lft_top_tbl);
 	}
+
+	if (tbl_changed[SSA_TABLE_ID_LFT_BLOCK] == TRUE ||
+	    tbl_changed[SSA_TABLE_ID_LFT_TOP] == TRUE)
+		p_ssa_db_diff->dirty = 1;
 }
 
 /** =========================================================================
