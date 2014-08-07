@@ -415,7 +415,7 @@ static void
 acm_free_req(struct acm_request *req)
 {
 	ssa_log(SSA_LOG_VERBOSE, "%p\n", req);
-	(void) atomic_dec(&client->refcnt);
+	(void) atomic_dec(&req->client->refcnt);
 	free(req);
 }
 
