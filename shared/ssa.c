@@ -1056,7 +1056,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p 
 			} else {
 				if (ssa_db->pp_field_tables)
 					ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p rsock %d\n", svc->conn_dataup.rindex, svc->conn_dataup.rbuf, svc->conn_dataup.rsock);
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p len %d rsock %d\n", svc->conn_dataup.rindex, svc->conn_dataup.rbuf, svc->conn_dataup.rsize, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex++;
 			}
 		}
@@ -1085,7 +1085,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %
 			} else {
 				if (ssa_db->pp_tables)
 					ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p rsock %d\n", svc->conn_dataup.rindex, svc->conn_dataup.rbuf, svc->conn_dataup.rsock);
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p len %d rsock %d\n", svc->conn_dataup.rindex, svc->conn_dataup.rbuf, svc->conn_dataup.rsize, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex++;
 			}
 		}
