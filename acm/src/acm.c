@@ -1598,13 +1598,15 @@ static void acm_process_timeouts(void)
 	DLIST_ENTRY *entry;
 	struct acm_send_msg *msg;
 	struct acm_resolve_rec *rec;
+	struct acm_mad *mad;
 	
 	while (!DListEmpty(&timeout_list)) {
 		entry = timeout_list.Next;
 		DListRemove(entry);
 
 		msg = container_of(entry, struct acm_send_msg, entry);
-		rec = (struct acm_resolve_rec *) ((struct acm_mad *) msg->data)->data;
+		mad = (struct acm_mad *) &msg->data[0];
+		rec = (struct acm_resolve_rec *) mad->data;
 
 		acm_format_name(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				rec->dest_type, rec->dest, sizeof rec->dest);
@@ -2767,7 +2769,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 	uint16_t *port_lid;
 	uint8_t *port_num;
 	uint64_t guid;
-	uint16_t lid, dlid;
+	uint16_t lid, dlid, net_dlid;
 	int sl, mtu, rate;
 	int ret = 1, i;
 	uint8_t addr[ACM_MAX_ADDRESS];
@@ -2840,6 +2842,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			break;
 
 		dlid = strtoul(p, NULL, 0);
+		net_dlid = htons(dlid);
 
 		p = strtok_r(NULL, ":", &ptr);
 		if (!p)
@@ -2871,7 +2874,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			memset(addr, 0, ACM_MAX_ADDRESS);
 			if (i == 0) {
 				addr_type = ACM_ADDRESS_LID;
-				*((uint16_t *) addr) = htons(dlid);
+				memcpy(addr, &net_dlid, sizeof net_dlid);
 			} else {
 				addr_type = ACM_ADDRESS_GID;
 				memcpy(addr, &dgid, sizeof(dgid));
@@ -2886,7 +2889,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 			dest->path.sgid = sgid;
 			dest->path.slid = htons(*port_lid);
 			dest->path.dgid = dgid;
-			dest->path.dlid = htons(dlid);
+			dest->path.dlid = net_dlid;
 			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
 			dest->path.pkey = htons(ep->pkey);
 			dest->path.mtu = (uint8_t) mtu;
