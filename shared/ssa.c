@@ -2532,8 +2532,9 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				break;
 			case SSA_DB_UPDATE:
 				ssa_log(SSA_LOG_DEFAULT,
-					"SSA DB update (SMDB) from extract: ssa_db %p epoch 0x%" PRIx64 "\n",
-					msg.data.db_upd.db, msg.data.db_upd.epoch);
+					"SSA DB update (SMDB) from extract: ssa_db %p flags 0x%x epoch 0x%" PRIx64 "\n",
+					msg.data.db_upd.db, msg.data.db_upd.flags,
+					msg.data.db_upd.epoch);
 				smdb = msg.data.db_upd.db;
 				update_waiting = 0;
 				epoch = msg.data.db_upd.epoch;
@@ -3089,8 +3090,8 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 			case SSA_DB_UPDATE:
 				db = ref_count_object_get(msg.data.db_upd.db);
 				ssa_log(SSA_LOG_DEFAULT,
-					"SSA DB update from extract: ssa_db %p flags 0x%x\n",
-					db, msg.data.db_upd.flags);
+					"SSA DB update from extract: ssa_db %p flags 0x%x epoch 0x%" PRIx64 "\n",
+					db, msg.data.db_upd.flags, msg.data.db_upd.epoch);
 				access_update_waiting = 0;
 				if (msg.data.db_upd.flags & SSA_DB_UPDATE_NO_CHANGE)
 					break;
