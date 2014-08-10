@@ -743,6 +743,10 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 							return POLLIN;
 						} else
 							return POLLOUT | POLLIN;
+					} else {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "rsend continuation failed: %d (%s) on rsock %d\n",
+							    errno, strerror(errno), conn->rsock);
 					}
 				}
 			} else {
