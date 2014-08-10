@@ -2984,6 +2984,8 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 	int sl, mtu, rate;
 	int ret = 1;
 	uint8_t addr[ACM_MAX_ADDRESS];
+	union ibv_gid *gid_addr = (union ibv_gid *) &addr;
+	uint16_t *lid_addr = (uint16_t *) &addr;
 	uint8_t addr_type;
 
 	if (acm_mode == ACM_MODE_ACM)
@@ -3039,10 +3041,10 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 			memset(addr, 0, ACM_MAX_ADDRESS);
 			if (i == 0) {
 				addr_type = ACM_ADDRESS_LID;
-				*((uint16_t *) addr) = htons(dlid);
+				*lid_addr = htons(dlid);
 			} else {
 				addr_type = ACM_ADDRESS_GID;
-				memcpy(addr, &dgid, sizeof(dgid));
+				memcpy(gid_addr, &dgid, sizeof(dgid));
 			}
 			dest = acm_acquire_dest(ep, addr_type, addr);
 			if (!dest) {
@@ -3088,6 +3090,8 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 	struct acm_dest *dest, **tdest;
 	uint16_t dlid;
 	uint8_t addr[ACM_MAX_ADDRESS];
+	union ibv_gid *gid_addr = (union ibv_gid *) &addr;
+	uint16_t *lid_addr = (uint16_t *) &addr;
 	uint8_t addr_type, k;
 
 	if (!lid2guid_cached || !lid2guid)
@@ -3110,11 +3114,11 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 			memset(addr, 0, ACM_MAX_ADDRESS);
 			if (k == 0) {
 				addr_type = ACM_ADDRESS_LID;
-				*((uint16_t *) addr) = htons(dlid);
+				*lid_addr = htons(dlid);
 			} else {
 				dgid.global.interface_id = lid2guid_cached[dlid];
 				addr_type = ACM_ADDRESS_GID;
-				memcpy(addr, &dgid, sizeof(dgid));
+				memcpy(gid_addr, &dgid, sizeof(dgid));
 			}
 
 			pthread_mutex_lock(&ep->lock);
