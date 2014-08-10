@@ -752,13 +752,19 @@ void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 		 enum ssa_db_helper_mode mode)
 {
 	FILE *fd;
+	DIR *d;
 	int i = 0, tbls_n = 0;
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	ssa_log_func(SSA_LOG_DEFAULT);
 	assert(p_ssa_db);
 
-	removedir(path_dir);
+	d = opendir(path_dir);
+	if (d) {
+		closedir(d);
+		removedir(path_dir);
+	}
+
 	mkdir(path_dir, S_IRWXU | S_IRWXG | S_IRWXO);
 
 	tbls_n = ntohll(p_ssa_db->db_table_def.set_count);
