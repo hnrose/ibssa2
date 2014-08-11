@@ -189,9 +189,9 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 				       struct ssa_member *child)
 {
 	struct ssa_svc *svc;
-	DLIST_ENTRY *list, *entry;
+	DLIST_ENTRY *list = NULL, *entry;
 	struct ssa_member *member;
-	union ibv_gid *parentgid;
+	union ibv_gid *parentgid = NULL;
 	int least_child_num;
 	uint8_t node_type;
 
