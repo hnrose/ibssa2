@@ -380,7 +380,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	int ret;
 
 	/* TODO: verify ssa_key with core nodes */
-	rec = (struct ssa_member_record *) &umad->packet.data;
+	rec = &umad->packet.ssa_mad.member;
 	node_type = rec->node_type;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
@@ -446,7 +446,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 	DLIST_ENTRY *entry;
 	uint8_t node_type;
 
-	rec = (struct ssa_member_record *) &umad->packet.data;
+	rec = &umad->packet.ssa_mad.member;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
@@ -506,7 +506,7 @@ void core_init_parent(struct ssa_core *core, struct ssa_mad_packet *mad,
 	ssa_init_mad_hdr(&core->svc, &mad->mad_hdr, UMAD_METHOD_SET, SSA_ATTR_INFO_REC);
 	mad->ssa_key = 0;	/* TODO: set for real */
 
-	rec = (struct ssa_info_record *) &mad->data;
+	rec = &mad->ssa_mad.info;
 	rec->database_id = member->database_id;
 	rec->path_data.flags = IBV_PATH_FLAG_GMP | IBV_PATH_FLAG_PRIMARY |
 			       IBV_PATH_FLAG_BIDIRECTIONAL;
@@ -527,7 +527,7 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 	struct ssa_umad umad_sa;
 	int ret;
 
-	path = (struct ibv_path_record *) &umad->packet.data;
+	path = (struct ibv_path_record *) &umad->sa_mad.packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, (uint8_t *) &path->sgid, sizeof path->sgid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
@@ -609,17 +609,18 @@ static int core_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	if (umad_sa->umad.status) {
 		ssa_log(SSA_LOG_DEFAULT,
 			"SA MAD method 0x%x attribute 0x%x received with status 0x%x\n",
-			umad_sa->packet.mad_hdr.method,
-			ntohs(umad_sa->packet.mad_hdr.attr_id),
+			umad_sa->sa_mad.packet.mad_hdr.method,
+			ntohs(umad_sa->sa_mad.packet.mad_hdr.attr_id),
 			umad_sa->umad.status);
 		return 1;
 	}
 
 	core = container_of(svc, struct ssa_core, svc);
 
-	switch (umad_sa->packet.mad_hdr.method) {
+	switch (umad_sa->sa_mad.packet.mad_hdr.method) {
 	case UMAD_METHOD_GET_RESP:
-		if (ntohs(umad_sa->packet.mad_hdr.attr_id) == UMAD_SA_ATTR_PATH_REC) {
+		if (ntohs(umad_sa->sa_mad.packet.mad_hdr.attr_id) ==
+		    UMAD_SA_ATTR_PATH_REC) {
 			core_process_path_rec(core, umad_sa);
 			return 1;
 		}
@@ -627,8 +628,8 @@ static int core_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	default:
 		ssa_log(SSA_LOG_DEFAULT,
 			"SA MAD method 0x%x attribute 0x%x not expected\n",
-			umad_sa->packet.mad_hdr.method,
-			ntohs(umad_sa->packet.mad_hdr.attr_id));
+			umad_sa->sa_mad.packet.mad_hdr.method,
+			ntohs(umad_sa->sa_mad.packet.mad_hdr.attr_id));
 		break;
 	}
 

@@ -122,7 +122,7 @@ static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *u
 	uint8_t **tgid;
 
 	/* TODO: verify ssa_key with core nodes */
-	rec = (struct ssa_member_record *) &umad->packet.data;
+	rec = &umad->packet.ssa_mad.member;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", distrib->svc.name, log_data);
@@ -160,7 +160,7 @@ static void distrib_process_leave(struct ssa_distrib *distrib, struct ssa_umad *
 	struct ssa_member *member;
 	uint8_t **tgid;
 
-	rec = (struct ssa_member_record *) &umad->packet.data;
+	rec = &umad->packet.ssa_mad.member;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", distrib->svc.name, log_data);
@@ -189,7 +189,7 @@ void distrib_init_parent(struct ssa_distrib *distrib, struct ssa_mad_packet *mad
 	ssa_init_mad_hdr(&distrib->svc, &mad->mad_hdr, UMAD_METHOD_SET, SSA_ATTR_INFO_REC);
 	mad->ssa_key = 0;	/* TODO: set for real */
 
-	rec = (struct ssa_info_record *) &mad->data;
+	rec = &mad->ssa_mad.info;
 	rec->database_id = member->database_id;
 	rec->path_data.flags = IBV_PATH_FLAG_GMP | IBV_PATH_FLAG_PRIMARY |
 			       IBV_PATH_FLAG_BIDIRECTIONAL;
@@ -210,7 +210,7 @@ static void distrib_process_path_rec(struct ssa_distrib *distrib, struct sa_umad
 	struct ssa_umad umad_sa;
 	int ret;
 
-	path = (struct ibv_path_record *) &umad->packet.data;
+	path = (struct ibv_path_record *) &umad->sa_mad.packet.data;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, (uint8_t *) &path->sgid, sizeof path->sgid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", distrib->svc.name, log_data);
@@ -259,9 +259,10 @@ static int distrib_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *
 
 	distrib = container_of(svc, struct ssa_distrib, svc);
 
-	switch (umad_sa->packet.mad_hdr.method) {
+	switch (umad_sa->sa_mad.packet.mad_hdr.method) {
 	case UMAD_METHOD_GET_RESP:
-		if (ntohs(umad_sa->packet.mad_hdr.attr_id) == UMAD_SA_ATTR_PATH_REC) {
+		if (ntohs(umad_sa->sa_mad.packet.mad_hdr.attr_id) ==
+		    UMAD_SA_ATTR_PATH_REC) {
 			distrib_process_path_rec(distrib, umad_sa);
 			return 1;
 		}

@@ -77,22 +77,6 @@ enum {
 	SSA_MAD_LEN_DATA = 224
 };
 
-struct ssa_mad_packet {
-	struct umad_hdr		mad_hdr;
-	be64_t			ssa_key;
-	uint8_t			data[SSA_MAD_LEN_DATA];
-};
-
-struct ssa_umad {
-	struct ib_user_mad	umad;
-	struct ssa_mad_packet	packet;
-};
-
-struct sa_umad {
-	struct ib_user_mad	umad;
-	struct umad_sa_packet	packet;
-};
-
 /**
  * An AppSet(SSAMemberRecord) request indicates that port/service/pkey wishes
  * to join the specified service_guid tree.
@@ -152,6 +136,28 @@ struct ssa_member_record {
 struct ssa_info_record {
 	be64_t			database_id;
 	struct ibv_path_data	path_data;
+};
+
+struct ssa_mad_packet {
+	struct umad_hdr		mad_hdr;
+	be64_t			ssa_key;
+	union {
+		uint8_t				data[SSA_MAD_LEN_DATA];
+		struct ssa_member_record	member;
+		struct ssa_info_record		info;
+	} ssa_mad;
+};
+
+struct ssa_umad {
+	struct ib_user_mad	umad;
+	struct ssa_mad_packet	packet;
+};
+
+struct sa_umad {
+	struct ib_user_mad	umad;
+	union {
+		struct umad_sa_packet	packet;
+	} sa_mad;
 };
 
 const char *ssa_method_str(uint8_t method);

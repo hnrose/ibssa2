@@ -230,7 +230,7 @@ static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
 	ssa_init_mad_hdr(svc, &mad->mad_hdr, UMAD_METHOD_SET, SSA_ATTR_MEMBER_REC);
 	mad->ssa_key = 0;	/* TODO: set for real */
 
-	rec = (struct ssa_member_record *) &mad->data;
+	rec = &mad->ssa_mad.member;
 	memcpy(rec->port_gid, svc->port->gid.raw, 16);
 	rec->database_id = htonll(svc->database_id);
 	rec->node_guid = svc->port->dev->guid;
@@ -414,10 +414,10 @@ int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 
 	memset(&umad, 0, sizeof umad);
 	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
-	sa_init_path_query(svc, &umad.packet, dgid, sgid);
+	sa_init_path_query(svc, &umad.sa_mad.packet, dgid, sgid);
 
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
-			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
+			(void *) &umad, sizeof umad.sa_mad.packet, svc->timeout, 0);
 	if (ret)
 		ssa_log_err(SSA_LOG_CTRL, "failed to send path query to SA\n");
 	return ret;
@@ -494,7 +494,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		svc->state = SSA_STATE_HAVE_PARENT;
 	case SSA_STATE_HAVE_PARENT:
 		mad = &umad->packet;
-		info_rec = (struct ssa_info_record *) &mad->data;
+		info_rec = &mad->ssa_mad.info;
 		memcpy(&svc->primary, &info_rec->path_data,
 		       sizeof(svc->primary));
 		break;
@@ -3492,11 +3492,11 @@ static void ssa_ctrl_port(struct ssa_port *port)
 		switch (ntohs(msg.umad.packet.mad_hdr.attr_id)) {
 		case SSA_ATTR_INFO_REC:
 			parent = 1;
-			info_rec = (struct ssa_info_record *) msg.umad.packet.data;
+			info_rec = &msg.umad.packet.ssa_mad.info;
 			svc = ssa_find_svc(port, ntohll(info_rec->database_id));
 			break;
 		case SSA_ATTR_MEMBER_REC:
-			member_rec = (struct ssa_member_record *) msg.umad.packet.data;
+			member_rec = &msg.umad.packet.ssa_mad.member;
 			svc = ssa_find_svc(port, ntohll(member_rec->database_id));
 			break;
 		default:
