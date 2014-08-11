@@ -1290,8 +1290,7 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 
 static void *ssa_upstream_handler(void *context)
 {
-	struct ssa_svc *svc = context;
-	struct ssa_conn_req_msg *conn_req;
+	struct ssa_svc *svc = context, *conn_svc;
 	struct ssa_db *ssa_db;
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[5];
@@ -1353,32 +1352,32 @@ static void *ssa_upstream_handler(void *context)
 				ssa_upstream_dev_event(svc, &msg);
 				break;
 			case SSA_CONN_REQ:
-				conn_req = (struct ssa_conn_req_msg *) &msg;
-				if (conn_req->svc->port->dev->ssa->node_type ==
+				conn_svc = msg.data.svc;
+				if (conn_svc->port->dev->ssa->node_type ==
 				    SSA_NODE_CONSUMER) {
-					conn_req->svc->conn_dataup.dbtype = SSA_CONN_PRDB_TYPE;
+					conn_svc->conn_dataup.dbtype = SSA_CONN_PRDB_TYPE;
 					port = prdb_port;
 				} else {
-					conn_req->svc->conn_dataup.dbtype = SSA_CONN_SMDB_TYPE;
+					conn_svc->conn_dataup.dbtype = SSA_CONN_SMDB_TYPE;
 					port = smdb_port;
 				}
-				fds[UPSTREAM_DATA_FD_SLOT].fd = ssa_upstream_initiate_conn(conn_req->svc, port);
+				fds[UPSTREAM_DATA_FD_SLOT].fd = ssa_upstream_initiate_conn(conn_svc, port);
 				/* Change when more than 1 data connection supported !!! */
 				if (fds[UPSTREAM_DATA_FD_SLOT].fd >= 0) {
-					if (conn_req->svc->conn_dataup.state != SSA_CONN_CONNECTED)
+					if (conn_svc->conn_dataup.state != SSA_CONN_CONNECTED)
 						fds[UPSTREAM_DATA_FD_SLOT].events = POLLOUT;
 					else {
-						conn_req->svc->conn_dataup.ssa_db = malloc(sizeof(*conn_req->svc->conn_dataup.ssa_db));
+						conn_svc->conn_dataup.ssa_db = malloc(sizeof(*conn_svc->conn_dataup.ssa_db));
 						ssa_db = calloc(1, sizeof(*ssa_db));
-						if (conn_req->svc->conn_dataup.ssa_db && ssa_db) {
-							ref_count_obj_init(conn_req->svc->conn_dataup.ssa_db, ssa_db);
+						if (conn_svc->conn_dataup.ssa_db && ssa_db) {
+							ref_count_obj_init(conn_svc->conn_dataup.ssa_db, ssa_db);
 							if (port == prdb_port)
 								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						} else {
 							ssa_log_err(SSA_LOG_DEFAULT,
 								    "could not allocate ref_count_obj or ssa_db struct\n");
 							free(ssa_db);
-							free(conn_req->svc->conn_dataup.ssa_db);
+							free(conn_svc->conn_dataup.ssa_db);
 						}
 					}
 				}
@@ -3869,7 +3868,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 {
 	struct ssa_ctrl_msg_buf msg;
 	int i, ret;
-	struct ssa_conn_req_msg *conn_req;
+	struct ssa_svc *conn_svc;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, ssa->sock);
@@ -3909,8 +3908,8 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 					     msg.hdr.len - sizeof msg.hdr);
 				switch (msg.hdr.type) {
 				case SSA_CONN_REQ:
-					conn_req = (struct ssa_conn_req_msg *) &msg;
-					write(conn_req->svc->sock_upctrl[0],
+					conn_svc = msg.data.svc;
+					write(conn_svc->sock_upctrl[0],
 					      (char *) &msg,
 					      sizeof(struct ssa_conn_req_msg));
 					break;
