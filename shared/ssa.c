@@ -4270,7 +4270,7 @@ int ssa_start_access(struct ssa_class *ssa)
 #endif
 
 #ifdef ACCESS_INTEGRATION
-	access_context.smdb = smdb;
+	access_context.smdb = ref_count_object_get(smdb);
 #endif
 
 	ret = pthread_create(&access_thread, NULL, ssa_access_handler, ssa);
@@ -4517,7 +4517,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			} else {
 				ssa_log_err(SSA_LOG_CTRL,
 					    "prdb ref count obj memory allocation failed\n");
-				ssa_destroy_db(db);
+				ssa_db_destroy(db);
 			}
 		}
 
@@ -4539,7 +4539,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 		} else { 
 			ssa_log_err(SSA_LOG_CTRL,
 				    "smdb ref count obj memory allocation failed\n");
-			ssa_destroy_db(db);
+			ssa_db_destroy(db);
 		}
 	}
 #endif
@@ -4561,7 +4561,7 @@ ctx_create_err:
 	if (prdb) {
 		db = ref_count_object_get(prdb);
 		ssa_db_destroy(db);
-		prb->object = NULL;	/* ??? */
+		prdb->object = NULL;	/* ??? */
 		prdb = NULL;
 	}
 	if (smdb) {
