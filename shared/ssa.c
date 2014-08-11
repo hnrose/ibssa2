@@ -237,7 +237,7 @@ static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
 	rec->node_type = svc->port->dev->ssa->node_type;
 }
 
-static void sa_init_path_query(struct ssa_svc *svc, struct umad_sa_packet *mad,
+static void sa_init_path_query(struct ssa_svc *svc, struct sa_path_record *mad,
 			       union ibv_gid *dgid, union ibv_gid *sgid)
 {
 	struct ibv_path_record *path;
@@ -249,7 +249,7 @@ static void sa_init_path_query(struct ssa_svc *svc, struct umad_sa_packet *mad,
 				((uint64_t)1) << 11 |	/* Reversible */
 				((uint64_t)1) << 13);	/* P_Key */
 
-	path = (struct ibv_path_record *) &mad->data;
+	path = &mad->path;
 	memcpy(path->dgid.raw, dgid, 16);
 	memcpy(path->sgid.raw, sgid, 16);
 	path->reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
@@ -414,7 +414,7 @@ int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 
 	memset(&umad, 0, sizeof umad);
 	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
-	sa_init_path_query(svc, &umad.sa_mad.packet, dgid, sgid);
+	sa_init_path_query(svc, &umad.sa_mad.path_rec, dgid, sgid);
 
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
 			(void *) &umad, sizeof umad.sa_mad.packet, svc->timeout, 0);

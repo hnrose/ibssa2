@@ -527,7 +527,7 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 	struct ssa_umad umad_sa;
 	int ret;
 
-	path = (struct ibv_path_record *) &umad->sa_mad.packet.data;
+	path = &umad->sa_mad.path_rec.path;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, (uint8_t *) &path->sgid, sizeof path->sgid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);

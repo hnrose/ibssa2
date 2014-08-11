@@ -138,6 +138,16 @@ struct ssa_info_record {
 	struct ibv_path_data	path_data;
 };
 
+struct sa_path_record {
+	struct umad_hdr		mad_hdr;
+	struct umad_rmpp_hdr	rmpp_hdr;
+	uint8_t			sm_key[8]; /* network-byte order */
+	be16_t			attr_offset;
+	be16_t			reserved;
+	be64_t			comp_mask;
+	struct ibv_path_record	path;
+};
+
 struct ssa_mad_packet {
 	struct umad_hdr		mad_hdr;
 	be64_t			ssa_key;
@@ -157,6 +167,7 @@ struct sa_umad {
 	struct ib_user_mad	umad;
 	union {
 		struct umad_sa_packet	packet;
+		struct sa_path_record	path_rec;
 	} sa_mad;
 };
 
