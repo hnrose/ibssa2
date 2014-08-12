@@ -844,8 +844,8 @@ static void ssa_extract_db_update(struct ref_count_obj *db, int db_changed)
 	if (!db)
 		return;
 
-	if (!db_changed)
-		flags |= SSA_DB_UPDATE_NO_CHANGE;
+	if (db_changed)
+		flags |= SSA_DB_UPDATE_CHANGE;
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
