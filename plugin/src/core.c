@@ -972,6 +972,23 @@ static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
 		}
 	}
 }
+
+static int ssa_extract_process(osm_opensm_t *p_osm, int *outstanding_count)
+{
+	if (*outstanding_count == 0) {
+		if (ssa_db_diff)
+			*outstanding_count = ssa_extract_db_update_prepare(ssa_db_diff->p_smdb);
+ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *outstanding_count);
+		if (*outstanding_count == 0) {
+			core_extract_db(p_osm);
+ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
+		}
+else ssa_log(SSA_LOG_DEFAULT, "extract event but extract now pending with outstanding count %d\n", *outstanding_count);
+	}
+else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
+
+	return 0;
+}
 #endif
 
 static void *core_extract_handler(void *context)
@@ -1051,17 +1068,7 @@ static void *core_extract_handler(void *context)
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
 #ifndef SIM_SUPPORT
-				if (outstanding_count == 0) {
-					if (ssa_db_diff)
-						outstanding_count = ssa_extract_db_update_prepare(ssa_db_diff->p_smdb);
-ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", outstanding_count);
-					if (outstanding_count == 0) {
-						core_extract_db(p_osm);
-ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
-					}
-else ssa_log(SSA_LOG_DEFAULT, "extract event but extract now pending with outstanding count %d\n", outstanding_count);
-				}
-else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
+				ssa_extract_process(p_osm, &outstanding_count);
 #else
 				core_extract_db(p_osm);
 #endif
