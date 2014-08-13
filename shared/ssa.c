@@ -652,6 +652,9 @@ static short ssa_upstream_query(struct ssa_svc *svc, uint16_t op, short events)
 				return POLLOUT | POLLIN;
 			}
 		} else {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				return POLLOUT | POLLIN;
+			}
 			ssa_log_err(SSA_LOG_CTRL,
 				    "ssa_upstream_send_query for op %u failed "
 				    "%d (%s) on rsock %d\n",
@@ -744,6 +747,9 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 						} else
 							return POLLOUT | POLLIN;
 					} else {
+						if (errno == EAGAIN ||
+						    errno == EWOULDBLOCK)
+							return POLLOUT | POLLIN;
 						ssa_log_err(SSA_LOG_CTRL,
 							    "rsend continuation failed: %d (%s) on rsock %d\n",
 							    errno, strerror(errno), conn->rsock);
@@ -757,6 +763,8 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 			return POLLOUT | POLLIN;
 		}
 	} else {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return POLLOUT | POLLIN;
 		ssa_log_err(SSA_LOG_CTRL,
 			    "rsend continuation failed: %d (%s) on rsock %d\n",
 			    errno, strerror(errno), conn->rsock);
@@ -1618,6 +1626,8 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 			} else
 				return POLLOUT | POLLIN;
 		} else
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				return POLLOUT | POLLIN;
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsend failed: %d (%s) on rsock %d\n",
 				    errno, strerror(errno), conn->rsock);
@@ -1660,17 +1670,23 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 						return POLLIN;
 					else
 						return POLLOUT | POLLIN;
-				} else
+				} else {
+					if (errno == EAGAIN || errno == EWOULDBLOCK)
+						return POLLOUT | POLLIN;
 					ssa_log_err(SSA_LOG_CTRL,
 						    "rsend failed: %d (%s) on rsock %d\n",
 						    errno, strerror(errno),
 						    conn->rsock);
+				}
 			} else
 				return POLLOUT | POLLIN;
-		} else
+		} else {
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				return POLLOUT | POLLIN;
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsend failed: %d (%s) on rsock %d\n",
 				    errno, strerror(errno), conn->rsock);
+		}
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
 			    "failed to allocate ssa_msg_hdr for response "
@@ -2105,6 +2121,9 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 			return POLLIN | POLLOUT;
 		}
 	}
+
+	if (errno == EAGAIN || errno == EWOULDBLOCK)
+		return POLLIN | POLLOUT;
 
 	ssa_log_err(SSA_LOG_CTRL,
 		    "rsend of update notification failed %d (%s) on rsock %d\n",
