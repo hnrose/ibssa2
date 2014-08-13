@@ -1398,8 +1398,9 @@ static void *core_construct(osm_opensm_t *opensm)
 #if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
 	int i;
 	char buf[PATH_MAX];
-#endif
+#else
 	char msg[256] = {};
+#endif
 
 	core_set_options();
 	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
