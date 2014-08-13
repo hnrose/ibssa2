@@ -2655,6 +2655,8 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 					ssa_close_ssa_conn(svc->fd_to_conn[pfd->fd]);
 					svc->fd_to_conn[pfd->fd] = NULL;
 					pfd->fd = -1;
+					pfd->events = 0;
+					pfd->revents = 0;
 				} else {
 					if (svc->fd_to_conn[pfd->fd])
 						pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents, svc, fds);
