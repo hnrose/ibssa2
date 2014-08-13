@@ -681,10 +681,12 @@ static short ssa_riowrite(struct ssa_conn *conn, short events)
 	conn->sbuf2 = NULL;
 	conn->rdma_write = 1;
 	ret = riowrite(conn->rsock, conn->sbuf, conn->ssize, 0, MSG_DONTWAIT);
-	if (ret < 0)
+	if (ret < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return POLLOUT | POLLIN;
 		ssa_log(SSA_LOG_DEFAULT, "epoch riowrite ERROR %d (%s)\n",
 			errno, strerror(errno));
-	else if (ret < sizeof(conn->prdb_epoch)) {
+	} else if (ret < sizeof(conn->prdb_epoch)) {
 		revents = POLLOUT | POLLIN;
 		ssa_log(SSA_LOG_DEFAULT,
 			"epoch riowrite %d out of %d bytes written\n",
@@ -712,6 +714,8 @@ static short ssa_riowrite_continue(struct ssa_conn *conn, short events)
 		} else
 			return POLLOUT | POLLIN;
 	} else {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return POLLOUT | POLLIN;
 		ssa_log_err(SSA_LOG_CTRL,
 			    "riowrite continuation failed: %d (%s) on rsock %d\n",
 			    errno, strerror(errno), conn->rsock);
