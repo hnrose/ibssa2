@@ -3331,15 +3331,18 @@ skip_prdb_calc:
 							ref_count_obj_init(dbr,
 									   prdb);
 							consumer->prdb_current = dbr;
-							ssa_db_update_init(dbr,
-									   svc_arr[i],
-									   msg.data.conn->remote_lid,
-									   &msg.data.conn->remote_gid,
-									   msg.data.conn->rsock,
-									   0, 0,
-									   &db_upd);
-							ssa_push_db_update(&access_context.update_queue,
-									   &db_upd);
+							if (msg.data.conn->rsock >= 0) {
+								ssa_db_update_init(dbr,
+										   svc_arr[i],
+										   msg.data.conn->remote_lid,
+										   &msg.data.conn->remote_gid,
+										   msg.data.conn->rsock,
+										   0, 0,
+										   &db_upd);
+								ssa_push_db_update(&access_context.update_queue,
+										   &db_upd);
+							} else
+								consumer->rsock = -1;
 						} else {
 							ssa_log(SSA_LOG_DEFAULT,
 								"PRDB ref count memory allocation failed\n");
