@@ -126,6 +126,12 @@ static struct ssa_extract_data extract_data;
 
 static int sock_coreextract[2];
 
+/* Forward declarations */
+#ifdef SIM_SUPPORT_SMDB
+static int ssa_extract_process(osm_opensm_t *p_osm, struct ref_count_obj *p_ref_smdb,
+			       int *outstanding_count);
+#endif
+
 #ifndef SIM_SUPPORT
 /* Should the following two DList routines go into a new dlist.c in shared ? */
 static DLIST_ENTRY *DListFind(DLIST_ENTRY *entry, DLIST_ENTRY *list)
@@ -863,10 +869,9 @@ static void ssa_extract_db_update(struct ref_count_obj *db, int db_changed)
 #endif
 
 #ifdef SIM_SUPPORT_SMDB
-static int ssa_extract_load_smdb(struct ref_count_obj *p_ref_smdb,
-				 struct timespec *last_mtime)
+static int ssa_extract_load_smdb(osm_opensm_t *p_osm, struct ref_count_obj *p_ref_smdb,
+				 int *outstanding_count, struct timespec *last_mtime)
 {
-	struct ssa_db *p_smdb;
 	struct stat smdb_dir_stats;
 	int ret;
 
@@ -877,7 +882,7 @@ static int ssa_extract_load_smdb(struct ref_count_obj *p_ref_smdb,
 	if (ret) {
 		if ((errno == EACCES) || (errno == EAGAIN)) {
 			ssa_log_warn(SSA_LOG_VERBOSE,
-				"smdb lock file is locked\n");
+				     "smdb lock file is locked\n");
 			return 0;
 		} else {
 			ssa_log_err(SSA_LOG_DEFAULT,
@@ -896,13 +901,7 @@ static int ssa_extract_load_smdb(struct ref_count_obj *p_ref_smdb,
 	}
 
 	if (memcmp(&smdb_dir_stats.st_mtime, last_mtime, sizeof(*last_mtime))) {
-		p_smdb = ref_count_object_get(p_ref_smdb);
-		if (p_smdb)
-			ssa_db_destroy(p_smdb);
-
-		p_smdb = ssa_db_load(smdb_dump_dir, smdb_dump);
-		ref_count_obj_init(p_ref_smdb, p_smdb);
-		ssa_extract_db_update(p_ref_smdb, 0);
+		ssa_extract_process(p_osm, p_ref_smdb, outstanding_count);
 		memcpy(last_mtime, &smdb_dir_stats.st_mtime,
 		       sizeof(*last_mtime));
 	}
@@ -911,8 +910,35 @@ static int ssa_extract_load_smdb(struct ref_count_obj *p_ref_smdb,
 
 	return 0;
 }
-#endif
 
+static int ssa_extract_process_smdb(struct ref_count_obj *p_ref_smdb)
+{
+	struct ssa_db *p_smdb = NULL;
+
+	if (p_ref_smdb) {
+		p_smdb = ref_count_object_get(p_ref_smdb);
+		if (p_smdb)
+			ssa_db_destroy(p_smdb);
+	} else {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "uninitialized smdb ref_count object\n");
+		return -1;
+	}
+
+	p_smdb = ssa_db_load(smdb_dump_dir, smdb_dump);
+	if (!p_smdb) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to load SMDB from %s mode (%d)\n",
+			    smdb_dump_dir, smdb_dump);
+		return -1;
+	}
+
+	/* TODO: change to just set the object instead of reinitialization */
+	ref_count_obj_init(p_ref_smdb, p_smdb);
+
+	return 0;
+}
+#else
 static void core_extract_db(osm_opensm_t *p_osm)
 {
 	struct ssa_db *p_smdb = NULL;
@@ -961,8 +987,53 @@ static void core_extract_db(osm_opensm_t *p_osm)
 	pthread_mutex_unlock(&ssa_db_diff_lock);
 	first = 0;
 }
+#endif
 
 #ifndef SIM_SUPPORT
+#ifdef SIM_SUPPORT_SMDB
+static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
+					     struct ref_count_obj *p_ref_smdb,
+					     int *outstanding_count)
+{
+	if (*outstanding_count > 0) {
+		if (--(*outstanding_count) == 0) {
+			if (lockf(smdb_lock_fd, F_LOCK, 0)) {
+				if (errno == EDEADLK)
+					ssa_log_warn(SSA_LOG_VERBOSE,
+						     "locking smdb lock file would cause a deadlock\n");
+				else
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "locking smdb lock file ERROR %d (%s)\n",
+						    errno, strerror(errno));
+				return;
+			}
+
+			if (!ssa_extract_process_smdb(p_ref_smdb))
+				ssa_extract_db_update(p_ref_smdb, 1); /* 1 indicates that smdb was changed */
+			lockf(smdb_lock_fd, F_ULOCK, 0);
+		}
+	}
+}
+
+static int ssa_extract_process(osm_opensm_t *p_osm, struct ref_count_obj *p_ref_smdb,
+			       int *outstanding_count)
+{
+	if (*outstanding_count == 0) {
+		if (p_ref_smdb && ref_count_object_get(p_ref_smdb))
+			*outstanding_count = ssa_extract_db_update_prepare(p_ref_smdb);
+ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *outstanding_count);
+		if (*outstanding_count == 0) {
+			if (!ssa_extract_process_smdb(p_ref_smdb))
+				ssa_extract_db_update(p_ref_smdb, 1); /* 1 indicates that smdb was changed */
+ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
+		}
+else ssa_log(SSA_LOG_DEFAULT, "extract event but extract now pending with outstanding count %d\n", *outstanding_count);
+	}
+else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
+
+	return 0;
+}
+#else
 static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
 					     int *outstanding_count)
 {
@@ -989,6 +1060,7 @@ else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 
 	return 0;
 }
+#endif
 #endif
 
 static void *core_extract_handler(void *context)
@@ -1055,7 +1127,9 @@ static void *core_extract_handler(void *context)
 
 #ifdef SIM_SUPPORT_SMDB
 		if (!ret) {
-			if (ssa_extract_load_smdb(p_ref_smdb, &smdb_last_mtime) < 0)
+			if (ssa_extract_load_smdb(p_osm, p_ref_smdb,
+						  &outstanding_count,
+						  &smdb_last_mtime) < 0)
 				goto out;
 			continue;
 		}
@@ -1067,10 +1141,10 @@ static void *core_extract_handler(void *context)
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
-#ifndef SIM_SUPPORT
-				ssa_extract_process(p_osm, &outstanding_count);
-#else
+#ifdef SIM_SUPPORT
 				core_extract_db(p_osm);
+#elif !defined(SIM_SUPPORT_SMDB)
+				ssa_extract_process(p_osm, &outstanding_count);
 #endif
 				break;
 			case SSA_DB_LFT_CHANGE:
@@ -1102,8 +1176,14 @@ static void *core_extract_handler(void *context)
 #ifndef SIM_SUPPORT
 			case SSA_DB_UPDATE_READY:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
+#ifdef SIM_SUPPORT_SMDB
+				ssa_extract_update_ready_process(p_osm,
+								 p_ref_smdb,
+								 &outstanding_count);
+#else
 				ssa_extract_update_ready_process(p_osm,
 								 &outstanding_count);
+#endif
 				break;
 #endif
 			default:
@@ -1134,8 +1214,14 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 #ifndef SIM_SUPPORT
 				case SSA_DB_UPDATE_READY:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count %d\n", i, outstanding_count);
+#ifdef SIM_SUPPORT_SMDB
+					ssa_extract_update_ready_process(p_osm,
+									 p_ref_smdb,
+									 &outstanding_count);
+#else
 					ssa_extract_update_ready_process(p_osm,
 									 &outstanding_count);
+#endif
 					break;
 #endif
 				default:
@@ -1151,10 +1237,18 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count
 out:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	free(fds);
+
+	/* currently memory freeing is done in ssa_close_devices() */
+#if 0
 #ifdef SIM_SUPPORT_SMDB
-	ssa_db_destroy(ref_count_object_get(p_ref_smdb));
-	free(p_ref_smdb);
+	if (p_ref_smdb) {
+		while (ref_count_obj_get(p_ref_smdb));
+		ssa_db_destroy(ref_count_object_get(p_ref_smdb));
+		free(p_ref_smdb);
+	}
 #endif
+#endif
+
 	pthread_exit(NULL);
 }
 
