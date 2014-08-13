@@ -816,6 +816,8 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 				if (ret >= 0) {
 					conn->roffset += ret;
 				} else {
+					if (errno == EAGAIN || errno == EWOULDBLOCK)
+						return;
 					ssa_log_err(SSA_LOG_CTRL,
 						    "rrecv failed: %d (%s) on rsock %d\n",
 						    errno, strerror(errno), conn->rsock);
@@ -859,6 +861,8 @@ static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
 					if (ret >= 0) {
 						conn->roffset += ret;
 					} else {
+						if (errno == EAGAIN || errno == EWOULDBLOCK)
+							return;
 						ssa_log_err(SSA_LOG_CTRL,
 							    "rrecv failed: %d (%s) on rsock %d\n",
 							    errno, strerror(errno), conn->rsock);
@@ -903,6 +907,8 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 					if (ret >= 0) {
 						conn->roffset += ret;
 					} else {
+						if (errno == EAGAIN || errno == EWOULDBLOCK)
+							return;
 						ssa_log_err(SSA_LOG_CTRL,
 							    "rrecv failed: %d (%s) on rsock %d\n",
 							    errno, strerror(errno), conn->rsock);
@@ -947,6 +953,8 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 					if (ret >= 0) {
 						conn->roffset += ret;
 					} else {
+						if (errno == EAGAIN || errno == EWOULDBLOCK)
+							return;
 						ssa_log_err(SSA_LOG_CTRL,
 							    "rrecv failed: %d (%s) on rsock %d\n",
 							    errno, strerror(errno), conn->rsock);
@@ -1293,10 +1301,12 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 		}
 	}
 
-	if (ret < 0)
-	      ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
-			  errno, strerror(errno), svc->conn_dataup.rsock);
-
+	if (ret < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return revents;
+		ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
+			    errno, strerror(errno), svc->conn_dataup.rsock);
+	}
 	return revents;
 }
 
@@ -2047,9 +2057,12 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events,
 		}
 	}
 
-	if (ret < 0)
+	if (ret < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return revents;
 	      ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
 			  errno, strerror(errno), conn->rsock);
+	}
 
 	return revents;
 }
