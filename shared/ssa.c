@@ -3604,7 +3604,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		conn_listen = &svc->conn_listen_prdb;
 	fd = raccept(conn_listen->rsock, NULL, 0);
 	if (fd < 0) {
-		if ((errno == EAGAIN || errno == EWOULDBLOCK))
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return -1;	/* ignore these errors */
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"raccept rsock %d ERROR %d (%s)\n",
