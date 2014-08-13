@@ -813,8 +813,12 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 				conn->roffset = 0;
 				ret = rrecv(conn->rsock, conn->rbuf,
 					    conn->rsize, MSG_DONTWAIT);
-				if (ret >= 0) {
+				if (ret > 0) {
 					conn->roffset += ret;
+				} else if (ret == 0) {
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "rrecv 0 bytes on rsock %d\n",
+						    conn->rsock);
 				} else {
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
 						return;
@@ -858,8 +862,12 @@ static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-					if (ret >= 0) {
+					if (ret > 0) {
 						conn->roffset += ret;
+					} else if (ret == 0) {
+						ssa_log_err(SSA_LOG_DEFAULT,
+							    "rrecv 0 bytes on rsock %d\n",
+							    conn->rsock);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -904,8 +912,12 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-					if (ret >= 0) {
+					if (ret > 0) {
 						conn->roffset += ret;
+					} else if (ret == 0) {
+						ssa_log_err(SSA_LOG_DEFAULT,
+							    "rrecv 0 bytes on rsock %d\n",
+							    conn->rsock);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -950,8 +962,12 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 					conn->roffset = 0;
 					ret = rrecv(conn->rsock, conn->rbuf,
 						    conn->rsize, MSG_DONTWAIT);
-					if (ret >= 0) {
+					if (ret > 0) {
 						conn->roffset += ret;
+					} else if (ret == 0) {
+						ssa_log_err(SSA_LOG_DEFAULT,
+							    "rrecv 0 bytes on rsock %d\n",
+							    conn->rsock);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -1306,7 +1322,11 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 			return revents;
 		ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
 			    errno, strerror(errno), svc->conn_dataup.rsock);
+	} else if (ret == 0) {
+		ssa_log_err(SSA_LOG_DEFAULT, "rrecv 0 bytes on rsock %d\n",
+			    svc->conn_dataup.rsock);
 	}
+
 	return revents;
 }
 
@@ -2062,6 +2082,9 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events,
 			return revents;
 	      ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
 			  errno, strerror(errno), conn->rsock);
+	} else if (ret == 0) {
+		ssa_log_err(SSA_LOG_DEFAULT, "rrecv 0 bytes on rsock %d\n",
+			    conn->rsock);
 	}
 
 	return revents;
