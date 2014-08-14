@@ -907,7 +907,6 @@ static int ssa_extract_load_smdb(osm_opensm_t *p_osm, struct ref_count_obj *p_re
 	}
 
 	lockf(smdb_lock_fd, F_ULOCK, 0);
-
 	return 0;
 }
 
