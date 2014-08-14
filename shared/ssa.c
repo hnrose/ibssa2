@@ -2866,11 +2866,15 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 				ref_count_obj_init(dbr, prdb);
 				consumer->prdb_current = dbr;
 ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_get(dbr));
-				ssa_db_update_init(dbr, svc, consumer->lid,
-						   &consumer->gid, consumer->rsock,
-						   0, 0, &db_upd);
-				ssa_push_db_update(&access_context.update_queue,
-						   &db_upd);
+				if (consumer->rsock >= 0) {
+					ssa_db_update_init(dbr, svc,
+							   consumer->lid,
+							   &consumer->gid,
+							   consumer->rsock,
+							   0, 0, &db_upd);
+					ssa_push_db_update(&access_context.update_queue,
+							   &db_upd);
+				}
 			} else {
 				ssa_log(SSA_LOG_DEFAULT,
 					"PRDB ref count memory allocation failed\n");
