@@ -237,7 +237,7 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 
 	guid_to_lid_count = get_dataset_count(p_ssa_db_smdb,
 					      SSA_TABLE_ID_GUID_TO_LID);
-	record_num = guid_to_lid_count * guid_to_lid_count * 2;
+	record_num = guid_to_lid_count * 2;
 
 	/* TODO: use previous PRDB version epoch */
 	p_prdb = ssa_prdb_create(0 /* epoch */, record_num);
