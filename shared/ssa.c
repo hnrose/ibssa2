@@ -4191,7 +4191,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			errno = ret;
 			goto err8;
 		}
-		SET_THREAD_NAME(svc->downstream, "DNSTR  %s", svc->name);
+		SET_THREAD_NAME(svc->downstream, "DNSTR %s", svc->name);
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
