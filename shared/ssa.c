@@ -4140,12 +4140,12 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		 (unsigned long long) database_id);
 	svc->database_id = database_id;
 	svc->conn_listen_smdb.rsock = -1;
-	svc->conn_listen_smdb.type = SSA_CONN_TYPE_UPSTREAM;
+	svc->conn_listen_smdb.type = SSA_CONN_TYPE_LISTEN;
 	svc->conn_listen_smdb.dbtype = SSA_CONN_SMDB_TYPE;
 	svc->conn_listen_smdb.state = SSA_CONN_IDLE;
 	svc->conn_listen_smdb.phase = SSA_DB_IDLE;
 	svc->conn_listen_prdb.rsock = -1;
-	svc->conn_listen_prdb.type = SSA_CONN_TYPE_UPSTREAM;
+	svc->conn_listen_prdb.type = SSA_CONN_TYPE_LISTEN;
 	svc->conn_listen_prdb.dbtype = SSA_CONN_PRDB_TYPE;
 	svc->conn_listen_prdb.state = SSA_CONN_IDLE;
 	svc->conn_listen_prdb.phase = SSA_DB_IDLE;

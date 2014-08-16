@@ -145,7 +145,8 @@ struct ssa_port {
 
 enum ssa_conn_type {
 	SSA_CONN_TYPE_UPSTREAM,
-	SSA_CONN_TYPE_DOWNSTREAM
+	SSA_CONN_TYPE_DOWNSTREAM,
+	SSA_CONN_TYPE_LISTEN		/* downstream */
 };
 
 enum ssa_conn_dbtype {
