@@ -535,6 +535,17 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 	if (!conn)
 		return;
 
+	if (conn->type == SSA_CONN_TYPE_UPSTREAM &&
+	    conn->epoch_len > 0) {
+		int ret = riounmap(conn->rsock, (void *) &conn->prdb_epoch,
+				   conn->epoch_len);
+		if (ret) {
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"riounmap rsock %d ret %d ERROR %d (%s)\n",
+				conn->rsock, ret, errno, strerror(errno));
+		}
+	}
+
 	ssa_log(SSA_LOG_DEFAULT, "closing rsock %d\n", conn->rsock);
 	rclose(conn->rsock);
 	ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", conn->rsock);
@@ -542,6 +553,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 	conn->dbtype = SSA_CONN_NODB_TYPE;
 	conn->state = SSA_CONN_IDLE;
 	conn->phase = SSA_DB_IDLE;
+	conn->epoch_len = 0;
 }
 
 static int ssa_upstream_send_query(int rsock, struct ssa_msg_hdr *msg,
@@ -3651,7 +3663,8 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 				"riomap epoch rsock %d ret %d ERROR %d (%s)\n",
 				svc->conn_dataup.rsock, ret, errno, strerror(errno));
-		}
+		} else
+			svc->conn_dataup.epoch_len = sizeof svc->conn_dataup.prdb_epoch;
 
 		return ret;
 	}
