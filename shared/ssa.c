@@ -3639,6 +3639,9 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 	svc->conn_dataup.state = SSA_CONN_CONNECTED;
 	svc->state = SSA_STATE_CONNECTED;
 
+	ssa_log(SSA_LOG_DEFAULT, "rsock %d now connected\n",
+		svc->conn_dataup.rsock);
+
 	if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
 		ret = riomap(svc->conn_dataup.rsock,
 			     (void *) &svc->conn_dataup.prdb_epoch,
