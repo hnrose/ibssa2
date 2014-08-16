@@ -3646,8 +3646,8 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 			     PROT_WRITE, 0, 0); 
 		if (ret) {
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-				"riomap epoch rsock %d ret %d\n",
-				svc->conn_dataup.rsock, ret);
+				"riomap epoch rsock %d ret %d ERROR %d (%s)\n",
+				svc->conn_dataup.rsock, ret, errno, strerror(errno));
 		}
 
 		return ret;
