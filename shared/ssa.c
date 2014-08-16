@@ -3881,6 +3881,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 close:
 	rclose(svc->conn_dataup.rsock);
 	svc->conn_dataup.rsock = -1;
+	svc->conn_dataup.state = SSA_CONN_IDLE;
 	return -1;
 }
 
