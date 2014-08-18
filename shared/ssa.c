@@ -4506,7 +4506,7 @@ err:
 	umad_close_port(port->mad_portid);
 }
 
-static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
+static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			 struct ibv_device *ibdev)
 {
 #if defined(ACCESS_INTEGRATION) || defined(CORE_INTEGRATION)
@@ -4519,7 +4519,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	dev->verbs = ibv_open_device(ibdev);
 	if (dev->verbs == NULL) {
 		ssa_log_err(SSA_LOG_CTRL, "opening device %s\n", ibdev->name);
-		return;
+		return -1;
 	}
 
 	ret = ibv_query_device(dev->verbs, &attr);
@@ -4633,7 +4633,7 @@ static void ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 #endif
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
-	return;
+	return 0;
 #ifdef ACM
 err3:
 	ibv_dealloc_pd(dev->pd);
@@ -4660,6 +4660,7 @@ ctx_create_err:
 	}
 #endif
 	seterr(ENOMEM);
+	return -1;
 }
 
 int ssa_open_devices(struct ssa_class *ssa)
@@ -4682,8 +4683,11 @@ int ssa_open_devices(struct ssa_class *ssa)
 		goto free;
 	}
 
-	for (i = 0; i < ssa->dev_cnt; i++)
-		ssa_open_dev(ssa_dev(ssa, i), ssa, ibdev[i]);
+	for (i = 0; i < ssa->dev_cnt; i++) {
+		ret = ssa_open_dev(ssa_dev(ssa, i), ssa, ibdev[i]);
+		if (ret)
+			goto free;
+	}
 
 free:
 	ibv_free_device_list(ibdev);
