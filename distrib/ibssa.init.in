@@ -21,13 +21,22 @@
 pidfile=/var/run/ibssa.pid
 subsys=/var/lock/subsys/ibssa
 
-. /etc/rc.d/init.d/functions
+# Source function library.
+if [[ -s /etc/init.d/functions ]]; then
+    # RHEL / CentOS / SL / Fedora.
+    . /etc/init.d/functions
+elif [[ -s /lib/lsb/init-functions ]]; then
+    # SLES / openSuSE / Debian.
+    . /lib/lsb/init-functions
+elif [[ -s /etc/rc.status ]]; then
+    # Older SuSE systems.
+    . /etc/rc.status
+fi
 
 start()
 {
     echo -n "Starting ibssa daemon:"
-
-    daemon @prefix@/sbin/ibssa
+    @prefix@/sbin/ibssa
     RC=$?
     [ $RC -eq 0 ] && touch $subsys
     echo
@@ -51,7 +60,7 @@ status()
     	return 3
     fi
     if [ -f $pidfile ]; then
-	checkpid `cat $pidfile`
+	pid=`pidof ibssa`
 	return $?
     fi
     if [ -f $subsys ]; then
