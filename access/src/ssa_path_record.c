@@ -58,6 +58,11 @@ struct ssa_pr_context {
 	struct ssa_pr_smdb_index *p_index;
 };
 
+struct prdb_prm {
+	struct ssa_db *prdb;
+	uint64_t max_count;
+};
+
 static
 ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				   const struct ssa_pr_context *p_context,
@@ -77,21 +82,24 @@ inline static size_t get_dataset_count(const struct ssa_db *p_ssa_db_smdb,
 
 static void insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 {
-	struct ssa_db *p_prdb = NULL;
+	struct prdb_prm *p_prm;
 	struct db_dataset *p_dataset = NULL;
 	uint64_t set_size = 0, set_count = 0;
 	struct ep_pr_tbl_rec *p_rec = NULL;
 
-	p_prdb = (struct ssa_db*)prm;
+	p_prm = (struct prdb_prm*)prm;
 	SSA_ASSERT(p_prdb);
 
-	p_dataset = p_prdb->p_db_tables + SSA_PR_TABLE_ID;
+	p_dataset = p_prm->prdb->p_db_tables + SSA_PR_TABLE_ID;
 	SSA_ASSERT(p_dataset);
 
 	set_size = ntohll(p_dataset->set_size);
 	set_count = ntohll(p_dataset->set_count);
 
-	p_rec = ((struct ep_pr_tbl_rec *)p_prdb->pp_tables[SSA_PR_TABLE_ID]) + set_count;
+	if(set_count >= p_prm->max_count)
+		return;
+
+	p_rec = ((struct ep_pr_tbl_rec *)p_prm->prdb->pp_tables[SSA_PR_TABLE_ID]) + set_count;
 	SSA_ASSERT(p_rec);
 
 	p_rec->guid = p_path_prm->to_guid;
@@ -229,6 +237,7 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	size_t guid_to_lid_count = 0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
+	struct prdb_prm prm;
 
 	SSA_ASSERT(p_ssa_db_smdb);
 
@@ -247,8 +256,11 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 		return NULL;
 	}
 
+	prm.prdb = p_prdb;
+	prm.max_count = record_num;
+
 	res = ssa_pr_half_world(p_ssa_db_smdb, p_ctnx, port_guid,
-				insert_pr_to_prdb,p_prdb);
+				insert_pr_to_prdb,&prm);
 	if (SSA_PR_ERROR == res) {
 		SSA_PR_LOG_ERROR("\"Half world\" calculation failed for GUID: 0x%" PRIx64,
 				 ntohll(port_guid));
