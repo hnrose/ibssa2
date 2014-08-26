@@ -1149,7 +1149,19 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %
 			} else {
 				if (ssa_db->pp_tables)
 					ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p len %d rsock %d\n", svc->conn_dataup.rindex, svc->conn_dataup.rbuf, svc->conn_dataup.rsize, svc->conn_dataup.rsock);
+{
+void *rbuf;
+int rsize;
+
+if (svc->conn_dataup.rbuf != svc->conn_dataup.rhdr) {
+rbuf = svc->conn_dataup.rbuf;
+rsize = svc->conn_dataup.rsize;
+} else {
+rbuf = NULL;
+rsize = 0;
+}
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p len %d rsock %d\n", svc->conn_dataup.rindex, rbuf, rsize, svc->conn_dataup.rsock);
+}
 				svc->conn_dataup.rindex++;
 			}
 		}
