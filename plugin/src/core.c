@@ -458,9 +458,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", core->svc.name, log_data);
 
 	tgid = tfind(rec->port_gid, &core->member_map, ssa_compare_gid);
-	if (!tgid)
-		core_update_tree(core, NULL, (union ibv_gid *) rec->port_gid);
-	else {
+	if (tgid) {
 		ssa_log(SSA_LOG_CTRL, "removing member\n");
 		rec = container_of(*tgid, struct ssa_member_record, port_gid);
 		member = container_of(rec, struct ssa_member, rec);
