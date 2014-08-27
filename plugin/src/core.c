@@ -353,14 +353,14 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 	}
 
 	/* Should something else be done with children whose parent goes away ? */
-	tgid = tfind(&child->rec.port_gid, &core->member_map, ssa_compare_gid);
+	tgid = tfind(&child->primary->rec.port_gid, &core->member_map, ssa_compare_gid);
 	if (!tgid) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
 				sizeof log_data, SSA_ADDR_GID,
-				(uint8_t *) &child->rec.port_gid,
-				sizeof child->rec.port_gid);
+				(uint8_t *) &child->primary->rec.port_gid,
+				sizeof child->primary->rec.port_gid);
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - couldn't find parent for GID %s\n", log_data);
+			"ERROR - couldn't find parent GID %s\n", log_data);
 		return;
 	}
 	rec = container_of(*tgid, struct ssa_member_record, port_gid);
