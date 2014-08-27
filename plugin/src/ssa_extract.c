@@ -213,7 +213,7 @@ ssa_db_extract_node_tbl_rec(osm_node_t *p_node, uint64_t *p_offset,
 			    &p_node->sw->switch_info) ? "Enhanced" : "Base");
 	else
 		sprintf(buffer, "\n");
-	ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s\n",
+	ssa_log(SSA_LOG_VERBOSE, "Node GUID 0x%" PRIx64 " Type %d%s",
 		ntohll(osm_node_get_node_guid(p_node)),
 		osm_node_get_type(p_node), buffer);
 #endif
