@@ -292,7 +292,7 @@ acm_alloc_dest(uint8_t addr_type, uint8_t *addr)
 	}
 
 	acm_init_dest(dest, addr_type, addr, ACM_MAX_ADDRESS);
-	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
+	ssa_log(SSA_LOG_DB, "%s\n", dest->name);
 	return dest;
 }
 
@@ -311,12 +311,12 @@ acm_get_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 	if (tdest) {
 		dest = *tdest;
 		(void) atomic_inc(&dest->refcnt);
-		ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
+		ssa_log(SSA_LOG_DB, "%s\n", dest->name);
 	} else {
 		dest = NULL;
-		acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
+		acm_format_name(SSA_LOG_DB, log_data, sizeof log_data,
 				addr_type, addr, ACM_MAX_ADDRESS);
-		ssa_log(SSA_LOG_VERBOSE, "%s not found\n", log_data);
+		ssa_log(SSA_LOG_DB, "%s not found\n", log_data);
 	}
 	return dest;
 }
@@ -324,7 +324,7 @@ acm_get_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 static void
 acm_put_dest(struct acm_dest *dest)
 {
-	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
+	ssa_log(SSA_LOG_DB, "%s\n", dest->name);
 	if (atomic_dec(&dest->refcnt) == 0) {
 		free(dest);
 	}
@@ -335,9 +335,9 @@ acm_acquire_dest(struct acm_ep *ep, uint8_t addr_type, uint8_t *addr)
 {
 	struct acm_dest *dest;
 
-	acm_format_name(SSA_LOG_VERBOSE, log_data, sizeof log_data,
+	acm_format_name(SSA_LOG_DB, log_data, sizeof log_data,
 			addr_type, addr, ACM_MAX_ADDRESS);
-	ssa_log(SSA_LOG_VERBOSE, "%s\n", log_data);
+	ssa_log(SSA_LOG_DB, "%s\n", log_data);
 	pthread_mutex_lock(&ep->lock);
 	dest = acm_get_dest(ep, addr_type, addr);
 	if (!dest) {
