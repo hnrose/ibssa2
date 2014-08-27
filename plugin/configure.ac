@@ -48,16 +48,16 @@ else
 	AC_MSG_NOTICE([simulator mode is disabled by default])
 fi
 
-AC_ARG_ENABLE(simulator_smdb,
-	AS_HELP_STRING([--enable-simulator-smdb],
+AC_ARG_ENABLE(simulated_smdb,
+	AS_HELP_STRING([--enable-simulated-smdb],
 		       [enable using simulated smdb [default=disable]]),
-	with_simulator_smdb="true", with_simulator_smdb="false")
+	with_simulated_smdb="true", with_simulated_smdb="false")
 
-if test "x$with_simulator_smdb" == xtrue; then
+if test "x$with_simulated_smdb" == xtrue; then
 	AC_DEFINE([SIM_SUPPORT_SMDB], [], ["using simulated smdb"])
-	AC_MSG_NOTICE([simulator smdb mode is enabled])
+	AC_MSG_NOTICE([simulated smdb mode is enabled])
 else
-	AC_MSG_NOTICE([simulator smdb mode is disabled by default])
+	AC_MSG_NOTICE([simulated smdb mode is disabled by default])
 fi
 
 AC_ARG_ENABLE(fake-acm,
