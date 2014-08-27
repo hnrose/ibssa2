@@ -80,7 +80,7 @@ inline static size_t get_dataset_count(const struct ssa_db *p_ssa_db_smdb,
 	return ntohll(p_ssa_db_smdb->p_db_tables[table_id].set_count);
 }
 
-static void insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
+static int insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 {
 	struct prdb_prm *p_prm;
 	struct db_dataset *p_dataset = NULL;
@@ -96,8 +96,10 @@ static void insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 	set_size = ntohll(p_dataset->set_size);
 	set_count = ntohll(p_dataset->set_count);
 
-	if(set_count >= p_prm->max_count)
-		return;
+	if(set_count >= p_prm->max_count) {
+		SSA_PR_LOG_INFO("PRDB is full");
+		return 1;
+	}
 
 	p_rec = ((struct ep_pr_tbl_rec *)p_prm->prdb->pp_tables[SSA_PR_TABLE_ID]) + set_count;
 	SSA_ASSERT(p_rec);
@@ -115,6 +117,8 @@ static void insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 
 	p_dataset->set_count = htonll(set_count);
 	p_dataset->set_size = htonll(set_size);
+
+	return 0;
 }
 
 ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
@@ -131,6 +135,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	struct ssa_pr_context *p_context = (struct ssa_pr_context *)p_ctnx;
 	clock_t start, end;
 	double cpu_time_used;
+	int rt;
 
 	SSA_ASSERT(port_guid);
 	SSA_ASSERT(p_ssa_db_smdb);
@@ -210,8 +215,19 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 					} else
 						path_prm.reversible = SSA_PR_SUCCESS == revers_path_res;
 
-					if (NULL != dump_clbk)
-						dump_clbk(&path_prm, clbk_prm);
+					if (NULL != dump_clbk) {
+						rt = dump_clbk(&path_prm, clbk_prm);
+						if(rt < 0) {
+							SSA_PR_LOG_ERROR("Dump callback is failed. Ret. value %d",
+									rt);
+							return SSA_PR_ERROR;
+						} else if(rt > 0) {
+							SSA_PR_LOG_INFO("Dump callback stopped processing."
+									" Ret. value %d",
+									rt);
+							return SSA_PR_SUCCESS;
+						}
+					}
 
 				} else if (SSA_PR_ERROR == path_res) {
 					SSA_PR_LOG_ERROR("Path calculation failed: (%u) -> (%u) "

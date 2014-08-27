@@ -64,7 +64,13 @@ typedef struct ssa_path_parms {
 	uint8_t hops;
 } ssa_path_parms_t;
 
-typedef void (*ssa_pr_path_dump_t)(const struct ssa_path_parms *, void *);
+/*
+ * @return value:
+ * 	0 - success. Continue path record computation
+ * 	> 0 - success. Stop path record computation
+ * 	< 0 - failure. Stop path record computation
+ */
+typedef int (*ssa_pr_path_dump_t)(const struct ssa_path_parms *, void *);
 
 extern void *ssa_pr_create_context(FILE *log_fd, int log_level);
 extern void ssa_pr_destroy_context(void *ctx);

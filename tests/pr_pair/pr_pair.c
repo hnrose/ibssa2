@@ -372,7 +372,7 @@ static void dump_pr(ptrvector_t *path_arr,struct ssa_db *p_smdb,FILE *fd)
 	fprintf(fd,"\n");
 }
 
-static void ssa_pr_path_output(const ssa_path_parms_t *p_path_prm, void *prm)
+static int ssa_pr_path_output(const ssa_path_parms_t *p_path_prm, void *prm)
 {
 	ssa_path_parms_t *p_my_path = NULL;
 	ptrvector_t *path_arr = (ptrvector_t *)prm;
@@ -381,6 +381,8 @@ static void ssa_pr_path_output(const ssa_path_parms_t *p_path_prm, void *prm)
 
 	memcpy(p_my_path,p_path_prm,sizeof(*p_my_path));
 	ptrvector_pushback(path_arr,p_my_path);
+
+	return 0;
 }
 
 static struct ssa_db *load_smdb(const char *path)
