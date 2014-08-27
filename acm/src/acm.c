@@ -2995,7 +2995,12 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid
 
 	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
 	port_lid = GET_PORT_FIELD_PTR(ep->port, uint16_t, lid);
-	ibv_query_gid(verbs, *port_num, 0, &sgid);
+	ret = ibv_query_gid(verbs, *port_num, 0, &sgid);
+	if (ret < 0) {
+		ssa_log_err(0, "unable to query gid for port num %d\n",
+			    *port_num);
+		return ret;
+	}
 
 	p_pr_tbl = (struct ep_pr_tbl_rec *) p_ssa_db->pp_tables[SSA_PR_TABLE_ID];
 	pr_cnt = ntohll(p_ssa_db->p_db_tables[SSA_PR_TABLE_ID].set_count);
@@ -3092,6 +3097,7 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 	uint8_t addr[ACM_MAX_ADDRESS];
 	union ibv_gid *gid_addr = (union ibv_gid *) &addr;
 	uint16_t *lid_addr = (uint16_t *) &addr;
+	int ret;
 	uint8_t addr_type, k;
 
 	if (!lid2guid_cached || !lid2guid)
@@ -3099,7 +3105,10 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 
 	port = (struct ssa_port *)ep->port;
 
-	ibv_query_gid(port->dev->verbs, port->port_num, 0, &sgid);
+	ret = ibv_query_gid(port->dev->verbs, port->port_num, 0, &sgid);
+	if (ret < 0)
+		ssa_log_err(0, "unable to query gid for port num %d\n",
+			    port->port_num);
 	dgid.global.subnet_prefix = sgid.global.subnet_prefix;
 
 	for (dlid = 1; dlid < IB_LID_MCAST_START; dlid++) {
@@ -3274,7 +3283,7 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 	struct ibv_context *verbs;
 	uint16_t *lid;
 	uint8_t *port_num, *mtu, *rate;
-	int i;
+	int i, ret;
 
 	ssa_log_func(SSA_LOG_VERBOSE);
 	if (loopback_prot != ACM_LOOPBACK_PROT_LOCAL)
@@ -3299,7 +3308,12 @@ static int acm_init_ep_loopback(struct acm_ep *ep)
 			return -1;
 		}
 
-		ibv_query_gid(verbs, *port_num, 0, &dest->path.sgid);
+		ret = ibv_query_gid(verbs, *port_num, 0, &dest->path.sgid);
+		if (ret < 0) {
+			ssa_log_err(0, "unable to query gid for port num %d\n",
+				    port_num);
+			return -1;
+		}
 
 		dest->path.dgid = dest->path.sgid;
 		dest->path.dlid = dest->path.slid = htons(*lid);
@@ -3612,6 +3626,9 @@ static void acm_port_up(struct acm_port *port)
 		port->subnet_timeout = 1 << (attr.subnet_timeout - 8);
 	for (port->gid_cnt = 0;; port->gid_cnt++) {
 		ret = ibv_query_gid(port->dev->verbs, port->port_num, port->gid_cnt, &gid);
+		if (ret)
+			ssa_log_err(0, "unable to query gid for port num %d\n",
+				    port->port_num);
 		if (ret || !gid.global.interface_id)
 			break;
 	}
