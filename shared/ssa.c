@@ -1303,9 +1303,6 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
 		if (ssa_db) {
-			/* Should the next 2 lines be dependent on flags (full update) in DB update msg ? */
-			ssa_db->p_db_field_tables = NULL;
-			ssa_db->p_db_tables = NULL;
 			if (*count == 0) {
 				*count = ssa_upstream_send_db_update_prepare(svc, svc->conn_dataup.ssa_db);
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
@@ -1494,6 +1491,10 @@ static void *ssa_upstream_handler(void *context)
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
+						ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+						/* Should the next 2 lines be dependent on flags (full update) in DB update msg ? */
+						ssa_db->p_db_field_tables = NULL;
+						ssa_db->p_db_tables = NULL;
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					}
 				}
@@ -1577,6 +1578,10 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
+						ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
+						/* Should the next 2 lines be dependent on flags (full update) in DB update msg ? */
+						ssa_db->p_db_field_tables = NULL;
+						ssa_db->p_db_tables = NULL;
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					}
 				}
