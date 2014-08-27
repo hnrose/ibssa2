@@ -469,7 +469,7 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 
 	/* comparing pkeys */
 	if (res == 0 && p_data_ref_tbl_old && p_data_ref_tbl_new &&
-	    memcmp(&p_tbl_ref_rec_old, &p_tbl_ref_rec_new,
+	    memcmp(p_tbl_ref_rec_old, p_tbl_ref_rec_new,
 		   ntohs(p_tbl_rec_old->pkey_tbl_size)))
 		res = 1;
 
