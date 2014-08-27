@@ -85,12 +85,12 @@ extern void ssa_pr_reinit_context(void *ctx);
 extern struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 						void *p_ctnx, be64_t port_guid);
 
-extern ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, 
+extern ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb,
 					 void *context, be64_t port_guid,
 					 ssa_pr_path_dump_t dump_clbk,
 					 void *clbk_prm);
 
-extern ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb, 
+extern ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
 					  void *context,
 					  ssa_pr_path_dump_t dump_clbk,
 					  void *clbk_prm);
