@@ -76,6 +76,10 @@ extern void *ssa_pr_create_context(FILE *log_fd, int log_level);
 extern void ssa_pr_destroy_context(void *ctx);
 extern void ssa_pr_reinit_context(void *ctx);
 
+
+extern uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,
+		void *p_ctnx, be64_t port_guid);
+
 /* ssa_pr_compute_half_world function computes "half world" path records
  * 					for given GUID. As result the function creates prdb
  * 					database. A caller is responsible for destroy the

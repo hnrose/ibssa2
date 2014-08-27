@@ -245,15 +245,15 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	return SSA_PR_SUCCESS;
 }
 
-struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
-					 void *p_ctnx, be64_t port_guid)
+uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
+		be64_t port_guid)
 {
-	struct ssa_db *p_prdb = NULL;
-	uint64_t record_num = 0;
 	size_t guid_to_lid_count = 0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
-	ssa_pr_status_t res = SSA_PR_SUCCESS;
-	struct prdb_prm prm;
+
+	/* Prevent compilation warnings */
+	(void)port_guid;
+	(void)p_ctnx;
 
 	SSA_ASSERT(p_ssa_db_smdb);
 
@@ -262,7 +262,20 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 
 	guid_to_lid_count = get_dataset_count(p_ssa_db_smdb,
 					      SSA_TABLE_ID_GUID_TO_LID);
-	record_num = guid_to_lid_count * 2;
+
+	return guid_to_lid_count * 2;
+}
+
+struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
+					 void *p_ctnx, be64_t port_guid)
+{
+	struct ssa_db *p_prdb = NULL;
+	uint64_t record_num = 0;
+	ssa_pr_status_t res = SSA_PR_SUCCESS;
+	struct prdb_prm prm;
+
+	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, p_ctnx,
+			port_guid);
 
 	/* TODO: use previous PRDB version epoch */
 	p_prdb = ssa_prdb_create(0 /* epoch */, record_num);
