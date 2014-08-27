@@ -846,7 +846,8 @@ static int verify_resolve(struct ibv_path_record *path)
 	if (ret)
 		printf("SA verification: failed %s\n", strerror(errno));
 	else {
-		if (!verify_compare(&cached_path, path))
+		ret = verify_compare(&cached_path, path);
+		if (!ret)
 			printf("SA verification: success\n");
 		else
 			printf("SA verification: failed (different path params)\n");
@@ -898,17 +899,17 @@ static char *get_dest(char *arg, char *format)
 	}
 }
 
-static void resolve(char *svc)
+static int resolve(char *svc)
 {
 	char **dest_list, **src_list;
 	struct ibv_path_record path;
-	int ret, d = 0, s = 0;
+	int ret = 0, d = 0, s = 0;
 	char dest_type;
 
 	dest_list = parse(dest_arg, NULL);
 	if (!dest_list) {
 		printf("Unable to parse destination argument\n");
-		return;
+		return 1;
 	}
 
 	src_list = src_arg ? parse(src_arg, NULL) : NULL;
@@ -944,8 +945,11 @@ static void resolve(char *svc)
 			if (!ret)
 				show_path(&path);
 
-			if (verify)
+			if (verify) {
 				ret = verify_resolve(&path);
+				if (ret)
+					goto out;
+			}
 			printf("\n");
 
 			if (src_list)
@@ -953,7 +957,9 @@ static void resolve(char *svc)
 		} while (src_addr);
 	}
 
+out:
 	free(dest_list);
+	return ret;
 }
 
 static void query_perf(char *svc)
@@ -1008,8 +1014,13 @@ static int query_svcs(void)
 			continue;
 		}
 
-		if (dest_arg)
-			resolve(svc_list[i]);
+		if (dest_arg) {
+			ret = resolve(svc_list[i]);
+			if (ret) {
+				ib_acm_disconnect();
+				goto out;
+			}
+		}
 
 		if (perf_query)
 			query_perf(svc_list[i]);
@@ -1017,6 +1028,7 @@ static int query_svcs(void)
 		ib_acm_disconnect();
 	}
 
+out:
 	free(svc_list);
 	return ret;
 }
