@@ -245,16 +245,13 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	return SSA_PR_SUCCESS;
 }
 
-uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
+uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,
 		be64_t port_guid)
 {
 	size_t guid_to_lid_count = 0 , i = 0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
 	uint64_t destination_count = 0;
 	uint8_t source_lmc = 0;
-
-	/* Prevent compilation warnings */
-	(void)p_ctnx;
 
 	SSA_ASSERT(p_ssa_db_smdb);
 
@@ -282,8 +279,7 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
 	struct prdb_prm prm;
 
-	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, p_ctnx,
-			port_guid);
+	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
 
 	/* TODO: use previous PRDB version epoch */
 	p_prdb = ssa_prdb_create(0 /* epoch */, record_num);
