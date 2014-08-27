@@ -248,11 +248,12 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 		be64_t port_guid)
 {
-	size_t guid_to_lid_count = 0;
+	size_t guid_to_lid_count = 0 , i = 0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+	uint64_t destination_count = 0;
+	uint8_t source_lmc = 0;
 
 	/* Prevent compilation warnings */
-	(void)port_guid;
 	(void)p_ctnx;
 
 	SSA_ASSERT(p_ssa_db_smdb);
@@ -263,7 +264,14 @@ uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb, void *p_ctnx
 	guid_to_lid_count = get_dataset_count(p_ssa_db_smdb,
 					      SSA_TABLE_ID_GUID_TO_LID);
 
-	return guid_to_lid_count * 2;
+	for (i = 0; i < guid_to_lid_count; i++) {
+		const struct ep_guid_to_lid_tbl_rec* p_rec = p_guid_to_lid_tbl + i;
+		if(p_rec->guid == port_guid)
+			source_lmc = p_rec->lmc;
+		destination_count += (0x01 << p_rec->lmc);
+	}
+
+	return destination_count * (0x01 << source_lmc);
 }
 
 struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
