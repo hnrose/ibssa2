@@ -687,6 +687,9 @@ static short ssa_riowrite(struct ssa_conn *conn, short events)
 	int ret;
 	short revents = events;
 
+	ssa_log(SSA_LOG_VERBOSE, "epoch 0x%" PRIx64 " remote LID %u\n",
+		ntohll(conn->prdb_epoch), conn->remote_lid);
+
 	conn->sbuf = (void *) &conn->prdb_epoch;
 	conn->ssize = sizeof(conn->prdb_epoch);
 	conn->soffset = 0;
