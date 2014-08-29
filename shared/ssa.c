@@ -1492,7 +1492,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
 						ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-						/* Should the next 2 lines be dependent on flags (full update) in DB update msg ? */
+						/* Should the next 2 lines be dependent on flags (full update) in DB update ready msg ? */
 						ssa_db->p_db_field_tables = NULL;
 						ssa_db->p_db_tables = NULL;
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
@@ -1579,7 +1579,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
 						ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-						/* Should the next 2 lines be dependent on flags (full update) in DB update msg ? */
+						/* Should the next 2 lines be dependent on flags (full update) in DB update ready msg ? */
 						ssa_db->p_db_field_tables = NULL;
 						ssa_db->p_db_tables = NULL;
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
