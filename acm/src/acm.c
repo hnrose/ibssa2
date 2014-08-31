@@ -2333,7 +2333,10 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 	if (acm_mode == ACM_MODE_SSA && acm_issue_query_done) {
 		for (i = 0; i < ssa_get_svc_cnt(ep->port); i++) {
 			svc = ssa_get_svc(ep->port, i);
-			ssa_upstream_query_db(svc);
+			ret = ssa_upstream_query_db(svc);
+			if (ret)
+				ssa_log(SSA_LOG_CTRL,
+					"unsuccessful last DB query (status: %d)\n", ret);
 		}
 	}
 
