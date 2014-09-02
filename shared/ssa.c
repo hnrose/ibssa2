@@ -4715,6 +4715,12 @@ int ssa_open_devices(struct ssa_class *ssa)
 		goto free;
 	}
 
+	if (!ssa->dev_cnt) {
+		ssa_log_err(SSA_LOG_CTRL, "no IB device\n");
+		ret = seterr(ENODEV);
+		goto free;
+	}
+
 	for (i = 0; i < ssa->dev_cnt; i++) {
 		ret = ssa_open_dev(ssa_dev(ssa, i), ssa, ibdev[i]);
 		if (ret)
