@@ -4710,7 +4710,7 @@ int ssa_open_devices(struct ssa_class *ssa)
 
 	ssa->dev = (struct ssa_device *) calloc(ssa->dev_cnt, ssa->dev_size);
 	if (!ssa->dev) {
-		ssa_log_err(SSA_LOG_CTRL, "allocating devices\n");
+		ssa_log_err(SSA_LOG_CTRL, "allocating memory for devices\n");
 		ret = seterr(ENOMEM);
 		goto free;
 	}
