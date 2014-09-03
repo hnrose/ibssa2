@@ -109,6 +109,12 @@ struct ssa_db_update_msg {
 	struct ssa_db_update	db_upd;
 };
 
+enum ssa_db_query_msg_status {
+	SSA_DB_QUERY_EPOCH_CHANGED,
+	SSA_DB_QUERY_EPOCH_NOT_CHANGED,
+	SSA_DB_QUERY_NO_UPSTREAM_CONN
+};
+
 struct ssa_db_query_msg {
 	struct ssa_ctrl_msg	hdr;
 	int			status;

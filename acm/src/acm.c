@@ -3386,7 +3386,7 @@ acm_alloc_ep(void *port, uint16_t pkey, uint16_t pkey_index)
 static void *acm_issue_query(void *context)
 {
 	struct ssa_svc *svc = context;
-	int i, ret = -2;
+	int i, ret = -SSA_DB_QUERY_NO_UPSTREAM_CONN;
 
 	ssa_log_func(SSA_LOG_CTRL);
 

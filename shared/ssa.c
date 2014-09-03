@@ -1533,7 +1533,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY msg received\n");
 							ssa_db->p_db_tables = NULL;
 						}
 						/* Should response (and epoch update) be after DB is pulled successfully ??? */
-						ssa_upstream_query_db_resp(svc, 0);
+						ssa_upstream_query_db_resp(svc, SSA_DB_QUERY_EPOCH_CHANGED);
 						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
 ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due to updated epoch 0x%" PRIx64 "\n", svc->conn_dataup.rsock, svc->conn_dataup.phase, svc->conn_dataup.epoch);
 						/* Check connection state ??? */
@@ -1544,11 +1544,11 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					} else {
 						/* No epoch change */
-						ssa_upstream_query_db_resp(svc, -1);
+						ssa_upstream_query_db_resp(svc, -SSA_DB_QUERY_EPOCH_NOT_CHANGED);
 					}
 				} else {
 					/* No upstream connection */
-					ssa_upstream_query_db_resp(svc, -2);
+					ssa_upstream_query_db_resp(svc, -SSA_DB_QUERY_NO_UPSTREAM_CONN);
 				}
 				break;
 			default:
