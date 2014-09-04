@@ -1646,7 +1646,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 						svc->conn_dataup.rhdr = NULL;
 					} else
 						ssa_log_err(SSA_LOG_CTRL,
-							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
+							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n",
+							    fds[UPSTREAM_DATA_FD_SLOT].fd);
 				}
 				if (svc->conn_dataup.rbuf)
 					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_rrecv(svc, fds[UPSTREAM_DATA_FD_SLOT].events, &outstanding_count);
@@ -2307,8 +2308,7 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 			}
 		}
 	} else
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "struct ssa_conn allocation failed\n");
+		ssa_log_err(SSA_LOG_DEFAULT, "struct ssa_conn allocation failed\n");
 
 	if (conn_data && keepalive == 0) {
 		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
@@ -4297,8 +4297,7 @@ static int ssa_db_update_queue_init(struct ssa_db_update_queue *p_queue)
 
 	ret = pthread_mutex_init(&p_queue->lock, NULL);
 	if (ret) {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable initialize DB queue lock\n");
+		ssa_log_err(SSA_LOG_DEFAULT, "unable initialize DB queue lock\n");
 		pthread_cond_destroy(&p_queue->cond_var);
 		pthread_mutex_destroy(&p_queue->lock);
 		return ret;
@@ -4350,8 +4349,7 @@ int ssa_start_access(struct ssa_class *ssa)
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_accessctrl);
 	if (ret) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "creating access layer socketpair\n");
+		ssa_log_err(SSA_LOG_CTRL, "creating access layer socketpair\n");
 		goto err1;
 	}
 
@@ -4601,7 +4599,7 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 					"%s:%d link layer %d is not IB\n",
 					dev->name, i, port_attr.link_layer);
 		} else
-			ssa_log_err(SSA_LOG_CTRL, "ibv_query_port (%s:%d) %d\n",
+			ssa_log_err(0, "ibv_query_port (%s:%d) %d\n",
 				    dev->name, i, ret);
 	}
 
