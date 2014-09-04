@@ -155,9 +155,6 @@ union socket_addr {
 
 static struct ssa_class ssa;
 static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread;
-static pthread_mutex_t ssa_dev_open = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t ssa_dev_open_cond_var = PTHREAD_COND_INITIALIZER;
-static short ssa_dev_are_opened;
 
 static DLIST_ENTRY device_list;
 
@@ -3742,22 +3739,6 @@ static void *acm_event_handler(void *context)
 	return context;
 }
 
-void acm_send_devices_open()
-{
-	pthread_mutex_lock(&ssa_dev_open);
-	ssa_dev_are_opened = 1;
-	pthread_cond_signal(&ssa_dev_open_cond_var);
-	pthread_mutex_unlock(&ssa_dev_open);
-}
-
-static void acm_wait_devices_open()
-{
-	pthread_mutex_lock(&ssa_dev_open);
-	while (!ssa_dev_are_opened)
-		pthread_cond_wait(&ssa_dev_open_cond_var, &ssa_dev_open);
-	pthread_mutex_unlock(&ssa_dev_open);
-}
-
 static void acm_activate_devices()
 {
 	struct acm_device *dev;
@@ -3777,10 +3758,6 @@ static void acm_activate_devices()
 			SET_THREAD_NAME(comp_thread, "COMP 0x%" PRIx64, dev->guid);
 		}
 	} else { /* ACM_MODE_SSA */
-		/*
-		 * Wait for acm_ctrl_handler to open ssa devices.
-		 */
-		acm_wait_devices_open();
 		for (d = 0; d < ssa.dev_cnt; d++) {
 			ssa_dev1 = ssa_dev(&ssa, d);
 			pthread_create(&comp_thread, NULL, acm_comp_handler, ssa_dev1);
@@ -4083,15 +4060,6 @@ static void *acm_ctrl_handler(void *context)
 	struct ssa_svc *svc;
 	int ret;
 
-	ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
-	ret = ssa_open_devices(&ssa);
-	/* Signal to ACM main thread that ssa devices are open */
-	acm_send_devices_open();
-	if (ret) {
-		ssa_log_err(0, "opening devices\n");
-		return NULL;
-	}
-
 	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
 			    sizeof *svc, acm_process_msg);
 	if (!svc) {
@@ -4192,6 +4160,11 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	} else { /* ACM_MODE_SSA */
+		ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
+		if (ssa_open_devices(&ssa)) {
+			ssa_log_err(0, "unable to open any SSA device\n");
+			return -1;
+		}
 		pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
 		SET_THREAD_NAME(ctrl_thread, "CTRL");
 	}
@@ -4209,7 +4182,5 @@ int main(int argc, char **argv)
 	ssa_close_log();
 	ssa_cleanup(&ssa);
 	free(lid2guid_cached);
-	pthread_cond_destroy(&ssa_dev_open_cond_var);
-	pthread_mutex_destroy(&ssa_dev_open);
 	return 0;
 }
