@@ -157,7 +157,7 @@ static struct ssa_class ssa;
 static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread;
 static pthread_mutex_t ssa_dev_open = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ssa_dev_open_cond_var = PTHREAD_COND_INITIALIZER;
-static short ssa_dev_are_opened = 0;
+static short ssa_dev_are_opened;
 
 static DLIST_ENTRY device_list;
 
