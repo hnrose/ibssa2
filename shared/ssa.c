@@ -4698,7 +4698,7 @@ ctx_create_err:
 int ssa_open_devices(struct ssa_class *ssa)
 {
 	struct ibv_device **ibdev;
-	int i, ret = 0;
+	int i, j, ret = 0;
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	ibdev = ibv_get_device_list(&ssa->dev_cnt);
@@ -4716,15 +4716,34 @@ int ssa_open_devices(struct ssa_class *ssa)
 	}
 
 	if (!ssa->dev_cnt) {
-		ssa_log_err(SSA_LOG_CTRL, "no IB device\n");
+		ssa_log_err(SSA_LOG_CTRL, "no RDMA device\n");
 		ret = seterr(ENODEV);
 		goto free;
 	}
 
+	j = 0;
 	for (i = 0; i < ssa->dev_cnt; i++) {
+		if (ibdev[i]->transport_type != IBV_TRANSPORT_IB) {
+			ssa_log(SSA_LOG_CTRL,
+				"device %d transport type %d is not IB\n",
+				i, ibdev[i]->transport_type);
+			continue;
+		}
+		if (ibdev[i]->node_type != IBV_NODE_CA) {
+			ssa_log(SSA_LOG_CTRL,
+				"device %d node type %d is not CA\n",
+				i, ibdev[i]->node_type);
+			continue;
+		}
 		ret = ssa_open_dev(ssa_dev(ssa, i), ssa, ibdev[i]);
 		if (ret)
 			goto free;
+		j++;
+	}
+
+	if (j == 0) {
+		ssa_log_err(SSA_LOG_CTRL, "no IB device\n");
+		ret = seterr(ENODEV);
 	}
 
 free:
