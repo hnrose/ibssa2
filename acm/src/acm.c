@@ -157,6 +157,7 @@ static struct ssa_class ssa;
 static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread;
 static pthread_mutex_t ssa_dev_open = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t ssa_dev_open_cond_var = PTHREAD_COND_INITIALIZER;
+static short ssa_dev_are_opened = 0;
 
 static DLIST_ENTRY device_list;
 
@@ -3746,6 +3747,7 @@ static void *acm_event_handler(void *context)
 void acm_send_devices_open()
 {
 	pthread_mutex_lock(&ssa_dev_open);
+	ssa_dev_are_opened = 1;
 	pthread_cond_signal(&ssa_dev_open_cond_var);
 	pthread_mutex_unlock(&ssa_dev_open);
 }
@@ -3753,7 +3755,8 @@ void acm_send_devices_open()
 static void acm_wait_devices_open()
 {
 	pthread_mutex_lock(&ssa_dev_open);
-	pthread_cond_wait(&ssa_dev_open_cond_var, &ssa_dev_open);
+	while (!ssa_dev_are_opened)
+		pthread_cond_wait(&ssa_dev_open_cond_var, &ssa_dev_open);
 	pthread_mutex_unlock(&ssa_dev_open);
 }
 
