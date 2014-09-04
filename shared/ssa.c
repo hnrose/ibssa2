@@ -4666,6 +4666,7 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return 0;
+
 #ifdef ACM
 err3:
 	ibv_dealloc_pd(dev->pd);
