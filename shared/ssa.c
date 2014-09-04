@@ -4545,6 +4545,7 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	struct ssa_db *db;
 #endif
 	struct ibv_device_attr attr;
+	struct ibv_port_attr port_attr;
 	int i, ret;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", ibdev->name);
@@ -4590,8 +4591,19 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	}
 #endif
 
-	for (i = 1; i <= dev->port_cnt; i++)
-		ssa_open_port(ssa_dev_port(dev, i), dev, i);
+	for (i = 1; i <= dev->port_cnt; i++) {
+		ret = ibv_query_port(dev->verbs, i, &port_attr);
+		if (ret == 0) {
+			if (port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND)
+				ssa_open_port(ssa_dev_port(dev, i), dev, i);
+			else
+				ssa_log(SSA_LOG_CTRL,
+					"%s:%d link layer %d is not IB\n",
+					dev->name, i, port_attr.link_layer);
+		} else
+			ssa_log_err(SSA_LOG_CTRL, "ibv_query_port (%s:%d) %d\n",
+				    dev->name, i, ret);
+	}
 
 #ifdef CORE_INTEGRATION
 	if (dev->ssa->node_type & SSA_NODE_CORE) {
