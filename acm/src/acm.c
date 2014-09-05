@@ -890,7 +890,6 @@ static uint8_t acm_resolve_path(struct acm_ep *ep, struct acm_dest *dest,
 	uint8_t ret;
 
 	ssa_log(SSA_LOG_VERBOSE, "%s\n", dest->name);
-
 	if (!acm_acquire_sa_dest(ep->port)) {
 		ssa_log(SSA_LOG_VERBOSE, "cannot acquire SA destination\n");
 		ret = ACM_STATUS_EINVAL;
@@ -1425,7 +1424,6 @@ static void *acm_comp_handler(void *context)
 	int cnt;
 
 	ssa_log(SSA_LOG_VERBOSE, "started\n");
-
 	if (acm_mode == ACM_MODE_ACM)
 		channel = ((struct acm_device *)context)->channel;
 	else /* ACM_MODE_SSA */
