@@ -46,7 +46,6 @@
 #include <infiniband/ssa_db_helper.h>
 
 #define SSA_CORE_OPTS_FILE SSA_FILE_PREFIX "_core" SSA_OPTS_FILE_SUFFIX
-#define DEFAULT_INITIAL_SUBNET_UP_DELAY 2000000		/* 2000 msec (2 sec) */
 #define FIRST_DOWNSTREAM_FD_SLOT 2
 
 /*
@@ -57,7 +56,6 @@ static int node_type = SSA_NODE_CORE;
 int smdb_deltas = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
-static useconds_t subnet_up_delay = DEFAULT_INITIAL_SUBNET_UP_DELAY;
 #if defined(SIM_SUPPORT) || defined(SIM_SUPPORT_SMDB)
 static char *smdb_lock_file = "ibssa_smdb.lock";
 static int smdb_lock_fd = -1;
@@ -373,6 +371,27 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 	child->primary_state = SSA_CHILD_IDLE;
 }
 
+static void core_orphan_adoption(struct ssa_core *core)
+{
+	DLIST_ENTRY *head, *tmp;
+	struct ssa_member *member;
+	int ret;
+
+	if (!DListEmpty(&core->orphan_list)) {
+		head = core->orphan_list.Next;
+		while (head != &core->orphan_list) {
+			member = container_of(head, struct ssa_member, entry);
+
+			tmp = head;
+			head = head->Next;
+
+			ret = core_build_tree(core, member);
+			if (!ret)
+				DListRemove(tmp);
+		}
+	}
+}
+
 /*
  * Process received SSA membership requests.  On errors, we simply drop
  * the request and let the remote node retry.
@@ -427,18 +446,11 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
 
-	/*
-	 * TODO: Really need to wait for first SUBNET UP event.
-	 * Just a one time artificial delay for now.
-	 */
-	if (first) {
-		usleep(subnet_up_delay);
-		first = 0;
-	}
-
-	ret = core_build_tree(core, member);
-	if (ret) {
+	if (!first) {
+		ret = core_build_tree(core, member);
 		ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
+	}
+	if (first || ret) {
 		/* member is orphaned */
 		DListInsertBefore(&member->entry, &core->orphan_list);
 	}
@@ -982,7 +994,6 @@ static void core_extract_db(osm_opensm_t *p_osm)
 #endif
 	}
 	pthread_mutex_unlock(&ssa_db_diff_lock);
-	first = 0;
 }
 #endif
 
@@ -1138,11 +1149,23 @@ static void *core_extract_handler(void *context)
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
+				if (first) {
+					for (i = 0; i < p_extract_data->num_svcs; i++) {
+						struct ssa_core *core;
+
+						core = container_of(p_extract_data->svcs[i],
+								struct ssa_core,
+								svc);
+						core_orphan_adoption(core);
+					}
+				}
 #ifdef SIM_SUPPORT
 				core_extract_db(p_osm);
 #elif !defined(SIM_SUPPORT_SMDB)
 				ssa_extract_process(p_osm, &outstanding_count);
 #endif
+				if (first)
+					first = 0;
 				break;
 			case SSA_DB_LFT_CHANGE:
 				ssa_log(SSA_LOG_VERBOSE,
@@ -1433,8 +1456,6 @@ static void core_set_options(void)
 			smdb_deltas = atoi(value);
 		else if (!strcasecmp("keepalive", opt))
 			keepalive = atoi(value);
-		else if (!strcasecmp("subnet_up_delay", opt))
-			subnet_up_delay = atol(value);
 #ifdef SIM_SUPPORT_FAKE_ACM
 		else if (!strcasecmp("fake_acm_num", opt))
 			fake_acm_num = atoi(value);
@@ -1468,8 +1489,6 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
-	ssa_log(SSA_LOG_DEFAULT, "subnet up delay %ld microseconds\n",
-		subnet_up_delay);
 #ifdef SIM_SUPPORT_SMDB
 	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
 #endif
