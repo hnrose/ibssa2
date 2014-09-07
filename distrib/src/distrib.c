@@ -635,6 +635,7 @@ static void show_usage(char *program)
 	printf("   [-P]             - run as a standard process\n");
 	printf("   [-O option_file] - option configuration file\n");
 	printf("                      (default %s/%s)\n", RDMA_CONF_DIR, SSA_OPTS_FILE);
+	printf("   [-v]             - print ibssa version\n");
 }
 
 int main(int argc, char **argv)
@@ -642,13 +643,17 @@ int main(int argc, char **argv)
 	int op, daemon = 1;
 	struct ssa_class *ssa;
 
-	while ((op = getopt(argc, argv, "PO:")) != -1) {
+	while ((op = getopt(argc, argv, "vPO:")) != -1) {
 		switch (op) {
 		case 'P':
 			daemon = 0;
 			break;
 		case 'O':
 			opts_file = optarg;
+			break;
+		case 'v':
+			printf("ibssa version %s\n", IB_SSA_VERSION);
+			exit(0);
 			break;
 		default:
 			show_usage(argv[0]);

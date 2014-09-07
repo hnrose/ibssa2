@@ -4094,6 +4094,7 @@ static void show_usage(char *program)
 	printf("                      (default %s/%s)\n", RDMA_CONF_DIR, ACM_ADDR_FILE);
 	printf("   [-O option_file] - option configuration file\n");
 	printf("                      (default %s/%s)\n", RDMA_CONF_DIR, ACM_OPTS_FILE);
+	printf("   [-v]             - print ibacm version\n");
 }
 
 int main(int argc, char **argv)
@@ -4101,7 +4102,7 @@ int main(int argc, char **argv)
 	int ret, i, op, daemon = 1;
 	char msg[1024] = {};
 
-	while ((op = getopt(argc, argv, "DPA:O:")) != -1) {
+	while ((op = getopt(argc, argv, "vDPA:O:")) != -1) {
 		switch (op) {
 		case 'D':
 			/* option no longer required */
@@ -4114,6 +4115,10 @@ int main(int argc, char **argv)
 			break;
 		case 'O':
 			opts_file = optarg;
+			break;
+		case 'v':
+			printf("ibacm version %s\n", IB_SSA_VERSION);
+			exit(0);
 			break;
 		default:
 			show_usage(argv[0]);
