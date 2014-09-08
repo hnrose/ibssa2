@@ -455,7 +455,9 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 		port = find_linked_port(p_ssa_db_smdb, p_context->p_index,
 					port_lid, port_num);
 		if (NULL == port) {
-			SSA_PR_LOG_ERROR("Port not found. Path record calculation stopped.");
+			SSA_PR_LOG_ERROR("Port not found. Path record calculation stopped."
+					 " LID: %u num: %u",
+					 ntohs(port_lid), port_num);
 			return SSA_PR_ERROR;
 		}
 
