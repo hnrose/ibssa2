@@ -589,7 +589,7 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 		if (!daemon)
 			fprintf(stderr, "%s\n", msg);
 		openlog("ibssa", LOG_PERROR | LOG_PID, LOG_USER);
-		syslog(LOG_INFO, msg);
+		syslog(LOG_INFO, "%s", msg);
 		closelog();
 		return NULL;
 	}

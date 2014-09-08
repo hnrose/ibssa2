@@ -4141,7 +4141,7 @@ int main(int argc, char **argv)
 		if (!daemon)
 			fprintf(stderr, "%s\n", msg);
 		openlog("ibacm", LOG_PERROR | LOG_PID, LOG_USER);
-		syslog(LOG_INFO, msg);
+		syslog(LOG_INFO, "%s", msg);
 		closelog();
 		return -1;
 	}

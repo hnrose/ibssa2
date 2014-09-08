@@ -1533,7 +1533,7 @@ static void *core_construct(osm_opensm_t *opensm)
 	if (ssa_open_lock_file(lock_file, msg, sizeof msg)) {
 		ssa_log(SSA_LOG_DEFAULT, "%s\n", msg);
 		openlog("ibssa", LOG_PERROR | LOG_PID, LOG_USER);
-		syslog(LOG_INFO, msg);
+		syslog(LOG_INFO, "%s", msg);
 		closelog();
 		goto err1;
 	}
