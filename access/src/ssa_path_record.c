@@ -436,7 +436,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				 p_source_rec->lid, out_port_num);
 		if (NULL == port) {
 			SSA_PR_LOG_ERROR("Port not found. Path record calculation stopped."
-					 " LID: %u num: %u",
+					 " LID: %u num: %d",
 					 ntohs(p_source_rec->lid),
 					 out_port_num);
 			return SSA_PR_ERROR;
@@ -456,7 +456,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 					port_lid, port_num);
 		if (NULL == port) {
 			SSA_PR_LOG_ERROR("Port not found. Path record calculation stopped."
-					 " LID: %u num: %u",
+					 " LID: %u num: %d",
 					 ntohs(port_lid), port_num);
 			return SSA_PR_ERROR;
 		}
@@ -498,7 +498,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				 port_lid, out_port_num);
 		if (NULL == port) {
 			SSA_PR_LOG_ERROR("Port not found. Path record calculation stopped."
-					 " LID: %u num: %u",
+					 " LID: %u num: %d",
 					 ntohs(port_lid), out_port_num);
 			return SSA_PR_ERROR;
 		}
