@@ -4571,7 +4571,7 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	dev->ssa = ssa;
 	dev->guid = ibv_get_device_guid(ibdev);
 	ssa_log(SSA_LOG_CTRL, "Node GUID 0x%" PRIx64 "\n", ntohll(dev->guid));
-	snprintf(dev->name, sizeof dev->name, ibdev->name);
+	snprintf(dev->name, sizeof dev->name, "%s", ibdev->name);
 	dev->port_cnt = attr.phys_port_cnt;
 	dev->port_size = ssa->port_size;
 
