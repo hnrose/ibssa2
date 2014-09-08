@@ -2327,10 +2327,10 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 					     i, log_data, conn_data->remote_lid);
 				ssa_close_ssa_conn(svc->fd_to_conn[i]);
 				svc->fd_to_conn[i] = NULL;
-				pfd = (struct pollfd *)(fds + i);
-				pfd->fd = -1;
-				pfd->events = 0;
-				pfd->revents = 0;
+				pfd2 = (struct pollfd *)(fds + i);
+				pfd2->fd = -1;
+				pfd2->events = 0;
+				pfd2->revents = 0;
 			}
 		}
 	}
