@@ -451,7 +451,7 @@ ssa_db_extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 	osm_physp_t *p_physp;
 	uint32_t i;
 	ib_net16_t pkey;
-	uint16_t lid_ho, block_index, max_pkeys, pkey_idx;
+	uint16_t lid_ho, block_index, pkey_idx;
 
 	for (i = 0; i < p_node->physp_tbl_size; i++) {
 		p_physp = osm_node_get_physp_ptr(p_node, i);
@@ -463,7 +463,6 @@ ssa_db_extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 		if (i == 0) {
 			lid_ho = ntohs(osm_physp_get_base_lid(p_physp));
 
-			max_pkeys = ntohs(p_node->node_info.partition_cap);
 			p_pkey_tbl = osm_physp_get_pkey_tbl(p_physp);
 			for (block_index = 0; block_index < p_pkey_tbl->used_blocks;
 			     block_index++) {
@@ -518,9 +517,8 @@ ssa_db_extract_host_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 	const ib_pkey_table_t *block;
 	osm_physp_t *p_physp = p_port->p_physp;
 	ib_net16_t pkey;
-	uint16_t block_index, max_pkeys, pkey_idx;
+	uint16_t block_index, pkey_idx;
 
-	max_pkeys = ntohs(p_port->p_node->node_info.partition_cap);
 	p_pkey_tbl = osm_physp_get_pkey_tbl(p_physp);
 	for (block_index = 0; block_index < p_pkey_tbl->used_blocks;
 	     block_index++) {
