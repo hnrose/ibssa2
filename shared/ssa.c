@@ -2257,7 +2257,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 				    int conn_dbtype)
 {
 	struct ssa_conn *conn_data;
-	struct pollfd *pfd2;
+	struct pollfd *pfd;
 	int fd, slot, i;
 
 	conn_data = malloc(sizeof(*conn_data));
@@ -2268,17 +2268,17 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 		if (fd >= 0) {
 			if (!svc->fd_to_conn[fd]) {
 				svc->fd_to_conn[fd] = conn_data;
-				pfd2 = (struct  pollfd *)fds;
-				slot = ssa_find_pollfd_slot(pfd2, FD_SETSIZE);
+				pfd = (struct  pollfd *)fds;
+				slot = ssa_find_pollfd_slot(pfd, FD_SETSIZE);
 				if (slot >= 0) {
-					pfd2 = (struct  pollfd *)(fds + slot);
-					pfd2->fd = fd;
-					pfd2->events = POLLIN;
+					pfd = (struct  pollfd *)(fds + slot);
+					pfd->fd = fd;
+					pfd->events = POLLIN;
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
 						ssa_downstream_conn_done(svc, conn_data);
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
 						if (!update_pending && !update_waiting)
-							pfd2->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
+							pfd->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
 else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update deferred since update is pending %d or waiting %d\n", update_pending, update_waiting);
 					else {
 						ssa_close_ssa_conn(conn_data);
@@ -2327,10 +2327,10 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 					     i, log_data, conn_data->remote_lid);
 				ssa_close_ssa_conn(svc->fd_to_conn[i]);
 				svc->fd_to_conn[i] = NULL;
-				pfd2 = (struct pollfd *)(fds + i);
-				pfd2->fd = -1;
-				pfd2->events = 0;
-				pfd2->revents = 0;
+				pfd = (struct pollfd *)(fds + i);
+				pfd->fd = -1;
+				pfd->events = 0;
+				pfd->revents = 0;
 			}
 		}
 	}
