@@ -139,6 +139,10 @@ static void ssa_db_db_def_load(FILE *fd, struct db_def *p_db_def)
 			     &p_db_def->id.field, &table_def_size,
 			     &p_db_def->epoch, p_db_def->name);
 
+		if (res != 8)
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				    "%d fields out of 8 were loaded\n", res);
+
 		p_db_def->epoch = htonll(p_db_def->epoch);
 		p_db_def->table_def_size = htonl(table_def_size);
 	}
@@ -154,6 +158,9 @@ static void ssa_db_table_def_load(FILE *fd, struct db_table_def *p_def_tbl)
 		     &p_def_tbl->id.db, &p_def_tbl->id.table,
 		     &p_def_tbl->id.field, &p_def_tbl->record_size,
 		     &p_def_tbl->ref_table_id, p_def_tbl->name);
+	if (res != 10)
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			    "%d fields out of 10 were loaded\n", res);
 
 	p_def_tbl->record_size = htonl(p_def_tbl->record_size);
 	p_def_tbl->ref_table_id = htonl(p_def_tbl->ref_table_id);
@@ -169,6 +176,9 @@ static void ssa_db_dataset_load(FILE *fd, struct db_dataset *p_dataset)
 		     &p_dataset->id.table, &p_dataset->id.field,
 		     &p_dataset->epoch, &p_dataset->set_size,
 		     &p_dataset->set_offset, &p_dataset->set_count);
+	if (res != 10)
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			    "%d fields out of 10 were loaded\n", res);
 
 	p_dataset->epoch = htonll(p_dataset->epoch);
 	p_dataset->set_size = htonll(p_dataset->set_size);
@@ -191,6 +201,10 @@ static void ssa_db_field_tbl_load(FILE *fd, struct db_dataset *p_dataset,
 				     &field_rec.id.db, &field_rec.id.table,
 				     &field_rec.id.field, &field_rec.field_size,
 				     &field_rec.field_offset, field_rec.name);
+			if (res != 8)
+				ssa_log_warn(SSA_LOG_DEFAULT,
+					    "%d fields out of 8 were loaded\n", res);
+
 			field_rec.field_size = htonl(field_rec.field_size);
 			field_rec.field_offset = htonl(field_rec.field_offset);
 		}
