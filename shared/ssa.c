@@ -2253,8 +2253,8 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 	return 0;
 }
 
-static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd *pfd,
-				    struct pollfd **fds, int conn_dbtype)
+static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
+				    int conn_dbtype)
 {
 	struct ssa_conn *conn_data;
 	struct pollfd *pfd2;
@@ -2669,8 +2669,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			pfd->fd = -1;
 		} else if (pfd->revents) {
 			pfd->revents = 0;
-			ssa_check_listen_events(svc, pfd, fds,
-						SSA_CONN_SMDB_TYPE);
+			ssa_check_listen_events(svc, fds, SSA_CONN_SMDB_TYPE);
 		}
 
 		pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
@@ -2683,8 +2682,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			pfd->fd = -1;
 		} else if (pfd->revents) {
 			pfd->revents = 0;
-			ssa_check_listen_events(svc, pfd, fds,
-						SSA_CONN_PRDB_TYPE);
+			ssa_check_listen_events(svc, fds, SSA_CONN_PRDB_TYPE);
 		}
 
 		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
