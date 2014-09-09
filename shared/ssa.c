@@ -2312,7 +2312,7 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 		ssa_log_err(SSA_LOG_DEFAULT, "struct ssa_conn allocation failed\n");
 
 	if (conn_data && keepalive == 0) {
-		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
+		for (i = 0; i < FD_SETSIZE; i++) {
 			if (svc->fd_to_conn[i] &&
 			    svc->fd_to_conn[i]->rsock >= 0 &&
 			    svc->fd_to_conn[i] != conn_data &&
@@ -2326,12 +2326,23 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 					     "removing old connection for "
 					     "rsock %d GID %s LID %u\n",
 					     i, log_data, conn_data->remote_lid);
+
 				ssa_close_ssa_conn(svc->fd_to_conn[i]);
 				svc->fd_to_conn[i] = NULL;
-				pfd = (struct pollfd *)(fds + i);
-				pfd->fd = -1;
-				pfd->events = 0;
-				pfd->revents = 0;
+
+				for (slot = FIRST_DATA_FD_SLOT; slot < FD_SETSIZE; slot++) {
+					pfd = (struct pollfd *)(fds + slot);
+					if (pfd->fd == i) {
+						pfd->fd = -1;
+						pfd->events = 0;
+						pfd->revents = 0;
+						break;
+					}
+				}
+
+				if (slot == FD_SETSIZE)
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "unable to find corresponding fd for rsock %d in fd_to_conn struct\n", i);
 			}
 		}
 	}
