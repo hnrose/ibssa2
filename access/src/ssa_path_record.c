@@ -557,7 +557,6 @@ void *ssa_pr_create_context(FILE *log_fd, int log_level)
 	}
 
 	memset(p_context->p_index,'\0',sizeof(struct ssa_pr_smdb_index));
-	p_context->p_index->epoch = -1;
 
 	return p_context;
 

@@ -336,7 +336,7 @@ void ssa_pr_destroy_indexes(struct ssa_pr_smdb_index *p_index)
 		}
 	}
 
-	p_index->epoch = -1;
+	p_index->epoch = 0;
 }
 
 static int epoch_table_ids[] = {
