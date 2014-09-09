@@ -70,6 +70,10 @@ static int build_is_switch_lookup(struct ssa_pr_smdb_index *p_index,
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->is_switch_lookup[0]));
 
 	count = get_dataset_count(p_smdb,SSA_TABLE_ID_GUID_TO_LID);
+	if (!count) {
+		SSA_PR_LOG_ERROR("Guid to LID table is empty");
+		return 1;
+	}
 
 	for (i = 0; i < count; i++) {
 		uint16_t lid = ntohs(p_guid_to_lid_tbl[i].lid);
@@ -96,6 +100,10 @@ static int build_lft_top_lookup(struct ssa_pr_smdb_index *p_index,
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->lft_top_lookup[0]));
 
 	count = get_dataset_count(p_smdb, SSA_TABLE_ID_LFT_TOP);
+	if (!count) {
+		SSA_PR_LOG_ERROR("LFT top table is empty");
+		return 1;
+	}
 
 	for (i = 0; i < count; i++)
 		p_index->lft_top_lookup[ntohs(p_lft_top_tbl[i].lid)] = ntohs(p_lft_top_tbl[i].lft_top);
@@ -123,6 +131,10 @@ static int build_port_index(struct ssa_pr_smdb_index *p_index,
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->switch_port_lookup[0]));
 
 	count = get_dataset_count(p_smdb, SSA_TABLE_ID_PORT);
+	if (!count) {
+		SSA_PR_LOG_ERROR("Port table is empty");
+		return 1;
+	}
 	default_val = count + 1;
 
 	for (i = 0; i < count; i++) {
@@ -168,6 +180,10 @@ static int build_lft_block_lookup(struct ssa_pr_smdb_index *p_index,
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->lft_block_lookup[0]));
 
 	count = get_dataset_count(p_smdb, SSA_TABLE_ID_LFT_BLOCK);
+	if (!count) {
+		SSA_PR_LOG_ERROR("LFT block table is empty");
+		return 1;
+	}
 	default_val = count + 1;
 
 	for (i = 0; i < count; i++) {
@@ -210,7 +226,15 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 	SSA_ASSERT(p_link_tbl);
 
 	link_count = get_dataset_count(p_smdb, SSA_TABLE_ID_LINK);
+	if (!link_count) {
+		SSA_PR_LOG_ERROR("Link table is empty");
+		return 1;
+	}
 	port_count = get_dataset_count(p_smdb, SSA_TABLE_ID_PORT);
+	if (!port_count) {
+		SSA_PR_LOG_ERROR("Port table is empty");
+		return 1;
+	}
 	default_val = port_count + 1;
 
 	for (i = 0; i < link_count; i++) {
