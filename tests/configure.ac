@@ -102,7 +102,7 @@ if test "$commit" == "" ; then
 	ver="${PACKAGE_VERSION}"
 else
 	ver="${PACKAGE_VERSION}_${commit}"
-	git diff-index --quiet HEAD -- ./ > /dev/null 2>&1
+	git diff-index --quiet HEAD -- ../ > /dev/null 2>&1
 	if test "$?" == "1" ; then
 		ver="${ver}_dirty"
 	fi
