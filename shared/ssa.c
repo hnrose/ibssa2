@@ -106,6 +106,7 @@ static pthread_t access_prdb_handler;
 #endif
 
 int smdb_dump = 0;
+int err_smdb_dump = 0;
 int prdb_dump = 0;
 char smdb_dump_dir[128] = SMDB_DUMP_PATH;
 char prdb_dump_dir[128] = PRDB_DUMP_PATH;
@@ -2750,6 +2751,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	int n;
 	char dump_dir[1024];
 	struct stat dstat;
+	uint64_t epoch;
 
 	/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
 	prdb = ssa_pr_compute_half_world(access_context.smdb,
@@ -2771,7 +2773,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 					ssa_log_err(SSA_LOG_CTRL,
 						    "prdb dump for GID %s: %d (%s)\n",
 						    log_data, errno, strerror(errno));
-					goto skip_prdb_save;
+					goto skip_db_save;
 				}
 			}
 			ssa_db_save(dump_dir, prdb, prdb_dump);
@@ -2780,8 +2782,30 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
 		ssa_log(SSA_LOG_DEFAULT, "PRDB calculation for GID %s failed\n", log_data);
+
+		if (err_smdb_dump) {
+			epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
+
+			n = snprintf(dump_dir, sizeof(dump_dir),
+				     "%s/0x%" PRIx64, smdb_dump_dir, epoch);
+			if (lstat(dump_dir, &dstat)) {
+				if (mkdir(dump_dir, 0755)) {
+					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
+							sizeof log_data,
+							SSA_ADDR_GID, gid->raw,
+							sizeof gid->raw);
+					ssa_log_err(SSA_LOG_CTRL,
+							"smdb error dump for GID %s: %d (%s)\n",
+							log_data, errno, strerror(errno));
+					goto skip_db_save;
+				}
+				ssa_db_save(dump_dir, access_context.smdb, err_smdb_dump);
+			}
+			ssa_log(SSA_LOG_DEFAULT, "SMDB dump %s\n", dump_dir);
+		}
+
 	}
-skip_prdb_save:
+skip_db_save:
 	return prdb;
 }
 
