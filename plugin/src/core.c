@@ -1468,22 +1468,13 @@ static void core_set_options(void)
 	fclose(f);
 }
 
-static const char *core_node_type_str(int node_type)
-{
-	if (node_type == SSA_NODE_CORE)
-		return "Core";
-	if (node_type == (SSA_NODE_CORE | SSA_NODE_ACCESS))
-		return "Combined";
-	return "Other";
-}
-
 static void core_log_options(void)
 {
 	ssa_log_options();
 	ssa_log(SSA_LOG_DEFAULT, "config file %s\n", opts_file);
 	ssa_log(SSA_LOG_DEFAULT, "lock file %s\n", lock_file);
 	ssa_log(SSA_LOG_DEFAULT, "node type %d (%s)\n", node_type,
-		core_node_type_str(node_type));
+		ssa_node_type_str(node_type));
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);

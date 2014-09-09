@@ -174,6 +174,7 @@ struct sa_umad {
 const char *ssa_method_str(uint8_t method);
 const char *ssa_attribute_str(be16_t attr_id);
 const char *ssa_mad_status_str(be16_t status);
+const char *ssa_node_type_str(int node_type);
 
 #ifdef __cplusplus
 }

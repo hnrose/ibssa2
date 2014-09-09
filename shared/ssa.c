@@ -176,6 +176,25 @@ const char *ssa_mad_status_str(be16_t status)
 	return umad_sa_mad_status_str(status);
 }
 
+const char *ssa_node_type_str(int node_type)
+{
+	switch (node_type) {
+	case SSA_NODE_CORE:
+		return "Core";
+	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
+	case (SSA_NODE_DISTRIBUTION | SSA_NODE_ACCESS):
+		return "Combined";
+	case SSA_NODE_DISTRIBUTION:
+		return "Distribution";
+	case SSA_NODE_ACCESS:
+		return "Access";
+	case SSA_NODE_CONSUMER:
+		return "Consumer";
+	default:
+		return "Other";
+	}
+}
+
 int ssa_compare_gid(const void *gid1, const void *gid2)
 {
 	return memcmp(gid1, gid2, 16);
