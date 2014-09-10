@@ -2984,11 +2984,36 @@ ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_g
 	}
 }
 
+static void prdb_handler_cleanup(void *context)
+{
+	DLIST_ENTRY *list, *entry, *entry_tmp;
+	struct ssa_db_update_record *p_rec;
+	struct ssa_db_update_queue *p_queue =
+		(struct ssa_db_update_queue *) context;
+
+	pthread_mutex_lock(&p_queue->lock);
+	list = &p_queue->list;
+	if (!DListEmpty(list)) {
+		entry = list->Next;
+		while (entry != list) {
+			p_rec = container_of(entry, struct ssa_db_update_record,
+					     list_entry);
+			entry_tmp = entry;
+			entry = entry->Next;
+			DListRemove(entry_tmp);
+			free(p_rec);
+		}
+	}
+	pthread_mutex_unlock(&p_queue->lock);
+}
+
 static void *ssa_access_prdb_handler(void *context)
 {
 	struct ssa_db_update db_upd;
 
 	ssa_log_func(SSA_LOG_CTRL);
+
+	pthread_cleanup_push(prdb_handler_cleanup, &access_context.update_queue);
 
 	while (1) {
 		ssa_wait_db_update(&access_context.update_queue);
@@ -3000,6 +3025,7 @@ static void *ssa_access_prdb_handler(void *context)
 		}
 	}
 
+	pthread_cleanup_pop(0);
 	return NULL;
 }
 
@@ -4364,22 +4390,8 @@ static int ssa_db_update_queue_init(struct ssa_db_update_queue *p_queue)
 
 static void ssa_db_update_queue_destroy(struct ssa_db_update_queue *p_queue)
 {
-	struct ssa_db_update_record *p_rec;
-	DLIST_ENTRY *list, *list_entry, *list_entry_tmp;
-
-	list = &p_queue->list;
-	if (!DListEmpty(list)) {
-		list_entry = list->Next;
-		while (list_entry != list) {
-			p_rec = container_of(list_entry,
-					     struct ssa_db_update_record,
-					     list_entry);
-			list_entry_tmp = list_entry;
-			list_entry = list_entry->Next;
-			DListRemove(list_entry_tmp);
-			free(p_rec);
-		}
-	}
+	pthread_cancel(access_prdb_handler);
+	pthread_join(access_prdb_handler, NULL);
 
 	pthread_mutex_destroy(&p_queue->lock);
 	pthread_cond_destroy(&p_queue->cond_var);
