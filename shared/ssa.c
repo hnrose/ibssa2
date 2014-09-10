@@ -2361,7 +2361,7 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 
 				if (slot == FD_SETSIZE)
 					ssa_log_err(SSA_LOG_DEFAULT,
-						    "unable to find corresponding fd for rsock %d in fd_to_conn struct\n", i);
+						    "unable to find rsock %d in fd_to_conn struct\n", i);
 			}
 		}
 	}
