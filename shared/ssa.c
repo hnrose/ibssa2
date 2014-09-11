@@ -1451,6 +1451,9 @@ static void *ssa_upstream_handler(void *context)
 				break;
 			case SSA_CONN_REQ:
 				conn_svc = msg.data.svc;
+				if (conn_svc->conn_dataup.state != SSA_DB_IDLE)
+					ssa_log(SSA_LOG_DEFAULT,
+						"upstream connection state not idle\n");
 				if (conn_svc->port->dev->ssa->node_type ==
 				    SSA_NODE_CONSUMER) {
 					conn_svc->conn_dataup.dbtype = SSA_CONN_PRDB_TYPE;
