@@ -374,7 +374,7 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 
 static void core_orphan_adoption(struct ssa_core *core)
 {
-	DLIST_ENTRY *head, *tmp;
+	DLIST_ENTRY *head, tmp;
 	struct ssa_member *member;
 	int ret;
 
@@ -383,12 +383,12 @@ static void core_orphan_adoption(struct ssa_core *core)
 		while (head != &core->orphan_list) {
 			member = container_of(head, struct ssa_member, entry);
 
-			tmp = head;
+			tmp = *head;
 			head = head->Next;
 
 			ret = core_build_tree(core, member);
 			if (!ret)
-				DListRemove(tmp);
+				DListRemove(&tmp);
 		}
 	}
 }
