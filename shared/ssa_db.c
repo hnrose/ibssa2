@@ -171,17 +171,23 @@ void ssa_db_set_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id, uint64_t epoch)
  */
 uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id)
 {
+	uint64_t epoch;
+
 	if (!p_ssa_db)
 		return 0;
 
 	if (tbl_id == DB_DEF_TBL_ID) {
-		p_ssa_db->db_def.epoch =
-		    htonll(ntohll(p_ssa_db->db_def.epoch) + 1);
-		return ntohll(p_ssa_db->db_def.epoch);
+		epoch = ntohll(p_ssa_db->db_def.epoch);
+		if (++epoch == 0)
+			++epoch;
+		p_ssa_db->db_def.epoch = htonll(epoch);
+		return epoch;
 	} else if (tbl_id < p_ssa_db->data_tbl_cnt) {
-		p_ssa_db->p_db_tables[tbl_id].epoch =
-		    htonll(ntohll(p_ssa_db->p_db_tables[tbl_id].epoch) + 1);
-		return ntohll(p_ssa_db->p_db_tables[tbl_id].epoch);
+		epoch = ntohll(p_ssa_db->p_db_tables[tbl_id].epoch);
+		if (++epoch == 0)
+			++epoch;
+		p_ssa_db->p_db_tables[tbl_id].epoch = htonll(epoch);
+		return epoch;
 	} else {
 		return 0;
 	}
