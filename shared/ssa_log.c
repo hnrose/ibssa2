@@ -49,7 +49,7 @@
 #include <limits.h>
 #include <errno.h>
 
-static inline void get_thread_id(char *buff, int size)
+void get_thread_id(char *buff, int size)
 {
 	int ret = 1;
 	pthread_t self;
