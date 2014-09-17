@@ -41,6 +41,7 @@
 #include <infiniband/ssa_db_helper.h>
 #include <infiniband/ssa_db.h>
 #include <ssa_log.h>
+#include <common.h>
 
 static char log_file[128] = "/var/log/loadsave.log";
 
