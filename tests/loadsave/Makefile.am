@@ -44,7 +44,7 @@ DBG += -g
 endif
 
 
-AM_CPPFLAGS = $(DBG) -Wall -Werror -D_GNU_SOURCE
+AM_CFLAGS  = $(DBG) -Wall -Werror -D_GNU_SOURCE
 
 
 bin_PROGRAMS = loadsave
