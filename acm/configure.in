@@ -148,5 +148,13 @@ if test "x$rdmascript" = "x"; then
    fi
 fi
 
+AC_PATH_PROGS([ADDR2LINE], [addr2line])
+if test "x${ADDR2LINE}" = x
+then
+	echo "WARN: addr2line missing!"
+else
+AC_DEFINE_UNQUOTED(ADDR2LINE_PATH, ["$ADDR2LINE"], [Path to addr2line])
+fi
+
 AC_CONFIG_FILES([Makefile ibacm.spec ibacm.init])
 AC_OUTPUT

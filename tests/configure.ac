@@ -130,6 +130,14 @@ dnl Check for pthread_setname_np function
 AC_CHECK_FUNC(pthread_setname_np,
     AC_DEFINE(HAVE_PTHREAD_SET_NAME_NP, [1], [Define if using pthread_setname_np]))
 
+AC_PATH_PROGS([ADDR2LINE], [addr2line])
+if test "x${ADDR2LINE}" = x
+then
+	echo "WARN: addr2line missing!"
+else
+AC_DEFINE_UNQUOTED(ADDR2LINE_PATH, ["$ADDR2LINE"], [Path to addr2line])
+fi
+
 AC_CONFIG_FILES([ssa_tests.spec])
 
 dnl Create the following Makefiles
