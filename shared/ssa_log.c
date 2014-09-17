@@ -57,6 +57,8 @@ void get_thread_id(char *buff, int size)
 	self = pthread_self();
 #ifdef HAVE_PTHREAD_SET_NAME_NP
 	ret = pthread_getname_np(self, buff, size);
+	if (!ret && !strncmp(buff, program_invocation_short_name, size))
+		ret = 1;
 #endif
 	if (ret || !buff[0])
 		ret = snprintf(buff, size, "%04X", (unsigned) self);
