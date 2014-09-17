@@ -44,8 +44,9 @@ DBG += -g
 endif
 
 
-AM_CPPFLAGS = $(DBG) -Wall -Werror
+AM_CPPFLAGS = $(DBG) -Wall -Werror -D_GNU_SOURCE
 
 
 bin_PROGRAMS = loadsave
 loadsave_SOURCES = ./ssa_db.c ./ssa_db_helper.c ./loadsave.c ./ssa_log.c
+loadsave_LDFLAGS = -lpthread
