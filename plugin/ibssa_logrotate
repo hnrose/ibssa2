@@ -1,0 +1,9 @@
+/var/log/ibssa.log {
+  rotate 7
+  weekly
+  compress
+  missingok
+  notifempty
+  size 100M
+  copytruncate
+}

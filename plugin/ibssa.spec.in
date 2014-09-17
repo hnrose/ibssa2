@@ -7,7 +7,7 @@ License: GPL/BSD
 Group: System Environment/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root--%(%{__id_u} -n)
 Source: ibssa-%{version}.tar.gz
-Requires: opensm
+Requires: opensm logrotate
 BuildRequires: opensm-devel pkgconfig
 
 %description
@@ -25,6 +25,7 @@ make
 make DESTDIR=${RPM_BUILD_ROOT} install
 # remove unpackaged files from the buildroot
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
+install -D -m 644 ibssa_logrotate $etc/logrotate.d/ibssa
 
 %clean
 rm -rf $RPM_BUILD_ROOT

@@ -10,7 +10,7 @@ Source0: http://www.openfabrics.org/downloads/rdmacm/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
  
 BuildRequires: libibverbs-devel >= 1.1-1, autoconf, libtool, libibumad-devel
-Requires(post): /sbin/chkconfig
+Requires(post): /sbin/chkconfig logrotate
 Requires(preun): /sbin/chkconfig
 ExcludeArch: s390, s390x
 
@@ -27,6 +27,7 @@ make %{?_smp_mflags}
 %install
 rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
+install -D -m 644 ibssa_logrotate $etc/logrotate.d/ibssa
 %makeinstall
 
 %clean

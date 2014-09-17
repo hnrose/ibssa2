@@ -21,6 +21,7 @@ EXTRA_DIST = include/osd.h include/dlist.h \
 
 install-exec-hook:
 	install -D -m 755 ibssa.init $(DESTDIR)$(sysconfdir)/init.d/ibssa;
+	install -D -m 644 ibssa_logrotate /etc/logrotate.d/ibssa;
 
 dist-hook: ibssa.spec
 	cp ibssa.spec $(distdir)

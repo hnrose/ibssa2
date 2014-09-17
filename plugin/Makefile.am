@@ -35,5 +35,8 @@ EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h \
 	     include/ssa_log.h include/common.h include/ref_count.h \
 	     libopensmssa.spec.in ibssa_core_opts.cfg
 
+install-exec-hook:
+	install -D -m 644 ibssa_logrotate /etc/logrotate.d/ibssa;
+
 dist-hook: libopensmssa.spec
 	cp libopensmssa.spec $(distdir)
