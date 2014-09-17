@@ -2804,8 +2804,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 							SSA_ADDR_GID, gid->raw,
 							sizeof gid->raw);
 					ssa_log_err(SSA_LOG_CTRL,
-						    "prdb dump for GID %s: %d (%s)\n",
-						    log_data, errno, strerror(errno));
+						    "prdb dump to %s for GID %s: %d (%s)\n",
+						    dump_dir, log_data, errno, strerror(errno));
 					goto skip_db_save;
 				}
 			}
@@ -2828,8 +2828,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 							SSA_ADDR_GID, gid->raw,
 							sizeof gid->raw);
 					ssa_log_err(SSA_LOG_CTRL,
-							"smdb error dump for GID %s: %d (%s)\n",
-							log_data, errno, strerror(errno));
+							"smdb error dump to %s for GID %s: %d (%s)\n",
+							dump_dir, log_data, errno, strerror(errno));
 					goto skip_db_save;
 				}
 				ssa_db_save(dump_dir, access_context.smdb, err_smdb_dump);
