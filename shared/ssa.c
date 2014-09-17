@@ -2820,7 +2820,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 			epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
 
 			n = snprintf(dump_dir, sizeof(dump_dir),
-				     "%s/0x%" PRIx64, smdb_dump_dir, epoch);
+				     "%s.0x%" PRIx64, smdb_dump_dir, epoch);
 			if (lstat(dump_dir, &dstat)) {
 				if (mkdir(dump_dir, 0755)) {
 					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
