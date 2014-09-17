@@ -139,6 +139,15 @@ AC_DEFINE_UNQUOTED(ADDR2LINE_PATH, ["$ADDR2LINE"], [Path to addr2line])
 AC_DEFINE(HAVE_ADDR2LINE, [1], [Define if using addr2line])
 fi
 
+AC_PATH_PROGS([GSTACK], [gstack])
+if test "x${GSTACK}" = x
+then
+	echo "WARN: gstack missing!"
+else
+AC_DEFINE_UNQUOTED(GSTACK_PATH, ["$GSTACK"], [Path to gstack])
+AC_DEFINE(HAVE_GSTACK, [1], [Define if using gstack])
+fi
+
 AC_CONFIG_FILES([ssa_tests.spec])
 
 dnl Create the following Makefiles
