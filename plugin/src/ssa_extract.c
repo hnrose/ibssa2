@@ -567,6 +567,7 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	uint64_t node_offset = 0, link_offset = 0, port_offset = 0;
 	uint64_t pkey_base_offset = 0, pkey_cur_offset = 0;
 	uint64_t lft_top_offset = 0, lft_block_offset = 0;
+	int lft_extract = 0;
 	uint8_t ret = 0;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
@@ -578,6 +579,14 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 	if (ret)
 		return NULL;
 
+	if (cl_is_qmap_empty(&ssa_db->p_lft_db->ep_db_lft_block_tbl) &&
+	    cl_is_qmap_empty(&ssa_db->p_lft_db->ep_db_lft_top_tbl))
+		lft_extract = 1;
+	else if (cl_is_qmap_empty(&ssa_db->p_lft_db->ep_db_lft_block_tbl))
+		ssa_log_warn(SSA_LOG_DEFAULT, "inconsistent LFT block records\n");
+	else if (cl_is_qmap_empty(&ssa_db->p_lft_db->ep_db_lft_top_tbl))
+		ssa_log_warn(SSA_LOG_DEFAULT, "inconsistent LFT top records\n");
+
 	p_next_node = (osm_node_t *)cl_qmap_head(&p_subn->node_guid_tbl);
 	while (p_next_node !=
 	       (osm_node_t *)cl_qmap_end(&p_subn->node_guid_tbl)) {
@@ -587,7 +596,7 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 		ssa_db_extract_node_tbl_rec(p_node, &node_offset, p_ssa);
 
 		/* TODO: add more cases when full dump is needed */
-		if (!first)
+		if (!lft_extract)
 			continue;
 
 		/*		Adding LFT tables
