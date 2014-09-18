@@ -22,7 +22,8 @@ src_libopensmssa_la_SOURCES = src/core.c src/ssa.c src/ssa_db.c src/ssa_db_helpe
 			      src/ssa_database.c src/ssa_extract.c src/ssa_smdb.c \
 			      src/ssa_comparison.c src/ssa_log.c \
 			      src/ssa_path_record.c  src/ssa_path_record_data.c \
-			      src/ssa_path_record_helper.c src/ssa_prdb.c
+			      src/ssa_path_record_helper.c src/ssa_prdb.c \
+			      src/ssa_signal_handler.c
 src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
 		$(libopensmssa_version_script)
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map \

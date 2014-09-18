@@ -673,6 +673,8 @@ int main(int argc,char *argv[])
 
 	ssa_open_log(log_file);
 
+	ssa_set_ssa_signal_handler();
+
 	while ((opt = getopt(argc, argv, "glan:f:o:O:hL:v:?")) != -1) {
 		switch (opt) {
 			case 'O':

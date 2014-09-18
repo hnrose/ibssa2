@@ -154,6 +154,9 @@ int main(int argc,char *argv[])
 	printf("Output path: %s\n", output_path);
 
 	ssa_open_log(log_file);
+
+	ssa_set_ssa_signal_handler();
+
 	print_memory_usage("Memory usage before the database loading: ");
 
 	start = clock();

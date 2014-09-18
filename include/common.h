@@ -303,6 +303,8 @@ int ssa_get_svc_cnt(struct ssa_port *port);
 struct ssa_svc *ssa_get_svc(struct ssa_port *port, int index);
 #endif
 
+int ssa_set_ssa_signal_handler();
+
 #ifdef __cplusplus
 }
 #endif

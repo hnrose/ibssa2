@@ -1523,6 +1523,8 @@ static void *core_construct(osm_opensm_t *opensm)
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
 	core_log_options();
 
+	ssa_set_ssa_signal_handler();
+
 	extract_data.opensm = opensm;
 	extract_data.num_svcs = 0;
 	extract_data.svcs = NULL;

@@ -588,6 +588,7 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 	}
 
 	ssa_open_log(log_file);
+	ssa_set_ssa_signal_handler();
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
 	distrib_log_options();
 

@@ -4147,6 +4147,8 @@ int main(int argc, char **argv)
 	ssa_log(SSA_LOG_DEFAULT, "Assistant to the InfiniBand Communication Manager\n");
 	acm_log_options();
 
+	ssa_set_ssa_signal_handler();
+
 	ret = ssa_init(&ssa, SSA_NODE_CONSUMER, sizeof(struct ssa_device),
 		       sizeof(struct ssa_port));
 	if (ret) {
