@@ -282,7 +282,7 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
 
 	/* TODO: use previous PRDB version epoch */
-	p_prdb = ssa_prdb_create(0 /* epoch */, record_num);
+	p_prdb = ssa_prdb_create(DB_EPOCH_INVALID /* epoch */, record_num);
 	if (!p_prdb) {
 		SSA_PR_LOG_ERROR("Path record database creation failed."
 				 " Number of records: %"PRIu64, record_num);
