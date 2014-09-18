@@ -572,11 +572,6 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 	int ret;
 	char msg[1024] = {};
 
-	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
-			sizeof(struct ssa_port));
-	if (ret)
-		return NULL;
-
 	ret = ssa_open_lock_file(lock_file, msg, sizeof msg);
 	if (ret) {
 		if (!daemon)
@@ -591,6 +586,13 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 	ssa_set_ssa_signal_handler();
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Distribution/Access\n");
 	distrib_log_options();
+
+	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
+		       sizeof(struct ssa_port));
+	if (ret) {
+		ssa_close_log();
+		return NULL;
+	}
 
 	return &ssa;
 }

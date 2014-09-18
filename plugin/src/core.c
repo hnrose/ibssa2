@@ -1514,16 +1514,19 @@ static void *core_construct(osm_opensm_t *opensm)
 #endif
 
 	core_set_options();
-	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
-			sizeof(struct ssa_port));
-	if (ret)
-		return NULL;
 
 	ssa_open_log(log_file);
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
 	core_log_options();
 
 	ssa_set_ssa_signal_handler();
+
+	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
+		       sizeof(struct ssa_port));
+	if (ret) {
+		ssa_close_log();
+		return NULL;
+	}
 
 	extract_data.opensm = opensm;
 	extract_data.num_svcs = 0;
