@@ -4143,7 +4143,6 @@ int main(int argc, char **argv)
 	}
 
 	ssa_open_log(log_file);
-
 	ssa_log(SSA_LOG_DEFAULT, "Assistant to the InfiniBand Communication Manager\n");
 	acm_log_options();
 
