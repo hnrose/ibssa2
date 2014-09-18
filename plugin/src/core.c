@@ -961,7 +961,7 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 	/* For validation */
 	ssa_db_validate(ssa_db->p_dump_db);
-	ssa_db_validate_lft();
+	ssa_db_validate_lft(first);
 
 	/* Update SMDB versions */
 	ssa_db_update(ssa_db);

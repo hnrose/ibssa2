@@ -53,7 +53,6 @@ const char *port_state_str[] = {
 };
 
 extern struct ssa_database *ssa_db;
-extern int first;
 
 /** ===========================================================================
  */
@@ -644,7 +643,7 @@ struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm)
 
 /** ===========================================================================
  */
-void ssa_db_validate_lft()
+void ssa_db_validate_lft(int first)
 {
 	struct ep_lft_block_tbl_rec lft_block_tbl_rec;
 	struct ep_lft_top_tbl_rec lft_top_tbl_rec;

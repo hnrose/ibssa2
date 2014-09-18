@@ -68,7 +68,7 @@ struct ssa_db_lft_change_rec {
 
 struct ssa_db_extract *ssa_db_extract(osm_opensm_t *p_osm);
 void ssa_db_validate(struct ssa_db_extract *p_ssa_db);
-void ssa_db_validate_lft();
+void ssa_db_validate_lft(int first);
 void ssa_db_update(struct ssa_database *ssa_db);
 void ssa_db_lft_handle(void);
 END_C_DECLS
