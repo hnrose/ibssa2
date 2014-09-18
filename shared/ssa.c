@@ -545,8 +545,8 @@ static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type,
 	conn->sbuf2 = NULL;
 	conn->rdma_write = 0;
 	conn->ssa_db = NULL;
-	conn->epoch = 0;
-	conn->prdb_epoch = 0;
+	conn->epoch = DB_EPOCH_INVALID;
+	conn->prdb_epoch = DB_EPOCH_INVALID;
 	conn->epoch_len = 0;
 }
 
@@ -1036,7 +1036,7 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc,
 	msg.db_upd.db = db;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = 0;
-	msg.db_upd.epoch = 0;
+	msg.db_upd.epoch = DB_EPOCH_INVALID;
 
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
 		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
@@ -2402,7 +2402,7 @@ static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd)
 	msg.db_upd.flags = 0;
 	memset(&msg.db_upd.remote_gid, 0, sizeof(msg.db_upd.remote_gid));
 	msg.db_upd.remote_lid = 0;
-	msg.db_upd.epoch = 0;
+	msg.db_upd.epoch = DB_EPOCH_INVALID;
 	write(fd, (char *) &msg, sizeof(msg));
 }
 
@@ -2774,7 +2774,7 @@ static void ssa_access_send_db_update(struct ssa_svc *svc,
 	else
 		memset(&msg.db_upd.remote_gid, 0, 16);
 	msg.db_upd.remote_lid = remote_lid;
-	msg.db_upd.epoch = 0;	/* not used */
+	msg.db_upd.epoch = DB_EPOCH_INVALID;	/* not used */
 	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
 }
 

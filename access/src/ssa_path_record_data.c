@@ -336,7 +336,7 @@ void ssa_pr_destroy_indexes(struct ssa_pr_smdb_index *p_index)
 		}
 	}
 
-	p_index->epoch = 0;
+	p_index->epoch = DB_EPOCH_INVALID;
 }
 
 static int epoch_table_ids[] = {
@@ -351,7 +351,7 @@ int ssa_pr_rebuild_indexes(struct ssa_pr_smdb_index *p_index,
 			   const struct ssa_db *p_smdb)
 {
 	int i = 0;
-	uint64_t smdb_epoch = 0;
+	uint64_t smdb_epoch = DB_EPOCH_INVALID;
 	int res = 0;
 
 	SSA_ASSERT(p_smdb);

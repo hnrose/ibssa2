@@ -798,7 +798,7 @@ static void ssa_extract_send_db_update_prepare(struct ref_count_obj *db, int fd)
 	msg.db_upd.db = db;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = 0;
-	msg.db_upd.epoch = 0;
+	msg.db_upd.epoch = DB_EPOCH_INVALID;
 	write(fd, (char *) &msg, sizeof(msg));
 #endif
 }
