@@ -60,6 +60,7 @@ static char lock_file[128] = "/var/run/ibssa.pid";
 static char *smdb_lock_file = "ibssa_smdb.lock";
 static int smdb_lock_fd = -1;
 #endif
+static int first = 1;
 
 extern int log_flush;
 extern int accum_log_file;
@@ -75,8 +76,6 @@ extern int sock_accessextract[2];
 #ifdef SIM_SUPPORT_FAKE_ACM
 extern int fake_acm_num;
 #endif
-
-int first = 1;
 
 /* Used for primary/secondary state to properly maintain number of children */
 enum {
@@ -975,7 +974,7 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 	ssa_db_diff_destroy(ssa_db_diff);
 
-	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev);
+	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev, first);
 	if (ssa_db_diff) {
 		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
 		/*

@@ -38,7 +38,6 @@
 #include <infiniband/ssa_comparison.h>
 #include <ssa_log.h>
 
-extern int first;
 extern int smdb_deltas;
 
 /** =========================================================================
@@ -1453,7 +1452,7 @@ ssa_db_diff_update_lfts(struct ssa_database *ssa_db, struct ssa_db_diff *p_ssa_d
 /** =========================================================================
  */
 struct ssa_db_diff *
-ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev)
+ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev, int first)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 	boolean_t tbl_changed[SSA_TABLE_ID_MAX] = { FALSE };
