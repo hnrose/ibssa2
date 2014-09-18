@@ -2561,7 +2561,7 @@ static void *ssa_downstream_handler(void *context)
 				conn = svc->fd_to_conn[i];
 				if (conn) {
 					conn->ssa_db = msg.data.db_upd.db;
-					if (++svc->prdb_epoch == 0)
+					if (++svc->prdb_epoch == DB_EPOCH_INVALID)
 						svc->prdb_epoch++;
 					conn->epoch = svc->prdb_epoch;
 					ssa_db = ref_count_object_get(conn->ssa_db);
