@@ -275,8 +275,10 @@ int ssa_set_ssa_signal_handler()
 {
 	struct sigaction action;
 	int ret;
+#if 0
 	/*
 	 *  addr2line utility doesn't work with alternative stack
+	 */
 	stack_t our_stack;
 
 	our_stack.ss_sp = (void*)malloc(SIGSTKSZ);
@@ -285,7 +287,7 @@ int ssa_set_ssa_signal_handler()
 
 	if (sigaltstack(&our_stack, NULL) != 0)
 		return 1;
-	*/
+#endif
 	ret = pthread_spin_init(&signal_handler_lock, 0);
 	if(ret) {
 		return ret;
