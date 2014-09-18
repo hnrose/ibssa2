@@ -128,7 +128,7 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 	}
 	/*
 	 * Frame 0 - ssa_signal_handler
-	 * Frame 1 -ssa_print_backtrace
+	 * Frame 1 - ssa_print_backtrace
 	 */
 	ssa_print_backtrace(2, flog);
 	/* abort() will cause a core dump*/
@@ -252,7 +252,7 @@ static int ssa_print_backtrace(int start_frame, FILE *flog)
 			"backtrace obtained with system backtrace function for process %d thread (%s):\n"
 			"==== [BACKTRACE] ====\n", getpid(), thread_name);
 
-	// start_frame allow to skip non-informative frames like signal_handler
+	/* start_frame allows skipping non-informative frames such as signal_handler */
 	for (i = start_frame; i < (backtrace_size - 2); ++i)
 	{
 		if (run_add2line(program_invocation_name,
@@ -313,7 +313,6 @@ int ssa_set_ssa_signal_handler()
 }
 
 #ifdef _SSA_SIGNAL_HANDLER_TESTER_
-
 
 int foo2()
 {
