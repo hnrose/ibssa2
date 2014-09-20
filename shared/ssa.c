@@ -700,7 +700,6 @@ static short ssa_upstream_query(struct ssa_svc *svc, uint16_t op, short events)
 				    "%d (%s) on rsock %d\n",
 				    op, errno, strerror(errno),
 				    svc->conn_dataup.rsock);
-			return 0;
 		}
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
@@ -762,7 +761,7 @@ static short ssa_riowrite_continue(struct ssa_conn *conn, short events)
 		ssa_log_err(SSA_LOG_CTRL,
 			    "riowrite continuation failed: %d (%s) on rsock %d\n",
 			    errno, strerror(errno), conn->rsock);
-		return 0;	/* POLLIN ? */
+		return events;
 	}
 }
 
@@ -815,7 +814,6 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 		ssa_log_err(SSA_LOG_CTRL,
 			    "rsend continuation failed: %d (%s) on rsock %d\n",
 			    errno, strerror(errno), conn->rsock);
-		return 0;
 	}
 
 	return events;
