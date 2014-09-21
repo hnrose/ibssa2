@@ -1520,6 +1520,15 @@ static void *core_construct(osm_opensm_t *opensm)
 	ssa_log(SSA_LOG_DEFAULT, "Scalable SA Core - OpenSM Plugin\n");
 	core_log_options();
 
+	/* TODO: remove when incremental changes is supported */
+	if (smdb_deltas) {
+		smdb_deltas = 0;
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			     "SSA DB incremental changes are not currently "
+			     "supported by SSA framework. Falling back to full "
+			     "SSA DB updates.\n");
+	}
+
 	ssa_set_ssa_signal_handler();
 
 	ret = ssa_init(&ssa, node_type, sizeof(struct ssa_device),
