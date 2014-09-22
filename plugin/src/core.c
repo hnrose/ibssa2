@@ -413,7 +413,7 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member)
 
 	ssa_sprint_addr(SSA_LOG_DEFAULT, child_addr, sizeof child_addr, SSA_ADDR_GID,
 			member_rec->port_gid, sizeof member_rec->port_gid);
-	ret = snprintf(buf, buf_size, "\t\t\t\t [ (%s) GID %s LID %u SL %u DB 0x%"
+	ret = snprintf(buf, buf_size, "[ (%s) GID %s LID %u SL %u DB 0x%"
 		       PRIx64 " ] [ %s ]%s\n", ssa_node_type_str(member_rec->node_type),
 		       child_addr, member->lid, member->sl,
 		       ntohll(member_rec->database_id), parent, children);
@@ -465,16 +465,16 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 		return;
 	}
 
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t General SSA distribution tree info\n");
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n");
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Core nodes:           %10d |\n", core_cnt);
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Distribution nodes:   %10d |\n", distrib_cnt);
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Access nodes:         %10d |\n", access_cnt);
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Consumer (ACM) nodes: %10d |\n", consumer_cnt);
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
+	n += snprintf(buf + n, buf_size - n, "General SSA distribution tree info\n");
+	n += snprintf(buf + n, buf_size - n, "------------------------------------\n");
+	n += snprintf(buf + n, buf_size - n, "| Core nodes:           %10d |\n", core_cnt);
+	n += snprintf(buf + n, buf_size - n, "| Distribution nodes:   %10d |\n", distrib_cnt);
+	n += snprintf(buf + n, buf_size - n, "| Access nodes:         %10d |\n", access_cnt);
+	n += snprintf(buf + n, buf_size - n, "| Consumer (ACM) nodes: %10d |\n", consumer_cnt);
+	n += snprintf(buf + n, buf_size - n, "------------------------------------\n\n");
 
 	if (distrib_tree_level & SSA_DTREE_CORE) {
-		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Core nodes ]\n");
+		n += snprintf(buf + n, buf_size - n, "[ Core nodes ]\n");
 		list = &core->core_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
 			member = container_of(entry, struct ssa_member, entry);
@@ -483,8 +483,8 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 	}
 
 	if (distrib_tree_level & SSA_DTREE_DISTRIB) {
-		n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
-		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Distribution nodes ]\n");
+		n += snprintf(buf + n, buf_size - n, "------------------------------------\n\n");
+		n += snprintf(buf + n, buf_size - n, "[ Distribution nodes ]\n");
 		list = &core->distrib_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
 			member = container_of(entry, struct ssa_member, entry);
@@ -494,8 +494,8 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 
 	if ((distrib_tree_level & SSA_DTREE_ACCESS)
 	    || (distrib_tree_level & SSA_DTREE_CONSUMER)) {
-		n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
-		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Access nodes ]\n");
+		n += snprintf(buf + n, buf_size - n, "------------------------------------\n\n");
+		n += snprintf(buf + n, buf_size - n, "[ Access nodes ]\n");
 		list = &core->access_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
 			member = container_of(entry, struct ssa_member, access_entry);
@@ -503,7 +503,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 
 			if (distrib_tree_level & SSA_DTREE_CONSUMER) {
 				n += snprintf(buf + n, buf_size - n,
-					      "\t\t\t\t [ access consumers %d ]\n",
+					      "[ access consumers %d ]\n",
 					      member->access_child_num);
 
 				child_list = &member->access_child_list;
@@ -515,7 +515,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 			}
 		}
 	}
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
+	n += snprintf(buf + n, buf_size - n, "------------------------------------\n\n");
 
 	ssa_log(SSA_LOG_DEFAULT, "%s\n\n%s", svc_name, buf);
 	free(buf);
