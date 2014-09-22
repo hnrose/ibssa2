@@ -387,8 +387,8 @@ static int
 ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member)
 {
 	struct ssa_member_record *member_rec = &member->rec;
-	char child_addr[INET6_ADDRSTRLEN], parent[64] = {0};
-	char children[64] = {0};
+	char addr[INET6_ADDRSTRLEN];
+	char parent[64] = {}, children[64] = {};
 	int ret = 0;
 	uint8_t parent_lid = 0;
 
@@ -411,11 +411,12 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member)
 		snprintf(children, sizeof children,
 			 " [ children %d ]", member->child_num);
 
-	ssa_sprint_addr(SSA_LOG_DEFAULT, child_addr, sizeof child_addr, SSA_ADDR_GID,
+	ssa_sprint_addr(SSA_LOG_DEFAULT, addr, sizeof addr, SSA_ADDR_GID,
 			member_rec->port_gid, sizeof member_rec->port_gid);
 	ret = snprintf(buf, buf_size, "[ (%s) GID %s LID %u SL %u DB 0x%"
-		       PRIx64 " ] [ %s ]%s\n", ssa_node_type_str(member_rec->node_type),
-		       child_addr, member->lid, member->sl,
+		       PRIx64 " ] [ %s ]%s\n",
+		       ssa_node_type_str(member_rec->node_type),
+		       addr, member->lid, member->sl,
 		       ntohll(member_rec->database_id), parent, children);
 	if (ret >= buf_size)
 		ssa_log_warn(SSA_LOG_DEFAULT, "output buffer size is not sufficient\n");
