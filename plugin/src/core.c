@@ -377,7 +377,7 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 	parent = container_of(rec, struct ssa_member, rec);
 	if (node_type & SSA_NODE_CONSUMER)
 		parent->access_child_num--;
-	else
+	else if ((node_type & SSA_NODE_CORE) != SSA_NODE_CORE)
 		parent->child_num--;
 	child->primary = NULL;
 	child->primary_state = SSA_CHILD_IDLE;
