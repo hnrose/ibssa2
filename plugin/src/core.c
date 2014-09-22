@@ -1655,7 +1655,7 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
-	ssa_log(SSA_LOG_DEFAULT, "distrib tree level %d\n", distrib_tree_level);
+	ssa_log(SSA_LOG_DEFAULT, "distrib tree level 0x%x\n", distrib_tree_level);
 #ifdef SIM_SUPPORT_SMDB
 	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
 #endif
