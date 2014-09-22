@@ -384,7 +384,7 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 }
 
 static int
-ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member)
+ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member, int level)
 {
 	struct ssa_member_record *member_rec = &member->rec;
 	char addr[INET6_ADDRSTRLEN];
@@ -406,10 +406,15 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member)
 	else /* member is orphan */
 		snprintf(parent, sizeof parent, "no parent");
 
-	if ((member_rec->node_type & SSA_NODE_CORE) ||
-	    (member_rec->node_type & SSA_NODE_DISTRIBUTION))
+	if (((level & SSA_DTREE_CORE) && (member_rec->node_type & SSA_NODE_CORE)) ||
+	    ((level & SSA_DTREE_DISTRIB) && (member_rec->node_type & SSA_NODE_DISTRIBUTION)))
 		snprintf(children, sizeof children,
 			 " [ children %d ]", member->child_num);
+	else if ((level & SSA_DTREE_ACCESS) && (member_rec->node_type & SSA_NODE_ACCESS))
+		snprintf(children, sizeof children,
+			 " [ children %d ]", member->access_child_num);
+	else if ((level & SSA_DTREE_CONSUMER) && (member_rec->node_type & SSA_NODE_CONSUMER))
+		snprintf(children, sizeof children, "[ no children ]");
 
 	ssa_sprint_addr(SSA_LOG_DEFAULT, addr, sizeof addr, SSA_ADDR_GID,
 			member_rec->port_gid, sizeof member_rec->port_gid);
@@ -479,7 +484,8 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 		list = &core->core_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
 			member = container_of(entry, struct ssa_member, entry);
-			n += ssa_sprint_member(buf + n, buf_size - n, member);
+			n += ssa_sprint_member(buf + n, buf_size - n, member,
+					       SSA_DTREE_CORE);
 		}
 	}
 
@@ -489,7 +495,8 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 		list = &core->distrib_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
 			member = container_of(entry, struct ssa_member, entry);
-			n += ssa_sprint_member(buf + n, buf_size - n, member);
+			n += ssa_sprint_member(buf + n, buf_size - n, member,
+					       SSA_DTREE_DISTRIB);
 		}
 	}
 
@@ -500,18 +507,15 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 		list = &core->access_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
 			member = container_of(entry, struct ssa_member, access_entry);
-			n += ssa_sprint_member(buf + n, buf_size - n, member);
+			n += ssa_sprint_member(buf + n, buf_size - n, member,
+					       SSA_DTREE_ACCESS);
 
 			if (distrib_tree_level & SSA_DTREE_CONSUMER) {
-				n += snprintf(buf + n, buf_size - n,
-					      "[ access consumers %d ]\n",
-					      member->access_child_num);
-
 				child_list = &member->access_child_list;
 				for (child_entry = child_list->Next; child_entry != child_list;
 				     child_entry = child_entry->Next) {
 					child = container_of(child_entry, struct ssa_member, entry);
-					n += ssa_sprint_member(buf + n, buf_size - n, child);
+					n += ssa_sprint_member(buf + n, buf_size - n, child, SSA_DTREE_CONSUMER);
 				}
 			}
 		}
