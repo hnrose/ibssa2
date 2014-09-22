@@ -448,7 +448,8 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 
 	if (!first) {
 		ret = core_build_tree(core, member);
-		ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
+		if (ret)
+			ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
 	}
 	if (first || ret) {
 		/* member is orphaned */
