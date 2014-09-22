@@ -726,8 +726,7 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 		if (child->rec.node_type == SSA_NODE_CONSUMER) {
 			if (!(child->primary_state & SSA_CHILD_PARENTED))
 				parent->access_child_num++;
-		} else if ((child->rec.node_type & SSA_NODE_CORE) !=
-			 SSA_NODE_CORE) {
+		} else if ((child->rec.node_type & SSA_NODE_CORE) != SSA_NODE_CORE) {
 			if (!(child->primary_state & SSA_CHILD_PARENTED))
 				parent->child_num++;
 		}
