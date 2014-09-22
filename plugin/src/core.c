@@ -492,8 +492,8 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 		}
 	}
 
-	if ((distrib_tree_level & SSA_DTREE_ACCESS)
-	    || (distrib_tree_level & SSA_DTREE_CONSUMER)) {
+	if ((distrib_tree_level & SSA_DTREE_ACCESS) ||
+	    (distrib_tree_level & SSA_DTREE_CONSUMER)) {
 		n += snprintf(buf + n, buf_size - n, "------------------------------------\n\n");
 		n += snprintf(buf + n, buf_size - n, "[ Access nodes ]\n");
 		list = &core->access_list;
