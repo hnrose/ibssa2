@@ -435,7 +435,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 	unsigned n = 0;
 	char *buf;
 
-	if (distrib_tree_level & SSA_DTREE_DEFAULT)
+	if (distrib_tree_level == SSA_DTREE_DEFAULT)
 		return;
 
 	list = &core->core_list;
