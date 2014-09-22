@@ -62,6 +62,18 @@ static int smdb_lock_fd = -1;
 #endif
 static int first = 1;
 
+enum {
+	SSA_DTREE_DEFAULT	= 0,
+	SSA_DTREE_CORE		= 1 << 0,
+	SSA_DTREE_DISTRIB	= 1 << 1,
+	SSA_DTREE_ACCESS	= 1 << 2,
+	SSA_DTREE_CONSUMER	= 1 << 3
+};
+
+static int distrib_tree_level = SSA_DTREE_DEFAULT;
+static uint64_t dtree_epoch_cur = 0;
+static uint64_t dtree_epoch_prev = 0;
+
 extern int log_flush;
 extern int accum_log_file;
 extern int smdb_dump;
@@ -371,11 +383,149 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 	child->primary_state = SSA_CHILD_IDLE;
 }
 
+static int
+ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member)
+{
+	struct ssa_member_record *member_rec = &member->rec;
+	char child_addr[INET6_ADDRSTRLEN], parent[64] = {0};
+	char children[64] = {0};
+	int ret = 0;
+	uint8_t parent_lid = 0;
+
+	/*
+	 * Currently only primary parent is supported in
+	 * distribution tree formation algorithm.
+	 */
+	if (member->primary_state & SSA_CHILD_PARENTED)
+		parent_lid = member->primary->lid;
+	else if (member->secondary_state & SSA_CHILD_PARENTED)
+		parent_lid = member->secondary->lid;
+
+	if (parent_lid)
+		snprintf(parent, sizeof parent, "parent LID %u", parent_lid);
+	else /* member is orphan */
+		snprintf(parent, sizeof parent, "no parent");
+
+	if ((member_rec->node_type & SSA_NODE_CORE) ||
+	    (member_rec->node_type & SSA_NODE_DISTRIBUTION))
+		snprintf(children, sizeof children,
+			 " [ children %d ]", member->child_num);
+
+	ssa_sprint_addr(SSA_LOG_DEFAULT, child_addr, sizeof child_addr, SSA_ADDR_GID,
+			member_rec->port_gid, sizeof member_rec->port_gid);
+	ret = snprintf(buf, buf_size, "\t\t\t\t [ (%s) GID %s LID %u SL %u DB 0x%"
+		       PRIx64 " ] [ %s ]%s\n", ssa_node_type_str(member_rec->node_type),
+		       child_addr, member->lid, member->sl,
+		       ntohll(member_rec->database_id), parent, children);
+	if (ret >= buf_size)
+		ssa_log_warn(SSA_LOG_DEFAULT, "output buffer size is not sufficient\n");
+
+	return ret;
+}
+
+static void core_dump_tree(struct ssa_core *core, char *svc_name)
+{
+	DLIST_ENTRY *child_entry, *child_list = NULL;
+	DLIST_ENTRY *entry, *list = NULL;
+	int core_cnt = 0, access_cnt = 0;
+	int distrib_cnt = 0, consumer_cnt = 0;
+	struct ssa_member *member, *child;
+	size_t buf_size;
+	int ssa_nodes;
+	unsigned n = 0;
+	char *buf;
+
+	if (distrib_tree_level & SSA_DTREE_DEFAULT)
+		return;
+
+	list = &core->core_list;
+	for (entry = list->Next; entry != list; entry = entry->Next)
+		core_cnt++;
+
+	list = &core->distrib_list;
+	for (entry = list->Next; entry != list; entry = entry->Next)
+		distrib_cnt++;
+
+	list = &core->access_list;
+	for (entry = list->Next; entry != list; entry = entry->Next) {
+		member = container_of(entry, struct ssa_member, access_entry);
+		access_cnt++;
+		child_list = &member->access_child_list;
+		for (child_entry = child_list->Next; child_entry != child_list;
+		     child_entry = child_entry->Next)
+			consumer_cnt++;
+	}
+
+	ssa_nodes = core_cnt + distrib_cnt + access_cnt + consumer_cnt;
+	/* 13 is the number of distribution tree meta data log lines */
+	buf_size = (ssa_nodes + access_cnt + 13) * 256 * sizeof(*buf);
+	buf = calloc(1, buf_size);
+	if (!buf) {
+		ssa_log_err(SSA_LOG_DEFAULT, "unable to allocate buffer\n");
+		return;
+	}
+
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t General SSA distribution tree info\n");
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n");
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Core nodes:           %10d |\n", core_cnt);
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Distribution nodes:   %10d |\n", distrib_cnt);
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Access nodes:         %10d |\n", access_cnt);
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t | Consumer (ACM) nodes: %10d |\n", consumer_cnt);
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
+
+	if (distrib_tree_level & SSA_DTREE_CORE) {
+		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Core nodes ]\n");
+		list = &core->core_list;
+		for (entry = list->Next; entry != list; entry = entry->Next) {
+			member = container_of(entry, struct ssa_member, entry);
+			n += ssa_sprint_member(buf + n, buf_size - n, member);
+		}
+	}
+
+	if (distrib_tree_level & SSA_DTREE_DISTRIB) {
+		n += snprintf(buf + n, buf_size - n, "\t\t\t\t -----------------------------------\n\n");
+		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Distribution nodes ]\n");
+		list = &core->distrib_list;
+		for (entry = list->Next; entry != list; entry = entry->Next) {
+			member = container_of(entry, struct ssa_member, entry);
+			n += ssa_sprint_member(buf + n, buf_size - n, member);
+		}
+	}
+
+	if ((distrib_tree_level & SSA_DTREE_ACCESS)
+	    || (distrib_tree_level & SSA_DTREE_CONSUMER)) {
+		n += snprintf(buf + n, buf_size - n, "\t\t\t\t -----------------------------------\n\n");
+		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Access nodes ]\n");
+		list = &core->access_list;
+		for (entry = list->Next; entry != list; entry = entry->Next) {
+			member = container_of(entry, struct ssa_member, access_entry);
+			n += ssa_sprint_member(buf + n, buf_size - n, member);
+
+			if (distrib_tree_level & SSA_DTREE_CONSUMER) {
+				n += snprintf(buf + n, buf_size - n,
+					      "\t\t\t\t [ access consumers %d ]\n",
+					      member->access_child_num);
+
+				child_list = &member->access_child_list;
+				for (child_entry = child_list->Next; child_entry != child_list;
+				     child_entry = child_entry->Next) {
+					child = container_of(child_entry, struct ssa_member, entry);
+					n += ssa_sprint_member(buf + n, buf_size - n, child);
+				}
+			}
+		}
+	}
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t -----------------------------------\n\n");
+
+	ssa_log(SSA_LOG_DEFAULT, "%s\n\n%s", svc_name, buf);
+	free(buf);
+}
+
 static void core_orphan_adoption(struct ssa_core *core)
 {
 	DLIST_ENTRY *entry, tmp;
 	struct ssa_member *member;
-	int ret;
+	int ret, changed = 0;
 
 	if (!DListEmpty(&core->orphan_list)) {
 		entry = core->orphan_list.Next;
@@ -388,7 +538,11 @@ static void core_orphan_adoption(struct ssa_core *core)
 			ret = core_build_tree(core, member);
 			if (!ret)
 				DListRemove(&tmp);
+			else
+				changed = 1;
 		}
+		if (changed)
+			dtree_epoch_cur++;
 	}
 }
 
@@ -450,6 +604,8 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 		ret = core_build_tree(core, member);
 		if (ret)
 			ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
+		else
+			dtree_epoch_cur++;
 	}
 	if (first || ret) {
 		/* member is orphaned */
@@ -1168,6 +1324,18 @@ static void *core_extract_handler(void *context)
 #endif
 				if (first)
 					first = 0;
+
+				for (i = 0; i < p_extract_data->num_svcs; i++) {
+					struct ssa_svc *svc = p_extract_data->svcs[i];
+					struct ssa_core *core;
+
+					core = container_of(svc, struct ssa_core, svc);
+					if (dtree_epoch_prev != dtree_epoch_cur &&
+					    svc->state != SSA_STATE_IDLE) {
+						core_dump_tree(core, svc->name);
+						dtree_epoch_prev = dtree_epoch_cur;
+					}
+				}
 				break;
 			case SSA_DB_LFT_CHANGE:
 				ssa_log(SSA_LOG_VERBOSE,
@@ -1434,6 +1602,8 @@ static void core_set_options(void)
 			strcpy(log_file, value);
 		else if (!strcasecmp("log_level", opt))
 			ssa_set_log_level(atoi(value));
+		else if (!strcasecmp("distrib_tree_level", opt))
+			distrib_tree_level = atoi(value);
 		else if (!strcasecmp("log_flush", opt))
 			log_flush = atoi(value);
 		else if (!strcasecmp("accum_log_file", opt))
@@ -1485,6 +1655,7 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
+	ssa_log(SSA_LOG_DEFAULT, "distrib tree level %d\n", distrib_tree_level);
 #ifdef SIM_SUPPORT_SMDB
 	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
 #endif
