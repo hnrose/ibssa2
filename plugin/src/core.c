@@ -483,7 +483,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 	}
 
 	if (distrib_tree_level & SSA_DTREE_DISTRIB) {
-		n += snprintf(buf + n, buf_size - n, "\t\t\t\t -----------------------------------\n\n");
+		n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
 		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Distribution nodes ]\n");
 		list = &core->distrib_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
@@ -494,7 +494,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 
 	if ((distrib_tree_level & SSA_DTREE_ACCESS)
 	    || (distrib_tree_level & SSA_DTREE_CONSUMER)) {
-		n += snprintf(buf + n, buf_size - n, "\t\t\t\t -----------------------------------\n\n");
+		n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
 		n += snprintf(buf + n, buf_size - n, "\t\t\t\t [ Access nodes ]\n");
 		list = &core->access_list;
 		for (entry = list->Next; entry != list; entry = entry->Next) {
@@ -515,7 +515,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 			}
 		}
 	}
-	n += snprintf(buf + n, buf_size - n, "\t\t\t\t -----------------------------------\n\n");
+	n += snprintf(buf + n, buf_size - n, "\t\t\t\t ------------------------------------\n\n");
 
 	ssa_log(SSA_LOG_DEFAULT, "%s\n\n%s", svc_name, buf);
 	free(buf);
