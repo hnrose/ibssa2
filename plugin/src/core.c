@@ -536,10 +536,10 @@ static void core_orphan_adoption(struct ssa_core *core)
 			entry = entry->Next;
 
 			ret = core_build_tree(core, member);
-			if (!ret)
+			if (!ret) {
 				DListRemove(&tmp);
-			else
 				changed = 1;
+			}
 		}
 		if (changed)
 			dtree_epoch_cur++;
