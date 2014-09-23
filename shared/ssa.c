@@ -3127,7 +3127,7 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 							SSA_ADDR_GID, gid.raw,sizeof gid.raw);
 					ssa_log(SSA_LOG_DEFAULT,
 						"add fake consumer GID %s into %s\n",
-						log_data,svc_arr[j]->name);
+						log_data, svc_arr[j]->name);
 				}
 			}
 		}
