@@ -388,7 +388,7 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member, int lev
 {
 	struct ssa_member_record *member_rec = &member->rec;
 	char addr[INET6_ADDRSTRLEN];
-	char parent[64] = {}, children[64] = {};
+	char parent[64] = { 0 }, children[64] = { 0 };
 	int ret = 0;
 	uint8_t parent_lid = 0;
 
