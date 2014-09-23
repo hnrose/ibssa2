@@ -437,7 +437,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 	int distrib_cnt = 0, consumer_cnt = 0;
 	struct ssa_member *member, *child;
 	size_t buf_size;
-	int ssa_nodes;
+	int ssa_nodes = 0;
 	unsigned n = 0;
 	char *buf;
 
@@ -462,9 +462,19 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 			consumer_cnt++;
 	}
 
-	ssa_nodes = core_cnt + distrib_cnt + access_cnt + consumer_cnt;
+	if (distrib_tree_level & SSA_DTREE_CORE)
+		ssa_nodes += core_cnt;
+	if (distrib_tree_level & SSA_DTREE_DISTRIB)
+		ssa_nodes += distrib_cnt;
+	if ((distrib_tree_level & SSA_DTREE_ACCESS)||
+	    (distrib_tree_level & SSA_DTREE_CONSUMER))
+		/* each access node takes an additional line in log */
+		ssa_nodes += access_cnt * 2;
+	if (distrib_tree_level & SSA_DTREE_CONSUMER)
+		ssa_nodes += consumer_cnt;
+
 	/* 13 is the number of distribution tree meta data log lines */
-	buf_size = (ssa_nodes + access_cnt + 13) * 256 * sizeof(*buf);
+	buf_size = (ssa_nodes + 13) * 256 * sizeof(*buf);
 	buf = calloc(1, buf_size);
 	if (!buf) {
 		ssa_log_err(SSA_LOG_DEFAULT, "unable to allocate buffer\n");
