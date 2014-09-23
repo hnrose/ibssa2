@@ -4304,7 +4304,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		errno = ret;
 		goto err7;
 	}
-	SET_THREAD_NAME(svc->upstream, "UPSTR %s", svc->name);
+	SET_THREAD_NAME(svc->upstream, "UP %s", svc->name);
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
@@ -4320,7 +4320,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			errno = ret;
 			goto err8;
 		}
-		SET_THREAD_NAME(svc->downstream, "DNSTR %s", svc->name);
+		SET_THREAD_NAME(svc->downstream, "DN %s", svc->name);
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
