@@ -468,8 +468,7 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 		ssa_nodes += distrib_cnt;
 	if ((distrib_tree_level & SSA_DTREE_ACCESS)||
 	    (distrib_tree_level & SSA_DTREE_CONSUMER))
-		/* each access node takes an additional line in log */
-		ssa_nodes += access_cnt * 2;
+		ssa_nodes += access_cnt;
 	if (distrib_tree_level & SSA_DTREE_CONSUMER)
 		ssa_nodes += consumer_cnt;
 
