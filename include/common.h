@@ -59,7 +59,7 @@ extern "C" {
 
 #ifdef HAVE_PTHREAD_SET_NAME_NP
 	#define SET_THREAD_NAME(thread, ...) { char buf[16] = {}; \
-		snprintf(buf, 16, __VA_ARGS__); \
+		snprintf(buf, sizeof buf, __VA_ARGS__); \
 		pthread_setname_np(thread, buf); }
 #else
 	#define SET_THREAD_NAME(thread, ...)
