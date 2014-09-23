@@ -182,8 +182,9 @@ const char *ssa_node_type_str(int node_type)
 	case SSA_NODE_CORE:
 		return "Core";
 	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
+		return "Core + Access";
 	case (SSA_NODE_DISTRIBUTION | SSA_NODE_ACCESS):
-		return "Combined";
+		return "Distribution + Access";
 	case SSA_NODE_DISTRIBUTION:
 		return "Distribution";
 	case SSA_NODE_ACCESS:
