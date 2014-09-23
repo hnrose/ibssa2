@@ -315,7 +315,6 @@ int ssa_set_ssa_signal_handler()
 }
 
 #ifdef _SSA_SIGNAL_HANDLER_TESTER_
-
 int foo2()
 {
 	int *ptr = NULL;
@@ -364,7 +363,6 @@ int main(int argc, char **argv)
 	ssa_print_backtrace(0, stderr);
 	/* create a thread which executes inc_x(&x) */
 	if(pthread_create(&inc_x_thread, NULL, incr, &x)) {
-
 		fprintf(stderr, "Error creating thread\n");
 		return 1;
 
@@ -372,29 +370,22 @@ int main(int argc, char **argv)
 
 	/* create a thread which executes inc_x(&x) */
 	if(pthread_create(&inc_y_thread, NULL, incr, &x)) {
-
 		fprintf(stderr, "Error creating thread\n");
 		return 1;
 
 	}
 
-
 	printf("\n");
 	printf("Call stack from segmentation handler \n");
 
-
 	if(pthread_join(inc_x_thread, NULL)) {
-
 		fprintf(stderr, "Error joining thread\n");
 		return 2;
-
 	}
 
 	if(pthread_join(inc_y_thread, NULL)) {
-
 		fprintf(stderr, "Error joining thread\n");
 		return 2;
-
 	}
 
 	return 0;
@@ -408,7 +399,6 @@ int main (int argc, char **argv)
 
 	if(argc == 1)
 		return 0;
-
 
 	for(i = 1; i < argc; ++i)
 		size += (strlen(argv[i]) + 1);
@@ -426,7 +416,6 @@ int main (int argc, char **argv)
 		fprintf(stderr, "Execution is failed\n");
 	else
 		printf("%s\n", output);
-
 
 	free(cmd);
 
