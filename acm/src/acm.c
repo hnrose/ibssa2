@@ -1420,6 +1420,14 @@ static void *acm_comp_handler(void *context)
 	struct ibv_wc wc;
 	int cnt;
 
+	if (acm_mode == ACM_MODE_ACM) {
+		SET_THREAD_NAME(comp_thread, "COMP 0x%" PRIx64,
+				((struct acm_device *)context)->guid);
+	} else {	/* ACM_MODE_SSA */
+		SET_THREAD_NAME(comp_thread, "COMP %s",
+				((struct ssa_device *)context)->name);
+	}
+
 	ssa_log(SSA_LOG_VERBOSE, "started\n");
 	if (acm_mode == ACM_MODE_ACM)
 		channel = ((struct acm_device *)context)->channel;
@@ -1665,6 +1673,8 @@ static void *acm_retry_handler(void *context)
 	DLIST_ENTRY *dev_entry;
 	uint64_t next_expire;
 	int i, d, p, wait;
+
+	SET_THREAD_NAME(retry_thread, "RETRY");
 
 	ssa_log(SSA_LOG_DEFAULT, "started\n");
 	while (1) {
@@ -3384,6 +3394,8 @@ static void *acm_issue_query(void *context)
 	struct ssa_svc *svc = context;
 	int i, ret = -SSA_DB_QUERY_NO_UPSTREAM_CONN;
 
+	SET_THREAD_NAME(query_thread, "QUERY");
+
 	ssa_log_func(SSA_LOG_CTRL);
 
 	usleep(acm_query_timeout);	/* delay - so first attempt likely to succeed */
@@ -3708,6 +3720,8 @@ static void *acm_event_handler(void *context)
 	struct ibv_async_event event;
 	int i, ret;
 
+	SET_THREAD_NAME(event_thread, "EVENT 0x%" PRIx64, dev->guid);
+
 	ssa_log(SSA_LOG_VERBOSE, "started\n");
 	for (i = 0; i < dev->port_cnt; i++) {
 		acm_port_up(&dev->port[i]);
@@ -3753,15 +3767,12 @@ static void acm_activate_devices()
 
 			dev = container_of(dev_entry, struct acm_device, entry);
 			pthread_create(&event_thread, NULL, acm_event_handler, dev);
-			SET_THREAD_NAME(event_thread, "EVENT 0x%" PRIx64, dev->guid);
 			pthread_create(&comp_thread, NULL, acm_comp_handler, dev);
-			SET_THREAD_NAME(comp_thread, "COMP 0x%" PRIx64, dev->guid);
 		}
 	} else { /* ACM_MODE_SSA */
 		for (d = 0; d < ssa.dev_cnt; d++) {
 			ssa_dev1 = ssa_dev(&ssa, d);
 			pthread_create(&comp_thread, NULL, acm_comp_handler, ssa_dev1);
-			SET_THREAD_NAME(comp_thread, "COMP %s", ssa_dev1->name);
 		}
 	}
 }
@@ -4060,6 +4071,8 @@ static void *acm_ctrl_handler(void *context)
 	struct ssa_svc *svc;
 	int ret;
 
+	SET_THREAD_NAME(ctrl_thread, "CTRL");
+
 	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
 			    sizeof *svc, acm_process_msg);
 	if (!svc) {
@@ -4067,10 +4080,8 @@ static void *acm_ctrl_handler(void *context)
 		goto close;
 	}
 
-	if (acm_mode == ACM_MODE_SSA) {
+	if (acm_mode == ACM_MODE_SSA)
 		pthread_create(&query_thread, NULL, acm_issue_query, svc);
-		SET_THREAD_NAME(query_thread, "QUERY");
-	}
 
 	ret = ssa_ctrl_run(&ssa);
 	if (ret) {
@@ -4174,13 +4185,11 @@ int main(int argc, char **argv)
 			return -1;
 		}
 		pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
-		SET_THREAD_NAME(ctrl_thread, "CTRL");
 	}
 
 	acm_activate_devices();
 	ssa_log(SSA_LOG_VERBOSE, "starting timeout/retry thread\n");
 	pthread_create(&retry_thread, NULL, acm_retry_handler, NULL);
-	SET_THREAD_NAME(retry_thread, "RETRY");
 
 	ssa_log(SSA_LOG_VERBOSE, "starting server\n");
 	acm_server();

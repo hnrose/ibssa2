@@ -892,6 +892,8 @@ static void *core_ctrl_handler(void *context)
 {
 	int ret;
 
+	SET_THREAD_NAME(ctrl_thread, "CTRL");
+
 	ret = ssa_ctrl_run(&ssa);
 	if (ret)
 		ssa_log(SSA_LOG_DEFAULT, "ERROR processing control\n");
@@ -1258,6 +1260,8 @@ static void *core_extract_handler(void *context)
 	struct timespec smdb_last_mtime;
 	struct ref_count_obj *p_ref_smdb = NULL;
 #endif
+
+	SET_THREAD_NAME(extract_thread, "EXTRACT");
 
 	ssa_log(SSA_LOG_VERBOSE, "Starting smdb extract thread\n");
 
@@ -1810,7 +1814,6 @@ static void *core_construct(osm_opensm_t *opensm)
 			ret, strerror(ret));
 		goto err6;
 	}
-	SET_THREAD_NAME(extract_thread, "EXTRACT");
 
 #ifndef SIM_SUPPORT
 	ret = pthread_create(&ctrl_thread, NULL, core_ctrl_handler, NULL);
@@ -1820,7 +1823,6 @@ static void *core_construct(osm_opensm_t *opensm)
 			ret, strerror(ret));
 		goto err7;
 	}
-	SET_THREAD_NAME(ctrl_thread, "CTRL");
 #endif
 
 	osm = opensm;

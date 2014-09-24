@@ -1397,6 +1397,8 @@ static void *ssa_upstream_handler(void *context)
 	int outstanding_count = 0;
 	short port;
 
+	SET_THREAD_NAME(svc->upstream, "UP %s", svc->name);
+
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
@@ -2443,6 +2445,8 @@ static void *ssa_downstream_handler(void *context)
 	struct ssa_db *ssa_db;
 	int ret, i;
 
+	SET_THREAD_NAME(svc->downstream, "DN %s", svc->name);
+
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
@@ -3012,6 +3016,8 @@ static void *ssa_access_prdb_handler(void *context)
 {
 	struct ssa_db_update db_upd;
 
+	SET_THREAD_NAME(access_prdb_handler, "ACCESS PRDB");
+
 	ssa_log_func(SSA_LOG_CTRL);
 
 	pthread_cleanup_push(prdb_handler_cleanup, &access_context.update_queue);
@@ -3154,6 +3160,8 @@ static void *ssa_access_handler(void *context)
 	struct ssa_access_member *consumer;
 	struct ssa_db_update db_upd;
 #endif
+
+	SET_THREAD_NAME(access_thread, "ACCESS");
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
@@ -4304,7 +4312,6 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		errno = ret;
 		goto err7;
 	}
-	SET_THREAD_NAME(svc->upstream, "UP %s", svc->name);
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
@@ -4320,7 +4327,6 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			errno = ret;
 			goto err8;
 		}
-		SET_THREAD_NAME(svc->downstream, "DN %s", svc->name);
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
@@ -4480,7 +4486,6 @@ int ssa_start_access(struct ssa_class *ssa)
 		errno = ret;
 		goto err5;
 	}
-	SET_THREAD_NAME(access_thread, "ACCESS");
 
 	ret = read(sock_accessctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
@@ -4494,7 +4499,6 @@ int ssa_start_access(struct ssa_class *ssa)
 		errno = ret;
 		goto err7;
 	}
-	SET_THREAD_NAME(access_prdb_handler, "ACCESS PRDB");
 #endif
 	return 0;
 
