@@ -4140,6 +4140,8 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
+	SET_THREAD_NAME(pthread_self(), "MAIN");
+
 	acm_set_options();
 
 	ret = ssa_open_lock_file(lock_file, msg, sizeof msg);

@@ -662,6 +662,8 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
+	SET_THREAD_NAME(pthread_self(), "MAIN");
+
 	distrib_set_options();
 	ssa = distrib_construct(node_type, daemon);
 	if (!ssa)
