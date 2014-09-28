@@ -3072,8 +3072,6 @@ static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 			return NULL;
 		}
 		memcpy(&consumer->gid, remote_gid, 16);
-		consumer->rsock = rsock;
-		consumer->lid = remote_lid;
 		if (!tsearch(&consumer->gid, &svc->access_map, ssa_compare_gid)) {
 			free(consumer);
 			ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
@@ -3084,8 +3082,10 @@ static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 				log_data);
 			return NULL;
 		}
-	} else {
+	} else
 		consumer = container_of(*tgid, struct ssa_access_member, gid);
+
+	if (consumer) {
 		consumer->rsock = rsock;
 		consumer->lid = remote_lid;
 	}
