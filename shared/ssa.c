@@ -2790,20 +2790,20 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	char dump_dir[1024];
 	struct stat dstat;
 	uint64_t epoch;
-	int rt;
+	int ret;
 
 	/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
-	rt = ssa_pr_compute_half_world(access_context.smdb,
-					 access_context.context,
-					 gid->global.interface_id,
-					 &prdb);
-	if (rt == SSA_PR_PORT_ABSENT) {
+	ret = ssa_pr_compute_half_world(access_context.smdb,
+					access_context.context,
+					gid->global.interface_id,
+					&prdb);
+	if (ret == SSA_PR_PORT_ABSENT) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
 		ssa_log_warn(SSA_LOG_DEFAULT, "port is not found. GID %s\n", log_data);
 
 		return NULL;
-	} else if (rt != SSA_PR_SUCCESS) {
+	} else if (ret != SSA_PR_SUCCESS) {
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
 				     "%s.", prdb_dump_dir);
