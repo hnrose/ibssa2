@@ -182,6 +182,16 @@ const struct ep_port_tbl_rec
 *find_linked_port(const struct ssa_db *p_smdb,
 		  const struct ssa_pr_smdb_index *p_index,
 		  const be16_t from_lid, const int from_port_num);
+
+/*
+ * is_port_exist - check if a port exists in smdb
+ * @p_smdb: Pointer to smdb database
+ * @guid: port's GUID in network order.
+ *
+ * @return value: 1 - the guid is found, 0 - else.
+ */
+int is_port_exist(const struct ssa_db *p_smdb, be64_t guid);
+
 #ifdef __cplusplus
 }
 #endif

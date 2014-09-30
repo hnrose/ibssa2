@@ -546,3 +546,27 @@ const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 
 	return p_port_tbl + record_index;
 }
+
+int is_port_exist(const struct ssa_db *p_smdb, be64_t guid)
+{
+	size_t i = 0, count = 0;
+	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+
+	SSA_ASSERT(p_smdb);
+
+	p_guid_to_lid_tbl =
+		(struct ep_guid_to_lid_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
+	SSA_ASSERT(p_guid_to_lid_tbl);
+
+	count = get_dataset_count(p_smdb,SSA_TABLE_ID_GUID_TO_LID);
+	if (!count) {
+		SSA_PR_LOG_INFO("Guid to LID table is empty");
+		return 0;
+	}
+
+	for (i = 0; i < count; i++)
+		if (p_guid_to_lid_tbl[i].guid == guid)
+			return 1;
+
+	return 0;
+}

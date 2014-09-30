@@ -146,6 +146,11 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 		return SSA_PR_ERROR;
 	}
 
+	if (!is_port_exist(p_ssa_db_smdb, port_guid)) {
+		SSA_PR_LOG_ERROR("Port does not exist.");
+		return SSA_PR_PORT_ABSENT;
+	}
+
 	p_guid_to_lid_tbl = (const struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
 	SSA_ASSERT(p_guid_to_lid_tbl);
 
@@ -285,6 +290,11 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
 		SSA_PR_LOG_ERROR("Index rebuild failed.");
 		return SSA_PR_ERROR;
+	}
+
+	if (!is_port_exist(p_ssa_db_smdb, port_guid)) {
+		SSA_PR_LOG_ERROR("Port does not exist.");
+		return SSA_PR_PORT_ABSENT;
 	}
 
 	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
