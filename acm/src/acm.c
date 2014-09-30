@@ -2979,7 +2979,8 @@ static void acm_parse_access_v1_lid2guid(struct ssa_db *p_ssa_db, uint64_t *lid2
 }
 
 /* Parse 'access layer v1' file to populate PR cache */
-static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db, uint64_t *lid2guid, struct acm_ep *ep)
+static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db,
+				     uint64_t *lid2guid, struct acm_ep *ep)
 {
 	union ibv_gid sgid, dgid;
 	struct ibv_port_attr attr = { 0 };
@@ -3447,7 +3448,8 @@ void acm_ep_up(void *port, uint16_t pkey_index)
 		return;
 
 	if (acm_find_ep(port, pkey)) {
-		ssa_log(SSA_LOG_VERBOSE, "endpoint for pkey 0x%x already exists\n", pkey);
+		ssa_log(SSA_LOG_VERBOSE,
+			"endpoint for pkey 0x%x already exists\n", pkey);
 		return;
 	}
 
