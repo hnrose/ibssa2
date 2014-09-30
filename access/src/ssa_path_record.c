@@ -278,6 +278,14 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	uint64_t record_num = 0;
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
 	struct prdb_prm prm;
+	struct ssa_pr_context *p_context = (struct ssa_pr_context *)p_ctnx;
+
+	SSA_ASSERT(p_context);
+
+	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
+		SSA_PR_LOG_ERROR("Index rebuild failed.");
+		return NULL;
+	}
 
 	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
 
@@ -315,6 +323,14 @@ ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
 	size_t count = 0;
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
+	struct ssa_pr_context *p_context = (struct ssa_pr_context *)context;
+
+	SSA_ASSERT(p_context);
+
+	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
+		SSA_PR_LOG_ERROR("Index rebuild failed.");
+		return SSA_PR_ERROR;
+	}
 
 	SSA_ASSERT(p_ssa_db_smdb);
 
