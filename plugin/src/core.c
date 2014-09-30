@@ -1123,6 +1123,7 @@ static int ssa_extract_process_smdb(struct ref_count_obj *p_ref_smdb)
 #else
 static void core_extract_db(osm_opensm_t *p_osm)
 {
+	struct ssa_db_diff *ssa_db_diff_old = NULL;
 	struct ssa_db *p_smdb = NULL;
 	uint64_t epoch_prev = 0;
 
@@ -1145,10 +1146,17 @@ static void core_extract_db(osm_opensm_t *p_osm)
 		epoch_prev = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
 	}
 
-	ssa_db_diff_destroy(ssa_db_diff);
+	ssa_db_diff_old = ssa_db_diff;
 
 	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev, first);
 	if (ssa_db_diff) {
+		if (ssa_db_diff->dirty)
+		    ssa_db_diff_destroy(ssa_db_diff_old);
+		else if (ssa_db_diff_old) {
+		    ssa_db_diff_destroy(ssa_db_diff);
+		    ssa_db_diff = ssa_db_diff_old;
+		}
+
 		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
 		/*
 		 * TODO: use 'ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID)'
