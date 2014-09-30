@@ -328,6 +328,7 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	case SSA_CTRL_DEV_EVENT:
 	case SSA_CONN_REQ:
 	case SSA_CONN_DONE:
+	case SSA_CTRL_EXIT:
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL,

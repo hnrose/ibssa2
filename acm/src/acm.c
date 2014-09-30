@@ -3951,6 +3951,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", db, ((
 		return 1;
 	case SSA_CTRL_DEV_EVENT:
 	case SSA_CONN_REQ:
+	case SSA_CTRL_EXIT:
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL,
