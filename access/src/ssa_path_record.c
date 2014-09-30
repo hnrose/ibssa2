@@ -271,10 +271,10 @@ uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,
 	return destination_count * (0x01 << source_lmc);
 }
 
-struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
-					 void *p_ctnx, be64_t port_guid)
+ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
+					 void *p_ctnx, be64_t port_guid,
+					 struct ssa_db **p_prdb)
 {
-	struct ssa_db *p_prdb = NULL;
 	uint64_t record_num = 0;
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
 	struct prdb_prm prm;
@@ -284,20 +284,20 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 
 	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
 		SSA_PR_LOG_ERROR("Index rebuild failed.");
-		return NULL;
+		return SSA_PR_ERROR;
 	}
 
 	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
 
 	/* TODO: use previous PRDB version epoch */
-	p_prdb = ssa_prdb_create(DB_EPOCH_INVALID /* epoch */, record_num);
-	if (!p_prdb) {
+	*p_prdb = ssa_prdb_create(DB_EPOCH_INVALID /* epoch */, record_num);
+	if (!*p_prdb) {
 		SSA_PR_LOG_ERROR("Path record database creation failed."
 				 " Number of records: %"PRIu64, record_num);
-		return NULL;
+		return SSA_PR_ERROR;
 	}
 
-	prm.prdb = p_prdb;
+	prm.prdb = *p_prdb;
 	prm.max_count = record_num;
 
 	res = ssa_pr_half_world(p_ssa_db_smdb, p_ctnx, port_guid,
@@ -307,12 +307,12 @@ struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 				 ntohll(port_guid));
 		goto Error;
 	}
-	return p_prdb;
+	return SSA_PR_SUCCESS;
 
 Error:
-	if (p_prdb)
-		ssa_db_destroy(p_prdb);
-	return NULL;
+	if (*p_prdb)
+		ssa_db_destroy(*p_prdb);
+	return SSA_PR_ERROR;
 }
 
 ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,

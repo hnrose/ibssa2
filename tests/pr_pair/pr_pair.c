@@ -568,13 +568,13 @@ static int run_pr_calculation(struct input_prm* p_prm)
 				goto Exit;
 			}
 			guid = htonll(guid);
-			p_prdb = ssa_pr_compute_half_world(p_db_diff,p_context,guid);
-			if(!p_prdb) {
-				fprintf(stderr,"Path record computation is failed. prdb database is not created\n");
+			res = ssa_pr_compute_half_world(p_db_diff,p_context,guid,&p_prdb);
+			if(res != SSA_PR_SUCCESS) {
+				fprintf(stderr,"Path record computation failed. prdb database was not created\n");
 				goto Exit;
 			}
 		} else {
-			fprintf(stderr,"Path record computation is failed. There is no input GUID\n");
+			fprintf(stderr,"Path record computation failed. There is no input GUID\n");
 			goto Exit;
 		}
 	}

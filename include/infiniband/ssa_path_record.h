@@ -84,16 +84,18 @@ extern uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,
  * 					for given GUID. As result the function creates prdb
  * 					database. A caller is responsible for destroy the
  * 					database.
- * @return value	- pointer to prdb database. NULL in vase of failure.
  * @p_ssa_db_smdb	- input smdb database
  * @p_ctnx			- context. The context is used for storing data between different
  * 						functions call. A caller has to create a context before first call
  * 						and destroy it at end.
  * @port_guid		- input GUID
  *
+ * @prdb		- double pointer to prdb database.
  */
-extern struct ssa_db *ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
-						void *p_ctnx, be64_t port_guid);
+extern ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
+						void *p_ctnx,
+						be64_t port_guid,
+						struct ssa_db **prdb);
 
 extern ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb,
 					 void *context, be64_t port_guid,

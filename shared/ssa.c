@@ -2790,12 +2790,14 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	char dump_dir[1024];
 	struct stat dstat;
 	uint64_t epoch;
+	int rt;
 
 	/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
-	prdb = ssa_pr_compute_half_world(access_context.smdb,
+	rt = ssa_pr_compute_half_world(access_context.smdb,
 					 access_context.context,
-					 gid->global.interface_id);
-	if (prdb) {
+					 gid->global.interface_id,
+					 &prdb);
+	if (rt != SSA_PR_SUCCESS) {
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
 				     "%s.", prdb_dump_dir);
