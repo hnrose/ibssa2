@@ -4593,8 +4593,8 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 		ssa_log_warn(SSA_LOG_CTRL, "MAD fd is blocking\n");
 
 	memset(methods, 0xFF, sizeof methods);
-	port->mad_agentid = umad_register(port->mad_portid,
-		SSA_CLASS, SSA_CLASS_VERSION, 0, methods);
+	port->mad_agentid = umad_register(port->mad_portid, SSA_CLASS,
+					  SSA_CLASS_VERSION, 0, methods);
 	if (port->mad_agentid < 0) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "unable to register SSA class on port %s\n",
@@ -4603,8 +4603,8 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 	}
 
 	/* Only registering for solicited SA MADs */
-	port->sa_agentid = umad_register(port->mad_portid,
-		UMAD_CLASS_SUBN_ADM, UMAD_SA_CLASS_VERSION, 0, NULL);
+	port->sa_agentid = umad_register(port->mad_portid, UMAD_CLASS_SUBN_ADM,
+					 UMAD_SA_CLASS_VERSION, 0, NULL);
 	if (port->sa_agentid < 0) {
 		ssa_log_err(SSA_LOG_CTRL, "unable to register SA class on port %s\n",
 			    port->name);
