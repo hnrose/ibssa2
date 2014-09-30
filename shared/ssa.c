@@ -3057,8 +3057,7 @@ static void ssa_twalk(const struct node_t *root,
 static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 							 union ibv_gid *remote_gid,
 							 uint16_t remote_lid,
-							 int rsock,
-							 uint64_t smdb_epoch)
+							 int rsock)
 {
 	struct ssa_access_member *consumer;
 	uint8_t **tgid;
@@ -3072,6 +3071,7 @@ static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 			return NULL;
 		}
 		memcpy(&consumer->gid, remote_gid, 16);
+		consumer->smdb_epoch = DB_EPOCH_INVALID;
 		if (!tsearch(&consumer->gid, &svc->access_map, ssa_compare_gid)) {
 			free(consumer);
 			ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
@@ -3100,7 +3100,6 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 	int i, j, count, n;
 	const struct ep_guid_to_lid_tbl_rec *tbl;
 	const struct ep_subnet_opts_tbl_rec *opt_rec;
-	uint64_t epoch;
 
 	if (!fake_acm_num)
 		return;
@@ -3111,8 +3110,6 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 	if (fake_acm_num < 0)
 		fake_acm_num = n;
 
-	/* Add fake clients with previous epoch */
-	epoch = min(ssa_db_get_epoch(smdb,DB_DEF_TBL_ID) - 1, 0);
 
 	for (j = 0; j < svc_cnt; j++) {
 		count = 0;
@@ -3124,8 +3121,7 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 				gid.global.subnet_prefix = opt_rec->subnet_prefix;
 				if (ssa_add_access_consumer(svc_arr[j], &gid,
 							    tbl[i].lid,
-							    ACM_FAKE_RSOCKET_ID,
-							    epoch)) {
+							    ACM_FAKE_RSOCKET_ID)) {
 					count++;
 
 					ssa_sprint_addr(SSA_LOG_DEFAULT,
@@ -3435,8 +3431,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						consumer = ssa_add_access_consumer(svc_arr[i],
 										   &msg.data.conn->remote_gid,
 										   msg.data.conn->remote_lid,
-										   msg.data.conn->rsock,
-										   ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID));
+										   msg.data.conn->rsock);
 						if (NULL == consumer)
 							continue;
 
