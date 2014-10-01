@@ -60,6 +60,8 @@ AC_PROG_LN_S
 AC_PROG_CC
 AC_PROG_CXX
 
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
 dnl We will use libtool for making ...
 AC_PROG_LIBTOOL
 
