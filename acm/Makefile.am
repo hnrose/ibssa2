@@ -26,7 +26,6 @@ EXTRA_DIST = src/acm_mad.h src/libacm.h ibacm.init.in \
 
 install-exec-hook:
 	install -D -m 755 ibacm.init $(DESTDIR)$(sysconfdir)/init.d/ibacm;
-	install -D -m 644 ibacm_logrotate /etc/logrotate.d/ibacm;
 
 dist-hook: ibacm.spec
 	cp ibacm.spec $(distdir)
