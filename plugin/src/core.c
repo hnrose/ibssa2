@@ -114,6 +114,7 @@ struct ssa_member {
 struct ssa_core {
 	struct ssa_svc			svc;
 	void				*member_map;
+	pthread_mutex_t			list_lock; /* should be taken when accessing one of the member lists */
 	DLIST_ENTRY			orphan_list;
 	DLIST_ENTRY			core_list;
 	DLIST_ENTRY			distrib_list;
@@ -538,6 +539,7 @@ static void core_orphan_adoption(struct ssa_core *core)
 	union ibv_gid *parentgid = NULL;
 	int ret, changed = 0;
 
+	pthread_mutex_lock(&core->list_lock);
 	if (!DListEmpty(&core->orphan_list)) {
 		entry = core->orphan_list.Next;
 		while (entry != &core->orphan_list) {
@@ -556,6 +558,7 @@ static void core_orphan_adoption(struct ssa_core *core)
 		if (changed)
 			dtree_epoch_cur++;
 	}
+	pthread_mutex_unlock(&core->list_lock);
 }
 
 /*
@@ -850,13 +853,17 @@ static int core_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *ms
 	switch (umad->packet.mad_hdr.method) {
 	case UMAD_METHOD_SET:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
+			pthread_mutex_lock(&core->list_lock);
 			core_process_join(core, umad);
+			pthread_mutex_unlock(&core->list_lock);
 			return 1;
 		}
 		break;
 	case SSA_METHOD_DELETE:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
+			pthread_mutex_lock(&core->list_lock);
 			core_process_leave(core, umad);
+			pthread_mutex_unlock(&core->list_lock);
 			return 1;
 		}
 		break;
@@ -910,13 +917,23 @@ static void *core_ctrl_handler(void *context)
 	return context;
 }
 
-static void core_init_svc(struct ssa_svc *svc)
+static int core_init_svc(struct ssa_svc *svc)
 {
 	struct ssa_core *core = container_of(svc, struct ssa_core, svc);
+	int ret;
+
+	ret = pthread_mutex_init(&core->list_lock, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable initialize core member lists lock\n");
+		return -1;
+        }
+
 	DListInit(&core->orphan_list);
 	DListInit(&core->core_list);
 	DListInit(&core->distrib_list);
 	DListInit(&core->access_list);
+	return 0;
 }
 
 static void core_free_member(void *gid)
@@ -934,6 +951,7 @@ static void core_destroy_svc(struct ssa_svc *svc)
 	ssa_log_func(SSA_LOG_CTRL);
 	if (core->member_map)
 		tdestroy(core->member_map, core_free_member);
+	pthread_mutex_destroy(&core->list_lock);
 }
 #endif
 
@@ -1366,7 +1384,10 @@ static void *core_extract_handler(void *context)
 					core = container_of(svc, struct ssa_core, svc);
 					if (dtree_epoch_prev != dtree_epoch_cur &&
 					    svc->state != SSA_STATE_IDLE) {
-						core_dump_tree(core, svc->name);
+						if (pthread_mutex_trylock(&core->list_lock) == 0) {
+							core_dump_tree(core, svc->name);
+							pthread_mutex_unlock(&core->list_lock);
+						}
 						dtree_epoch_prev = dtree_epoch_cur;
 					}
 				}
@@ -1806,11 +1827,10 @@ static void *core_construct(osm_opensm_t *opensm)
 			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
 					    SSA_DB_PATH_DATA, sizeof(struct ssa_core),
 					    core_process_msg);
-			if (!svc) {
+			if (!svc || core_init_svc(svc)) {
 				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
 				goto err5;
 			}
-			core_init_svc(svc);
 			extract_data.svcs[j] = svc;
 			j++;
 		}
