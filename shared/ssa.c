@@ -2426,7 +2426,6 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_bu
 			ssa_close_ssa_conn(&svc->conn_listen_smdb);
 		if (svc->conn_listen_prdb.rsock >= 0)
 			ssa_close_ssa_conn(&svc->conn_listen_prdb);
-	case IBV_EVENT_CLIENT_REREGISTER:
 		for (i = 0; i < FD_SETSIZE; i++) {
 			if (svc->fd_to_conn[i] &&
 			    svc->fd_to_conn[i]->rsock >= 0) {
