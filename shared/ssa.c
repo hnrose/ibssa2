@@ -2856,8 +2856,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 			}
 			ssa_log(SSA_LOG_DEFAULT, "SMDB dump %s\n", dump_dir);
 		}
-
 	}
+
 skip_db_save:
 	return prdb;
 }
