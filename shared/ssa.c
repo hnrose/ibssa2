@@ -3136,9 +3136,11 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID, gid.raw,sizeof gid.raw);
 					ssa_log(SSA_LOG_DEFAULT,
-						"add fake consumer GID %s into %s\n",
+						"added fake consumer GID %s into %s\n",
 						log_data, svc_arr[j]->name);
-				}
+				} else
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "adding fake consumer failed\n");
 			}
 		}
 	}
@@ -3440,8 +3442,11 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 										   &msg.data.conn->remote_gid,
 										   msg.data.conn->remote_lid,
 										   msg.data.conn->rsock);
-						if (NULL == consumer)
+						if (NULL == consumer) {
+							ssa_log_err(SSA_LOG_DEFAULT,
+								    "adding access consumer failed\n");
 							continue;
+						}
 
 						if (consumer->prdb_current) {
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
