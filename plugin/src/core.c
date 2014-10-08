@@ -268,18 +268,17 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 	return parentgid;
 }
 
-static int core_build_tree(struct ssa_core *core, struct ssa_member *child)
+static int core_build_tree(struct ssa_core *core, struct ssa_member *child,
+			   union ibv_gid *parentgid)
 {
 	struct ssa_svc *svc = &core->svc;
 	union ibv_gid *gid = (union ibv_gid *) child->rec.port_gid;
-	union ibv_gid *parentgid;
 	int ret = -1;
 	uint8_t node_type = child->rec.node_type;
 
 	switch (node_type) {
 	case SSA_NODE_DISTRIBUTION:
 	case (SSA_NODE_DISTRIBUTION | SSA_NODE_ACCESS):
-		parentgid = find_best_parent(core, child);
 		if (parentgid)
 			ret = ssa_svc_query_path(svc, parentgid, gid);
 		if (parentgid && !ret) {
@@ -295,7 +294,6 @@ static int core_build_tree(struct ssa_core *core, struct ssa_member *child)
 		}
 		break;
 	case SSA_NODE_ACCESS:
-		parentgid = find_best_parent(core, child);
 		if (parentgid)
 			ret = ssa_svc_query_path(svc, parentgid, gid);
 		if (parentgid && !ret &&
@@ -306,7 +304,6 @@ static int core_build_tree(struct ssa_core *core, struct ssa_member *child)
 	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
 	case SSA_NODE_CORE:
 		/* TODO: Handle standby SM nodes */
-		parentgid = find_best_parent(core, child);
 		if (parentgid)
 			ret = ssa_svc_query_path(svc, parentgid, gid);
 		if (parentgid && !ret) {
@@ -321,7 +318,6 @@ static int core_build_tree(struct ssa_core *core, struct ssa_member *child)
 		}
 		break;
 	case SSA_NODE_CONSUMER:
-		parentgid = find_best_parent(core, child);
 		if (parentgid)
 			ret = ssa_svc_query_path(svc, parentgid, gid);
 		else
@@ -539,6 +535,7 @@ static void core_orphan_adoption(struct ssa_core *core)
 {
 	DLIST_ENTRY *entry, tmp;
 	struct ssa_member *member;
+	union ibv_gid *parentgid = NULL;
 	int ret, changed = 0;
 
 	if (!DListEmpty(&core->orphan_list)) {
@@ -549,7 +546,8 @@ static void core_orphan_adoption(struct ssa_core *core)
 			tmp = *entry;
 			entry = entry->Next;
 
-			ret = core_build_tree(core, member);
+			parentgid = find_best_parent(core, member);
+			ret = core_build_tree(core, member, parentgid);
 			if (!ret) {
 				DListRemove(&tmp);
 				changed = 1;
@@ -568,6 +566,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 {
 	struct ssa_member_record *rec;
 	struct ssa_member *member;
+	union ibv_gid *parentgid;
 	DLIST_ENTRY *entry;
 	uint8_t **tgid, node_type;
 	int ret;
@@ -609,13 +608,23 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 		/* and other fields in member struct */
 	}
 
-	ssa_log(SSA_LOG_CTRL, "sending join response\n");
+	umad->packet.mad_hdr.status = 0;
+	if (!first) {
+		parentgid = find_best_parent(core, member);
+		if (parentgid == NULL) {
+			/* class specific status */
+			umad->packet.mad_hdr.status = htons(SSA_STATUS_REQ_DENIED << 8);
+		}
+	}
+
+	ssa_log(SSA_LOG_CTRL, "sending join response: MAD status 0x%x\n",
+		ntohs(umad->packet.mad_hdr.status));
 	umad->packet.mad_hdr.method = UMAD_METHOD_GET_RESP;
 	umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
 
 	if (!first) {
-		ret = core_build_tree(core, member);
+		ret = core_build_tree(core, member, parentgid);
 		if (ret)
 			ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
 		else
