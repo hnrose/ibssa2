@@ -3507,9 +3507,18 @@ skip_prdb_calc:
 						 * ssa_db_destroy(prdb);
 						 */
 #ifdef ACCESS
-					} else
-						ssa_log_err(SSA_LOG_CTRL,
-							    "smdb database is empty\n");
+					} else {
+						ssa_log(SSA_LOG_CTRL,
+							"smdb database is empty\n");
+						consumer = ssa_add_access_consumer(svc_arr[i],
+										   &msg.data.conn->remote_gid,
+										   msg.data.conn->remote_lid,
+										   msg.data.conn->rsock);
+						if (NULL == consumer) {
+							ssa_log_err(SSA_LOG_DEFAULT,
+								    "adding access consumer failed\n");
+						}
+					}
 #endif
 					break;
 				default:
