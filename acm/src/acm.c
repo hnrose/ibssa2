@@ -3399,6 +3399,9 @@ static void *acm_issue_query(void *context)
 
 	ssa_log_func(SSA_LOG_CTRL);
 
+	while (svc->state != SSA_STATE_CONNECTED)
+		usleep(acm_query_timeout);
+
 	usleep(acm_query_timeout);	/* delay - so first attempt likely to succeed */
 
 	for (i = 0; i <= acm_query_retries; i++) {	/* for total default max of ~1 second */
