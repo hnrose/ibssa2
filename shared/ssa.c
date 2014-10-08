@@ -3444,17 +3444,17 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					/* Then, calculate half world PathRecords for GID if needed */
 					/* Finally, "tell" downstream where this ssa_db struct is */
 #ifdef ACCESS
-					if (access_context.smdb) {
-						consumer = ssa_add_access_consumer(svc_arr[i],
-										   &msg.data.conn->remote_gid,
-										   msg.data.conn->remote_lid,
-										   msg.data.conn->rsock);
-						if (NULL == consumer) {
-							ssa_log_err(SSA_LOG_DEFAULT,
-								    "adding access consumer failed\n");
-							continue;
-						}
+					consumer = ssa_add_access_consumer(svc_arr[i],
+									   &msg.data.conn->remote_gid,
+									   msg.data.conn->remote_lid,
+									   msg.data.conn->rsock);
+					if (NULL == consumer) {
+						ssa_log_err(SSA_LOG_DEFAULT,
+							    "adding access consumer failed\n");
+						continue;
+					}
 
+					if (access_context.smdb) {
 						if (consumer->prdb_current) {
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
 							if (consumer->smdb_epoch ==
@@ -3507,18 +3507,9 @@ skip_prdb_calc:
 						 * ssa_db_destroy(prdb);
 						 */
 #ifdef ACCESS
-					} else {
+					} else
 						ssa_log(SSA_LOG_CTRL,
 							"smdb database is empty\n");
-						consumer = ssa_add_access_consumer(svc_arr[i],
-										   &msg.data.conn->remote_gid,
-										   msg.data.conn->remote_lid,
-										   msg.data.conn->rsock);
-						if (NULL == consumer) {
-							ssa_log_err(SSA_LOG_DEFAULT,
-								    "adding access consumer failed\n");
-						}
-					}
 #endif
 					break;
 				default:
