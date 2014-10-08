@@ -2810,7 +2810,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 		ssa_log_warn(SSA_LOG_DEFAULT, "port is not found. GID %s\n", log_data);
 
 		return NULL;
-	} else if (ret != SSA_PR_SUCCESS) {
+	} else if (ret == SSA_PR_SUCCESS) {
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
 				     "%s.", prdb_dump_dir);
