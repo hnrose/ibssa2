@@ -3381,10 +3381,10 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					access_update_waiting = 0;
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
-				if (NULL == access_context.smdb)
-					ssa_access_insert_fake_clients(svc_arr,
-								       svc_cnt,
-								       db);
+					if (NULL == access_context.smdb)
+						ssa_access_insert_fake_clients(svc_arr,
+									       svc_cnt,
+									       db);
 #endif
 #endif
 					/* Should epoch be added to access context ? */
