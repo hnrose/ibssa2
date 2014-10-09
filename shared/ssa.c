@@ -2583,9 +2583,9 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 					pfd2 = (struct pollfd *)(fds + i);
 					pfd2->events = ssa_riowrite(conn, POLLIN);
 				} else if (!conn) {
-					ssa_log_warn(SSA_LOG_CTRL,
-						     "DB update for rsock %d but no ssa_conn struct available\n",
-						     i);
+					ssa_log(SSA_LOG_CTRL,
+						"DB update for rsock %d with no ssa_conn struct currently available\n",
+						i);
 				}
 				break;
 			default:
