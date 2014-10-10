@@ -878,9 +878,11 @@ static int core_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *ms
 		break;
 	default:
 		ssa_log(SSA_LOG_DEFAULT,
-			"SSA MAD method 0x%x attribute 0x%x not expected\n",
+			"SSA MAD method 0x%x (%s) attribute 0x%x (%s) not expected\n",
 			umad->packet.mad_hdr.method,
-			ntohs(umad->packet.mad_hdr.attr_id));
+			ssa_method_str(umad->packet.mad_hdr.method),
+			ntohs(umad->packet.mad_hdr.attr_id),
+			ssa_attribute_str(umad->packet.mad_hdr.attr_id));
 		break;
 	}
 
