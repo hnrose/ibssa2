@@ -4650,6 +4650,16 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	int i, ret;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", ibdev->name);
+
+	if (ssa->node_type != SSA_NODE_CONSUMER) {
+		if (strncmp(ibdev->name, "mthca", 5) == 0)
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "mthca doesn't support keepalives needed by SSA\n");
+		if (keepalive == 0)
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "keepalives disabled but SSA needs keepalives\n");
+	}
+
 	dev->verbs = ibv_open_device(ibdev);
 	if (dev->verbs == NULL) {
 		ssa_log_err(SSA_LOG_CTRL, "opening device %s\n", ibdev->name);
