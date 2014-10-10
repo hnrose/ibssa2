@@ -3911,9 +3911,12 @@ static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	umad = &msg->data.umad;
 	if (umad->umad.status) {
 		ssa_log(SSA_LOG_DEFAULT,
-			"SSA MAD method 0x%x attribute 0x%x received with status 0x%x\n",
+			"SSA MAD method 0x%x (%s) attribute 0x%x (%s) received with status 0x%x\n",
 			umad->packet.mad_hdr.method,
-			ntohs(umad->packet.mad_hdr.attr_id), umad->umad.status);
+			ssa_method_str(umad->packet.mad_hdr.method),
+			ntohs(umad->packet.mad_hdr.attr_id),
+			ssa_attribute_str(umad->packet.mad_hdr.attr_id),
+			umad->umad.status);
 		return 1;	/* need to rerequest */
 	}
 
