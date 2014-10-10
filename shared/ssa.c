@@ -3920,8 +3920,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rgetsockopt RDMA_ROUTE rsock %d ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
-	conn->rsock = fd;
 
+	conn->rsock = fd;
 	memcpy(&conn->remote_gid, &peer_addr.sib_addr, sizeof(union ibv_gid));
 	conn->state = SSA_CONN_CONNECTED;
 	svc->state = SSA_STATE_CONNECTED;
