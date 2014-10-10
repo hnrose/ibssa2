@@ -2083,8 +2083,10 @@ ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
 						sock = -1;
 					update_waiting = 1;
 					update_pending = 0;
-					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-								 sock);
+					if (sock >= 0)
+						ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+									 sock);
+else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
 				}
 else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 			}
@@ -2109,8 +2111,10 @@ ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
 						sock = -1;
 					access_update_waiting = 1;
 					access_update_pending = 0;
-					ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-								 sock);
+					if (sock >= 0)
+						ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+									 sock);
+else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
 				}
 else ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
 			}
