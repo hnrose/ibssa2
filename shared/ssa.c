@@ -2288,6 +2288,76 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 	return 0;
 }
 
+static void ssa_downstream_close_ssa_conn(struct ssa_conn *conn,
+					  struct ssa_svc *svc,
+					  struct pollfd **fds)
+{
+	int sock;
+
+ssa_log(SSA_LOG_DEFAULT, "conn %p phase %d dbtype %d\n", conn, conn->phase, conn->dbtype);
+
+	if (conn->phase != SSA_DB_IDLE) {
+		int count = ref_count_obj_dec(ssa_downstream_db_ref_obj(conn));
+ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just decremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count);
+
+		if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
+			ssa_close_ssa_conn(conn);
+			atomic_dec(&prdb_xfers_in_progress);
+ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers now in progress after decrement access update pending %d\n", atomic_get(&prdb_xfers_in_progress), access_update_pending);
+			if (access_update_pending) {
+ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with access update pending\n", conn->rsock);
+if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected access update waiting!\n");
+				/* could just use result of atomic_dec above */
+				if (!ssa_access_prdb_xfer_in_progress()) {
+ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
+					/* response is from downstream rather than access thread which received prepare message */
+					/* it doesn't matter that response comes from different thread than request was issued as responses are just counted */
+					/* use svc->sock_extractdown[0] rather than sock_accessextract[1] as downstream cannot use accessextract socket in downstream thread */
+					/* different socket for distribution (updown) ! */
+					if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
+						sock = svc->sock_extractdown[0];
+					else if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
+						sock = svc->sock_updown[1];
+					else
+						sock = -1;
+					access_update_waiting = 1;
+					access_update_pending = 0;
+					if (sock >= 0)
+						ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+									 sock);
+else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
+				}
+else ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
+			}
+		} else if (conn->dbtype == SSA_CONN_SMDB_TYPE) {
+			ssa_close_ssa_conn(conn);
+ssa_log(SSA_LOG_DEFAULT, "SMDB transfer in progress %d update pending %d\n", ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds, FD_SETSIZE), update_pending);
+			if (update_pending) {
+if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+				if (!ssa_downstream_smdb_xfer_in_progress(svc,
+									  (struct pollfd *)fds,
+									  FD_SETSIZE)) {
+ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
+					if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
+						sock = svc->sock_extractdown[0];
+					else if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
+						sock = svc->sock_updown[1];
+					else
+						sock = -1;
+					update_waiting = 1;
+					update_pending = 0;
+					if (sock >= 0)
+						ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
+									 sock);
+else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
+				}
+else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
+			}
+		}
+	} else
+		ssa_close_ssa_conn(conn);
+}
+
 static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 				    int conn_dbtype)
 {
@@ -2361,7 +2431,8 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 					     "rsock %d GID %s LID %u\n",
 					     i, log_data, conn_data->remote_lid);
 
-				ssa_close_ssa_conn(svc->fd_to_conn[i]);
+				ssa_downstream_close_ssa_conn(svc->fd_to_conn[i],
+							      svc, fds);
 				svc->fd_to_conn[i] = NULL;
 
 				for (slot = FIRST_DATA_FD_SLOT; slot < FD_SETSIZE; slot++) {
@@ -2418,7 +2489,9 @@ static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd)
 	write(fd, (char *) &msg, sizeof(msg));
 }
 
-static void ssa_downstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static void ssa_downstream_dev_event(struct ssa_svc *svc,
+				     struct ssa_ctrl_msg_buf *msg,
+				     struct pollfd **fds)
 {
 	int i;
 
@@ -2433,7 +2506,8 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_bu
 		for (i = 0; i < FD_SETSIZE; i++) {
 			if (svc->fd_to_conn[i] &&
 			    svc->fd_to_conn[i]->rsock >= 0) {
-				ssa_close_ssa_conn(svc->fd_to_conn[i]);
+				ssa_downstream_close_ssa_conn(svc->fd_to_conn[i],
+							      svc, fds);
 				svc->fd_to_conn[i] = NULL;
 			}
 		}
@@ -2534,7 +2608,7 @@ static void *ssa_downstream_handler(void *context)
 			case SSA_CTRL_EXIT:
 				goto out;
 			case SSA_CTRL_DEV_EVENT:
-				ssa_downstream_dev_event(svc, &msg);
+				ssa_downstream_dev_event(svc, &msg, fds);
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -2741,7 +2815,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 						pfd->revents, pfd->fd);
 					/* Update distribution tree (at least when core) ? */
 					/* Also, when not core, need to notify core via SSA MAD */
-					ssa_close_ssa_conn(svc->fd_to_conn[pfd->fd]);
+					ssa_downstream_close_ssa_conn(svc->fd_to_conn[pfd->fd], svc, fds);
 					svc->fd_to_conn[pfd->fd] = NULL;
 					pfd->fd = -1;
 					pfd->events = 0;
