@@ -96,6 +96,7 @@ static int access_update_pending;
 static int access_update_waiting;
 //static atomic_t counter[SSA_MAX_COUNTER];
 static atomic_t prdb_xfers_in_progress;
+static int prdb_calc_in_progress;
 
 static struct ssa_access_context access_context;
 static int sock_accessctrl[2];
@@ -3359,6 +3360,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from extract: ssa_db %p flags 0x%x epoch 0x%" PRIx64 "\n",
 					db, msg.data.db_upd.flags, msg.data.db_upd.epoch);
+				prdb_calc_in_progress = 1;
 				access_update_waiting = 0;
 				if (!(msg.data.db_upd.flags & SSA_DB_UPDATE_CHANGE))
 					break;
@@ -3384,6 +3386,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							  svc_arr[j]);
 				}
 #endif
+				prdb_calc_in_progress = 0;
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -3433,6 +3436,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					ssa_log(SSA_LOG_DEFAULT,
 						"SSA DB update from upstream thread: ssa_db %p\n",
 						db);
+					prdb_calc_in_progress = 1;
 					access_update_waiting = 0;
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
@@ -3454,6 +3458,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							  ssa_access_map_callback,
 							  svc_arr[i]);
 #endif
+					prdb_calc_in_progress = 0;
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
