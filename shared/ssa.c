@@ -3565,8 +3565,12 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						ssa_log(SSA_LOG_DEFAULT,
 							"calculating PRDB for GID %s LID %u client\n",
 							log_data, consumer->lid);
+						prdb_calc_in_progress = 1;
 						prdb = ssa_calculate_prdb(svc_arr[i],
 									  &msg.data.conn->remote_gid);
+						prdb_calc_in_progress = 0;
+						if (update_pending)
+							ssa_access_smdb_update_ready(smdb, svc_arr[i], svc_arr[i]->downfds);
 #endif
 						if (!prdb)
 							continue;
