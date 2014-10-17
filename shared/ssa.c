@@ -2256,13 +2256,12 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 	return 0;
 }
 static void ssa_access_smdb_update_ready(struct ref_count_obj *robj,
-					 struct ssa_svc *svc,
-					 struct pollfd **fds)
+					 struct ssa_svc *svc)
 {
         int sock;
 
 if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
-	if (!ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds,
+	if (!ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)svc->downfds,
 						  FD_SETSIZE)) {
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
 		if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
@@ -3417,8 +3416,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 				if (update_pending) {
 					if (svc_cnt > 0)
 						ssa_access_smdb_update_ready(msg.data.db_upd.db,
-									     svc_arr[0],
-									     svc_arr[0]->downfds);
+									     svc_arr[0]);
 					else
 						ssa_log_err(SSA_LOG_DEFAULT,
 							    "update pending with no svcs\n");
@@ -3497,8 +3495,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					prdb_calc_in_progress = 0;
 					if (update_pending)
 						ssa_access_smdb_update_ready(msg.data.db_upd.db,
-									     svc_arr[i],
-									     svc_arr[i]->downfds);
+									     svc_arr[i]);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
@@ -3570,7 +3567,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 									  &msg.data.conn->remote_gid);
 						prdb_calc_in_progress = 0;
 						if (update_pending)
-							ssa_access_smdb_update_ready(smdb, svc_arr[i], svc_arr[i]->downfds);
+							ssa_access_smdb_update_ready(smdb, svc_arr[i]);
 #endif
 						if (!prdb)
 							continue;
