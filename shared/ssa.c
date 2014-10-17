@@ -2241,6 +2241,8 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 	struct ssa_conn *conn;
 	int slot;
 
+	if (prdb_calc_in_progress)
+		return 1;
 	for (slot = FIRST_DATA_FD_SLOT; slot < nfds; slot++) {
 		if (fds[slot].fd == -1)
 			continue;
@@ -2252,6 +2254,30 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 	}
 
 	return 0;
+}
+static void ssa_access_smdb_update_ready(struct ref_count_obj *robj,
+					 struct ssa_svc *svc,
+					 struct pollfd **fds)
+{
+        int sock;
+
+if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+	if (!ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds,
+						  FD_SETSIZE)) {
+ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
+		if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
+			sock = sock_accessextract[1];
+		else if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
+                        sock = svc->sock_accessup[1];
+		else
+			sock = -1;
+		update_waiting = 1;
+		update_pending = 0;
+		if (sock >= 0)
+			ssa_send_db_update_ready(robj, sock);
+else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
+	}
+else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 }
 
 static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
@@ -2515,6 +2541,7 @@ static void *ssa_downstream_handler(void *context)
 	fds = calloc(FD_SETSIZE, sizeof(**fds));
 	if (!fds)
 		goto out;
+	svc->downfds = fds;
 	pfd = (struct pollfd *)fds;
 	pfd->fd = svc->sock_downctrl[1];
 	pfd->events = POLLIN;
@@ -3387,6 +3414,15 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 				}
 #endif
 				prdb_calc_in_progress = 0;
+				if (update_pending) {
+					if (svc_cnt > 0)
+						ssa_access_smdb_update_ready(msg.data.db_upd.db,
+									     svc_arr[0],
+									     svc_arr[0]->downfds);
+					else
+						ssa_log_err(SSA_LOG_DEFAULT,
+							    "update pending with no svcs\n");
+				}
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -3459,6 +3495,10 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							  svc_arr[i]);
 #endif
 					prdb_calc_in_progress = 0;
+					if (update_pending)
+						ssa_access_smdb_update_ready(msg.data.db_upd.db,
+									     svc_arr[i],
+									     svc_arr[i]->downfds);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
