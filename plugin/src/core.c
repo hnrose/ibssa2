@@ -1568,7 +1568,11 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 		ssa_log(SSA_LOG_VERBOSE, "Ucast routing done event\n");
 		break;
 	case OSM_EVENT_ID_SUBNET_UP:
+		/* For now, ignore SUBNET UP events when there is subnet init error */
+		if (osm->subn.subnet_initialization_error)
+			break;
 		ssa_log(SSA_LOG_VERBOSE, "Subnet up event\n");
+		core_send_msg(SSA_DB_START_EXTRACT);
 		break;
 	case OSM_EVENT_ID_STATE_CHANGE:
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE,
