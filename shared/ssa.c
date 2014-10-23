@@ -2871,7 +2871,7 @@ static void ssa_access_send_db_update(struct ssa_svc *svc,
 
 static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid)
 {
-	struct ssa_db *prdb;
+	struct ssa_db *prdb = NULL;
 	int n;
 	char dump_dir[1024];
 	struct stat dstat;
@@ -2887,8 +2887,6 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
 		ssa_log_warn(SSA_LOG_DEFAULT, "port is not found. GID %s\n", log_data);
-
-		return NULL;
 	} else if (ret == SSA_PR_SUCCESS) {
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
