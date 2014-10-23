@@ -302,8 +302,6 @@ int ssa_set_ssa_signal_handler()
 		return 1;
 	if (sigaction(SIGFPE,  &action, NULL) != 0)
 		return 1;
-	if (sigaction(SIGINT,  &action, NULL) != 0)
-		return 1;
 	if (sigaction(SIGILL,  &action, NULL) != 0)
 		return 1;
 	if (sigaction(SIGTERM, &action, NULL) != 0)
