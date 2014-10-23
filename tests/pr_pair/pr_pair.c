@@ -40,7 +40,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
-
+#include <getopt.h>
 #include <stdint.h>
 #include <byteswap.h>
 
@@ -669,6 +669,10 @@ int main(int argc,char *argv[])
 	char id_string_val[PATH_MAX] = {};
 	char verbosity_string_val[PATH_MAX] = {};
 	int rt = 0;
+	static struct option long_options[] = {
+		{0, 0, 0, 0 }
+	};
+	int option_index = 0;
 
 	memset(&prm,'\0',sizeof(prm));
 
@@ -676,7 +680,8 @@ int main(int argc,char *argv[])
 
 	ssa_set_ssa_signal_handler();
 
-	while ((opt = getopt(argc, argv, "glan:f:o:O:hL:v:?")) != -1) {
+
+	while ((opt = getopt_long(argc, argv, "glan:f:o:O:hL:v:?", long_options, &option_index)) != -1) {
 		switch (opt) {
 			case 'O':
 				use_prdb_dump  = 1;
