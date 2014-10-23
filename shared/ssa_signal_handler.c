@@ -268,7 +268,7 @@ static int ssa_print_backtrace(int start_frame, FILE *flog)
 
 	rt = ssa_print_backtrace_with_gstack(flog);
 
-	return 0;
+	return rt;
 }
 
 int ssa_set_ssa_signal_handler()
