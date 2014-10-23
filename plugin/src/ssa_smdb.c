@@ -115,7 +115,7 @@ static const struct db_field_def field_tbl[] = {
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEY_TBL_SIZE }, "pkey_tbl_size", __constant_htonl(16), __constant_htonl(64) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_LID }, "port_lid", __constant_htonl(16), __constant_htonl(80) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_NUM }, "port_num", __constant_htonl(8), __constant_htonl(96) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_NEIGHBOR_MTU }, "neighbor_mtu", __constant_htonl(8), __constant_htonl(104) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_MTU_CAP }, "mtu_cap", __constant_htonl(8), __constant_htonl(104) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_RATE }, "rate", __constant_htonl(8), __constant_htonl(112) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_VL_ENFORCE }, "vl_enforce", __constant_htonl(8), __constant_htonl(120) },
 	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LID }, "lid", __constant_htonl(16), 0 },
@@ -268,7 +268,7 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
 	p_rec->port_lid			=
 	    (lid ? lid : osm_physp_get_base_lid(p_physp));
 	p_rec->port_num			= osm_physp_get_port_num(p_physp);
-	p_rec->neighbor_mtu		= ib_port_info_get_neighbor_mtu(&p_physp->port_info);
+	p_rec->mtu_cap			= ib_port_info_get_mtu_cap(&p_physp->port_info);
 	p_rec->rate			= ib_port_info_compute_rate(&p_physp->port_info,
 								    p_pi->capability_mask & IB_PORT_CAP_HAS_EXT_SPEEDS) &
 					  SSA_DB_PORT_RATE_MASK;

@@ -722,8 +722,8 @@ void ssa_db_validate(struct ssa_db_extract *p_ssa_db)
 		port_tbl_rec = p_ssa_db->p_port_tbl[i];
 		ssa_log(SSA_LOG_DB, "Port LID %u Port Num %u\n",
 			ntohs(port_tbl_rec.port_lid), port_tbl_rec.port_num);
-		ssa_log(SSA_LOG_DB, "NeighborMTU %u rate %u\n",
-			port_tbl_rec.neighbor_mtu,
+		ssa_log(SSA_LOG_DB, "MTUCapability %u rate %u\n",
+			port_tbl_rec.mtu_cap,
 			port_tbl_rec.rate & SSA_DB_PORT_RATE_MASK);
 		ssa_log(SSA_LOG_DB, "FDR10 %s active\n",
 			(port_tbl_rec.rate & SSA_DB_PORT_IS_FDR10_ACTIVE_MASK)

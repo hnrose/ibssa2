@@ -464,7 +464,7 @@ static int ssa_db_port_cmp(cl_map_item_t * p_item_old,
 
 	if ((p_tbl_rec_old->pkey_tbl_size != p_tbl_rec_new->pkey_tbl_size) ||
 	    (p_tbl_rec_old->port_lid != p_tbl_rec_new->port_lid) ||
-	    (p_tbl_rec_old->neighbor_mtu != p_tbl_rec_new->neighbor_mtu) ||
+	    (p_tbl_rec_old->mtu_cap != p_tbl_rec_new->mtu_cap) ||
 	    (p_tbl_rec_old->rate != p_tbl_rec_new->rate) ||
 	    (p_tbl_rec_old->vl_enforce != p_tbl_rec_new->vl_enforce))
 		res = 1;
@@ -982,8 +982,8 @@ static void ssa_db_diff_dump_port_rec(cl_map_item_t * p_item, void * p_tbl)
 		ssa_log(SSA_LOG_VERBOSE, "Port LID %u Port Num %u\n",
 			ntohs(p_port_tbl_rec->port_lid),
 			p_port_tbl_rec->port_num);
-		ssa_log(SSA_LOG_VERBOSE, "NeighborMTU %u rate %u\n",
-			p_port_tbl_rec->neighbor_mtu,
+		ssa_log(SSA_LOG_VERBOSE, "MTUCapability %u rate %u\n",
+			p_port_tbl_rec->mtu_cap,
 			p_port_tbl_rec->rate & SSA_DB_PORT_RATE_MASK);
 		ssa_log(SSA_LOG_VERBOSE, "FDR10 %s active\n",
 			(p_port_tbl_rec->rate & SSA_DB_PORT_IS_FDR10_ACTIVE_MASK) ? "" : "not");

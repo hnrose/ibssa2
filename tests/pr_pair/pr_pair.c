@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright 2004-2014 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the terms of the
  * OpenIB.org BSD license included below:
@@ -451,6 +451,9 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 		struct ssa_db *p_db,
 		ptrvector_t* p_arr)
 {
+	size_t i, count;
+	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl;
+
 	assert(p_prm && p_arr && p_db);
 
 	if(p_prm->is_guid) {
@@ -458,11 +461,9 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 		ptrvector_pushback(p_arr,(void*)p_prm->id);
 		return 1;
 	} else if(p_prm->whole_world) {
-		size_t i = 0;
-
-		const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl =
+		p_guid_to_lid_tbl =
 			(struct ep_guid_to_lid_tbl_rec *)p_db->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
-		const size_t count = get_dataset_count(p_db,SSA_TABLE_ID_GUID_TO_LID);
+		count = get_dataset_count(p_db,SSA_TABLE_ID_GUID_TO_LID);
 
 		for (i = 0; i < count; i++) {
 			uint64_t id = ntohll(p_guid_to_lid_tbl[i].guid);
@@ -766,10 +767,13 @@ int main(int argc,char *argv[])
 	if(use_single_id_opt) {
 		int res = 0;
 
-		if(strlen(id_string_val) > 2 && '0' == id_string_val[0] && 'x' == id_string_val[1])
-			res = sscanf(id_string_val,"0x%"PRIx64,&id);
-		else
-			res = sscanf(id_string_val,"%"PRIx64,&id);
+		if (use_guid_opt) {
+			if(strlen(id_string_val) > 2 && '0' == id_string_val[0] && 'x' == id_string_val[1])
+				res = sscanf(id_string_val,"0x%"PRIx64,&id);
+			else
+				res = sscanf(id_string_val,"%"PRIx64,&id);
+		} else
+			res = sscanf(id_string_val,"%u",&id);
 
 		if(res != 1) {
 			fprintf(stderr,"String : %s can't be converted to numeric value.\n",id_string_val);

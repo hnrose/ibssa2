@@ -434,7 +434,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 	}
 
 	p_path_prm->pkt_life = source_port == dest_port ? 0 : opt_rec[0].subnet_timeout;
-	p_path_prm->mtu = source_port->neighbor_mtu;
+	p_path_prm->mtu = source_port->mtu_cap;
 	p_path_prm->rate = source_port->rate & SSA_DB_PORT_RATE_MASK;
 	p_path_prm->pkt_life = 0;
 	p_path_prm->hops = 0;
@@ -504,7 +504,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 			return SSA_PR_ERROR;
 		}
 
-		p_path_prm->mtu = MIN(p_path_prm->mtu,port->neighbor_mtu);
+		p_path_prm->mtu = MIN(p_path_prm->mtu,port->mtu_cap);
 		if (ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 			p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 
@@ -529,7 +529,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 			return SSA_PR_ERROR;
 		}
 
-		p_path_prm->mtu = MIN(p_path_prm->mtu,port->neighbor_mtu);
+		p_path_prm->mtu = MIN(p_path_prm->mtu,port->mtu_cap);
 		if (ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 			p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 		p_path_prm->hops++;
@@ -547,7 +547,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 		}
 	}
 
-	p_path_prm->mtu = MIN(p_path_prm->mtu, port->neighbor_mtu);
+	p_path_prm->mtu = MIN(p_path_prm->mtu, port->mtu_cap);
 	if(ib_path_compare_rates_fast(p_path_prm->rate,port->rate & SSA_DB_PORT_RATE_MASK) > 0)
 		p_path_prm->rate = port->rate & SSA_DB_PORT_RATE_MASK;
 

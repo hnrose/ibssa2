@@ -112,7 +112,7 @@ enum ssa_db_smdb_port_fields {
 	SSA_FIELD_ID_PORT_PKEY_TBL_SIZE,
 	SSA_FIELD_ID_PORT_PORT_LID,
 	SSA_FIELD_ID_PORT_PORT_NUM,
-	SSA_FIELD_ID_PORT_NEIGHBOR_MTU,
+	SSA_FIELD_ID_PORT_MTU_CAP,
 	SSA_FIELD_ID_PORT_RATE,
 	SSA_FIELD_ID_PORT_VL_ENFORCE,
 	SSA_FIELD_ID_PORT_MAX
@@ -171,7 +171,7 @@ struct ep_port_tbl_rec {
 	be16_t		pkey_tbl_size;
 	be16_t		port_lid;
 	uint8_t		port_num;
-	uint8_t		neighbor_mtu;
+	uint8_t		mtu_cap;
 	uint8_t		rate; /* is_fdr10_active(1b), is_switch(1b) (appears in guid_to_lid record as well), rate(6b) */
 	uint8_t		vl_enforce;
 };
