@@ -287,6 +287,8 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 
 	SSA_ASSERT(p_context);
 
+	*p_prdb = NULL;
+
 	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
 		SSA_PR_LOG_ERROR("Index rebuild failed.");
 		return SSA_PR_ERROR;
