@@ -1632,8 +1632,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			}
 		}
 
+		/* Only 1 upstream data connection currently */
 		if (fds[UPSTREAM_DATA_FD_SLOT].revents) {
-			/* Only 1 upstream data connection currently */
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"error event 0x%x on rsock %d\n",
@@ -2255,6 +2255,7 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 
 	return 0;
 }
+
 static void ssa_access_smdb_update_ready(struct ref_count_obj *robj,
 					 struct ssa_svc *svc)
 {
@@ -2878,7 +2879,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	uint64_t epoch;
 	int ret;
 
-	/* This call "pulls" in access layer for all node types (if ACCESS defined) !!! */
+	/* Call below "pulls" in access layer for any node type (if ACCESS defined) !!! */
 	ret = ssa_pr_compute_half_world(access_context.smdb,
 					access_context.context,
 					gid->global.interface_id,
@@ -3503,6 +3504,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					break;
 				}
 			}
+
 			pfd = (struct pollfd *)(fds +
 						ACCESS_FIRST_SERVICE_FD_SLOT +
 						i * ACCESS_FDS_PER_SERVICE + 1);
