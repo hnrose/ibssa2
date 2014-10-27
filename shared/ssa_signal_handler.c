@@ -258,7 +258,7 @@ static int ssa_print_backtrace(int start_frame, FILE *flog)
 		if (run_add2line(program_invocation_name,
 					backtrace_buffer[i], i, flog) != 0)
 		{
-			fprintf(flog, "%s\n",strings[i]);
+			fprintf(flog, "#%-3d%s\n", i, strings[i]);
 		}
 	}
 	fprintf(flog,"==== [BACKTRACE] ====\n\n");
