@@ -131,7 +131,11 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 	 * Frame 1 - ssa_print_backtrace
 	 */
 	ssa_print_backtrace(2, flog);
-	/* abort() will cause a core dump*/
+	/*
+	 * abort() will cause a core dump and exit application.
+	 * Leave it to the default signal handler to process SIGABRT.
+	 */
+	signal(SIGABRT, SIG_DFL);
 	abort();
 }
 
