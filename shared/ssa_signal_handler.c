@@ -63,6 +63,8 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 	if(ret == EBUSY)
 		return;
 
+	fprintf(flog, "signal %d received \n", sig);
+
 	switch(sig)
 	{
 		case SIGSEGV:
