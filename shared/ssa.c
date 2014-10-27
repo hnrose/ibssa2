@@ -4686,6 +4686,18 @@ void ssa_stop_access(struct ssa_class *ssa)
 	close(sock_accessctrl[1]);
 }
 
+static int set_bit(int nr, void *method_mask)
+{
+	long mask, *addr = method_mask;
+	int retval;
+
+	addr += nr / (8 * sizeof(long));
+	mask = 1L << (nr % (8 * sizeof(long)));
+	retval = (mask & *addr) != 0;
+	*addr |= mask;
+	return retval;
+}
+
 static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 			  uint8_t port_num)
 {
@@ -4713,7 +4725,10 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 	if (ret)
 		ssa_log_warn(SSA_LOG_CTRL, "MAD fd is blocking\n");
 
-	memset(methods, 0xFF, sizeof methods);
+	/* Only SSA Set method is unsolicited currently */
+	memset(methods, 0, sizeof methods);
+	set_bit(UMAD_METHOD_SET, &methods);
+
 	port->mad_agentid = umad_register(port->mad_portid, SSA_CLASS,
 					  SSA_CLASS_VERSION, 0, methods);
 	if (port->mad_agentid < 0) {
