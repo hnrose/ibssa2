@@ -144,6 +144,10 @@ fi
 AC_PATH_PROGS([GSTACK], [gstack])
 if test "x${GSTACK}" = x
 then
+	AC_PATH_PROGS([GSTACK], [pstack])
+fi
+if test "x${GSTACK}" = x
+then
 	echo "WARN: gstack missing!"
 else
 AC_DEFINE_UNQUOTED(GSTACK_PATH, ["$GSTACK"], [Path to gstack])
