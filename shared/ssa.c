@@ -2891,9 +2891,15 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	if (ret == SSA_PR_PORT_ABSENT) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
-		ssa_log_warn(SSA_LOG_DEFAULT,
-			     "GID %s not found in SMDB with epoch 0x%" PRIx64 "\n",
-			     log_data, epoch);
+		if (consumer->smdb_epoch == DB_EPOCH_INVALID)
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "GID %s not found in SMDB with epoch 0x%" PRIx64 "\n",
+				     log_data, epoch);
+		else
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "GID %s not found in SMDB with epoch 0x%" PRIx64
+				     ". Last used epoch 0x%" PRIx64 "\n",
+				     log_data, epoch, consumer->smdb_epoch);
 	} else if (ret == SSA_PR_SUCCESS) {
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
