@@ -193,7 +193,7 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 	 * Skip garbage from addr2line output
 	 */
 	if (name[0] == '?' && name[1] == '?')
-		return 0;
+		return 1;
 
 	fprintf(flog, "#%-3d%p in %s () from %s\n", frame, addr,
 			name, source);
