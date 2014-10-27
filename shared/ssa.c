@@ -2871,7 +2871,8 @@ static void ssa_access_send_db_update(struct ssa_svc *svc,
 	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
 }
 
-static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid)
+static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
+					 struct ssa_access_member *consumer)
 {
 	struct ssa_db *prdb = NULL;
 	int n;
@@ -2885,11 +2886,11 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	/* Call below "pulls" in access layer for any node type (if ACCESS defined) !!! */
 	ret = ssa_pr_compute_half_world(access_context.smdb,
 					access_context.context,
-					gid->global.interface_id,
+					consumer->gid.global.interface_id,
 					&prdb);
 	if (ret == SSA_PR_PORT_ABSENT) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
+				SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
 		ssa_log_warn(SSA_LOG_DEFAULT,
 			     "GID %s not found in SMDB with epoch 0x%" PRIx64 "\n",
 			     log_data, epoch);
@@ -2899,13 +2900,13 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 				     "%s.", prdb_dump_dir);
 			snprintf(dump_dir + n, sizeof(dump_dir) - n,
 				 "0x%" PRIx64,
-				 ntohll(gid->global.interface_id));
+				 ntohll(consumer->gid.global.interface_id));
 			if (lstat(dump_dir, &dstat)) {
 				if (mkdir(dump_dir, 0755)) {
 					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
 							sizeof log_data,
-							SSA_ADDR_GID, gid->raw,
-							sizeof gid->raw);
+							SSA_ADDR_GID, consumer->gid.raw,
+							sizeof consumer->gid.raw);
 					ssa_log_err(SSA_LOG_CTRL,
 						    "prdb dump to %s for GID %s: %d (%s)\n",
 						    dump_dir, log_data, errno, strerror(errno));
@@ -2916,7 +2917,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 		}
 	} else {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
+				SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
 		ssa_log(SSA_LOG_DEFAULT,
 			"PRDB calculation for GID %s failed for SMDB with epoch 0x%" PRIx64 "\n",
 			log_data, epoch);
@@ -2928,8 +2929,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 				if (mkdir(dump_dir, 0755)) {
 					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
 							sizeof log_data,
-							SSA_ADDR_GID, gid->raw,
-							sizeof gid->raw);
+							SSA_ADDR_GID, consumer->gid.raw,
+							sizeof consumer->gid.raw);
 					ssa_log_err(SSA_LOG_CTRL,
 							"smdb error dump to %s for GID %s: %d (%s)\n",
 							dump_dir, log_data, errno, strerror(errno));
@@ -3054,7 +3055,7 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		ssa_log(SSA_LOG_DEFAULT,
 			"calculating PRDB for GID %s LID %u client\n",
 			log_data, consumer->lid);
-		prdb = ssa_calculate_prdb(svc, &consumer->gid);
+		prdb = ssa_calculate_prdb(svc, consumer);
 		ssa_log(SSA_LOG_DEFAULT,
 			"%s GID %s LID %u rsock %d PRDB %p calculation complete\n",
 			node_type, log_data, consumer->lid, consumer->rsock, prdb);
@@ -3568,8 +3569,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							"calculating PRDB for GID %s LID %u client\n",
 							log_data, consumer->lid);
 						prdb_calc_in_progress = 1;
-						prdb = ssa_calculate_prdb(svc_arr[i],
-									  &msg.data.conn->remote_gid);
+						prdb = ssa_calculate_prdb(svc_arr[i], consumer);
 						prdb_calc_in_progress = 0;
 						if (update_pending)
 							ssa_access_smdb_update_ready(smdb, svc_arr[i]);
