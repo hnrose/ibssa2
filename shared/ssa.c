@@ -153,6 +153,7 @@ static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 					     struct pollfd **fds);
 static void ssa_downstream_prdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc);
+static void ssa_close_port(struct ssa_port *port);
 
 /*
  * needed for ssa_pr_create_context()
@@ -4698,8 +4699,8 @@ static int set_bit(int nr, void *method_mask)
 	return retval;
 }
 
-static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
-			  uint8_t port_num)
+static int ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
+			 uint8_t port_num)
 {
 	long methods[16 / sizeof(long)];
 	int ret;
@@ -4718,7 +4719,7 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 	if (port->mad_portid < 0) {
 		ssa_log_err(SSA_LOG_CTRL, "unable to open MAD port %s\n",
 			    port->name);
-		return;
+		return -1;
 	}
 
 	ret = fcntl(umad_get_fd(port->mad_portid), F_SETFL, O_NONBLOCK);
@@ -4747,11 +4748,12 @@ static void ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 		goto err2;
 	}
 
-	return;
+	return 0;
 err2:
 	umad_unregister(port->mad_portid, port->mad_agentid);
 err:
 	umad_close_port(port->mad_portid);
+	return -1;
 }
 
 static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
@@ -4762,7 +4764,7 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 #endif
 	struct ibv_device_attr attr;
 	struct ibv_port_attr port_attr;
-	int i, ret;
+	int i, ret, j;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", ibdev->name);
 
@@ -4820,9 +4822,18 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	for (i = 1; i <= dev->port_cnt; i++) {
 		ret = ibv_query_port(dev->verbs, i, &port_attr);
 		if (ret == 0) {
-			if (port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND)
-				ssa_open_port(ssa_dev_port(dev, i), dev, i);
-			else
+			if (port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND) {
+				ret = ssa_open_port(ssa_dev_port(dev, i), dev, i);
+				if (ret < 0) {
+					for (j = 1; j < i; j++) {
+						ret = ibv_query_port(dev->verbs, j, &port_attr);
+						if (ret == 0 &&
+						    port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND)
+							ssa_close_port(ssa_dev_port(dev, j));
+					}
+					goto err3;
+				}
+			} else
 				ssa_log(SSA_LOG_CTRL,
 					"%s:%d link layer %d is not IB\n",
 					dev->name, i, port_attr.link_layer);
@@ -4905,8 +4916,8 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return 0;
 
-#ifdef ACM
 err3:
+#ifdef ACM
 	ibv_dealloc_pd(dev->pd);
 err2:
 	free(dev->port);
