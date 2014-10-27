@@ -2880,6 +2880,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	uint64_t epoch;
 	int ret;
 
+	epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
+
 	/* Call below "pulls" in access layer for any node type (if ACCESS defined) !!! */
 	ret = ssa_pr_compute_half_world(access_context.smdb,
 					access_context.context,
@@ -2888,7 +2890,9 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	if (ret == SSA_PR_PORT_ABSENT) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
-		ssa_log_warn(SSA_LOG_DEFAULT, "port is not found. GID %s\n", log_data);
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			     "GID %s not found in SMDB with epoch 0x%" PRIx64 "\n",
+			     log_data, epoch);
 	} else if (ret == SSA_PR_SUCCESS) {
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
@@ -2913,11 +2917,11 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc, union ibv_gid *gid
 	} else {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, gid->raw, sizeof gid->raw);
-		ssa_log(SSA_LOG_DEFAULT, "PRDB calculation for GID %s failed\n", log_data);
+		ssa_log(SSA_LOG_DEFAULT,
+			"PRDB calculation for GID %s failed for SMDB with epoch 0x%" PRIx64 "\n",
+			log_data, epoch);
 
 		if (err_smdb_dump) {
-			epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
-
 			n = snprintf(dump_dir, sizeof(dump_dir),
 				     "%s.0x%" PRIx64, smdb_dump_dir, epoch);
 			if (lstat(dump_dir, &dstat)) {
