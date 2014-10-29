@@ -2651,13 +2651,23 @@ static void *ssa_downstream_handler(void *context)
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				/* Now ready to rsend to downstream client upon request */
 				conn = NULL;
-				for (i = 0; i < FD_SETSIZE; i++) {
-					if (svc->fd_to_conn[i] &&
-					    svc->fd_to_conn[i]->rsock >= 0 &&
-					    !memcmp(svc->fd_to_conn[i]->remote_gid.raw,
-						    msg.data.db_upd.remote_gid.raw, 16)) {
-						conn = svc->fd_to_conn[i];
-						break;
+				/* Use rsock in DB update msg as hint */
+				i = msg.data.db_upd.rsock;
+				if (svc->fd_to_conn[i] &&
+				    svc->fd_to_conn[i]->rsock == i &&
+				    !memcmp(svc->fd_to_conn[i]->remote_gid.raw,
+					    msg.data.db_upd.remote_gid.raw, 16)) {
+					conn = svc->fd_to_conn[i]; 
+				} else {
+					/* Full search when rsock hint doesn't work */
+					for (i = 0; i < FD_SETSIZE; i++) {
+						if (svc->fd_to_conn[i] &&
+						    svc->fd_to_conn[i]->rsock >= 0 &&
+						    !memcmp(svc->fd_to_conn[i]->remote_gid.raw,
+							    msg.data.db_upd.remote_gid.raw, 16)) {
+							conn = svc->fd_to_conn[i];
+							break;
+						}
 					}
 				}
 				if (conn) {
