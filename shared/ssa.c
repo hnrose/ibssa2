@@ -2680,11 +2680,7 @@ static void *ssa_downstream_handler(void *context)
 							 conn->epoch);
 					conn->prdb_epoch = htonll(conn->epoch);
 ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->prdb_epoch));
-				}
-				if (conn && conn->epoch_len) {
-					pfd2 = (struct pollfd *)(fds + i);
-					pfd2->events = ssa_riowrite(conn, POLLIN);
-				} else if (!conn) {
+				} else {
 					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
 							sizeof log_data, SSA_ADDR_GID,
 							msg.data.db_upd.remote_gid.raw,
@@ -2692,6 +2688,10 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 					ssa_log(SSA_LOG_CTRL,
 						"DB update for GID %s with no ssa_conn struct currently available\n",
 						log_data);
+				}
+				if (conn && conn->epoch_len) {
+					pfd2 = (struct pollfd *)(fds + i);
+					pfd2->events = ssa_riowrite(conn, POLLIN);
 				}
 				break;
 			default:
