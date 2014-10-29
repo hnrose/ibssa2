@@ -2650,8 +2650,16 @@ static void *ssa_downstream_handler(void *context)
 					msg.data.db_upd.rsock, log_data, msg.data.db_upd.remote_lid,
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				/* Now ready to rsend to downstream client upon request */
-				i = msg.data.db_upd.rsock;
-				conn = svc->fd_to_conn[i];
+				conn = NULL;
+				for (i = 0; i < FD_SETSIZE; i++) {
+					if (svc->fd_to_conn[i] &&
+					    svc->fd_to_conn[i]->rsock >= 0 &&
+					    !memcmp(svc->fd_to_conn[i]->remote_gid.raw,
+						    msg.data.db_upd.remote_gid.raw, 16)) {
+						conn = svc->fd_to_conn[i];
+						break;
+					}
+				}
 				if (conn) {
 					conn->ssa_db = msg.data.db_upd.db;
 					if (++svc->prdb_epoch == DB_EPOCH_INVALID)
@@ -2667,9 +2675,13 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->p
 					pfd2 = (struct pollfd *)(fds + i);
 					pfd2->events = ssa_riowrite(conn, POLLIN);
 				} else if (!conn) {
+					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
+							sizeof log_data, SSA_ADDR_GID,
+							msg.data.db_upd.remote_gid.raw,
+							sizeof msg.data.db_upd.remote_gid.raw);
 					ssa_log(SSA_LOG_CTRL,
-						"DB update for rsock %d with no ssa_conn struct currently available\n",
-						i);
+						"DB update for GID %s with no ssa_conn struct currently available\n",
+						log_data);
 				}
 				break;
 			default:
