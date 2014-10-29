@@ -2649,7 +2649,6 @@ static void *ssa_downstream_handler(void *context)
 					"SSA DB update from access: rsock %d GID %s LID %u ssa_db %p epoch 0x%" PRIx64 "\n",
 					msg.data.db_upd.rsock, log_data, msg.data.db_upd.remote_lid,
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
-				/* Now ready to rsend to downstream client upon request */
 				conn = NULL;
 				/* Use rsock in DB update msg as hint */
 				i = msg.data.db_upd.rsock;
@@ -2670,6 +2669,7 @@ static void *ssa_downstream_handler(void *context)
 						}
 					}
 				}
+				/* Now ready to rsend to downstream client upon request */
 				if (conn) {
 					conn->ssa_db = msg.data.db_upd.db;
 					if (++svc->prdb_epoch == DB_EPOCH_INVALID)
