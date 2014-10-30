@@ -2420,7 +2420,7 @@ else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update def
 	} else
 		ssa_log_err(SSA_LOG_DEFAULT, "struct ssa_conn allocation failed\n");
 
-	if (conn_data && keepalive == 0) {
+	if (conn_data) {
 		for (i = 0; i < FD_SETSIZE; i++) {
 			if (svc->fd_to_conn[i] &&
 			    svc->fd_to_conn[i]->rsock >= 0 &&
