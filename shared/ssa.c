@@ -5118,7 +5118,8 @@ void ssa_close_devices(struct ssa_class *ssa)
 		for (p = 1; p <= dev->port_cnt; p++)
 			ssa_close_port(ssa_dev_port(dev, p));
 
-		ibv_close_device(dev->verbs);
+		if (dev->verbs != NULL)
+			ibv_close_device(dev->verbs);
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s closed\n", dev->name);
 		free(dev->port);
 	}
