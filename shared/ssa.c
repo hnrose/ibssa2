@@ -4336,13 +4336,16 @@ void ssa_ctrl_stop(struct ssa_class *ssa)
 	struct ssa_ctrl_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
-	msg.len = sizeof msg;
-	msg.type = SSA_CTRL_EXIT;
-	write(ssa->sock[0], (char *) &msg, sizeof msg);
-	read(ssa->sock[0], (char *) &msg, sizeof msg);
+	if (ssa->sock[0] >= 0) {
+		msg.len = sizeof msg;
+		msg.type = SSA_CTRL_EXIT;
+		write(ssa->sock[0], (char *) &msg, sizeof msg);
+		read(ssa->sock[0], (char *) &msg, sizeof msg);
+		close(ssa->sock[0]);
+	}
 
-	close(ssa->sock[0]);
-	close(ssa->sock[1]);
+	if (ssa->sock[1] >= 0)
+		close(ssa->sock[1]);
 }
 
 struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
@@ -5226,6 +5229,7 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 	int ret;
 
 	memset(ssa, 0, sizeof *ssa);
+	ssa->sock[0] = ssa->sock[1] = -1;
 	ssa->node_type = node_type;
 	ssa->dev_size = dev_size;
 	ssa->port_size = port_size;
