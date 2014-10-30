@@ -45,6 +45,7 @@
 #define IB_METHOD_RESP      0x80
 
 #define ACM_MGMT_CLASS   0x2C
+#define ACM_CLASS_VERSION   1
 
 #define ACM_CTRL_ACK     htons(0x8000)
 #define ACM_CTRL_RESOLVE htons(0x0001)

@@ -815,9 +815,9 @@ acm_record_acm_route(struct acm_ep *ep, struct acm_dest *dest)
 static void acm_init_path_query(struct ib_sa_mad *mad)
 {
 	ssa_log_func(SSA_LOG_VERBOSE);
-	mad->base_version = 1;
+	mad->base_version = UMAD_BASE_VERSION;
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
-	mad->class_version = 2;
+	mad->class_version = UMAD_SA_CLASS_VERSION;
 	mad->method = IB_METHOD_GET;
 	mad->tid = (uint64_t) atomic_inc(&tid);
 	mad->attr_id = IB_SA_ATTR_PATH_REC;
@@ -1005,9 +1005,9 @@ acm_send_addr_resp(struct acm_ep *ep, struct acm_dest *dest)
 	mad = (struct acm_mad *) msg->data;
 	rec = (struct acm_resolve_rec *) mad->data;
 
-	mad->base_version = 1;
+	mad->base_version = UMAD_BASE_VERSION;
 	mad->mgmt_class = ACM_MGMT_CLASS;
-	mad->class_version = 1;
+	mad->class_version = ACM_CLASS_VERSION;
 	mad->method = IB_METHOD_GET | IB_METHOD_RESP;
 	mad->status = ACM_STATUS_SUCCESS;
 	mad->control = ACM_CTRL_RESOLVE;
@@ -1266,7 +1266,8 @@ static void acm_process_acm_recv(struct acm_ep *ep, struct ibv_wc *wc, struct ac
 	int free;
 
 	ssa_log_func(SSA_LOG_VERBOSE);
-	if (mad->base_version != 1 || mad->class_version != 1) {
+	if (mad->base_version != UMAD_BASE_VERSION ||
+	    mad->class_version != ACM_CLASS_VERSION) {
 		ssa_log_err(0, "invalid version %d %d\n",
 			    mad->base_version, mad->class_version);
 		return;
@@ -1357,7 +1358,8 @@ static void acm_process_sa_recv(struct acm_ep *ep, struct ibv_wc *wc, struct acm
 	int free;
 
 	ssa_log_func(SSA_LOG_VERBOSE);
-	if (mad->base_version != 1 || mad->class_version != 2 ||
+	if (mad->base_version != UMAD_BASE_VERSION ||
+	    mad->class_version != UMAD_SA_CLASS_VERSION ||
 	    !(mad->method & IB_METHOD_RESP) || sa_mad->attr_id != IB_SA_ATTR_PATH_REC) {
 		ssa_log_err(0, "unexpected SA MAD %d %d\n",
 			    mad->base_version, mad->class_version);
@@ -1481,9 +1483,9 @@ static void acm_init_join(struct ib_sa_mad *mad, union ibv_gid *port_gid,
 	struct ib_mc_member_rec *mc_rec;
 
 	ssa_log_func(SSA_LOG_VERBOSE);
-	mad->base_version = 1;
+	mad->base_version = UMAD_BASE_VERSION;
 	mad->mgmt_class = IB_MGMT_CLASS_SA;
-	mad->class_version = 2;
+	mad->class_version = UMAD_SA_CLASS_VERSION;
 	mad->method = IB_METHOD_SET;
 	mad->tid = (uint64_t) atomic_inc(&tid);
 	mad->attr_id = IB_SA_ATTR_MC_MEMBER_REC;
@@ -2013,9 +2015,9 @@ acm_send_resolve(struct acm_ep *ep, struct acm_dest *dest,
 	(void) atomic_inc(&dest->refcnt);
 
 	mad = (struct acm_mad *) msg->data;
-	mad->base_version = 1;
+	mad->base_version = UMAD_BASE_VERSION;
 	mad->mgmt_class = ACM_MGMT_CLASS;
-	mad->class_version = 1;
+	mad->class_version = ACM_CLASS_VERSION;
 	mad->method = IB_METHOD_GET;
 	mad->control = ACM_CTRL_RESOLVE;
 	mad->tid = (uint64_t) atomic_inc(&tid);
