@@ -101,9 +101,9 @@ static int prdb_calc_in_progress;
 static struct ssa_access_context access_context;
 static int sock_accessctrl[2];
 int sock_accessextract[2];
-static pthread_t access_thread;
+static pthread_t *access_thread;
 #ifdef ACCESS
-static pthread_t access_prdb_handler;
+static pthread_t *access_prdb_handler;
 #endif
 
 int smdb_dump = 0;
@@ -3144,7 +3144,7 @@ static void *ssa_access_prdb_handler(void *context)
 {
 	struct ssa_db_update db_upd;
 
-	SET_THREAD_NAME(access_prdb_handler, "ACCESS PRDB");
+	SET_THREAD_NAME(*access_prdb_handler, "ACCESS PRDB");
 
 	ssa_log_func(SSA_LOG_CTRL);
 
@@ -3287,7 +3287,7 @@ static void *ssa_access_handler(void *context)
 	struct ssa_db_update db_upd;
 #endif
 
-	SET_THREAD_NAME(access_thread, "ACCESS");
+	SET_THREAD_NAME(*access_thread, "ACCESS");
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
@@ -4565,8 +4565,10 @@ static int ssa_db_update_queue_init(struct ssa_db_update_queue *p_queue)
 
 static void ssa_db_update_queue_destroy(struct ssa_db_update_queue *p_queue)
 {
-	pthread_cancel(access_prdb_handler);
-	pthread_join(access_prdb_handler, NULL);
+	if (access_prdb_handler) {
+		pthread_cancel(*access_prdb_handler);
+		pthread_join(*access_prdb_handler, NULL);
+	}
 
 	pthread_mutex_destroy(&p_queue->lock);
 	pthread_cond_destroy(&p_queue->cond_var);
@@ -4633,7 +4635,13 @@ int ssa_start_access(struct ssa_class *ssa)
 	access_context.smdb = ref_count_object_get(smdb);
 #endif
 
-	ret = pthread_create(&access_thread, NULL, ssa_access_handler, ssa);
+	access_thread = calloc(1, sizeof(*access_thread));
+	if (access_thread == NULL) {
+		ssa_log_err(SSA_LOG_CTRL, "allocating access thread memory\n");
+		goto err5;
+	}
+
+	ret = pthread_create(access_thread, NULL, ssa_access_handler, ssa);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
 		errno = ret;
@@ -4646,7 +4654,13 @@ int ssa_start_access(struct ssa_class *ssa)
 		goto err6;
 	}
 #ifdef ACCESS
-	ret = pthread_create(&access_prdb_handler, NULL, ssa_access_prdb_handler, NULL);
+	access_prdb_handler = calloc(1, sizeof(*access_prdb_handler));
+	if (access_prdb_handler == NULL) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "allocating access prdb handler thread memory\n");
+		goto err7;
+	}
+	ret = pthread_create(access_prdb_handler, NULL, ssa_access_prdb_handler, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating access prdb handler thread\n");
 		errno = ret;
@@ -4662,7 +4676,7 @@ err7:
 	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
 #endif
 err6:
-	pthread_join(access_thread, NULL);
+	pthread_join(*access_thread, NULL);
 err5:
 #ifdef ACCESS
 	ssa_db_update_queue_destroy(&access_context.update_queue);
@@ -4700,7 +4714,8 @@ void ssa_stop_access(struct ssa_class *ssa)
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
 	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
-	pthread_join(access_thread, NULL);
+	if (access_thread)
+		pthread_join(*access_thread, NULL);
 
 #ifdef ACCESS
 	ssa_db_update_queue_destroy(&access_context.update_queue);
