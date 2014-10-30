@@ -4686,7 +4686,7 @@ void ssa_stop_access(struct ssa_class *ssa)
 {
 	struct ssa_ctrl_msg msg;
 #ifdef ACCESS
-	struct ssa_db *db;
+	struct ssa_db *db = NULL;
 #endif
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
@@ -4706,7 +4706,8 @@ void ssa_stop_access(struct ssa_class *ssa)
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
 	}
-	db = ref_count_object_get(smdb);
+	if (smdb != NULL)
+		db = ref_count_object_get(smdb);
 	if (access_context.smdb != db)
 		ssa_db_destroy(access_context.smdb);
 	access_context.smdb = NULL;
