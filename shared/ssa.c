@@ -2656,7 +2656,7 @@ static void *ssa_downstream_handler(void *context)
 				    svc->fd_to_conn[i]->rsock == i &&
 				    !memcmp(svc->fd_to_conn[i]->remote_gid.raw,
 					    msg.data.db_upd.remote_gid.raw, 16)) {
-					conn = svc->fd_to_conn[i]; 
+					conn = svc->fd_to_conn[i];
 				} else {
 					/* Full search when rsock hint doesn't work */
 					for (i = 0; i < FD_SETSIZE; i++) {
