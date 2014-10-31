@@ -2344,7 +2344,8 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 			ret = ssa_upstream_query_db(svc);
 			if (ret)
 				ssa_log(SSA_LOG_CTRL,
-					"unsuccessful last DB query (status: %d)\n", ret);
+					"unsuccessful last DB query (status: %d)\n",
+					ret);
 		}
 	}
 
