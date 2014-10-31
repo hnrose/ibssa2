@@ -4671,6 +4671,7 @@ int ssa_start_access(struct ssa_class *ssa)
 
 #ifdef ACCESS
 err7:
+	free(access_prdb_handler);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
 	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
@@ -4678,6 +4679,7 @@ err7:
 err6:
 	pthread_join(*access_thread, NULL);
 err5:
+	free(access_thread);
 #ifdef ACCESS
 	ssa_db_update_queue_destroy(&access_context.update_queue);
 err4:
@@ -4714,8 +4716,10 @@ void ssa_stop_access(struct ssa_class *ssa)
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
 	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
-	if (access_thread)
+	if (access_thread) {
 		pthread_join(*access_thread, NULL);
+		free(access_thread);
+	}
 
 #ifdef ACCESS
 	ssa_db_update_queue_destroy(&access_context.update_queue);
@@ -4737,6 +4741,9 @@ void ssa_stop_access(struct ssa_class *ssa)
 	}
 	close(sock_accessctrl[0]);
 	close(sock_accessctrl[1]);
+#ifdef ACCESS
+	free(access_prdb_handler);
+#endif
 }
 
 static int set_bit(int nr, void *method_mask)
