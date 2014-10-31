@@ -68,286 +68,14 @@ extern int keepalive;
 extern int fake_acm_num;
 #endif
 
-#ifdef INTEGRATION
-struct ssa_member {
-	struct ssa_member_record	rec;
-	struct ssa_member		*primary;
-	struct ssa_member		*secondary;
-	uint16_t			lid;
-	uint8_t				sl;
-	DLIST_ENTRY			list;
-	DLIST_ENTRY			entry;
-};
-#endif
-
 struct ssa_distrib {
 	struct ssa_svc			svc;
-#ifdef INTEGRATION
-	void				*member_map;
-	DLIST_ENTRY			orphan_list;
-#endif
 };
 
 static struct ssa_class ssa;
 pthread_t ctrl_thread;
 
 
-#ifdef INTEGRATION
-static int distrib_build_tree(struct ssa_svc *svc, union ibv_gid *gid)
-{
-	/*
-	 * For now, issue SA path query here.
-	 * DGID is from incoming join.
-	 * For now (prototype), SGID is from port join came in on.
-	 * Longer term, SGID needs to come from the tree
-	 * calculation code so rather than query PathRecord
-	 * here, this would inform the tree calculation
-	 * that a parent is needed for joining port and
-	 * when parent is determined, then the SA path
-	 * query would be issued.
-	 *
-	 */
-	return ssa_svc_query_path(svc, &svc->port->gid, gid);
-}
-
-/*
- * Process received SSA membership requests.  On errors, we simply drop
- * the request and let the remote node retry.
- */
-static void distrib_process_join(struct ssa_distrib *distrib, struct ssa_umad *umad,
-				 struct ssa_svc *svc)
-{
-	struct ssa_member_record *rec;
-	struct ssa_member *member;
-	int ret;
-	uint8_t **tgid;
-
-	/* TODO: verify ssa_key with core nodes */
-	rec = &umad->packet.ssa_mad.member;
-	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
-			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", distrib->svc.name, log_data);
-
-	tgid = tfind(rec->port_gid, &distrib->member_map, ssa_compare_gid);
-	if (!tgid) {
-		ssa_log(SSA_LOG_CTRL, "adding new member\n");
-		member = calloc(1, sizeof *member);
-		if (!member)
-			return;
-
-		member->rec = *rec;
-		member->lid = ntohs(umad->umad.addr.lid);
-		DListInit(&member->list);
-		if (!tsearch(&member->rec.port_gid, &distrib->member_map, ssa_compare_gid)) {
-			free(member);
-			return;
-		}
-		DListInsertBefore(&member->entry, &distrib->orphan_list);
-	}
-
-	ssa_log(SSA_LOG_CTRL, "sending join response\n");
-	umad->packet.mad_hdr.method = UMAD_METHOD_GET_RESP;
-	umad_send(distrib->svc.port->mad_portid, distrib->svc.port->mad_agentid,
-		  (void *) umad, sizeof umad->packet, 0, 0);
-
-	ret = distrib_build_tree(svc, (union ibv_gid *) rec->port_gid);
-	if (ret)
-		ssa_log(SSA_LOG_CTRL, "distrib_build_tree failed %d\n", ret);
-}
-
-static void distrib_process_leave(struct ssa_distrib *distrib, struct ssa_umad *umad)
-{
-	struct ssa_member_record *rec;
-	struct ssa_member *member;
-	uint8_t **tgid;
-
-	rec = &umad->packet.ssa_mad.member;
-	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
-			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", distrib->svc.name, log_data);
-
-	tgid = tdelete(rec->port_gid, &distrib->member_map, ssa_compare_gid);
-	if (tgid) {
-		ssa_log(SSA_LOG_CTRL, "removing member\n");
-		rec = container_of(*tgid, struct ssa_member_record, port_gid);
-		member = container_of(rec, struct ssa_member, rec);
-		DListRemove(&member->entry);
-		free(member);
-	}
-
-	ssa_log(SSA_LOG_CTRL, "sending leave response\n");
-	umad->packet.mad_hdr.method = SSA_METHOD_DELETE_RESP;
-	umad_send(distrib->svc.port->mad_portid, distrib->svc.port->mad_agentid,
-		  (void *) umad, sizeof umad->packet, 0, 0);
-}
-
-void distrib_init_parent(struct ssa_distrib *distrib, struct ssa_mad_packet *mad,
-		      struct ssa_member_record *member,
-		      struct ibv_path_record *path)
-{
-	struct ssa_info_record *rec;
-
-	ssa_init_mad_hdr(&distrib->svc, &mad->mad_hdr, UMAD_METHOD_SET, SSA_ATTR_INFO_REC);
-	mad->ssa_key = 0;	/* TODO: set for real */
-
-	rec = &mad->ssa_mad.info;
-	rec->database_id = member->database_id;
-	rec->path_data.flags = IBV_PATH_FLAG_GMP | IBV_PATH_FLAG_PRIMARY |
-			       IBV_PATH_FLAG_BIDIRECTIONAL;
-	rec->path_data.path = *path;
-}
-
-static void distrib_process_parent_set(struct ssa_distrib *distrib, struct ssa_umad *umad)
-{
-	/* Initiate (r)socket client connection to parent */
-	/* if not connection to self ? */
-
-}
-
-static void distrib_process_path_rec(struct ssa_distrib *distrib, struct sa_umad *umad)
-{
-	struct ibv_path_record *path;
-	struct ssa_member **member;
-	struct ssa_umad umad_sa;
-	int ret;
-
-	path = &umad->sa_mad.path_rec.path;
-	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
-			SSA_ADDR_GID, (uint8_t *) &path->sgid, sizeof path->sgid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", distrib->svc.name, log_data);
-
-	/* Joined port GID is SGID in PathRecord */
-	member = tfind(&path->sgid, &distrib->member_map, ssa_compare_gid);
-	if (!member) {
-		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
-				sizeof log_data, SSA_ADDR_GID,
-				(uint8_t *) &path->sgid, sizeof path->sgid);
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - couldn't find joined port GID %s\n", log_data);
-		return;
-	}
-
-	/*
-	 * TODO: SL should come from another PathRecord between core
-	 * and joined client.
-	 *
-	 * In prototype, since core is coresident with SM, this is SL
-	 * from the PathRecord between the client and the parent
-	 * since the (only) parent is the core.
-	 */
-	(*member)->sl = ntohs(path->qosclass_sl) & 0xF;
-
-	memset(&umad_sa, 0, sizeof umad_sa);
-	umad_set_addr(&umad_sa.umad, (*member)->lid, 1, (*member)->sl, UMAD_QKEY);
-	distrib_init_parent(distrib, &umad_sa.packet, &(*member)->rec, path);
-
-	ssa_log(SSA_LOG_CTRL, "sending set parent\n");
-	ret = umad_send(distrib->svc.port->mad_portid, distrib->svc.port->mad_agentid,
-			(void *) &umad_sa, sizeof umad_sa.packet, distrib->svc.timeout, 0);
-	if (ret)
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"ERROR - failed to send set parent\n");
-}
-
-static int distrib_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
-{
-	struct ssa_distrib *distrib;
-	struct sa_umad *umad_sa;
-
-	umad_sa = &msg->data.umad_sa;
-	if (umad_sa->umad.status)
-		return 0;
-
-	distrib = container_of(svc, struct ssa_distrib, svc);
-
-	switch (umad_sa->sa_mad.packet.mad_hdr.method) {
-	case UMAD_METHOD_GET_RESP:
-		if (ntohs(umad_sa->sa_mad.packet.mad_hdr.attr_id) ==
-		    UMAD_SA_ATTR_PATH_REC) {
-			distrib_process_path_rec(distrib, umad_sa);
-			return 1;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int distrib_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
-{
-	struct ssa_distrib *distrib;
-	struct ssa_umad *umad;
-
-	umad = &msg->data.umad;
-	if (umad->umad.status) {
-		ssa_log(SSA_LOG_DEFAULT,
-			"SSA MAD method 0x%x (%s) attribute 0x%x (%s) received with status 0x%x\n",
-			umad->packet.mad_hdr.method,
-			ssa_method_str(umad->packet.mad_hdr.method),
-			ntohs(umad->packet.mad_hdr.attr_id),
-			ssa_attribute_str(umad->packet.mad_hdr.attr_id),
-			umad->umad.status);
-		return 1;	/* need to rerequest */
-	}
-
-	distrib = container_of(svc, struct ssa_distrib, svc);
-
-	switch (umad->packet.mad_hdr.method) {
-	case UMAD_METHOD_SET:
-		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
-			distrib_process_join(distrib, umad, svc);
-			return 1;
-		}
-		break;
-	case SSA_METHOD_DELETE:
-		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_MEMBER_REC) {
-			distrib_process_leave(distrib, umad);
-			return 1;
-		}
-		break;
-	case UMAD_METHOD_GET_RESP:
-		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
-			distrib_process_parent_set(distrib, umad);
-			return 1;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
-{
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
-	switch(msg->hdr.type) {
-	case SSA_CTRL_MAD:
-		return distrib_process_ssa_mad(svc, msg);
-	case SSA_SA_MAD:
-		return distrib_process_sa_mad(svc, msg);
-	case SSA_CTRL_DEV_EVENT:
-	case SSA_CONN_REQ:
-	case SSA_CONN_DONE:
-	case SSA_CTRL_EXIT:
-		break;
-	default:
-		ssa_log_warn(SSA_LOG_CTRL,
-			     "ignoring unexpected message type %d\n",
-			     msg->hdr.type);
-		break;
-	}
-	return 0;
-}
-
-static void distrib_init_svc(struct ssa_svc *svc)
-{
-	struct ssa_distrib *distrib = container_of(svc, struct ssa_distrib, svc);
-	DListInit(&distrib->orphan_list);
-}
-#else
 static void distrib_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	/* First, handle set of parent in SSA */
@@ -415,7 +143,6 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	}
 	return 0;
 }
-#endif
 
 static void *distrib_ctrl_handler(void *context)
 {
@@ -441,9 +168,6 @@ static void *distrib_ctrl_handler(void *context)
 				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
 				goto close;
 			}
-#ifdef INTEGRATION
-			distrib_init_svc(svc);
-#endif
 		}
 	}
 
@@ -464,25 +188,6 @@ close:
 	ssa_close_devices(&ssa);
 	return context;
 }
-
-#ifdef INTEGRATION
-static void distrib_free_member(void *gid)
-{
-	struct ssa_member *member;
-	struct ssa_member_record *rec;
-	rec = container_of(gid, struct ssa_member_record, port_gid);
-	member = container_of(rec, struct ssa_member, rec);
-	free(member);
-}
-
-static void distrib_destroy_svc(struct ssa_svc *svc)
-{
-	struct ssa_distrib *distrib = container_of(svc, struct ssa_distrib, svc);
-	ssa_log_func(SSA_LOG_CTRL);
-	if (distrib->member_map)
-		tdestroy(distrib->member_map, distrib_free_member);
-}
-#endif
 
 static int distrib_convert_node_type(const char *node_type_string)
 {
@@ -608,25 +313,10 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 
 static void distrib_destroy()
 {
-#ifdef INTEGRATION
-	int d, p, s;
-#endif
-
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	ssa_ctrl_stop(&ssa);
 	ssa_log(SSA_LOG_CTRL, "shutting down access thread\n");
 	ssa_stop_access(&ssa);
-
-#ifdef INTEGRATION
-	for (d = 0; d < ssa.dev_cnt; d++) {
-		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
-				distrib_destroy_svc(ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s]);
-			}
-		}
-	}
-#endif
-
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
 	ssa_log(SSA_LOG_VERBOSE, "that's all folks!\n");

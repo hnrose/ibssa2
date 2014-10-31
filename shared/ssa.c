@@ -83,9 +83,6 @@
 #define ACM_FAKE_RSOCKET_ID 0
 #endif
 
-#ifdef ACCESS_INTEGRATION
-static struct ref_count_obj *prdb;
-#endif
 static struct ref_count_obj *smdb;
 static uint64_t epoch;
 
@@ -1816,15 +1813,9 @@ static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 	/* Use SSA DB if available; otherwise use preloaded DB */
 	if (conn->ssa_db)
 		return ref_count_object_get(conn->ssa_db);
-#ifdef ACCESS_INTEGRATION
-	if (prdb)
-		return ref_count_object_get(prdb);
-	return NULL;
-#else
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE && smdb)
 		return ref_count_object_get(smdb);
 	return NULL;
-#endif
 }
 
 static struct ref_count_obj *ssa_downstream_db_ref_obj(struct ssa_conn *conn)
@@ -1832,13 +1823,9 @@ static struct ref_count_obj *ssa_downstream_db_ref_obj(struct ssa_conn *conn)
 	/* Use SSA DB if available; otherwise use preloaded DB */
 	if (conn->ssa_db)
 		return conn->ssa_db;
-#ifdef ACCESS_INTEGRATION
-	return prdb;
-#else
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
 		return smdb;
 	return NULL;
-#endif
 }
 
 static short ssa_downstream_handle_query_defs(struct ssa_conn *conn,
@@ -3329,12 +3316,6 @@ static void *ssa_access_handler(void *context)
 		ssa_log_err(SSA_LOG_CTRL, "access context is empty\n");
 		goto out;
 	}
-#ifdef ACCESS_INTEGRATION
-	if (!access_context.smdb) {
-		ssa_log_err(SSA_LOG_CTRL, "smdb database is empty\n");
-		goto out;
-	}
-#endif
 
 	pfd = (struct pollfd  *)fds;
 	pfd->fd = sock_accessctrl[1];
@@ -4630,10 +4611,6 @@ int ssa_start_access(struct ssa_class *ssa)
 	}
 #endif
 
-#ifdef ACCESS_INTEGRATION
-	access_context.smdb = ref_count_object_get(smdb);
-#endif
-
 	access_thread = calloc(1, sizeof(*access_thread));
 	if (access_thread == NULL) {
 		ssa_log_err(SSA_LOG_CTRL, "allocating access thread memory\n");
@@ -4817,9 +4794,6 @@ err:
 static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			 struct ibv_device *ibdev)
 {
-#ifdef ACCESS_INTEGRATION
-	struct ssa_db *db;
-#endif
 	struct ibv_device_attr attr;
 	struct ibv_port_attr port_attr;
 	int i, ret, j;
@@ -4900,52 +4874,6 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 				    dev->name, i, ret);
 	}
 
-#ifdef ACCESS_INTEGRATION
-	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
-		/* if configured, invoke PR and/or SSA DB preloading */
-		/* HACK: loading mode is determined by dump mode */
-		db = ssa_db_load(PRDB_PRELOAD_PATH, prdb_dump);
-		if (!db) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "unable to preload prdb database. path:\"%s\"\n",
-				    PRDB_PRELOAD_PATH);
-		} else {
-			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-				"prdb is preloaded from \"%s\"\n",
-				PRDB_PRELOAD_PATH);
-			prdb = malloc(sizeof(*prdb));
-			if (prdb) {
-				ref_count_obj_init(prdb, db);
-			} else {
-				ssa_log_err(SSA_LOG_CTRL,
-					    "prdb ref count obj memory allocation failed\n");
-				ssa_db_destroy(db);
-			}
-		}
-
-		/* HACK: loading mode is determined by dump mode */
-		if (!smdb)
-			db = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
-		if (!db) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "unable to preload smdb database. path:\"%s\"\n",
-				    SMDB_PRELOAD_PATH);
-			goto ctx_create_err;
-		}
-		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"smdb is preloaded from \"%s\"\n",
-			SMDB_PRELOAD_PATH);
-		smdb = malloc(sizeof(*smdb));
-		if (smdb) {
-			ref_count_obj_init(smdb, db);
-		} else { 
-			ssa_log_err(SSA_LOG_CTRL,
-				    "smdb ref count obj memory allocation failed\n");
-			ssa_db_destroy(db);
-		}
-	}
-#endif
-
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);
 	return 0;
 
@@ -4958,22 +4886,6 @@ err2:
 err1:
 	ibv_close_device(dev->verbs);
 	dev->verbs = NULL;
-
-#ifdef ACCESS_INTEGRATION
-ctx_create_err:
-	if (prdb) {
-		db = ref_count_object_get(prdb);
-		ssa_db_destroy(db);
-		prdb->object = NULL;	/* ??? */
-		prdb = NULL;
-	}
-	if (smdb) {
-		db = ref_count_object_get(smdb);
-		ssa_db_destroy(db);
-		smdb->object = NULL;	/* ??? */
-		smdb = NULL;
-	}
-#endif
 	seterr(ENOMEM);
 	return -1;
 }
@@ -5125,14 +5037,6 @@ void ssa_close_devices(struct ssa_class *ssa)
 	free(ssa->dev);
 	ssa->dev_cnt = 0;
 
-#ifdef ACCESS_INTEGRATION
-	if (prdb) {
-		db = ref_count_object_get(prdb);
-		ssa_db_destroy(db);
-		prdb->object = NULL;	/* ??? */
-		prdb = NULL;
-	}
-#endif
 	if (smdb) {
 		db = ref_count_object_get(smdb);
 		ssa_db_destroy(db);

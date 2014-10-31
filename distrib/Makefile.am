@@ -9,7 +9,6 @@ svc_ibssa_SOURCES = src/distrib.c src/ssa.c src/ssa_db.c \
 		    src/ssa_path_record.c  src/ssa_path_record_data.c \
 		    src/ssa_path_record_helper.c src/ssa_prdb.c \
 		    src/ssa_signal_handler.c
-#svc_ibssa_CFLAGS = $(AM_CFLAGS) -DACCESS -DINTEGRATION -DACCESS_INTEGRATION
 svc_ibssa_CFLAGS = $(AM_CFLAGS) -DACCESS
 svc_ibssa_LDADD = -lrdmacm -L$(libdir)
 
