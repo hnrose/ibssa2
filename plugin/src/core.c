@@ -994,7 +994,6 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 #ifndef SIM_SUPPORT
 static void ssa_extract_send_db_update_prepare(struct ref_count_obj *db, int fd)
 {
-#ifndef CORE_INTEGRATION
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -1005,13 +1004,11 @@ static void ssa_extract_send_db_update_prepare(struct ref_count_obj *db, int fd)
 	msg.db_upd.flags = 0;
 	msg.db_upd.epoch = DB_EPOCH_INVALID;
 	write(fd, (char *) &msg, sizeof(msg));
-#endif
 }
 
 static void ssa_extract_send_db_update(struct ref_count_obj *db,
 				       int fd, int flags)
 {
-#ifndef CORE_INTEGRATION
 	struct ssa_db *ssa_db;
 	struct ssa_db_update_msg msg;
 
@@ -1026,7 +1023,6 @@ static void ssa_extract_send_db_update(struct ref_count_obj *db,
 	ssa_db = ref_count_object_get(db);
 	msg.db_upd.epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
 	write(fd, (char *) &msg, sizeof(msg));
-#endif
 }
 
 static int ssa_extract_db_update_prepare(struct ref_count_obj *db)

@@ -9,8 +9,6 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -Wno-deprecated-declarations \
 		-DRDMADIR=\"@rdmadir@\"
 
 src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DACCESS
-#src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DCORE_INTEGRATION
-#src_libopensmssa_la_CFLAGS = $(AM_CFLAGS) -DCORE_INTEGRATION -DACCESS
 
 if HAVE_LD_VERSION_SCRIPT
     libopensmssa_version_script = -Wl,--version-script=$(srcdir)/libopensmssa.map

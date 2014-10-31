@@ -4817,7 +4817,7 @@ err:
 static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			 struct ibv_device *ibdev)
 {
-#if defined(ACCESS_INTEGRATION) || defined(CORE_INTEGRATION)
+#ifdef ACCESS_INTEGRATION
 	struct ssa_db *db;
 #endif
 	struct ibv_device_attr attr;
@@ -4899,31 +4899,6 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			ssa_log_err(0, "ibv_query_port (%s:%d) %d\n",
 				    dev->name, i, ret);
 	}
-
-#ifdef CORE_INTEGRATION
-	if (dev->ssa->node_type & SSA_NODE_CORE) {
-		/* if configured, invoke SMDB preloading */
-		/* HACK: loading mode is determined by dump mode */
-		db = ssa_db_load(SMDB_PRELOAD_PATH, smdb_dump);
-		if (!db) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "unable to preload smdb database. path:\"%s\"\n",
-				    SMDB_PRELOAD_PATH);
-		} else {
-			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-				"smdb is preloaded from \"%s\"\n",
-				SMDB_PRELOAD_PATH);
-			smdb = malloc(sizeof(*smdb));
-			if (smdb) {
-				ref_count_obj_init(smdb, db);
-			} else {
-				ssa_log_err(SSA_LOG_CTRL,
-					    "smdb ref count obj memory allocation failed\n");
-				ssa_destroy_db(db);
-			}
-		}
-	}
-#endif
 
 #ifdef ACCESS_INTEGRATION
 	if (dev->ssa->node_type & SSA_NODE_ACCESS) {
