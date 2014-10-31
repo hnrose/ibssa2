@@ -1561,7 +1561,6 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 
 			switch (msg.hdr.type) {
 			case SSA_DB_QUERY:
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_QUERY msg received\n");
 				if (svc->conn_dataup.rsock >= 0) {
 					if (svc->conn_dataup.epoch !=
 					    ntohll(svc->conn_dataup.prdb_epoch)) {
