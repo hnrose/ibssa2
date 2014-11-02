@@ -3563,6 +3563,14 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						continue;
 					}
 
+					if (access_update_pending || access_update_waiting) {
+						ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+							"access update pending %d or waiting %d "
+							"PRDB will be calculated after the update",
+							access_update_pending, access_update_waiting);
+						continue;
+					}
+
 					if (access_context.smdb) {
 						if (consumer->prdb_current) {
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
@@ -3984,11 +3992,9 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		   update_pending || update_waiting) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"access update pending %d or waiting %d or "
-			"update pending %d or waiting %d; closing rsock %d\n",
+			"update pending %d or waiting %d\n",
 			access_update_pending, access_update_waiting,
-			update_pending, update_waiting, fd);
-		rclose(fd);
-		return -1;
+			update_pending, update_waiting);
 	}
 
 	if (keepalive) {
