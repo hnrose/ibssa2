@@ -3988,13 +3988,6 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			update_pending, update_waiting, fd);
 		rclose(fd);
 		return -1;
-	} else if (access_update_pending || access_update_waiting ||
-		   update_pending || update_waiting) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"access update pending %d or waiting %d or "
-			"update pending %d or waiting %d\n",
-			access_update_pending, access_update_waiting,
-			update_pending, update_waiting);
 	}
 
 	if (keepalive) {
