@@ -93,7 +93,6 @@ static int access_update_pending;
 static int access_update_waiting;
 //static atomic_t counter[SSA_MAX_COUNTER];
 static atomic_t prdb_xfers_in_progress;
-static int prdb_calc_in_progress;
 
 static struct ssa_access_context access_context;
 static int sock_accessctrl[2];
@@ -2228,8 +2227,6 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 	struct ssa_conn *conn;
 	int slot;
 
-	if (prdb_calc_in_progress)
-		return 1;
 	for (slot = FIRST_DATA_FD_SLOT; slot < nfds; slot++) {
 		if (fds[slot].fd == -1)
 			continue;
@@ -2241,30 +2238,6 @@ static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 	}
 
 	return 0;
-}
-
-static void ssa_access_smdb_update_ready(struct ref_count_obj *robj,
-					 struct ssa_svc *svc)
-{
-        int sock;
-
-if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
-	if (!ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)svc->downfds,
-						  FD_SETSIZE)) {
-ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
-		if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
-			sock = sock_accessextract[1];
-		else if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
-                        sock = svc->sock_accessup[1];
-		else
-			sock = -1;
-		update_waiting = 1;
-		update_pending = 0;
-		if (sock >= 0)
-			ssa_send_db_update_ready(robj, sock);
-else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
-	}
-else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 }
 
 static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
@@ -2528,7 +2501,6 @@ static void *ssa_downstream_handler(void *context)
 	fds = calloc(FD_SETSIZE, sizeof(**fds));
 	if (!fds)
 		goto out;
-	svc->downfds = fds;
 	pfd = (struct pollfd *)fds;
 	pfd->fd = svc->sock_downctrl[1];
 	pfd->events = POLLIN;
@@ -3400,7 +3372,6 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from extract: ssa_db %p flags 0x%x epoch 0x%" PRIx64 "\n",
 					db, msg.data.db_upd.flags, msg.data.db_upd.epoch);
-				prdb_calc_in_progress = 1;
 				access_update_waiting = 0;
 				if (!(msg.data.db_upd.flags & SSA_DB_UPDATE_CHANGE))
 					break;
@@ -3426,15 +3397,6 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							  svc_arr[j]);
 				}
 #endif
-				prdb_calc_in_progress = 0;
-				if (update_pending) {
-					if (svc_cnt > 0)
-						ssa_access_smdb_update_ready(msg.data.db_upd.db,
-									     svc_arr[0]);
-					else
-						ssa_log_err(SSA_LOG_DEFAULT,
-							    "update pending with no svcs\n");
-				}
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
@@ -3484,7 +3446,6 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					ssa_log(SSA_LOG_DEFAULT,
 						"SSA DB update from upstream thread: ssa_db %p\n",
 						db);
-					prdb_calc_in_progress = 1;
 					access_update_waiting = 0;
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
@@ -3506,10 +3467,6 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							  ssa_access_map_callback,
 							  svc_arr[i]);
 #endif
-					prdb_calc_in_progress = 0;
-					if (update_pending)
-						ssa_access_smdb_update_ready(msg.data.db_upd.db,
-									     svc_arr[i]);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
@@ -3585,11 +3542,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						ssa_log(SSA_LOG_DEFAULT,
 							"calculating PRDB for GID %s LID %u client\n",
 							log_data, consumer->lid);
-						prdb_calc_in_progress = 1;
 						prdb = ssa_calculate_prdb(svc_arr[i], consumer);
-						prdb_calc_in_progress = 0;
-						if (update_pending)
-							ssa_access_smdb_update_ready(smdb, svc_arr[i]);
 #endif
 						if (!prdb)
 							continue;
