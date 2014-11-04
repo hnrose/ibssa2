@@ -5162,7 +5162,15 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 
 void ssa_cleanup(struct ssa_class *ssa)
 {
+	int rclose_unprocessed;
+
 	umad_done();
-	if (thpool_rclose != NULL)
+	if (thpool_rclose != NULL) {
+		rclose_unprocessed = g_thread_pool_unprocessed(thpool_rclose);
+		if (rclose_unprocessed)
+			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+				"%d rsockets still waiting for rclose completion\n",
+				rclose_unprocessed);
 		g_thread_pool_free(thpool_rclose, TRUE, TRUE);
+	}
 }
