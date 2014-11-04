@@ -43,6 +43,7 @@ AC_CHECK_LIB(rdmacm, rselect, [],
     AC_MSG_ERROR([rselect() not found.  ibssa requires librdmacm.]))
 AC_CHECK_LIB(ibumad, umad_send, [],
     AC_MSG_ERROR([umad_send() not found.  ibssa requires libibumad.]))
+PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.2])
 fi
 
 dnl Checks for header files.
