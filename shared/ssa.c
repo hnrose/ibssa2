@@ -112,6 +112,8 @@ short smdb_port = 7472;
 short prdb_port = 7473;
 int keepalive = 60;		/* seconds */
 
+GThreadPool *thpool_rclose;
+
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
 int fake_acm_num = 0;
@@ -150,6 +152,14 @@ static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 static void ssa_downstream_prdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc);
 static void ssa_close_port(struct ssa_port *port);
+static void g_rclose_callback(gint id, gpointer user_date);
+
+
+static void g_rclose_callback(gint id, gpointer user_date)
+{
+	(void)user_date;
+	rclose(id);
+}
 
 /*
  * needed for ssa_pr_create_context()
@@ -5079,6 +5089,7 @@ void ssa_daemonize(void)
 int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t port_size)
 {
 	int ret;
+	GError *g_error = NULL;
 
 	memset(ssa, 0, sizeof *ssa);
 	ssa->sock[0] = ssa->sock[1] = -1;
@@ -5097,10 +5108,21 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 	g_thread_init(NULL);
 #endif
 
+	thpool_rclose = g_thread_pool_new((GFunc) g_rclose_callback, NULL,
+					  1, TRUE, &g_error);
+	if (g_error != NULL) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "Glib thread pool initialization error: %s\n",
+			    g_error->message);
+		umad_done();
+		return -1;
+	}
 	return 0;
 }
 
 void ssa_cleanup(struct ssa_class *ssa)
 {
 	umad_done();
+	if (thpool_rclose != NULL)
+		g_thread_pool_free(thpool_rclose, TRUE, TRUE);
 }
