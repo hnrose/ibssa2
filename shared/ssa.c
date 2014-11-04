@@ -62,7 +62,7 @@
 #include <ssa_ctrl.h>
 #include <inttypes.h>
 #include <ssa_log.h>
-
+#include <glib.h>
 
 #define DEFAULT_TIMEOUT 1000
 #define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
@@ -5089,6 +5089,13 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 	ret = umad_init();
 	if (ret)
 		return ret;
+
+	/*
+	 * g_thread_init is not needed to be called starting with Glib 2.24
+	 */
+#if (!GLIB_CHECK_VERSION(2, 24, 0))
+	g_thread_init(NULL);
+#endif
 
 	return 0;
 }
