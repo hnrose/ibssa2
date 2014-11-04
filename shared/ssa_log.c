@@ -126,6 +126,7 @@ int ssa_open_log(char *log_file)
 void ssa_close_log()
 {
 	fclose(flog);
+	flog = NULL;
 }
 
 void ssa_write_log(int level, const char *format, ...)
