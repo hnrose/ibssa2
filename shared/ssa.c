@@ -152,13 +152,15 @@ static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 static void ssa_downstream_prdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc);
 static void ssa_close_port(struct ssa_port *port);
-static void g_rclose_callback(gint id, gpointer user_date);
+static void g_rclose_callback(gint id, gpointer user_data);
 
 
-static void g_rclose_callback(gint id, gpointer user_date)
+static void g_rclose_callback(gint rsock, gpointer user_data)
 {
-	(void)user_date;
-	rclose(id);
+	(void)user_data;
+	ssa_log(SSA_LOG_DEFAULT, "closing rsock %d\n", GPOINTER_TO_INT(rsock));
+	rclose(GPOINTER_TO_INT(rsock));
+	ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", GPOINTER_TO_INT(rsock));
 }
 
 /*
