@@ -1948,8 +1948,8 @@ static void core_destroy(void *context)
 #endif
 
 	ssa_log(SSA_LOG_VERBOSE, "that's all folks!\n");
-	ssa_close_log();
 	ssa_cleanup(&ssa);
+	ssa_close_log();
 }
 
 #if OSM_EVENT_PLUGIN_INTERFACE_VER != 2

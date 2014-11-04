@@ -4208,8 +4208,8 @@ int main(int argc, char **argv)
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	pthread_join(ctrl_thread, NULL);
-	ssa_close_log();
 	ssa_cleanup(&ssa);
+	ssa_close_log();
 	free(lid2guid_cached);
 	return 0;
 }

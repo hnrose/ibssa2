@@ -320,8 +320,8 @@ static void distrib_destroy()
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
 	ssa_log(SSA_LOG_VERBOSE, "that's all folks!\n");
-	ssa_close_log();
 	ssa_cleanup(&ssa);
+	ssa_close_log();
 }
 
 static void show_usage(char *program)
