@@ -93,6 +93,8 @@ AC_CHECK_LIB(rdmacm, rselect, [],
 AC_CHECK_LIB(ibumad, umad_register, [],
     AC_MSG_ERROR([umad_register() not found.  libibumad is required.]))
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.2])
+AC_CHECK_LIB(gthread-2.0, g_thread_init, [],
+    AC_MSG_ERROR([g_thread_init() not found.  libgthread-2.0 is required.]))
 fi
 
 dnl Check for gcc atomic intrinsics
