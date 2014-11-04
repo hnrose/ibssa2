@@ -125,7 +125,8 @@ int ssa_open_log(char *log_file)
 
 void ssa_close_log()
 {
-	fclose(flog);
+	if (flog != stdout && flog != stderr)
+		fclose(flog);
 	flog = NULL;
 }
 
