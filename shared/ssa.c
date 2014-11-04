@@ -575,6 +575,8 @@ static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type,
 
 static void ssa_close_ssa_conn(struct ssa_conn *conn)
 {
+	GError *g_error = NULL;
+
 	if (!conn)
 		return;
 
@@ -589,9 +591,12 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 		}
 	}
 
-	ssa_log(SSA_LOG_DEFAULT, "closing rsock %d\n", conn->rsock);
-	rclose(conn->rsock);
-	ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", conn->rsock);
+	g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(conn->rsock), &g_error);
+	if (g_error != NULL) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "rsock %d thread pool push failed: %s\n",
+			    conn->rsock, g_error->message);
+	}
 	conn->rsock = -1;
 	conn->dbtype = SSA_CONN_NODB_TYPE;
 	conn->state = SSA_CONN_IDLE;
@@ -3903,6 +3908,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	struct sockaddr_ib peer_addr;
 	struct ibv_path_data route;
 	socklen_t peer_len, route_len;
+	GError *g_error = NULL;
 
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
 		conn_listen = &svc->conn_listen_smdb;
@@ -3935,14 +3941,24 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 				"rgetpeername fd %d family %d not AF_IB\n",
 				fd, peer_addr.sib_family);
-			rclose(fd);
+			g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
+			if (g_error != NULL) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "rsock %d thread pool push failed: %s\n",
+					    fd, g_error->message);
+			}
 			return -1;
 		}
 	} else {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rgetpeername rsock %d ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
-		rclose(fd);
+		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
+		if (g_error != NULL) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "rsock %d thread pool push failed: %s\n",
+				    fd, g_error->message);
+		}
 		return -1;
 	}
 
@@ -3951,7 +3967,12 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"update pending %d or waiting %d; closing rsock %d\n",
 			update_pending, update_waiting, fd);
-		rclose(fd);
+		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
+		if (g_error != NULL) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "rsock %d thread pool push failed: %s\n",
+				    fd, g_error->message);
+		}
 		return -1;
 	}
 
@@ -3981,7 +4002,12 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rsetsockopt rsock %d TCP_NODELAY ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
-		rclose(fd);
+		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
+		if (g_error != NULL) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "rsock %d thread pool push failed: %s\n",
+				    fd, g_error->message);
+		}
 		return -1;
 	}
 	ret = rfcntl(fd, F_SETFL, O_NONBLOCK);
@@ -3989,7 +4015,12 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rfcntl rsock %d ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
-		rclose(fd);
+		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
+		if (g_error != NULL) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "rsock %d thread pool push failed: %s\n",
+				    fd, g_error->message);
+		}
 		return -1;
 	}
 
@@ -4015,6 +4046,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 {
 	struct sockaddr_ib dst_addr;
 	int ret, val;
+	GError *g_error = NULL;
 
 	svc->conn_dataup.rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (svc->conn_dataup.rsock < 0) {
@@ -4110,7 +4142,13 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	return svc->conn_dataup.rsock;
 
 close:
-	rclose(svc->conn_dataup.rsock);
+	g_thread_pool_push(thpool_rclose,
+			   GINT_TO_POINTER(svc->conn_dataup.rsock), &g_error);
+	if (g_error != NULL) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "rsock %d thread pool push failed: %s\n",
+			    svc->conn_dataup.rsock, g_error->message);
+	}
 	svc->conn_dataup.rsock = -1;
 	svc->conn_dataup.state = SSA_CONN_IDLE;
 	return -1;
