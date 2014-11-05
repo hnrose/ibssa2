@@ -99,6 +99,7 @@ static pthread_t *access_thread;
 #ifdef ACCESS
 static pthread_t *access_prdb_handler;
 #endif
+static GThreadPool *thpool_rclose;
 
 int smdb_dump = 0;
 int err_smdb_dump = 0;
@@ -109,8 +110,6 @@ char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 short smdb_port = 7472;
 short prdb_port = 7473;
 int keepalive = 60;		/* seconds */
-
-GThreadPool *thpool_rclose;
 
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
