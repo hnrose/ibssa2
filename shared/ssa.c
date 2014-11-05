@@ -5142,9 +5142,9 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 		return ret;
 
 	/*
-	 * g_thread_init is not needed to be called starting with Glib 2.24
+	 * g_thread_init is not needed to be called starting with Glib 2.32
 	 */
-#if (!GLIB_CHECK_VERSION(2, 24, 0))
+#if (!GLIB_CHECK_VERSION(2, 32, 0))
 	g_thread_init(NULL);
 #endif
 
