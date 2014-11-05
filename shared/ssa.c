@@ -593,6 +593,8 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 		ssa_log_err(SSA_LOG_CTRL,
 			    "rsock %d thread pool push failed: %s\n",
 			    conn->rsock, g_error->message);
+		g_error_free(g_error);
+		g_error = NULL;
 	}
 	conn->rsock = -1;
 	conn->dbtype = SSA_CONN_NODB_TYPE;
@@ -3943,6 +3945,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 				ssa_log_err(SSA_LOG_CTRL,
 					    "rsock %d thread pool push failed: %s\n",
 					    fd, g_error->message);
+				g_error_free(g_error);
+				g_error = NULL;
 			}
 			return -1;
 		}
@@ -3955,6 +3959,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsock %d thread pool push failed: %s\n",
 				    fd, g_error->message);
+			g_error_free(g_error);
+			g_error = NULL;
 		}
 		return -1;
 	}
@@ -3969,6 +3975,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsock %d thread pool push failed: %s\n",
 				    fd, g_error->message);
+			g_error_free(g_error);
+			g_error = NULL;
 		}
 		return -1;
 	}
@@ -4004,6 +4012,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsock %d thread pool push failed: %s\n",
 				    fd, g_error->message);
+			g_error_free(g_error);
+			g_error = NULL;
 		}
 		return -1;
 	}
@@ -4017,6 +4027,8 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsock %d thread pool push failed: %s\n",
 				    fd, g_error->message);
+			g_error_free(g_error);
+			g_error = NULL;
 		}
 		return -1;
 	}
@@ -4145,6 +4157,8 @@ close:
 		ssa_log_err(SSA_LOG_CTRL,
 			    "rsock %d thread pool push failed: %s\n",
 			    svc->conn_dataup.rsock, g_error->message);
+		g_error_free(g_error);
+		g_error = NULL;
 	}
 	svc->conn_dataup.rsock = -1;
 	svc->conn_dataup.state = SSA_CONN_IDLE;
@@ -5151,6 +5165,8 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 		ssa_log_err(SSA_LOG_CTRL,
 			    "Glib thread pool initialization error: %s\n",
 			    g_error->message);
+		g_error_free(g_error);
+		g_error = NULL;
 		umad_done();
 		return -1;
 	}
