@@ -42,6 +42,7 @@
 #include <osd.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #include <fcntl.h>
 #include <rdma/rsocket.h>
 #include <netinet/tcp.h>
@@ -133,6 +134,12 @@ struct node_t {
 };
 #endif
 
+struct ssa_sysinfo {
+	int nprocs;
+};
+
+static struct ssa_sysinfo ssa_sysinfo;
+
 /* Forward declarations */
 static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn);
@@ -165,6 +172,16 @@ static void g_rclose_callback(gint rsock, gpointer user_data)
  * eliminate after access layer integration
  */
 extern FILE *flog;
+
+static void ssa_get_sysinfo()
+{
+	ssa_sysinfo.nprocs = get_nprocs();
+}
+
+static void ssa_log_sysinfo()
+{
+	ssa_log(SSA_LOG_DEFAULT, "Number of cores %d\n", ssa_sysinfo.nprocs);
+}
 
 const char *ssa_method_str(uint8_t method)
 {
@@ -5172,6 +5189,10 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 		umad_done();
 		return -1;
 	}
+
+	ssa_get_sysinfo();
+	ssa_log_sysinfo();
+
 	return 0;
 }
 
