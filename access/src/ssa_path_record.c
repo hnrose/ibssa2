@@ -560,7 +560,7 @@ void ssa_pr_reinit_context(void *context, struct ssa_db *smdb)
 {
 	struct ssa_pr_context *p_context = context;
 
-	ssa_pr_destroy_indexes(p_context->p_index);
+	ssa_pr_rebuild_indexes(p_context->p_index, smdb);
 }
 
 void *ssa_pr_create_context(FILE *log_fd, int log_level)
