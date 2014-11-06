@@ -4661,9 +4661,15 @@ static void ssa_access_process_task(struct ssa_access_task *task)
 {
 	GError *g_error = NULL;
 
-	if (access_context.num_workers > 1)
+	if (access_context.num_workers > 1) {
 		g_thread_pool_push(access_context.g_th_pool, task, &g_error);
-	else
+		if (g_error != NULL) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "failed to push a task to access thread pool: %s\n",
+				    g_error->message);
+			g_error_free(g_error);
+		}
+	} else
 		g_al_callback(task, NULL);
 }
 
