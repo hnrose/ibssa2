@@ -158,6 +158,10 @@ static void ssa_downstream_prdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc);
 static void ssa_close_port(struct ssa_port *port);
 static void g_rclose_callback(gint id, gpointer user_data);
+#ifdef ACCESS
+static void ssa_access_wait_for_tasks_completion();
+static void ssa_access_process_task(struct ssa_access_task *task);
+#endif
 
 
 static void g_rclose_callback(gint rsock, gpointer user_data)
@@ -3110,7 +3114,6 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 	const char *node_type = NULL;
 	short update_prdb = 0;
 	struct ssa_access_task *task;
-	GError *g_error = NULL;
 
 	switch (which) {
 	case preorder:
@@ -3139,7 +3142,7 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		task = calloc(1, sizeof(*task));
 		task->svc = svc;
 		task->consumer = consumer;
-		g_thread_pool_push(access_context.g_th_pool, task, &g_error);
+		ssa_access_process_task(task);
 	}
 }
 
@@ -3465,11 +3468,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							  ssa_access_map_callback,
 							  svc_arr[j]);
 				}
-				pthread_mutex_lock(&access_context.th_pool_mtx);
-				while (g_thread_pool_unprocessed(access_context.g_th_pool))
-					pthread_cond_wait(&access_context.th_pool_cond,
-							  &access_context.th_pool_mtx);
-				pthread_mutex_unlock(&access_context.th_pool_mtx);
+				ssa_access_wait_for_tasks_completion();
 #endif
 				break;
 			default:
@@ -3541,11 +3540,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						ssa_twalk(svc_arr[i]->access_map,
 							  ssa_access_map_callback,
 							  svc_arr[i]);
-					pthread_mutex_lock(&access_context.th_pool_mtx);
-					while (g_thread_pool_unprocessed(access_context.g_th_pool))
-						pthread_cond_wait(&access_context.th_pool_cond,
-								  &access_context.th_pool_mtx);
-					pthread_mutex_unlock(&access_context.th_pool_mtx);
+					ssa_access_wait_for_tasks_completion();
 #endif
 					break;
 				default:
@@ -4649,6 +4644,27 @@ static void ssa_access_thread_pool_destroy()
 
 	pthread_mutex_destroy(&access_context.th_pool_mtx);
 	pthread_cond_destroy(&access_context.th_pool_cond);
+}
+
+static void ssa_access_wait_for_tasks_completion()
+{
+	if (access_context.num_workers > 1) {
+		pthread_mutex_lock(&access_context.th_pool_mtx);
+		while (g_thread_pool_unprocessed(access_context.g_th_pool))
+			pthread_cond_wait(&access_context.th_pool_cond,
+					  &access_context.th_pool_mtx);
+		pthread_mutex_unlock(&access_context.th_pool_mtx);
+	}
+}
+
+static void ssa_access_process_task(struct ssa_access_task *task)
+{
+	GError *g_error = NULL;
+
+	if (access_context.num_workers > 1)
+		g_thread_pool_push(access_context.g_th_pool, task, &g_error);
+	else
+		g_al_callback(task, NULL);
 }
 
 static int ssa_db_update_queue_init(struct ssa_db_update_queue *p_queue)
