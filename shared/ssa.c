@@ -4591,7 +4591,7 @@ err1:
 #ifdef ACCESS
 static int ssa_access_thread_pool_init()
 {
-	int ret, num_workers;
+	int ret;
 	GError *g_error = NULL;
 
 	ret = pthread_cond_init(&access_context.th_pool_cond, NULL);
@@ -4608,12 +4608,14 @@ static int ssa_access_thread_pool_init()
 		goto err2;
 	}
 
-	num_workers = ssa_sysinfo.nprocs > 3 ? ssa_sysinfo.nprocs - 3 : 1;
-	ssa_log(SSA_LOG_DEFAULT, "Number of access workers %d\n", num_workers);
+	access_context.num_workers = ssa_sysinfo.nprocs > 3 ? ssa_sysinfo.nprocs - 3 : 1;
+	ssa_log(SSA_LOG_DEFAULT, "Number of access workers %d\n",
+		access_context.num_workers);
 
 	access_context.g_th_pool = g_thread_pool_new((GFunc) g_al_callback,
-						     NULL, num_workers, 1,
-						     &g_error);
+						     NULL,
+						     access_context.num_workers,
+						     1, &g_error);
 	if (g_error != NULL) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "Glib thread pool initialization error: %s\n",

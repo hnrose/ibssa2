@@ -217,6 +217,7 @@ struct ssa_access_context {
 	GThreadPool 			*g_th_pool;
 	pthread_cond_t 			th_pool_cond;
 	pthread_mutex_t 		th_pool_mtx;
+	int				num_workers;
 };
 
 struct ssa_access_task {
