@@ -556,7 +556,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 	return SSA_PR_SUCCESS;
 }
 
-void ssa_pr_reinit_context(void *context)
+void ssa_pr_reinit_context(void *context, struct ssa_db *smdb)
 {
 	struct ssa_pr_context *p_context = context;
 

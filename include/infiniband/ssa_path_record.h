@@ -76,7 +76,7 @@ typedef int (*ssa_pr_path_dump_t)(const struct ssa_path_parms *, void *);
 
 extern void *ssa_pr_create_context(FILE *log_fd, int log_level);
 extern void ssa_pr_destroy_context(void *ctx);
-extern void ssa_pr_reinit_context(void *ctx);
+extern void ssa_pr_reinit_context(void *ctx, struct ssa_db *smdb);
 
 
 extern uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,

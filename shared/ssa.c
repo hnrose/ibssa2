@@ -3403,7 +3403,8 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 				access_context.smdb = db;
 #ifdef ACCESS
 				/* Reinit context should be based on DB update flags indicating full update */
-				ssa_pr_reinit_context(access_context.context);
+				ssa_pr_reinit_context(access_context.context,
+						      access_context.smdb);
 				/* Recalculate PRDBs for all downstream ACMs!!! */
 				/* Then cause RDMA write of the PRDB epochs */
 				for (j = 0; j < svc_cnt; j++) {
@@ -3475,7 +3476,8 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 					access_context.smdb = db;
 #ifdef ACCESS
 					/* Reinit context should be based on DB update flags indicating full update */
-					ssa_pr_reinit_context(access_context.context);
+					ssa_pr_reinit_context(access_context.context,
+							      access_context.smdb);
 					/* Recalculate PRDBs for all downstream ACMs!!! */
 					/* Then cause RDMA write of the PRDB epochs */
 					if (svc_arr[i]->access_map)
