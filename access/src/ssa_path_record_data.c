@@ -366,12 +366,12 @@ int ssa_pr_rebuild_indexes(struct ssa_pr_smdb_index *p_index,
 		ssa_pr_destroy_indexes(p_index);
 		res = ssa_pr_build_indexes(p_index, p_smdb);
 		if (res) {
-			SSA_PR_LOG_ERROR("SMDB index creation failed. epoch: %" PRIu64,
+			SSA_PR_LOG_ERROR("SMDB index creation failed. epoch: 0x%" PRIx64,
 					 smdb_epoch);
 			return res;
 		}
 		p_index->epoch = smdb_epoch;
-		SSA_PR_LOG_INFO("SMDB index created. epoch: %" PRIu64,
+		SSA_PR_LOG_INFO("SMDB index created. epoch: 0x%" PRIx64,
 				p_index->epoch);
 	}
 	return 0;
