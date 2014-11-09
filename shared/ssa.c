@@ -3101,6 +3101,7 @@ ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_g
 out:
 #endif
 	pthread_mutex_lock(&access_context.th_pool_mtx);
+	atomic_dec(&access_context.num_tasks);
 	pthread_cond_signal(&access_context.th_pool_cond);
 	pthread_mutex_unlock(&access_context.th_pool_mtx);
 	free(task);
@@ -3142,6 +3143,7 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 		task = calloc(1, sizeof(*task));
 		task->svc = svc;
 		task->consumer = consumer;
+		atomic_inc(&access_context.num_tasks);
 		ssa_access_process_task(task);
 	}
 }
@@ -3462,6 +3464,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						      access_context.smdb);
 				/* Recalculate PRDBs for all downstream ACMs!!! */
 				/* Then cause RDMA write of the PRDB epochs */
+				atomic_set(&access_context.num_tasks, 0);
 				for (j = 0; j < svc_cnt; j++) {
 					if (svc_arr[j]->access_map)
 						ssa_twalk(svc_arr[j]->access_map,
@@ -3536,6 +3539,7 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							      access_context.smdb);
 					/* Recalculate PRDBs for all downstream ACMs!!! */
 					/* Then cause RDMA write of the PRDB epochs */
+					atomic_set(&access_context.num_tasks, 0);
 					if (svc_arr[i]->access_map)
 						ssa_twalk(svc_arr[i]->access_map,
 							  ssa_access_map_callback,
@@ -4589,6 +4593,8 @@ static int ssa_access_thread_pool_init()
 	int ret;
 	GError *g_error = NULL;
 
+	atomic_set(&access_context.num_tasks, 0);
+
 	ret = pthread_cond_init(&access_context.th_pool_cond, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_DEFAULT,
@@ -4650,7 +4656,7 @@ static void ssa_access_wait_for_tasks_completion()
 {
 	if (access_context.num_workers > 1) {
 		pthread_mutex_lock(&access_context.th_pool_mtx);
-		while (g_thread_pool_unprocessed(access_context.g_th_pool))
+		while (atomic_get(&access_context.num_tasks) > 0)
 			pthread_cond_wait(&access_context.th_pool_cond,
 					  &access_context.th_pool_mtx);
 		pthread_mutex_unlock(&access_context.th_pool_mtx);

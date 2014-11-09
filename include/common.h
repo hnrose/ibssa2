@@ -218,6 +218,7 @@ struct ssa_access_context {
 	pthread_cond_t 			th_pool_cond;
 	pthread_mutex_t 		th_pool_mtx;
 	int				num_workers;
+	atomic_t			num_tasks;
 };
 
 struct ssa_access_task {
