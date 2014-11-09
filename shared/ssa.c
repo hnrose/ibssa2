@@ -3041,16 +3041,76 @@ static int ssa_pull_db_update(struct ssa_db_update_queue *p_queue,
 	return 0;
 }
 
+static void g_al_callback(gpointer task, gpointer user_data)
+{
+	struct ssa_access_task *al_task;
+	struct ssa_svc *svc;
+	struct ssa_access_member *consumer;
+	struct ssa_db *prdb;
+	struct ref_count_obj *dbr;
+	struct ssa_db_update db_upd;
+
+	(void) user_data;
+
+	if (task == NULL)
+		return;
+
+	al_task = (struct ssa_access_task *) task;
+	consumer = al_task->consumer;
+	svc = al_task->svc;
+
+	ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+			SSA_ADDR_GID, consumer->gid.raw,
+			sizeof consumer->gid.raw);
+	ssa_log(SSA_LOG_DEFAULT,
+		"calculating PRDB for GID %s LID %u client\n",
+		log_data, consumer->lid);
+	prdb = ssa_calculate_prdb(svc, consumer);
+	ssa_log(SSA_LOG_DEFAULT,
+		"GID %s LID %u rsock %d PRDB %p calculation complete\n",
+		log_data, consumer->lid, consumer->rsock, prdb);
+#ifdef SIM_SUPPORT_FAKE_ACM
+	if (ACM_FAKE_RSOCKET_ID == consumer->rsock)
+		goto out;
+#endif
+	if (prdb) {
+		dbr = malloc(sizeof(*dbr));
+		if (dbr) {
+			ref_count_obj_init(dbr, prdb);
+			consumer->prdb_current = dbr;
+ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_get(dbr));
+			if (consumer->rsock >= 0) {
+				ssa_db_update_init(dbr, svc, consumer->lid,
+						   &consumer->gid,
+						   consumer->rsock,
+						   0, 0, &db_upd);
+				ssa_push_db_update(&update_queue, &db_upd);
+			}
+		} else {
+			ssa_log(SSA_LOG_DEFAULT,
+				"PRDB ref count memory allocation failed\n");
+			ssa_db_destroy(prdb);
+		}
+	} else
+		ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
+#ifdef SIM_SUPPORT_FAKE_ACM
+out:
+#endif
+	pthread_mutex_lock(&access_context.th_pool_mtx);
+	pthread_cond_signal(&access_context.th_pool_cond);
+	pthread_mutex_unlock(&access_context.th_pool_mtx);
+	free(task);
+}
+
 static void ssa_access_map_callback(const void *nodep, const VISIT which,
 				    const void *priv)
 {
 	struct ssa_access_member *consumer;
 	struct ssa_svc *svc = (struct ssa_svc *) priv;
-	struct ssa_db_update db_upd;
-	struct ssa_db *prdb;
-	struct ref_count_obj *dbr;
 	const char *node_type = NULL;
 	short update_prdb = 0;
+	struct ssa_access_task *task;
+	GError *g_error = NULL;
 
 	switch (which) {
 	case preorder:
@@ -3074,38 +3134,12 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 				SSA_ADDR_GID, consumer->gid.raw,
 				sizeof consumer->gid.raw);
 		ssa_log(SSA_LOG_DEFAULT,
-			"calculating PRDB for GID %s LID %u client\n",
-			log_data, consumer->lid);
-		prdb = ssa_calculate_prdb(svc, consumer);
-		ssa_log(SSA_LOG_DEFAULT,
-			"%s GID %s LID %u rsock %d PRDB %p calculation complete\n",
-			node_type, log_data, consumer->lid, consumer->rsock, prdb);
-#ifdef SIM_SUPPORT_FAKE_ACM
-		if (ACM_FAKE_RSOCKET_ID == consumer->rsock)
-			return;
-#endif
-		if (prdb) {
-			dbr = malloc(sizeof(*dbr));
-			if (dbr) {
-				ref_count_obj_init(dbr, prdb);
-				consumer->prdb_current = dbr;
-ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_get(dbr));
-				if (consumer->rsock >= 0) {
-					ssa_db_update_init(dbr, svc,
-							   consumer->lid,
-							   &consumer->gid,
-							   consumer->rsock,
-							   0, 0, &db_upd);
-					ssa_push_db_update(&update_queue,
-							   &db_upd);
-				}
-			} else {
-				ssa_log(SSA_LOG_DEFAULT,
-					"PRDB ref count memory allocation failed\n");
-				ssa_db_destroy(prdb);
-			}
-		} else
-			ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
+			"%s GID %s LID %u rsock %d pushing task to access thread pool\n",
+			node_type, log_data, consumer->lid, consumer->rsock);
+		task = calloc(1, sizeof(*task));
+		task->svc = svc;
+		task->consumer = consumer;
+		g_thread_pool_push(access_context.g_th_pool, task, &g_error);
 	}
 }
 
@@ -3431,6 +3465,11 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							  ssa_access_map_callback,
 							  svc_arr[j]);
 				}
+				pthread_mutex_lock(&access_context.th_pool_mtx);
+				while (g_thread_pool_unprocessed(access_context.g_th_pool))
+					pthread_cond_wait(&access_context.th_pool_cond,
+							  &access_context.th_pool_mtx);
+				pthread_mutex_unlock(&access_context.th_pool_mtx);
 #endif
 				break;
 			default:
@@ -3502,6 +3541,11 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						ssa_twalk(svc_arr[i]->access_map,
 							  ssa_access_map_callback,
 							  svc_arr[i]);
+					pthread_mutex_lock(&access_context.th_pool_mtx);
+					while (g_thread_pool_unprocessed(access_context.g_th_pool))
+						pthread_cond_wait(&access_context.th_pool_cond,
+								  &access_context.th_pool_mtx);
+					pthread_mutex_unlock(&access_context.th_pool_mtx);
 #endif
 					break;
 				default:
@@ -4545,6 +4589,66 @@ err1:
 }
 
 #ifdef ACCESS
+static int ssa_access_thread_pool_init()
+{
+	int ret, num_workers;
+	GError *g_error = NULL;
+
+	ret = pthread_cond_init(&access_context.th_pool_cond, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable initialize al thread pool condition variable\n");
+		goto err1;
+	}
+
+	ret = pthread_mutex_init(&access_context.th_pool_mtx, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable initialize al thread pool mutex\n");
+		goto err2;
+	}
+
+	num_workers = ssa_sysinfo.nprocs > 3 ? ssa_sysinfo.nprocs - 3 : 1;
+	ssa_log(SSA_LOG_DEFAULT, "Number of access workers %d\n", num_workers);
+
+	access_context.g_th_pool = g_thread_pool_new((GFunc) g_al_callback,
+						     NULL, num_workers, 1,
+						     &g_error);
+	if (g_error != NULL) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "Glib thread pool initialization error: %s\n",
+			    g_error->message);
+		g_error_free(g_error);
+		ret = -1;
+		goto err3;
+	}
+	return 0;
+
+err3:
+	pthread_mutex_destroy(&access_context.th_pool_mtx);
+err2:
+	pthread_cond_destroy(&access_context.th_pool_cond);
+err1:
+	return ret;
+}
+
+static void ssa_access_thread_pool_destroy()
+{
+	int unprocessed;
+
+	if (access_context.g_th_pool != NULL) {
+		unprocessed = g_thread_pool_unprocessed(access_context.g_th_pool);
+		if (unprocessed)
+			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+				"%d PR calculations still unprocessed\n",
+				unprocessed);
+		g_thread_pool_free(access_context.g_th_pool, TRUE, TRUE);
+	}
+
+	pthread_mutex_destroy(&access_context.th_pool_mtx);
+	pthread_cond_destroy(&access_context.th_pool_cond);
+}
+
 static int ssa_db_update_queue_init(struct ssa_db_update_queue *p_queue)
 {
 	int ret;
@@ -4642,54 +4746,63 @@ int ssa_start_access(struct ssa_class *ssa)
 			    "unable to create access layer prdb updates queue\n");
 		goto err4;
 	}
+
+	ret = ssa_access_thread_pool_init();
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL, "creating access thread pool\n");
+		errno = ret;
+		goto err5;
+	}
 #endif
 
 	access_thread = calloc(1, sizeof(*access_thread));
 	if (access_thread == NULL) {
 		ssa_log_err(SSA_LOG_CTRL, "allocating access thread memory\n");
-		goto err5;
+		goto err6;
 	}
 
 	ret = pthread_create(access_thread, NULL, ssa_access_handler, ssa);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating access thread\n");
 		errno = ret;
-		goto err5;
+		goto err6;
 	}
 
 	ret = read(sock_accessctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with access thread\n");
-		goto err6;
+		goto err7;
 	}
 #ifdef ACCESS
 	access_prdb_handler = calloc(1, sizeof(*access_prdb_handler));
 	if (access_prdb_handler == NULL) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "allocating access prdb handler thread memory\n");
-		goto err7;
+		goto err8;
 	}
 	ret = pthread_create(access_prdb_handler, NULL, ssa_access_prdb_handler, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating access prdb handler thread\n");
 		errno = ret;
-		goto err7;
+		goto err8;
 	}
 #endif
 	return 0;
 
 #ifdef ACCESS
-err7:
+err8:
 	free(access_prdb_handler);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
 	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
 #endif
-err6:
+err7:
 	pthread_join(*access_thread, NULL);
-err5:
+err6:
 	free(access_thread);
 #ifdef ACCESS
+	ssa_access_thread_pool_destroy();
+err5:
 	ssa_db_update_queue_destroy(&update_queue);
 err4:
 	if (access_context.context) {
@@ -4731,6 +4844,7 @@ void ssa_stop_access(struct ssa_class *ssa)
 	}
 
 #ifdef ACCESS
+	ssa_access_thread_pool_destroy();
 	ssa_db_update_queue_destroy(&update_queue);
 
 	if (access_context.context) {
