@@ -98,6 +98,7 @@ static int sock_accessctrl[2];
 int sock_accessextract[2];
 static pthread_t *access_thread;
 #ifdef ACCESS
+static struct ssa_db_update_queue update_queue;
 static pthread_t *access_prdb_handler;
 #endif
 static GThreadPool *thpool_rclose;
@@ -3095,7 +3096,7 @@ ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_g
 							   &consumer->gid,
 							   consumer->rsock,
 							   0, 0, &db_upd);
-					ssa_push_db_update(&access_context.update_queue,
+					ssa_push_db_update(&update_queue,
 							   &db_upd);
 				}
 			} else {
@@ -3139,11 +3140,11 @@ static void *ssa_access_prdb_handler(void *context)
 
 	ssa_log_func(SSA_LOG_CTRL);
 
-	pthread_cleanup_push(prdb_handler_cleanup, &access_context.update_queue);
+	pthread_cleanup_push(prdb_handler_cleanup, &update_queue);
 
 	while (1) {
-		ssa_wait_db_update(&access_context.update_queue);
-		while (ssa_pull_db_update(&access_context.update_queue, &db_upd) > 0) {
+		ssa_wait_db_update(&update_queue);
+		while (ssa_pull_db_update(&update_queue, &db_upd) > 0) {
 			ssa_access_send_db_update(db_upd.svc, db_upd.db,
 						  db_upd.rsock, db_upd.flags,
 						  db_upd.remote_lid,
@@ -3600,7 +3601,7 @@ skip_prdb_calc:
 										   msg.data.conn->rsock,
 										   0, 0,
 										   &db_upd);
-								ssa_push_db_update(&access_context.update_queue,
+								ssa_push_db_update(&update_queue,
 										   &db_upd);
 							} else
 								consumer->rsock = -1;
@@ -4636,7 +4637,7 @@ int ssa_start_access(struct ssa_class *ssa)
 		goto err3;
 	}
 
-	if (ssa_db_update_queue_init(&access_context.update_queue)) {
+	if (ssa_db_update_queue_init(&update_queue)) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "unable to create access layer prdb updates queue\n");
 		goto err4;
@@ -4689,7 +4690,7 @@ err6:
 err5:
 	free(access_thread);
 #ifdef ACCESS
-	ssa_db_update_queue_destroy(&access_context.update_queue);
+	ssa_db_update_queue_destroy(&update_queue);
 err4:
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);
@@ -4730,7 +4731,7 @@ void ssa_stop_access(struct ssa_class *ssa)
 	}
 
 #ifdef ACCESS
-	ssa_db_update_queue_destroy(&access_context.update_queue);
+	ssa_db_update_queue_destroy(&update_queue);
 
 	if (access_context.context) {
 		ssa_pr_destroy_context(access_context.context);

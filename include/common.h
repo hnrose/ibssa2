@@ -213,7 +213,6 @@ struct ssa_db_update_queue {
 struct ssa_access_context {
 	struct ssa_db			*smdb;
 	void				*context;
-	struct ssa_db_update_queue	update_queue;
 };
 
 enum ssa_svc_state {
