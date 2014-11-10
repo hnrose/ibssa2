@@ -504,15 +504,19 @@ int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 	return ret;
 }
 
-static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg, struct pollfd *pfd)
 {
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name,
 		ibv_event_type_str(msg->data.event));
 	switch (msg->data.event) {
 	case IBV_EVENT_PORT_ERR:
 	case IBV_EVENT_CLIENT_REREGISTER:
-		if (svc->conn_dataup.rsock >= 0)
+		if (svc->conn_dataup.rsock >= 0) {
 			ssa_close_ssa_conn(&svc->conn_dataup);
+			pfd->fd = -1;
+			pfd->events = 0;
+			pfd->revents = 0;
+		}
 		svc->state = SSA_STATE_IDLE;
 		/* fall through to reactivate */
 	case IBV_EVENT_PORT_ACTIVE:
@@ -1522,7 +1526,8 @@ static void *ssa_upstream_handler(void *context)
 				ssa_upstream_mad(svc, &msg);
 				break;
 			case SSA_CTRL_DEV_EVENT:
-				ssa_upstream_dev_event(svc, &msg);
+				ssa_upstream_dev_event(svc, &msg,
+						       &fds[UPSTREAM_DATA_FD_SLOT]);
 				break;
 			case SSA_CONN_REQ:
 				conn_svc = msg.data.svc;
