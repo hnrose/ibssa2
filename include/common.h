@@ -236,7 +236,6 @@ struct ssa_svc {
 	enum ssa_svc_state	state;
 	struct ibv_path_data	primary;	/* parent */
 	struct ibv_path_data	secondary;	/* parent */
-	uint64_t		prdb_epoch;
 #ifdef ACCESS
 	void			*access_map;
 #endif

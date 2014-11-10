@@ -115,10 +115,7 @@ static uint64_t epoch;
 __thread char log_data[128];
 __thread int update_pending;
 __thread int update_waiting;
-static int access_update_pending;
-static int access_update_waiting;
 //static atomic_t counter[SSA_MAX_COUNTER];
-static atomic_t prdb_xfers_in_progress;
 
 static struct ssa_access_context access_context;
 static int sock_accessctrl[2];
@@ -147,7 +144,7 @@ int fake_acm_num = 0;
 
 struct ssa_access_member {
 	union ibv_gid gid;		/* consumer GID */
-	struct ref_count_obj *prdb_current;
+	struct ssa_db *prdb_current;
 	uint64_t smdb_epoch;
 	int rsock;
 	uint16_t lid;
@@ -174,18 +171,21 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
-static int ssa_access_prdb_xfer_in_progress(void);
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
 static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd);
 static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc,
 					     struct pollfd **fds);
-static void ssa_downstream_prdb_update_ready(struct ssa_conn *conn,
-					     struct ssa_svc *svc);
 static void ssa_close_port(struct ssa_port *port);
 static void g_rclose_callback(gint id, gpointer user_data);
 #ifdef ACCESS
+static void ssa_db_update_init(struct ref_count_obj *db, struct ssa_svc *svc,
+			       uint16_t remote_lid, union ibv_gid *remote_gid,
+			       int rsock, int flags, uint64_t epoch,
+			       struct ssa_db_update *p_db_upd);
+static int ssa_push_db_update(struct ssa_db_update_queue *p_queue,
+			      struct ssa_db_update *db_upd);
 static void ssa_access_wait_for_tasks_completion();
 static void ssa_access_process_task(struct ssa_access_task *task);
 #endif
@@ -1917,8 +1917,6 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 	if (conn->phase == SSA_DB_IDLE) {
 		int count = ref_count_obj_inc(ssa_downstream_db_ref_obj(conn));
 ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just incremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count); 
-		if (conn->dbtype == SSA_CONN_PRDB_TYPE)
-			count = atomic_inc(&prdb_xfers_in_progress);
 		conn->phase = SSA_DB_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
@@ -2132,13 +2130,6 @@ static short ssa_downstream_handle_op(struct ssa_conn *conn,
 ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with update pending\n", conn->rsock);
 				ssa_downstream_smdb_update_ready(conn, svc, fds);
 			}
-		} else if (conn->phase == SSA_DB_IDLE &&
-			   conn->dbtype == SSA_CONN_PRDB_TYPE) {
-			atomic_dec(&prdb_xfers_in_progress);
-			if (access_update_pending) {
-ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with access update pending\n", conn->rsock);
-				ssa_downstream_prdb_update_ready(conn, svc);
-			}
 		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
@@ -2282,13 +2273,6 @@ static int ssa_find_pollfd_slot(struct pollfd *fds, int nfds)
 	return -1;
 }
 
-static int ssa_access_prdb_xfer_in_progress(void)
-{
-	/* Single threaded access layer can't be using smdb when this is invoked */
-	if (atomic_get(&prdb_xfers_in_progress))
-		return 1;
-	return 0;
-}
 
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds)
@@ -2335,33 +2319,6 @@ else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
 else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 }
 
-static void ssa_downstream_prdb_update_ready(struct ssa_conn *conn,
-					     struct ssa_svc *svc)
-{
-	int sock;
-
-if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected access update waiting!\n");
-	if (!ssa_access_prdb_xfer_in_progress()) {
-ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
-		/* response is from downstream rather than access thread which received prepare message */
-		/* it doesn't matter that response comes from different thread than request was issued as responses are just counted */
-		/* use svc->sock_extractdown[0] rather than sock_accessextract[1] as downstream cannot use accessextract socket in downstream thread */
-		/* different socket for distribution (updown) ! */
-		if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
-			sock = svc->sock_extractdown[0];
-		else if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
-			sock = svc->sock_updown[1];
-		else
-			sock = -1;
-		access_update_waiting = 1;
-		access_update_pending = 0;
-		if (sock >= 0)
-			ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-						 sock);
-else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
-	}
-else ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
-}
 
 static void ssa_downstream_close_ssa_conn(struct ssa_conn *conn,
 					  struct ssa_svc *svc,
@@ -2375,12 +2332,6 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just decremented
 
 		if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
 			ssa_close_ssa_conn(conn);
-			atomic_dec(&prdb_xfers_in_progress);
-ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers now in progress after decrement access update pending %d\n", atomic_get(&prdb_xfers_in_progress), access_update_pending);
-			if (access_update_pending) {
-ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with access update pending\n", conn->rsock);
-				ssa_downstream_prdb_update_ready(conn, svc);
-			}
 		} else if (conn->dbtype == SSA_CONN_SMDB_TYPE) {
 			ssa_close_ssa_conn(conn);
 ssa_log(SSA_LOG_DEFAULT, "SMDB transfer in progress %d update pending %d\n", ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds, FD_SETSIZE), update_pending);
@@ -2697,28 +2648,65 @@ static void *ssa_downstream_handler(void *context)
 					}
 				}
 				/* Now ready to rsend to downstream client upon request */
-				if (conn) {
-					conn->ssa_db = msg.data.db_upd.db;
-					if (++svc->prdb_epoch == DB_EPOCH_INVALID)
-						svc->prdb_epoch++;
-					conn->epoch = svc->prdb_epoch;
-					ssa_db = ref_count_object_get(conn->ssa_db);
-					ssa_db_set_epoch(ssa_db, DB_DEF_TBL_ID,
-							 conn->epoch);
-					conn->prdb_epoch = htonll(conn->epoch);
-ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->prdb_epoch));
+				if (conn && conn->state == SSA_CONN_CONNECTED) {
+					if (conn->phase == SSA_DB_IDLE) {
+						uint64_t prdb_epoch;
+						struct ssa_db *prdb_destroy = NULL;
+
+						ssa_db = ref_count_object_get(msg.data.db_upd.db);
+						prdb_epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
+
+						if (prdb_epoch > conn->epoch || conn->epoch == DB_EPOCH_INVALID) {
+							if (conn->ssa_db)
+								prdb_destroy = ref_count_object_get(conn->ssa_db);
+							conn->ssa_db = msg.data.db_upd.db;
+							conn->epoch = prdb_epoch;
+							conn->prdb_epoch = htonll(conn->epoch);
+							ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->prdb_epoch));
+							if (conn->epoch_len) {
+								pfd2 = (struct pollfd *)(fds + i);
+								pfd2->events = ssa_riowrite(conn, POLLIN);
+							}
+						} else
+							prdb_destroy = ssa_db;
+
+						if (prdb_destroy != NULL)
+							ssa_db_destroy(prdb_destroy);
+						/*
+						 * TODO: Destroy ref. counting object: msg.data.db_upd.db
+						 * Or, it could be changed to row pointer.
+						 */
+#ifdef ACCESS
+					} else {
+						struct ssa_db_update db_upd;
+
+						ssa_db_update_init(msg.data.db_upd.db, svc,
+								   msg.data.db_upd.remote_lid,
+								   &msg.data.db_upd.remote_gid,
+								   msg.data.db_upd.rsock,
+								   0, 0, &db_upd);
+						ssa_push_db_update(&update_queue,
+								   &db_upd);
+#endif
+					}
 				} else {
+					struct ssa_db *prdb_destroy = NULL;
+
 					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
 							sizeof log_data, SSA_ADDR_GID,
 							msg.data.db_upd.remote_gid.raw,
 							sizeof msg.data.db_upd.remote_gid.raw);
 					ssa_log(SSA_LOG_CTRL,
-						"DB update for GID %s with no ssa_conn struct currently available\n",
+						"DB update for GID %s currently not connected\n",
 						log_data);
-				}
-				if (conn && conn->epoch_len) {
-					pfd2 = (struct pollfd *)(fds + i);
-					pfd2->events = ssa_riowrite(conn, POLLIN);
+					prdb_destroy  = ref_count_object_get(msg.data.db_upd.db);
+					if (prdb_destroy != NULL)
+						ssa_db_destroy(prdb_destroy);
+					/*
+					 * TODO: Destroy ref. counting object: msg.data.db_upd.db
+					 * Or, it could be changed to row pointer.
+					 */
+
 				}
 				break;
 			default:
@@ -2925,19 +2913,41 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					 struct ssa_access_member *consumer)
 {
 	struct ssa_db *prdb = NULL;
+	struct ssa_db *prdb_copy = NULL;
 	int n;
 	char dump_dir[1024];
 	struct stat dstat;
-	uint64_t epoch;
+	uint64_t epoch, prdb_epoch;
 	int ret;
 
 	epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
+	if (consumer->prdb_current != NULL)
+		prdb_epoch = ssa_db_get_epoch(consumer->prdb_current, DB_DEF_TBL_ID);
+	else
+		prdb_epoch = DB_EPOCH_INVALID;
 
 	/* Call below "pulls" in access layer for any node type (if ACCESS defined) !!! */
 	ret = ssa_pr_compute_half_world(access_context.smdb,
 					access_context.context,
 					consumer->gid.global.interface_id,
 					&prdb);
+	if (ret == SSA_PR_SUCCESS) {
+		/*
+		 * TODO: Compare prdb and consumer->prdb_current
+		 *       Create ssa_db_cmp function.
+		 *       If prdb is "equal" to consumer->prdb_current
+		 *       return NULL.
+		 */
+		/*
+		 * !!!!! REMOVE !!!!
+		 * It's a temporary solution
+		 * It should be ssa_db_copy function
+		 */
+		ret = ssa_pr_compute_half_world(access_context.smdb,
+						access_context.context,
+						consumer->gid.global.interface_id,
+						&prdb_copy);
+	}
 	if (ret == SSA_PR_PORT_ABSENT) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
@@ -2999,7 +3009,22 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	}
 
 skip_db_save:
-	return prdb;
+	if (prdb != NULL) {
+		prdb_epoch++;
+		if (prdb_epoch == DB_EPOCH_INVALID)
+			prdb_epoch++;
+		ssa_db_set_epoch(prdb, DB_DEF_TBL_ID, prdb_epoch);
+		/*
+		 * !!! REMOVE !!!
+		 * Remove next line after ssa_db_copy implementation
+		 */
+		ssa_db_set_epoch(prdb_copy, DB_DEF_TBL_ID, prdb_epoch);
+		consumer->smdb_epoch = epoch;
+		if (consumer->prdb_current != NULL)
+			ssa_db_destroy(consumer->prdb_current);
+		consumer->prdb_current = prdb;
+	}
+	return prdb_copy;
 }
 
 static void
@@ -3112,7 +3137,6 @@ static void g_al_callback(gpointer task, gpointer user_data)
 		dbr = malloc(sizeof(*dbr));
 		if (dbr) {
 			ref_count_obj_init(dbr, prdb);
-			consumer->prdb_current = dbr;
 ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_get(dbr));
 			if (consumer->rsock >= 0) {
 				ssa_db_update_init(dbr, svc, consumer->lid,
@@ -3351,6 +3375,8 @@ static void *ssa_access_handler(void *context)
 
 	SET_THREAD_NAME(*access_thread, "ACCESS");
 
+	update_waiting = 0;
+
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
@@ -3413,8 +3439,6 @@ static void *ssa_access_handler(void *context)
 		pfd->events = POLLIN;
 		pfd->revents = 0;
 	}
-	access_update_pending = 0;
-	access_update_waiting = 0;
 
 	for (;;) {
 		ret = poll((struct pollfd *)fds,
@@ -3459,24 +3483,17 @@ static void *ssa_access_handler(void *context)
 			switch (msg.hdr.type) {
 			case SSA_DB_UPDATE_PREPARE:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract\n");
-if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
-				if (ssa_access_prdb_xfer_in_progress()) {
-ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
-					access_update_pending = 1;
-				} else {
-ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
-					access_update_waiting = 1;
-if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
-					ssa_send_db_update_ready(msg.data.db_upd.db,
-								 sock_accessextract[1]);
-				}
+if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+				update_waiting = 1;
+				ssa_send_db_update_ready(msg.data.db_upd.db,
+						sock_accessextract[1]);
 				break;
 			case SSA_DB_UPDATE:
 				db = ref_count_object_get(msg.data.db_upd.db);
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from extract: ssa_db %p flags 0x%x epoch 0x%" PRIx64 "\n",
 					db, msg.data.db_upd.flags, msg.data.db_upd.epoch);
-				access_update_waiting = 0;
+				update_waiting = 0;
 				if (!(msg.data.db_upd.flags & SSA_DB_UPDATE_CHANGE))
 					break;
 #ifdef ACCESS
@@ -3536,24 +3553,17 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 				switch (msg.hdr.type) {
 				case SSA_DB_UPDATE_PREPARE:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream\n");
-if (access_update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
-					if (ssa_access_prdb_xfer_in_progress()) {
-ssa_log(SSA_LOG_DEFAULT, "%d PRDB transfers currently in progress\n", atomic_get(&prdb_xfers_in_progress));
-						access_update_pending = 1;
-                                	} else {
-ssa_log(SSA_LOG_DEFAULT, "No PRDB transfer currently in progress\n");
-						access_update_waiting = 1;
-if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
-						ssa_send_db_update_ready(msg.data.db_upd.db,
-									 svc_arr[i]->sock_accessup[1]);
-					}
+if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
+					update_waiting = 1;
+					ssa_send_db_update_ready(msg.data.db_upd.db,
+							svc_arr[i]->sock_accessup[1]);
 					break;
 				case SSA_DB_UPDATE:
 					db = ref_count_object_get(msg.data.db_upd.db);
 					ssa_log(SSA_LOG_DEFAULT,
 						"SSA DB update from upstream thread: ssa_db %p\n",
 						db);
-					access_update_waiting = 0;
+					update_waiting = 0;
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
 					if (NULL == access_context.smdb)
@@ -3630,21 +3640,25 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 						continue;
 					}
 
-					if (access_update_pending || access_update_waiting) {
+					if (update_waiting) {
 						ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-							"access update pending %d or waiting %d "
+							"access update waiting %d "
 							"PRDB will be calculated after the update",
-							access_update_pending, access_update_waiting);
+							update_waiting);
 						continue;
 					}
 
 					if (access_context.smdb) {
 						if (consumer->prdb_current) {
 							/* Is SMDB epoch same as when PRDB was last calculated ? */
-							if (consumer->smdb_epoch ==
+							/*
+							 *  !!!! REMOVE !!!!
+							 *  It's temporary solution
+							 */
+							if (/*consumer->smdb_epoch ==
 							    ssa_db_get_epoch(access_context.smdb,
-									     DB_DEF_TBL_ID)) {
-								prdb = ref_count_object_get(consumer->prdb_current);
+									     DB_DEF_TBL_ID)*/0) {
+								prdb = consumer->prdb_current;
 								goto skip_prdb_calc;
 							}
 						}
@@ -3661,12 +3675,10 @@ if (access_update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\
 							"GID %s LID %u rsock %d PRDB %p calculation complete\n",
 							log_data, msg.data.conn->remote_lid, msg.data.conn->rsock, prdb);
 skip_prdb_calc:
-						consumer->smdb_epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
 						dbr = malloc(sizeof(*dbr));
 						if (dbr) {
 							ref_count_obj_init(dbr,
 									   prdb);
-							consumer->prdb_current = dbr;
 							if (msg.data.conn->rsock >= 0) {
 								ssa_db_update_init(dbr,
 										   svc_arr[i],
@@ -5354,7 +5366,6 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t p
 	ssa->node_type = node_type;
 	ssa->dev_size = dev_size;
 	ssa->port_size = port_size;
-	atomic_init(&prdb_xfers_in_progress);
 	ret = umad_init();
 	if (ret)
 		return ret;
