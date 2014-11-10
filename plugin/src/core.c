@@ -406,14 +406,18 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member, int lev
 	else /* member is orphan */
 		snprintf(parent, sizeof parent, "no parent");
 
-	if (((level & SSA_DTREE_CORE) && (member_rec->node_type & SSA_NODE_CORE)) ||
-	    ((level & SSA_DTREE_DISTRIB) && (member_rec->node_type & SSA_NODE_DISTRIBUTION)))
+	if (((level & SSA_DTREE_CORE) &&
+	     (member_rec->node_type & SSA_NODE_CORE)) ||
+	    ((level & SSA_DTREE_DISTRIB) &&
+	     (member_rec->node_type & SSA_NODE_DISTRIBUTION)))
 		snprintf(children, sizeof children,
 			 " [ children %d ]", member->child_num);
-	else if ((level & SSA_DTREE_ACCESS) && (member_rec->node_type & SSA_NODE_ACCESS))
+	else if ((level & SSA_DTREE_ACCESS) &&
+		 (member_rec->node_type & SSA_NODE_ACCESS))
 		snprintf(children, sizeof children,
 			 " [ children %d ]", member->access_child_num);
-	else if ((level & SSA_DTREE_CONSUMER) && (member_rec->node_type & SSA_NODE_CONSUMER))
+	else if ((level & SSA_DTREE_CONSUMER) &&
+		 (member_rec->node_type & SSA_NODE_CONSUMER))
 		snprintf(children, sizeof children, "[ no children ]");
 
 	ssa_sprint_addr(SSA_LOG_DEFAULT, addr, sizeof addr, SSA_ADDR_GID,
@@ -424,7 +428,8 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member, int lev
 		       addr, member->lid, member->sl,
 		       ntohll(member_rec->database_id), parent, children);
 	if (ret >= buf_size)
-		ssa_log_warn(SSA_LOG_DEFAULT, "output buffer size is not sufficient\n");
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			     "output buffer size is not sufficient\n");
 
 	return ret;
 }
