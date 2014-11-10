@@ -190,10 +190,9 @@ static void ssa_access_wait_for_tasks_completion();
 static void ssa_access_process_task(struct ssa_access_task *task);
 #endif
 
-
 static void g_rclose_callback(gint rsock, gpointer user_data)
 {
-	(void)user_data;
+	(void) user_data;
 	ssa_log(SSA_LOG_DEFAULT, "closing rsock %d\n", GPOINTER_TO_INT(rsock));
 	rclose(GPOINTER_TO_INT(rsock));
 	ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", GPOINTER_TO_INT(rsock));
