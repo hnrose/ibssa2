@@ -175,9 +175,11 @@ static int DListCount(DLIST_ENTRY *list)
  * There is join order dependency in the current algorithm.
  * The current assumption is that distribution tree (core,
  * distribution, and access nodes) come up prior to compute
- * nodes.
+ * nodes. This is so-call "structured" bringup. In the
+ * future, as part of resiliency work, unstructured bringup
+ * will be supported.
  *
- * Note that there is currently no rebalancing. Balancing
+ * Note also that there is currently no rebalancing. Balancing
  * only occurs on join to subnet and not on leaves from subnet.
  * This will be further investigated when fault/error handling
  * is added. Also, there is no way currently for the core
@@ -190,7 +192,8 @@ static int DListCount(DLIST_ENTRY *list)
  * may change depending on how reconnection ends up working.
  *
  * Also, for now, if child is consumer node and there is no
- * access node, this is an error.
+ * access node, this is an error and the child needs to
+ * rety the join.
  *
  * Subsequent version may be based on some maximum number of hops
  * allowed between child and parent but this requires similar
