@@ -3994,6 +3994,30 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
 	return 0;
 }
 
+static void ssa_rsock_enable_keepalive(int rsock, int keepalive)
+{
+	int val, ret;
+
+	if (keepalive) {
+		val = 1;
+		ret = rsetsockopt(rsock, SOL_SOCKET, SO_KEEPALIVE,
+				  (void *) &val, sizeof(val));
+		if (ret)
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"rsetsockopt rsock %d SO_KEEPALIVE ERROR %d (%s)\n",
+				rsock, errno, strerror(errno));
+		else {
+			val = keepalive;
+			ret = rsetsockopt(rsock, IPPROTO_TCP, TCP_KEEPIDLE,
+					  (void *) &val, sizeof(val));
+			if (ret)
+				ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+					"rsetsockopt rsock %d TCP_KEEPIDLE ERROR %d (%s)\n",
+					rsock, errno, strerror(errno));
+		}
+	}
+}
+
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 {
 	struct ssa_conn *conn_listen;
@@ -4075,24 +4099,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		return -1;
 	}
 
-	if (keepalive) {
-		val = 1;
-		ret = rsetsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
-				  (void *) &val, sizeof(val));
-		if (ret)
-			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-				"rsetsockopt rsock %d SO_KEEPALIVE ERROR %d (%s)\n",
-				fd, errno, strerror(errno));
-		else {
-			val = keepalive;
-			ret = rsetsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE,
-					  (void *) &val, sizeof(val)); 
-			if (ret)
-				ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-					"rsetsockopt rsock %d TCP_KEEPIDLE ERROR %d (%s)\n",
-					fd, errno, strerror(errno));
-		}
-	}
+	ssa_rsock_enable_keepalive(fd, keepalive);
 
 	val = 1;
 	ret = rsetsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
