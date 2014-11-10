@@ -4177,6 +4177,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 			svc->conn_dataup.rsock, errno, strerror(errno));
 		goto close;
 	}
+
 	if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
 		ret = rsetsockopt(svc->conn_dataup.rsock, SOL_RDMA,
 				  RDMA_IOMAPSIZE, (void *) &val, sizeof(val));
@@ -4186,6 +4187,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 				svc->conn_dataup.rsock, errno, strerror(errno));
 		}
 	}
+
 	ret = rfcntl(svc->conn_dataup.rsock, F_SETFL, O_NONBLOCK);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
