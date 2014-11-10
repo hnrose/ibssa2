@@ -82,6 +82,33 @@
 #define ACM_FAKE_RSOCKET_ID 0
 #endif
 
+struct ssa_db_update_record {
+	DLIST_ENTRY		list_entry;
+	struct ssa_db_update	db_upd;
+};
+
+struct ssa_db_update_queue {
+	pthread_mutex_t		lock;
+	pthread_mutex_t		cond_lock;
+	pthread_cond_t		cond_var;
+	DLIST_ENTRY		list;
+};
+
+struct ssa_access_context {
+	struct ssa_db			*smdb;
+	void				*context;
+	GThreadPool			*g_th_pool;
+	pthread_cond_t			th_pool_cond;
+	pthread_mutex_t			th_pool_mtx;
+	int				num_workers;
+	atomic_t			num_tasks;
+};
+
+struct ssa_access_task {
+	struct ssa_access_member *consumer;
+	struct ssa_svc *svc;
+};
+
 static struct ref_count_obj *smdb;
 static uint64_t epoch;
 

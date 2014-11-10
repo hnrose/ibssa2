@@ -50,7 +50,6 @@
 #ifdef ACM
 #include <acm_shared.h>
 #endif
-#include <glib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -197,33 +196,6 @@ struct ssa_conn {
 	volatile be64_t		prdb_epoch;
 	uint32_t		epoch_len;
 	uint16_t		remote_lid;
-};
-
-struct ssa_db_update_record {
-	DLIST_ENTRY		list_entry;
-	struct ssa_db_update	db_upd;
-};
-
-struct ssa_db_update_queue {
-	pthread_mutex_t		lock;
-	pthread_mutex_t		cond_lock;
-	pthread_cond_t		cond_var;
-	DLIST_ENTRY		list;
-};
-
-struct ssa_access_context {
-	struct ssa_db			*smdb;
-	void				*context;
-	GThreadPool 			*g_th_pool;
-	pthread_cond_t 			th_pool_cond;
-	pthread_mutex_t 		th_pool_mtx;
-	int				num_workers;
-	atomic_t			num_tasks;
-};
-
-struct ssa_access_task {
-	struct ssa_access_member *consumer;
-	struct ssa_svc *svc;
 };
 
 enum ssa_svc_state {
