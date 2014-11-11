@@ -2959,6 +2959,13 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 						access_context.context,
 						consumer->gid.global.interface_id,
 						&prdb_copy);
+		if (ret != SSA_PR_SUCCESS) {
+			ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+					SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "PRDB copy not created for GID %s\n",
+				     log_data);
+		}
 
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
