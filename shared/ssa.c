@@ -2670,8 +2670,8 @@ static void *ssa_downstream_handler(void *context)
 						} else
 							prdb_destroy = ssa_db;
 
-						if (prdb_destroy != NULL)
-							ssa_db_destroy(prdb_destroy);
+						ssa_db_destroy(prdb_destroy);
+
 						/*
 						 * TODO: Destroy ref. counting object: msg.data.db_upd.db
 						 * Or, it could be changed to row pointer.
@@ -2700,8 +2700,8 @@ static void *ssa_downstream_handler(void *context)
 						"DB update for GID %s currently not connected\n",
 						log_data);
 					prdb_destroy  = ref_count_object_get(msg.data.db_upd.db);
-					if (prdb_destroy != NULL)
-						ssa_db_destroy(prdb_destroy);
+					ssa_db_destroy(prdb_destroy);
+
 					/*
 					 * TODO: Destroy ref. counting object: msg.data.db_upd.db
 					 * Or, it could be changed to row pointer.
@@ -3020,8 +3020,7 @@ skip_db_save:
 		 */
 		ssa_db_set_epoch(prdb_copy, DB_DEF_TBL_ID, prdb_epoch);
 		consumer->smdb_epoch = epoch;
-		if (consumer->prdb_current != NULL)
-			ssa_db_destroy(consumer->prdb_current);
+		ssa_db_destroy(consumer->prdb_current);
 		consumer->prdb_current = prdb;
 	}
 	return prdb_copy;
