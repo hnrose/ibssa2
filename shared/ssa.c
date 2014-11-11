@@ -2931,23 +2931,6 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					access_context.context,
 					consumer->gid.global.interface_id,
 					&prdb);
-	if (ret == SSA_PR_SUCCESS) {
-		/*
-		 * TODO: Compare prdb and consumer->prdb_current
-		 *       Create ssa_db_cmp function.
-		 *       If prdb is "equal" to consumer->prdb_current
-		 *       return NULL.
-		 */
-		/*
-		 * !!!!! REMOVE !!!!
-		 * It's a temporary solution
-		 * It should be ssa_db_copy function
-		 */
-		ret = ssa_pr_compute_half_world(access_context.smdb,
-						access_context.context,
-						consumer->gid.global.interface_id,
-						&prdb_copy);
-	}
 	if (ret == SSA_PR_PORT_ABSENT) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 				SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
@@ -2961,6 +2944,22 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 				     ". Last used epoch 0x%" PRIx64 "\n",
 				     log_data, epoch, consumer->smdb_epoch);
 	} else if (ret == SSA_PR_SUCCESS) {
+                /*
+		 * TODO: Compare prdb and consumer->prdb_current
+		 *       Create ssa_db_comp function.
+		 *       If prdb is "equal" to consumer->prdb_current
+		 *       return NULL.
+		 */
+                /*
+		 * !!!!! REMOVE !!!!
+		 * It's a temporary solution
+		 * It should be ssa_db_copy function
+		 */
+		ret = ssa_pr_compute_half_world(access_context.smdb,
+						access_context.context,
+						consumer->gid.global.interface_id,
+						&prdb_copy);
+
 		if (prdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
 				     "%s.", prdb_dump_dir);
