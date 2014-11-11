@@ -1590,7 +1590,7 @@ static void *ssa_upstream_handler(void *context)
 #endif
 
 			switch (msg.hdr.type) {
-                        case SSA_DB_UPDATE_READY:
+			case SSA_DB_UPDATE_READY:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
