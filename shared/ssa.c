@@ -3010,8 +3010,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 
 skip_db_save:
 	if (prdb != NULL) {
-		prdb_epoch++;
-		if (prdb_epoch == DB_EPOCH_INVALID)
+		if (++prdb_epoch == DB_EPOCH_INVALID)
 			prdb_epoch++;
 		ssa_db_set_epoch(prdb, DB_DEF_TBL_ID, prdb_epoch);
 		/*
