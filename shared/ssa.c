@@ -3929,11 +3929,14 @@ static void ssa_ctrl_port_send(struct ssa_port *port, struct ssa_ctrl_msg *msg)
 			ssa_log_err(SSA_LOG_CTRL,
 				    "%d out of %d bytes written to upstream\n",
 				    ret, msg->len);
-		ret = write(port->svc[i]->sock_downctrl[0], msg, msg->len);
-		if (ret != msg->len)
-			ssa_log_err(SSA_LOG_CTRL,
-				    "%d out of %d bytes written to downstream\n",
-				    ret, msg->len);
+		if (port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
+			ret = write(port->svc[i]->sock_downctrl[0],
+				    msg, msg->len);
+			if (ret != msg->len)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d bytes written to downstream\n",
+					    ret, msg->len);
+		}
 	}
 }
 
@@ -4140,7 +4143,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
 			    ret, msg.hdr.len);
 
-	if (parent)
+	if (parent && port->dev->ssa->node_type != SSA_NODE_CONSUMER)
 		ssa_ctrl_send_listen(svc);
 }
 
