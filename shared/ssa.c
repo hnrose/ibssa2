@@ -696,10 +696,12 @@ int ssa_upstream_query_db(struct ssa_svc *svc)
 	if (ret != sizeof(msg))
 		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
 			    ret, sizeof(msg));
-	ret = read(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
-	if (ret != sizeof(msg))
-		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes read\n",
-			    ret, sizeof(msg));
+	else {
+		ret = read(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
+		if (ret != sizeof(msg))
+			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes read\n",
+				    ret, sizeof(msg));
+	}
 	return msg.status;
 }
 #endif
@@ -4698,10 +4700,12 @@ void ssa_ctrl_stop(struct ssa_class *ssa)
 		if (ret != sizeof msg)
 			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
 				    ret, sizeof msg);
-		ret = read(ssa->sock[0], (char *) &msg, sizeof msg);
-		if (ret != sizeof msg)
-			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes read\n",
-				    ret, sizeof msg);
+		else {
+			ret = read(ssa->sock[0], (char *) &msg, sizeof msg);
+			if (ret != sizeof msg)
+				ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes read\n",
+					    ret, sizeof msg);
+		}
 		close(ssa->sock[0]);
 	}
 
