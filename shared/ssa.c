@@ -144,7 +144,7 @@ int fake_acm_num = 0;
 
 /*
  * needed for ssa_pr_create_context()
- * eliminate after access layer integration
+ * eliminate in the future
  */
 extern FILE *flog;
 
