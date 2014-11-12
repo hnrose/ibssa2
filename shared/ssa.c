@@ -178,7 +178,6 @@ static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc,
 					     struct pollfd **fds);
 static void ssa_close_port(struct ssa_port *port);
-static void g_rclose_callback(gint id, gpointer user_data);
 #ifdef ACCESS
 static void ssa_db_update_init(struct ref_count_obj *db, struct ssa_svc *svc,
 			       uint16_t remote_lid, union ibv_gid *remote_gid,
