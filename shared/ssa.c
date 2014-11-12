@@ -646,6 +646,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 			    conn->rsock, g_error->message);
 		g_error_free(g_error);
 	}
+
 	conn->rsock = -1;
 	conn->dbtype = SSA_CONN_NODB_TYPE;
 	conn->state = SSA_CONN_IDLE;
