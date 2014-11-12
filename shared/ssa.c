@@ -503,7 +503,9 @@ int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 	return ret;
 }
 
-static void ssa_upstream_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg, struct pollfd *pfd)
+static void ssa_upstream_dev_event(struct ssa_svc *svc,
+				   struct ssa_ctrl_msg_buf *msg,
+				   struct pollfd *pfd)
 {
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name,
 		ibv_event_type_str(msg->data.event));
@@ -2594,12 +2596,12 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 static void *ssa_downstream_handler(void *context)
 {
 	struct ssa_svc *svc = context;
-	struct ssa_ctrl_msg_buf msg;
 	struct pollfd **fds;
 	struct pollfd *pfd, *pfd2;
 	struct ssa_conn *conn;
 	struct ssa_db *ssa_db;
 	int ret, i;
+	struct ssa_ctrl_msg_buf msg;
 
 	SET_THREAD_NAME(svc->downstream, "DN %s", svc->name);
 
@@ -2738,7 +2740,8 @@ static void *ssa_downstream_handler(void *context)
 						sizeof msg.data.db_upd.remote_gid.raw);
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from access: rsock %d GID %s LID %u ssa_db %p epoch 0x%" PRIx64 "\n",
-					msg.data.db_upd.rsock, log_data, msg.data.db_upd.remote_lid,
+					msg.data.db_upd.rsock, log_data,
+					msg.data.db_upd.remote_lid,
 					msg.data.db_upd.db, msg.data.db_upd.epoch);
 				conn = NULL;
 				/* Use rsock in DB update msg as hint */
@@ -3051,11 +3054,10 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 {
 	struct ssa_db *prdb = NULL;
 	struct ssa_db *prdb_copy = NULL;
-	int n;
+	int n, ret;
+	uint64_t epoch, prdb_epoch;
 	char dump_dir[1024];
 	struct stat dstat;
-	uint64_t epoch, prdb_epoch;
-	int ret;
 
 	epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
 	if (consumer->prdb_current != NULL)
@@ -3070,7 +3072,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					&prdb);
 	if (ret == SSA_PR_PORT_ABSENT) {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-				SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
+				SSA_ADDR_GID, consumer->gid.raw,
+				sizeof consumer->gid.raw);
 		if (consumer->smdb_epoch == DB_EPOCH_INVALID)
 			ssa_log_warn(SSA_LOG_DEFAULT,
 				     "GID %s not found in SMDB with epoch 0x%" PRIx64 "\n",
@@ -3098,7 +3101,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 						&prdb_copy);
 		if (ret != SSA_PR_SUCCESS) {
 			ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-					SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
+					SSA_ADDR_GID, consumer->gid.raw,
+					sizeof consumer->gid.raw);
 			ssa_log_warn(SSA_LOG_DEFAULT,
 				     "PRDB copy not created for GID %s\n",
 				     log_data);
@@ -3114,11 +3118,13 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 				if (mkdir(dump_dir, 0755)) {
 					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
 							sizeof log_data,
-							SSA_ADDR_GID, consumer->gid.raw,
+							SSA_ADDR_GID,
+							consumer->gid.raw,
 							sizeof consumer->gid.raw);
 					ssa_log_err(SSA_LOG_CTRL,
 						    "prdb dump to %s for GID %s: %d (%s)\n",
-						    dump_dir, log_data, errno, strerror(errno));
+						    dump_dir, log_data,
+						    errno, strerror(errno));
 					goto skip_db_save;
 				}
 			}
@@ -3126,7 +3132,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		}
 	} else {
 		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-				SSA_ADDR_GID, consumer->gid.raw, sizeof consumer->gid.raw);
+				SSA_ADDR_GID, consumer->gid.raw,
+				sizeof consumer->gid.raw);
 		ssa_log(SSA_LOG_DEFAULT,
 			"PRDB calculation for GID %s failed for SMDB with epoch 0x%" PRIx64 "\n",
 			log_data, epoch);
@@ -3142,10 +3149,12 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 							sizeof consumer->gid.raw);
 					ssa_log_err(SSA_LOG_CTRL,
 							"smdb error dump to %s for GID %s: %d (%s)\n",
-							dump_dir, log_data, errno, strerror(errno));
+							dump_dir, log_data,
+							errno, strerror(errno));
 					goto skip_db_save;
 				}
-				ssa_db_save(dump_dir, access_context.smdb, err_smdb_dump);
+				ssa_db_save(dump_dir, access_context.smdb,
+					    err_smdb_dump);
 			}
 			ssa_log(SSA_LOG_DEFAULT, "SMDB dump %s\n", dump_dir);
 		}
@@ -5272,7 +5281,7 @@ err:
 }
 
 static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
-			 struct ibv_device *ibdev)
+			struct ibv_device *ibdev)
 {
 	struct ibv_device_attr attr;
 	struct ibv_port_attr port_attr;
@@ -5612,7 +5621,8 @@ void ssa_daemonize(void)
 	freopen("/dev/null", "w", stderr);
 }
 
-int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size, size_t port_size)
+int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
+	     size_t port_size)
 {
 	int ret;
 	GError *g_error = NULL;
