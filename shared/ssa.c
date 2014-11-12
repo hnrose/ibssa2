@@ -1772,12 +1772,16 @@ out:
 	return NULL;
 }
 
-static void ssa_downstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
+static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
+				int gone)
 {
 	struct ssa_conn_done_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
-	msg.hdr.type = SSA_CONN_DONE;
+	if (gone)
+		msg.hdr.type = SSA_CONN_GONE;
+	else
+		msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
 	msg.conn = conn;
 	write(svc->sock_accessdown[0], (char *) &msg, sizeof msg);
@@ -2331,14 +2335,20 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just decremented
 
 		if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
 			ssa_close_ssa_conn(conn);
+			ssa_downstream_conn(svc, conn, 1);
 		} else if (conn->dbtype == SSA_CONN_SMDB_TYPE) {
 			ssa_close_ssa_conn(conn);
 ssa_log(SSA_LOG_DEFAULT, "SMDB transfer in progress %d update pending %d\n", ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds, FD_SETSIZE), update_pending);
 			if (update_pending)
 				ssa_downstream_smdb_update_ready(conn, svc, fds);
 		}
-	} else
-		ssa_close_ssa_conn(conn);
+	} else {
+		if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
+			ssa_close_ssa_conn(conn);
+			ssa_downstream_conn(svc, conn, 1);
+		} else
+			ssa_close_ssa_conn(conn);
+	}
 }
 
 static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
@@ -2363,7 +2373,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 					pfd->fd = fd;
 					pfd->events = POLLIN;
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
-						ssa_downstream_conn_done(svc, conn_data);
+						ssa_downstream_conn(svc, conn_data, 0);
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
 						if (!update_pending && !update_waiting)
 							pfd->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
@@ -3709,6 +3719,16 @@ skip_prdb_calc:
 						ssa_log(SSA_LOG_CTRL,
 							"smdb database is empty\n");
 #endif
+					break;
+				case SSA_CONN_GONE:
+					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+							log_data, sizeof log_data,
+							SSA_ADDR_GID,
+							msg.data.conn->remote_gid.raw,
+							sizeof msg.data.conn->remote_gid.raw);
+					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+						"connection from GID %s LID %u gone\n",
+						log_data, msg.data.conn->remote_lid);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
