@@ -683,27 +683,38 @@ struct ssa_svc *ssa_get_svc(struct ssa_port *port, int index)
 
 int ssa_upstream_query_db(struct ssa_svc *svc)
 {
+	int ret;
 	struct ssa_db_query_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_DB_QUERY;
 	msg.hdr.len = sizeof(msg);
 	msg.status = 0;
-	write(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
-	read(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
+	ret = write(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
+	if (ret != sizeof(msg))
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof(msg));
+	ret = read(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
+	if (ret != sizeof(msg))
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes read\n",
+			    ret, sizeof(msg));
 	return msg.status;
 }
 #endif
 
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status)
 {
+	int ret;
 	struct ssa_db_query_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_DB_QUERY;
 	msg.hdr.len = sizeof(msg);
 	msg.status = status;
-	write(svc->sock_upmain[1], (char *) &msg, sizeof(msg));
+	ret = write(svc->sock_upmain[1], (char *) &msg, sizeof(msg));
+	if (ret != sizeof(msg))
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof(msg));
 }
 
 static void ssa_upstream_update_phase(struct ssa_conn *conn, uint16_t op)
@@ -1099,7 +1110,7 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc,
 					       struct ref_count_obj *db)
 {
-	int count = 0;
+	int count = 0, ret;
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -1115,12 +1126,20 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc,
 	msg.db_upd.epoch = DB_EPOCH_INVALID;
 
 	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
-		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
+		ret = write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
+		if (ret != sizeof(msg))
+			ssa_log_err(SSA_LOG_CTRL,
+				    "%d out of %d bytes written to access\n",
+				    ret, sizeof(msg));
 		count++;
 	}
 
 	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
-		write(svc->sock_updown[0], (char *) &msg, sizeof(msg));
+		ret = write(svc->sock_updown[0], (char *) &msg, sizeof(msg));
+		if (ret != sizeof(msg))
+			ssa_log_err(SSA_LOG_CTRL,
+				    "%d out of %d bytes written to downstream\n",
+				    ret, sizeof(msg));
 		count++;
 	}
 
@@ -1131,6 +1150,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc,
 					struct ref_count_obj *db, int flags,
 					union ibv_gid *gid, uint64_t epoch)
 {
+	int ret;
 	struct ssa_db_update_msg msg;
 
 	msg.hdr.type = SSA_DB_UPDATE;
@@ -1144,10 +1164,20 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc,
 		memset(&msg.db_upd.remote_gid, 0, 16);
 	msg.db_upd.remote_lid = 0;
 	msg.db_upd.epoch = epoch;
-	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS)
-		write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
-	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION)
-		write(svc->sock_updown[0], (char *) &msg, sizeof(msg));
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
+		ret = write(svc->sock_accessup[0], (char *) &msg, sizeof(msg));
+		if (ret != sizeof(msg))
+			ssa_log_err(SSA_LOG_CTRL,
+				    "%d out of %d bytes written to access\n",
+				    ret, sizeof(msg));
+	}
+	if (svc->port->dev->ssa->node_type & SSA_NODE_DISTRIBUTION) {
+		ret = write(svc->sock_updown[0], (char *) &msg, sizeof(msg));
+		if (ret != sizeof(msg))
+			ssa_log_err(SSA_LOG_CTRL,
+				    "%d out of %d bytes written to downstream\n",
+				    ret, sizeof(msg));
+	}
 	if (svc->process_msg)
 		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg);
 }
@@ -1477,7 +1507,10 @@ static void *ssa_upstream_handler(void *context)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
-	write(svc->sock_upctrl[1], (char *) &msg, sizeof msg.hdr);
+	ret = write(svc->sock_upctrl[1], (char *) &msg, sizeof msg.hdr);
+	if (ret != sizeof msg.hdr)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg.hdr);
 
 	fds[0].fd = svc->sock_upctrl[1];
 	fds[0].events = POLLIN;
@@ -1511,11 +1544,21 @@ static void *ssa_upstream_handler(void *context)
 		errnum = errno;
 		if (fds[0].revents) {
 			fds[0].revents = 0;
-			read(svc->sock_upctrl[1], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_upctrl[1], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from ctrl\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_upctrl[1],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_upctrl[1],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from ctrl\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 			if (svc->process_msg && svc->process_msg(svc, &msg))
 				continue;
@@ -1577,11 +1620,21 @@ static void *ssa_upstream_handler(void *context)
 
 		if (fds[1].revents) {
 			fds[1].revents = 0;
-			read(svc->sock_accessup[0], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_accessup[0], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from access\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_accessup[0],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_accessup[0],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from access\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -1612,11 +1665,21 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 
 		if (fds[2].revents) {
 			fds[2].revents = 0;
-			read(svc->sock_upmain[1], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_upmain[1], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from main\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_upmain[1],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_upmain[1],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from main\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -1663,11 +1726,21 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 
 		if (fds[3].revents) {
 			fds[3].revents = 0;
-			read(svc->sock_updown[0], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_updown[0], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from downstream\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_updown[0],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_updown[0],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from downstream\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -1775,6 +1848,7 @@ out:
 static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 				int gone)
 {
+	int ret;
 	struct ssa_conn_done_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -1784,7 +1858,10 @@ static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 		msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
 	msg.conn = conn;
-	write(svc->sock_accessdown[0], (char *) &msg, sizeof msg);
+	ret = write(svc->sock_accessdown[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
 }
 
 static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
@@ -2468,6 +2545,7 @@ static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
 
 static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd)
 {
+	int ret;
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -2479,7 +2557,10 @@ static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd)
 	memset(&msg.db_upd.remote_gid, 0, sizeof(msg.db_upd.remote_gid));
 	msg.db_upd.remote_lid = 0;
 	msg.db_upd.epoch = DB_EPOCH_INVALID;
-	write(fd, (char *) &msg, sizeof(msg));
+	ret = write(fd, (char *) &msg, sizeof(msg));
+	if (ret != sizeof(msg))
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof(msg));
 }
 
 static void ssa_downstream_dev_event(struct ssa_svc *svc,
@@ -2525,7 +2606,10 @@ static void *ssa_downstream_handler(void *context)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
-	write(svc->sock_downctrl[1], (char *) &msg, sizeof msg.hdr);
+	ret = write(svc->sock_downctrl[1], (char *) &msg, sizeof msg.hdr);
+	if (ret != sizeof msg.hdr)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg.hdr);
 
 	fds = calloc(FD_SETSIZE, sizeof(**fds));
 	if (!fds)
@@ -2573,11 +2657,21 @@ static void *ssa_downstream_handler(void *context)
 		pfd = (struct pollfd *)fds;
 		if (pfd->revents) {
 			pfd->revents = 0;
-			read(svc->sock_downctrl[1], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_downctrl[1], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from ctrl\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_downctrl[1],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_downctrl[1],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from ctrl\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -2615,11 +2709,21 @@ static void *ssa_downstream_handler(void *context)
 		pfd = (struct pollfd *)(fds + 1);
 		if (pfd->revents) {
 			pfd->revents = 0;
-			read(svc->sock_accessdown[0], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_accessdown[0], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from access\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_accessdown[0],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_accessdown[0],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from access\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -2730,11 +2834,21 @@ static void *ssa_downstream_handler(void *context)
 		pfd = (struct pollfd *)(fds + 2);
 		if (pfd->revents) {
 			pfd->revents = 0;
-			read(svc->sock_updown[1], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_updown[1], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from upstream\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_updown[1],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_updown[1],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from upstream\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -2782,11 +2896,21 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 		pfd = (struct pollfd *)(fds + 3);
 		if (pfd->revents) {
 			pfd->revents = 0;
-			read(svc->sock_extractdown[0], (char *) &msg, sizeof msg.hdr);
+			ret = read(svc->sock_extractdown[0], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from extract\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(svc->sock_extractdown[0],
-				     (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(svc->sock_extractdown[0],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from extract\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
 			if (svc->process_msg && svc->process_msg(svc, &msg))
@@ -2900,6 +3024,7 @@ static void ssa_access_send_db_update(struct ssa_svc *svc,
 				      int flags, uint16_t remote_lid,
 				      union ibv_gid *remote_gid)
 {
+	int ret;
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -2915,7 +3040,10 @@ static void ssa_access_send_db_update(struct ssa_svc *svc,
 		memset(&msg.db_upd.remote_gid, 0, 16);
 	msg.db_upd.remote_lid = remote_lid;
 	msg.db_upd.epoch = DB_EPOCH_INVALID;	/* not used */
-	write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
+	ret = write(svc->sock_accessdown[1], (char *) &msg, sizeof(msg));
+	if (ret != sizeof(msg))
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof(msg));
 }
 
 static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
@@ -3393,7 +3521,10 @@ static void *ssa_access_handler(void *context)
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
-	write(sock_accessctrl[1], (char *) &msg, sizeof msg.hdr);
+	ret = write(sock_accessctrl[1], (char *) &msg, sizeof msg.hdr);
+	if (ret != sizeof msg.hdr)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg.hdr);
 
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
@@ -3466,10 +3597,21 @@ static void *ssa_access_handler(void *context)
 		pfd = (struct pollfd *)fds;
 		if (pfd->revents) {
 			pfd->revents = 0;
-			read(sock_accessctrl[1], (char *) &msg, sizeof msg.hdr);
+			ret = read(sock_accessctrl[1], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from ctrl\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(sock_accessctrl[1], (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(sock_accessctrl[1],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from ctrl\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 
 			switch (msg.hdr.type) {
@@ -3487,10 +3629,21 @@ static void *ssa_access_handler(void *context)
 		pfd = (struct pollfd *)(fds + 1);
 		if (pfd->revents) {
 			pfd->revents = 0;
-			read(sock_accessextract[1], (char *) &msg, sizeof msg.hdr);
+			ret = read(sock_accessextract[1], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from extract\n",
+					    ret, sizeof msg.hdr);
 			if (msg.hdr.len > sizeof msg.hdr) {
-				read(sock_accessextract[1], (char *) &msg.hdr.data,
-				     msg.hdr.len - sizeof msg.hdr);
+				ret = read(sock_accessextract[1],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from extract\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
 			}
 
 			switch (msg.hdr.type) {
@@ -3550,12 +3703,21 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 						i * ACCESS_FDS_PER_SERVICE);
 			if (pfd->revents) {
 				pfd->revents = 0;
-				read(svc_arr[i]->sock_accessup[1],
-				     (char *) &msg, sizeof msg.hdr);
+				ret = read(svc_arr[i]->sock_accessup[1],
+					   (char *) &msg, sizeof msg.hdr);
+				if (ret != sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d header bytes read from upstream\n",
+						    ret, sizeof msg.hdr);
 				if (msg.hdr.len > sizeof msg.hdr) {
-					read(svc_arr[i]->sock_accessup[1],
-					     (char *) &msg.hdr.data,
-					     msg.hdr.len - sizeof msg.hdr);
+					ret = read(svc_arr[i]->sock_accessup[1],
+						   (char *) &msg.hdr.data,
+						   msg.hdr.len - sizeof msg.hdr);
+					if (ret != msg.hdr.len - sizeof msg.hdr)
+						ssa_log_err(SSA_LOG_CTRL,
+							    "%d out of %d additional bytes read from upstream\n",
+							    ret,
+							    msg.hdr.len - sizeof msg.hdr);
 				}
 #if 0
 				if (svc_arr[i]->process_msg &&
@@ -3615,12 +3777,21 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 						i * ACCESS_FDS_PER_SERVICE + 1);
 			if (pfd->revents) {
 				pfd->revents = 0;
-				read(svc_arr[i]->sock_accessdown[1],
-				     (char *) &msg, sizeof msg.hdr);
+				ret = read(svc_arr[i]->sock_accessdown[1],
+					   (char *) &msg, sizeof msg.hdr);
+				if (ret != sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d header bytes read from downstream\n",
+						    ret, sizeof msg.hdr);
 				if (msg.hdr.len > sizeof msg.hdr) {
-					read(svc_arr[i]->sock_accessdown[1],
-					     (char *) &msg.hdr.data,
-					     msg.hdr.len - sizeof msg.hdr);
+					ret = read(svc_arr[i]->sock_accessdown[1],
+						   (char *) &msg.hdr.data,
+						   msg.hdr.len - sizeof msg.hdr);
+					if (ret != msg.hdr.len - sizeof msg.hdr)
+						ssa_log_err(SSA_LOG_CTRL,
+							    "%d out of %d additional bytes read from downstream\n",
+							    ret,
+							    msg.hdr.len - sizeof msg.hdr);
 				}
 #if 0
 				if (svc_arr[i]->process_msg &&
@@ -3751,10 +3922,18 @@ out:
 
 static void ssa_ctrl_port_send(struct ssa_port *port, struct ssa_ctrl_msg *msg)
 {
-	int i;
+	int i, ret;
 	for (i = 0; i < port->svc_cnt; i++) {
-		write(port->svc[i]->sock_upctrl[0], msg, msg->len);
-		write(port->svc[i]->sock_downctrl[0], msg, msg->len);
+		ret = write(port->svc[i]->sock_upctrl[0], msg, msg->len);
+		if (ret != msg->len)
+			ssa_log_err(SSA_LOG_CTRL,
+				    "%d out of %d bytes written to upstream\n",
+				    ret, msg->len);
+		ret = write(port->svc[i]->sock_downctrl[0], msg, msg->len);
+		if (ret != msg->len)
+			ssa_log_err(SSA_LOG_CTRL,
+				    "%d out of %d bytes written to downstream\n",
+				    ret, msg->len);
 	}
 }
 
@@ -3894,13 +4073,17 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 
 static void ssa_ctrl_send_listen(struct ssa_svc *svc)
 {
+	int ret;
 	struct ssa_listen_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_LISTEN;
 	msg.hdr.len = sizeof(msg);
 	msg.svc = svc;
-	write(svc->sock_downctrl[0], (char *) &msg, sizeof(msg));
+	ret = write(svc->sock_downctrl[0], (char *) &msg, sizeof(msg));
+	if (ret != sizeof(msg))
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof(msg));
 }
 
 static void ssa_ctrl_port(struct ssa_port *port)
@@ -3952,7 +4135,10 @@ static void ssa_ctrl_port(struct ssa_port *port)
 	msg.hdr.len = sizeof msg;
 	/* set qkey for possible response */
 	msg.umad.umad.addr.qkey = htonl(UMAD_QKEY);
-	write(svc->sock_upctrl[0], (void *) &msg, msg.hdr.len);
+	ret = write(svc->sock_upctrl[0], (void *) &msg, msg.hdr.len);
+	if (ret != msg.hdr.len)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, msg.hdr.len);
 
 	if (parent)
 		ssa_ctrl_send_listen(svc);
@@ -3960,13 +4146,17 @@ static void ssa_ctrl_port(struct ssa_port *port)
 
 static void ssa_upstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
 {
+	int ret;
 	struct ssa_conn_done_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
 	msg.conn = conn;
-	write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
+	ret = write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
 }
 
 static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
@@ -4401,17 +4591,34 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 					"class event on fd %d\n", ssa->fds[i]);
 
-				read(ssa->sock[1], (char *) &msg, sizeof msg.hdr);
-				if (msg.hdr.len > sizeof msg.hdr)
-					read(ssa->sock[1],
-					     (char *) &msg.hdr.data,
-					     msg.hdr.len - sizeof msg.hdr);
+				ret = read(ssa->sock[1], (char *) &msg,
+					   sizeof msg.hdr);
+				if (ret != sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d header bytes read\n",
+						    ret, sizeof msg.hdr);
+				if (msg.hdr.len > sizeof msg.hdr) {
+					ret = read(ssa->sock[1],
+						   (char *) &msg.hdr.data,
+						   msg.hdr.len - sizeof msg.hdr);
+					if (ret != msg.hdr.len - sizeof msg.hdr)
+						ssa_log_err(SSA_LOG_CTRL,
+							    "%d out of %d additional bytes read\n",
+							    ret,
+							    msg.hdr.len - sizeof msg.hdr);
+				}
+
 				switch (msg.hdr.type) {
 				case SSA_CONN_REQ:
 					conn_svc = msg.data.svc;
-					write(conn_svc->sock_upctrl[0],
-					      (char *) &msg,
-					      sizeof(struct ssa_conn_req_msg));
+					ret = write(conn_svc->sock_upctrl[0],
+						    (char *) &msg,
+						    sizeof(struct ssa_conn_req_msg));
+					if (ret != sizeof(struct ssa_conn_req_msg))
+						ssa_log_err(SSA_LOG_CTRL,
+							    "%d out of %d bytes written to upstream\n",
+							    ret,
+							    sizeof(struct ssa_conn_req_msg));
 					break;
 				case SSA_CTRL_EXIT:
 					goto out;
@@ -4438,7 +4645,10 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 out:
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
-	write(ssa->sock[1], (char *) &msg, sizeof msg.hdr);
+	ret = write(ssa->sock[1], (char *) &msg, sizeof msg.hdr);
+	if (ret != sizeof msg.hdr)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg.hdr);
 	free(ssa->fds);
 	return 0;
 
@@ -4450,25 +4660,36 @@ err:
 
 void ssa_ctrl_conn(struct ssa_class *ssa, struct ssa_svc *svc)
 {
+	int ret;
 	struct ssa_conn_req_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_CONN_REQ;
 	msg.hdr.len = sizeof msg;
 	msg.svc = svc;
-	write(ssa->sock[0], (char *) &msg, sizeof msg);
+	ret = write(ssa->sock[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
 }
 
 void ssa_ctrl_stop(struct ssa_class *ssa)
 {
+	int ret;
 	struct ssa_ctrl_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	if (ssa->sock[0] >= 0) {
 		msg.len = sizeof msg;
 		msg.type = SSA_CTRL_EXIT;
-		write(ssa->sock[0], (char *) &msg, sizeof msg);
-		read(ssa->sock[0], (char *) &msg, sizeof msg);
+		ret = write(ssa->sock[0], (char *) &msg, sizeof msg);
+		if (ret != sizeof msg)
+			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+				    ret, sizeof msg);
+		ret = read(ssa->sock[0], (char *) &msg, sizeof msg);
+		if (ret != sizeof msg)
+			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes read\n",
+				    ret, sizeof msg);
 		close(ssa->sock[0]);
 	}
 
@@ -4896,7 +5117,10 @@ err8:
 	free(access_prdb_handler);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
-	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
+	ret = write(sock_accessctrl[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
 #endif
 err7:
 	pthread_join(*access_thread, NULL);
@@ -4927,6 +5151,7 @@ err1:
 
 void ssa_stop_access(struct ssa_class *ssa)
 {
+	int ret;
 	struct ssa_ctrl_msg msg;
 #ifdef ACCESS
 	struct ssa_db *db = NULL;
@@ -4939,7 +5164,10 @@ void ssa_stop_access(struct ssa_class *ssa)
 
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
-	write(sock_accessctrl[0], (char *) &msg, sizeof msg);
+	ret = write(sock_accessctrl[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
 	if (access_thread) {
 		pthread_join(*access_thread, NULL);
 		free(access_thread);
@@ -5197,16 +5425,24 @@ free:
 
 static void ssa_stop_svc(struct ssa_svc *svc)
 {
+	int i, ret;
 	struct ssa_ctrl_msg msg;
-	int i;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.len = sizeof msg;
 	msg.type = SSA_CTRL_EXIT;
-	write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
+	ret = write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL,
+			    "%d out of %d bytes written to upstream\n",
+			    ret, sizeof msg);
 	pthread_join(svc->upstream, NULL);
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
-		write(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
+		ret = write(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
+		if (ret != sizeof msg)
+			ssa_log_err(SSA_LOG_CTRL,
+				    "%d out of %d bytes written to downstream\n",
+				    ret, sizeof msg);
 		pthread_join(svc->downstream, NULL);
 	}
 
