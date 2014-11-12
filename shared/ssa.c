@@ -142,6 +142,12 @@ int keepalive = 60;		/* seconds */
 int fake_acm_num = 0;
 #endif
 
+/*
+ * needed for ssa_pr_create_context()
+ * eliminate after access layer integration
+ */
+extern FILE *flog;
+
 struct ssa_access_member {
 	union ibv_gid gid;		/* consumer GID */
 	struct ssa_db *prdb_current;
@@ -196,12 +202,6 @@ static void g_rclose_callback(gint rsock, gpointer user_data)
 	rclose(GPOINTER_TO_INT(rsock));
 	ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", GPOINTER_TO_INT(rsock));
 }
-
-/*
- * needed for ssa_pr_create_context()
- * eliminate after access layer integration
- */
-extern FILE *flog;
 
 static void ssa_get_sysinfo()
 {
