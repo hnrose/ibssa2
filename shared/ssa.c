@@ -3527,8 +3527,6 @@ static void *ssa_access_handler(void *context)
 
 	SET_THREAD_NAME(*access_thread, "ACCESS");
 
-	update_waiting = 0;
-
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = SSA_CTRL_ACK;
@@ -3594,6 +3592,7 @@ static void *ssa_access_handler(void *context)
 		pfd->events = POLLIN;
 		pfd->revents = 0;
 	}
+	update_waiting = 0;
 
 	for (;;) {
 		ret = poll((struct pollfd *)fds,
