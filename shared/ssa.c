@@ -1439,7 +1439,8 @@ ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
 				if (*count == 0)
 					revents = ssa_upstream_update_conn(svc, events);
 			}
-		}
+		} else
+			revents = ssa_upstream_update_conn(svc, events);
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
 		ssa_log_warn(SSA_LOG_CTRL,
