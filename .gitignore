@@ -37,6 +37,7 @@ config.h.in
 *.spec
 configure.in
 .dirstamp
+m4/
 ####################
 # git files        #
 ####################
