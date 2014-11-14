@@ -4405,8 +4405,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 		goto close;
 	}
 
-	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER)
-		ssa_rsock_enable_keepalive(svc->conn_dataup.rsock, keepalive);
+	ssa_rsock_enable_keepalive(svc->conn_dataup.rsock, keepalive);
 
 	ret = rsetsockopt(svc->conn_dataup.rsock, IPPROTO_TCP, TCP_NODELAY,
 			  (void *) &val, sizeof(val));
