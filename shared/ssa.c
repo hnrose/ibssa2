@@ -179,7 +179,7 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
-static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd);
+static void ssa_send_db_update_ready(int fd);
 static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc,
 					     struct pollfd **fds);
@@ -1111,20 +1111,16 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 			conn->phase, conn->rsock);
 }
 
-static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc,
-					       struct ref_count_obj *db)
+static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 {
 	int count = 0, ret;
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 
-	if (!db)
-		return count;
-
 	msg.hdr.type = SSA_DB_UPDATE_PREPARE;
 	msg.hdr.len = sizeof(msg);
-	msg.db_upd.db = db;
+	msg.db_upd.db = NULL;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = 0;
 	msg.db_upd.epoch = DB_EPOCH_INVALID;
@@ -1434,7 +1430,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 		svc->conn_dataup.rbuf = NULL;
 		if (ssa_db) {
 			if (*count == 0) {
-				*count = ssa_upstream_send_db_update_prepare(svc, svc->conn_dataup.ssa_db);
+				*count = ssa_upstream_send_db_update_prepare(svc);
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
 				if (*count == 0)
 					revents = ssa_upstream_update_conn(svc, events);
@@ -2397,8 +2393,7 @@ ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
 		update_waiting = 1;
 		update_pending = 0;
 		if (sock >= 0)
-			ssa_send_db_update_ready(ssa_downstream_db_ref_obj(conn),
-						 sock);
+			ssa_send_db_update_ready(sock);
 else ssa_log(SSA_LOG_DEFAULT, "No socket for update ready message\n");
 	}
 else ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
@@ -2548,7 +2543,7 @@ static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
 	}
 }
 
-static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd)
+static void ssa_send_db_update_ready(int fd)
 {
 	int ret;
 	struct ssa_db_update_msg msg;
@@ -2556,7 +2551,7 @@ static void ssa_send_db_update_ready(struct ref_count_obj *db, int fd)
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_DB_UPDATE_READY;
 	msg.hdr.len = sizeof(msg);
-	msg.db_upd.db = db;
+	msg.db_upd.db = NULL;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = 0;
 	memset(&msg.db_upd.remote_gid, 0, sizeof(msg.db_upd.remote_gid));
@@ -2874,8 +2869,7 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
 					update_waiting = 1;
 if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
-					ssa_send_db_update_ready(msg.data.db_upd.db,
-								 svc->sock_updown[1]);
+					ssa_send_db_update_ready(svc->sock_updown[1]);
 				}
 				break;
 			case SSA_DB_UPDATE:
@@ -2935,8 +2929,7 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB transfer currently in progress\n");
 ssa_log(SSA_LOG_DEFAULT, "No SMDB transfer currently in progress\n");
 					update_waiting = 1;
 if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
-					ssa_send_db_update_ready(msg.data.db_upd.db,
-								 svc->sock_extractdown[0]);
+					ssa_send_db_update_ready(svc->sock_extractdown[0]);
 				}
 				break;
 			case SSA_DB_UPDATE:
@@ -3662,8 +3655,7 @@ static void *ssa_access_handler(void *context)
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from extract\n");
 if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				update_waiting = 1;
-				ssa_send_db_update_ready(msg.data.db_upd.db,
-						sock_accessextract[1]);
+				ssa_send_db_update_ready(sock_accessextract[1]);
 				break;
 			case SSA_DB_UPDATE:
 				db = ref_count_object_get(msg.data.db_upd.db);
@@ -3741,8 +3733,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_PREPARE from upstream\n");
 if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 					update_waiting = 1;
-					ssa_send_db_update_ready(msg.data.db_upd.db,
-							svc_arr[i]->sock_accessup[1]);
+					ssa_send_db_update_ready(svc_arr[i]->sock_accessup[1]);
 					break;
 				case SSA_DB_UPDATE:
 					db = ref_count_object_get(msg.data.db_upd.db);
