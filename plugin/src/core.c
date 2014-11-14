@@ -1000,14 +1000,14 @@ static void handle_trap_event(ib_mad_notice_attr_t *p_ntc)
 }
 
 #ifndef SIM_SUPPORT
-static void ssa_extract_send_db_update_prepare(struct ref_count_obj *db, int fd)
+static void ssa_extract_send_db_update_prepare(int fd)
 {
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
 	msg.hdr.type = SSA_DB_UPDATE_PREPARE;
 	msg.hdr.len = sizeof(msg);
-	msg.db_upd.db = db;
+	msg.db_upd.db = NULL;
 	msg.db_upd.svc = NULL;
 	msg.db_upd.flags = 0;
 	msg.db_upd.epoch = DB_EPOCH_INVALID;
@@ -1045,15 +1045,14 @@ static int ssa_extract_db_update_prepare(struct ref_count_obj *db)
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
 				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
-				ssa_extract_send_db_update_prepare(db,
-								   svc->sock_extractdown[1]);
+				ssa_extract_send_db_update_prepare(svc->sock_extractdown[1]);
 				count++;
 			}
 		}
 	}
 
 	if (ssa.node_type & SSA_NODE_ACCESS) {
-		ssa_extract_send_db_update_prepare(db, sock_accessextract[0]);
+		ssa_extract_send_db_update_prepare(sock_accessextract[0]);
 		count++;
 	}
 
