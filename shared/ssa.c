@@ -186,7 +186,7 @@ static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 					     struct pollfd **fds);
 static void ssa_close_port(struct ssa_port *port);
 #ifdef ACCESS
-static void ssa_db_update_init(struct ssa_db *db, struct ssa_svc *svc,
+static void ssa_db_update_init(struct ssa_svc *svc, struct ssa_db *db,
 			       uint16_t remote_lid, union ibv_gid *remote_gid,
 			       int rsock, int flags, uint64_t epoch,
 			       struct ssa_db_update *p_db_upd);
@@ -2760,7 +2760,7 @@ static void *ssa_downstream_handler(void *context)
 					} else {
 						struct ssa_db_update db_upd;
 
-						ssa_db_update_init(msg.data.db_upd.db, svc,
+						ssa_db_update_init(svc, msg.data.db_upd.db,
 								   msg.data.db_upd.remote_lid,
 								   &msg.data.db_upd.remote_gid,
 								   msg.data.db_upd.rsock,
@@ -3130,7 +3130,7 @@ skip_db_save:
 }
 
 static void
-ssa_db_update_init(struct ssa_db *db, struct ssa_svc *svc,
+ssa_db_update_init(struct ssa_svc *svc, struct ssa_db *db,
 		   uint16_t remote_lid, union ibv_gid *remote_gid,
 		   int rsock, int flags, uint64_t epoch,
 		   struct ssa_db_update *p_db_upd)
@@ -3236,7 +3236,7 @@ static void g_al_callback(gpointer task, gpointer user_data)
 #endif
 	if (prdb) {
 		if (consumer->rsock >= 0) {
-			ssa_db_update_init(prdb, svc, consumer->lid,
+			ssa_db_update_init(svc, prdb, consumer->lid,
 					   &consumer->gid, consumer->rsock,
 					   0, 0, &db_upd);
 			ssa_push_db_update(&update_queue, &db_upd);
@@ -3808,8 +3808,8 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 skip_prdb_calc:
 #endif
 						if (msg.data.conn->rsock >= 0) {
-							ssa_db_update_init(prdb,
-									   svc_arr[i],
+							ssa_db_update_init(svc_arr[i],
+									   prdb,
 									   msg.data.conn->remote_lid,
 									   &msg.data.conn->remote_gid,
 									   msg.data.conn->rsock,
