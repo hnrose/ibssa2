@@ -70,9 +70,11 @@ enum {
 	SSA_DTREE_CONSUMER	= 1 << 3
 };
 
+#ifndef SIM_SUPPORT
 static int distrib_tree_level = SSA_DTREE_DEFAULT;
 static uint64_t dtree_epoch_cur = 0;
 static uint64_t dtree_epoch_prev = 0;
+#endif
 
 extern int log_flush;
 extern int accum_log_file;
@@ -1367,6 +1369,7 @@ static void *core_extract_handler(void *context)
 			read(sock_coreextract[1], (char *) &msg, sizeof(msg));
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
+#ifndef SIM_SUPPORT
 				if (first) {
 					for (i = 0; i < p_extract_data->num_svcs; i++) {
 						struct ssa_core *core;
@@ -1377,6 +1380,7 @@ static void *core_extract_handler(void *context)
 						core_orphan_adoption(core);
 					}
 				}
+#endif
 #ifdef SIM_SUPPORT
 				core_extract_db(p_osm);
 #elif !defined(SIM_SUPPORT_SMDB)
@@ -1385,6 +1389,7 @@ static void *core_extract_handler(void *context)
 				if (first)
 					first = 0;
 
+#ifndef SIM_SUPPORT
 				for (i = 0; i < p_extract_data->num_svcs; i++) {
 					struct ssa_svc *svc = p_extract_data->svcs[i];
 					struct ssa_core *core;
@@ -1399,6 +1404,7 @@ static void *core_extract_handler(void *context)
 						dtree_epoch_prev = dtree_epoch_cur;
 					}
 				}
+#endif
 				break;
 			case SSA_DB_LFT_CHANGE:
 				ssa_log(SSA_LOG_VERBOSE,
@@ -1669,8 +1675,10 @@ static void core_set_options(void)
 			strcpy(log_file, value);
 		else if (!strcasecmp("log_level", opt))
 			ssa_set_log_level(atoi(value));
+#ifndef SIM_SUPPORT
 		else if (!strcasecmp("distrib_tree_level", opt))
 			distrib_tree_level = atoi(value);
+#endif
 		else if (!strcasecmp("log_flush", opt))
 			log_flush = atoi(value);
 		else if (!strcasecmp("accum_log_file", opt))
@@ -1722,7 +1730,9 @@ static void core_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb deltas %d\n", smdb_deltas);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
+#ifndef SIM_SUPPORT
 	ssa_log(SSA_LOG_DEFAULT, "distrib tree level 0x%x\n", distrib_tree_level);
+#endif
 #ifdef SIM_SUPPORT_SMDB
 	ssa_log(SSA_LOG_DEFAULT, "running in simulated SMDB operation mode\n");
 #endif
