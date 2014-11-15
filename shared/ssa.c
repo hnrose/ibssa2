@@ -3259,8 +3259,8 @@ static void ssa_access_map_callback(const void *nodep, const VISIT which,
 	struct ssa_access_member *consumer;
 	struct ssa_svc *svc = (struct ssa_svc *) priv;
 	const char *node_type = NULL;
-	short update_prdb = 0;
 	struct ssa_access_task *task;
+	short update_prdb = 0;
 
 	switch (which) {
 	case preorder:
