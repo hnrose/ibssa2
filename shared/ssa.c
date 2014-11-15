@@ -109,7 +109,8 @@ struct ssa_access_task {
 	struct ssa_svc *svc;
 };
 
-static struct ref_count_obj *smdb;
+static struct ssa_db *smdb;
+static int smdb_refcnt;
 static uint64_t epoch;
 
 __thread char log_data[128];
@@ -185,7 +186,7 @@ static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 					     struct pollfd **fds);
 static void ssa_close_port(struct ssa_port *port);
 #ifdef ACCESS
-static void ssa_db_update_init(struct ref_count_obj *db, struct ssa_svc *svc,
+static void ssa_db_update_init(struct ssa_db *db, struct ssa_svc *svc,
 			       uint16_t remote_lid, union ibv_gid *remote_gid,
 			       int rsock, int flags, uint64_t epoch,
 			       struct ssa_db_update *p_db_upd);
@@ -907,7 +908,6 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 					   struct ssa_msg_hdr *hdr)
 {
-	struct ssa_db *ssa_db;
 	int ret, size;
 
 	if (conn->phase == SSA_DB_DEFS) {
@@ -930,11 +930,10 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 					ntohl(hdr->len), sizeof(*hdr) + size,
 					conn->rsock);
 			else {
-				ssa_db = ref_count_object_get(conn->ssa_db);
 				if (conn->rindex)
-					conn->rbuf = &ssa_db->db_table_def;
+					conn->rbuf = &conn->ssa_db->db_table_def;
 				else
-					conn->rbuf = &ssa_db->db_def;
+					conn->rbuf = &conn->ssa_db->db_def;
 				conn->rsize = ntohl(hdr->len) - sizeof(*hdr);
 				conn->roffset = 0;
 				ret = rrecv(conn->rsock, conn->rbuf,
@@ -1146,9 +1145,9 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 	return count;
 }
 
-static void ssa_upstream_send_db_update(struct ssa_svc *svc,
-					struct ref_count_obj *db, int flags,
-					union ibv_gid *gid, uint64_t epoch)
+static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
+					int flags, union ibv_gid *gid,
+					uint64_t epoch)
 {
 	int ret;
 	struct ssa_db_update_msg msg;
@@ -1184,7 +1183,6 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc,
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 {
-	struct ssa_db *ssa_db;
 	uint64_t data_tbl_cnt, epoch;
 	short revents = events;
 
@@ -1213,8 +1211,7 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 	case SSA_DB_TBL_DEFS:
 		svc->conn_dataup.phase = SSA_DB_FIELD_DEFS;
 		svc->conn_dataup.roffset = 0;
-		ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-		ssa_db->p_def_tbl = svc->conn_dataup.rbuf;
+		svc->conn_dataup.ssa_db->p_def_tbl = svc->conn_dataup.rbuf;
 		free(svc->conn_dataup.rhdr);
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
@@ -1227,16 +1224,15 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 		    ntohs(((struct ssa_msg_hdr *)svc->conn_dataup.rhdr)->flags) & SSA_MSG_FLAG_END) {
 			svc->conn_dataup.phase = SSA_DB_DATA;
 		} else {
-			ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-			if (!ssa_db->p_db_field_tables) {
-				ssa_db->p_db_field_tables = svc->conn_dataup.rbuf;
-				data_tbl_cnt = ssa_db_calculate_data_tbl_num(ssa_db);
-				ssa_db->pp_field_tables = malloc(data_tbl_cnt * sizeof(*ssa_db->pp_field_tables));
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p num tables %d rsock %d\n", ssa_db->pp_field_tables, data_tbl_cnt, svc->conn_dataup.rsock);
+			if (!svc->conn_dataup.ssa_db->p_db_field_tables) {
+				svc->conn_dataup.ssa_db->p_db_field_tables = svc->conn_dataup.rbuf;
+				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
+				svc->conn_dataup.ssa_db->pp_field_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_field_tables));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p num tables %d rsock %d\n", svc->conn_dataup.ssa_db->pp_field_tables, data_tbl_cnt, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex = 0;
 			} else {
-				if (ssa_db->pp_field_tables)
-					ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+				if (svc->conn_dataup.ssa_db->pp_field_tables)
+					svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
 {
 void *rbuf;
 int rsize;
@@ -1268,16 +1264,15 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p len %d rsock %d\n", svc-
 		    ntohs(((struct ssa_msg_hdr *)svc->conn_dataup.rhdr)->flags) & SSA_MSG_FLAG_END) {
 			svc->conn_dataup.phase = SSA_DB_IDLE;
 		} else {
-			ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-			if (!ssa_db->p_db_tables) {
-				ssa_db->p_db_tables = svc->conn_dataup.rbuf;
-				data_tbl_cnt = ssa_db_calculate_data_tbl_num(ssa_db);
-				ssa_db->pp_tables = malloc(data_tbl_cnt * sizeof(*ssa_db->pp_tables));
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %d rsock %d\n", ssa_db->pp_tables, data_tbl_cnt, svc->conn_dataup.rsock);
+			if (!svc->conn_dataup.ssa_db->p_db_tables) {
+				svc->conn_dataup.ssa_db->p_db_tables = svc->conn_dataup.rbuf;
+				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
+				svc->conn_dataup.ssa_db->pp_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_tables));
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %d rsock %d\n", svc->conn_dataup.ssa_db->pp_tables, data_tbl_cnt, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex = 0;
 			} else {
-				if (ssa_db->pp_tables)
-					ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+				if (svc->conn_dataup.ssa_db->pp_tables)
+					svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
 {
 void *rbuf;
 int rsize;
@@ -1303,10 +1298,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p len %d rsock %d\n", svc->conn_
 						     SSA_MSG_DB_QUERY_DATA_DATASET,
 						     events);
 		} else {
-			ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-			ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(ssa_db);
-			epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
-ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", ssa_db, epoch, ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
+			svc->conn_dataup.ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
+			epoch = ssa_db_get_epoch(svc->conn_dataup.ssa_db,
+						 DB_DEF_TBL_ID);
+ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", svc->conn_dataup.ssa_db, epoch, svc->conn_dataup.ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
 			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db,
 						    0, NULL, epoch);
 		}
@@ -1323,7 +1318,6 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 				    struct ssa_msg_hdr *hdr, short events,
 				    int *count)
 {
-	struct ssa_db *ssa_db;
 	uint16_t op;
 	short revents = events;
 
@@ -1422,13 +1416,12 @@ cate check !!! */
 				svc->conn_dataup.phase, svc->conn_dataup.rsock);
 		break;
 	case SSA_MSG_DB_UPDATE:
-		ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p epoch 0x%" PRIx64 " phase %d rsock %d\n", ssa_db, ntohll(hdr->rdma_addr), svc->conn_dataup.phase, svc->conn_dataup.rsock);
+ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p epoch 0x%" PRIx64 " phase %d rsock %d\n", svc->conn_dataup.ssa_db, ntohll(hdr->rdma_addr), svc->conn_dataup.phase, svc->conn_dataup.rsock);
 		svc->conn_dataup.roffset = 0;
 		free(svc->conn_dataup.rbuf);
 		svc->conn_dataup.rhdr = NULL;
 		svc->conn_dataup.rbuf = NULL;
-		if (ssa_db) {
+		if (svc->conn_dataup.ssa_db) {
 			if (*count == 0) {
 				*count = ssa_upstream_send_db_update_prepare(svc);
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
@@ -1496,7 +1489,6 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 static void *ssa_upstream_handler(void *context)
 {
 	struct ssa_svc *svc = context, *conn_svc;
-	struct ssa_db *ssa_db;
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[5];
 	int ret, errnum;
@@ -1591,17 +1583,13 @@ static void *ssa_upstream_handler(void *context)
 					if (conn_svc->conn_dataup.state != SSA_CONN_CONNECTED)
 						fds[UPSTREAM_DATA_FD_SLOT].events = POLLOUT;
 					else {
-						conn_svc->conn_dataup.ssa_db = malloc(sizeof(*conn_svc->conn_dataup.ssa_db));
-						ssa_db = calloc(1, sizeof(*ssa_db));
-						if (conn_svc->conn_dataup.ssa_db && ssa_db) {
-							ref_count_obj_init(conn_svc->conn_dataup.ssa_db, ssa_db);
+						conn_svc->conn_dataup.ssa_db = calloc(1, sizeof(*conn_svc->conn_dataup.ssa_db));
+						if (conn_svc->conn_dataup.ssa_db) {
 							if (port == prdb_port)
 								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						} else {
 							ssa_log_err(SSA_LOG_DEFAULT,
-								    "could not allocate ref_count_obj or ssa_db struct\n");
-							free(ssa_db);
-							free(conn_svc->conn_dataup.ssa_db);
+								    "could not allocate ssa_db struct\n");
 						}
 					}
 				}
@@ -1647,10 +1635,9 @@ static void *ssa_upstream_handler(void *context)
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
-						ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
 						/* Should the next 2 lines be dependent on flags (full update) in DB update ready msg ? */
-						ssa_db->p_db_field_tables = NULL;
-						ssa_db->p_db_tables = NULL;
+						svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
+						svc->conn_dataup.ssa_db->p_db_tables = NULL;
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					}
 				}
@@ -1693,9 +1680,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 					if (svc->conn_dataup.epoch !=
 					    ntohll(svc->conn_dataup.prdb_epoch)) {
 						if (svc->conn_dataup.ssa_db) {
-							ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
-							ssa_db->p_db_field_tables = NULL;
-							ssa_db->p_db_tables = NULL;
+							svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
+							svc->conn_dataup.ssa_db->p_db_tables = NULL;
 						}
 						/* Should response (and epoch update) be after DB is pulled successfully ??? */
 						ssa_upstream_query_db_resp(svc, SSA_DB_QUERY_EPOCH_CHANGED);
@@ -1753,10 +1739,9 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
-						ssa_db = ref_count_object_get(svc->conn_dataup.ssa_db);
 						/* Should the next 2 lines be dependent on flags (full update) in DB update ready msg ? */
-						ssa_db->p_db_field_tables = NULL;
-						ssa_db->p_db_tables = NULL;
+						svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
+						svc->conn_dataup.ssa_db->p_db_tables = NULL;
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					}
 				}
@@ -1796,16 +1781,12 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 						fds[UPSTREAM_DATA_FD_SLOT].events = 0;
 						fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 					} else {
-						svc->conn_dataup.ssa_db = malloc(sizeof(*svc->conn_dataup.ssa_db));
-						ssa_db = calloc(1, sizeof(*ssa_db));
-						if (svc->conn_dataup.ssa_db && ssa_db) {
-							ref_count_obj_init(svc->conn_dataup.ssa_db, ssa_db);
+						svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
+						if (svc->conn_dataup.ssa_db) {
 							if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
 								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						} else {
-							ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ref_count_obj or ssa_db struct for rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
-							free(ssa_db);
-							free(svc->conn_dataup.ssa_db);
+							ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ssa_db struct for rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
 						}
 					}
 				} else {
@@ -1961,16 +1942,6 @@ static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 {
 	/* Use SSA DB if available; otherwise use preloaded DB */
 	if (conn->ssa_db)
-		return ref_count_object_get(conn->ssa_db);
-	if (conn->dbtype == SSA_CONN_SMDB_TYPE && smdb)
-		return ref_count_object_get(smdb);
-	return NULL;
-}
-
-static struct ref_count_obj *ssa_downstream_db_ref_obj(struct ssa_conn *conn)
-{
-	/* Use SSA DB if available; otherwise use preloaded DB */
-	if (conn->ssa_db)
 		return conn->ssa_db;
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
 		return smdb;
@@ -1996,8 +1967,10 @@ ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 	}
 
 	if (conn->phase == SSA_DB_IDLE) {
-		int count = ref_count_obj_inc(ssa_downstream_db_ref_obj(conn));
-ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just incremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count); 
+		if (conn->dbtype == SSA_CONN_SMDB_TYPE) {
+			smdb_refcnt++;
+ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just incremented to %u\n", ssadb, smdb_refcnt);
+		}
 		conn->phase = SSA_DB_DEFS;
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
@@ -2138,8 +2111,10 @@ ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d rsock %d\n", conn->sindex
 						      events);
 			conn->sindex++;
 		} else {
-			int count = ref_count_obj_dec(ssa_downstream_db_ref_obj(conn));
-ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just decremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count); 
+			if (conn->dbtype == SSA_CONN_SMDB_TYPE) {
+				smdb_refcnt--;
+ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just decremented to %u\n", ssadb, smdb_refcnt);
+			}
 			conn->phase = SSA_DB_IDLE;
 			revents = ssa_downstream_send_resp(conn,
 							   SSA_MSG_DB_QUERY_DATA_DATASET,
@@ -2157,7 +2132,6 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 						 struct ssa_msg_hdr *hdr,
 						 short events)
 {
-	struct ssa_db *ssa_db;
 	short revents = events;
 
 	conn->epoch_len = ntohl(hdr->rdma_len);
@@ -2166,8 +2140,7 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 	conn->rhdr = NULL;
 	conn->rbuf = NULL;
 	if (conn->ssa_db) {
-		ssa_db = ref_count_object_get(conn->ssa_db);
-		epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
+		epoch = ssa_db_get_epoch(conn->ssa_db, DB_DEF_TBL_ID);
 		if (epoch) {
 			/* RDMA write current epoch for the connnection/DB so (limited) ACM restart will work */
 			revents = ssa_riowrite(conn, events);
@@ -2407,13 +2380,12 @@ static void ssa_downstream_close_ssa_conn(struct ssa_conn *conn,
 ssa_log(SSA_LOG_DEFAULT, "conn %p phase %d dbtype %d\n", conn, conn->phase, conn->dbtype);
 
 	if (conn->phase != SSA_DB_IDLE) {
-		int count = ref_count_obj_dec(ssa_downstream_db_ref_obj(conn));
-ssa_log(SSA_LOG_DEFAULT, "SSA DB ref obj %p DB %p ref count was just decremented to %u\n", ssa_downstream_db_ref_obj(conn), ref_count_object_get(ssa_downstream_db_ref_obj(conn)), count);
-
 		if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
 			ssa_close_ssa_conn(conn);
 			ssa_downstream_conn(svc, conn, 1);
 		} else if (conn->dbtype == SSA_CONN_SMDB_TYPE) {
+			smdb_refcnt--;
+ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just decremented to %u\n", ssa_downstream_db(conn), smdb_refcnt);
 			ssa_close_ssa_conn(conn);
 ssa_log(SSA_LOG_DEFAULT, "SMDB transfer in progress %d update pending %d\n", ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds, FD_SETSIZE), update_pending);
 			if (update_pending)
@@ -2597,7 +2569,6 @@ static void *ssa_downstream_handler(void *context)
 	struct pollfd **fds;
 	struct pollfd *pfd, *pfd2;
 	struct ssa_conn *conn;
-	struct ssa_db *ssa_db;
 	int ret, i;
 	struct ssa_ctrl_msg_buf msg;
 
@@ -2767,29 +2738,24 @@ static void *ssa_downstream_handler(void *context)
 						uint64_t prdb_epoch;
 						struct ssa_db *prdb_destroy = NULL;
 
-						ssa_db = ref_count_object_get(msg.data.db_upd.db);
-						prdb_epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
+						prdb_epoch = ssa_db_get_epoch(msg.data.db_upd.db, DB_DEF_TBL_ID);
 
 						if (prdb_epoch > conn->epoch || conn->epoch == DB_EPOCH_INVALID) {
 							if (conn->ssa_db)
-								prdb_destroy = ref_count_object_get(conn->ssa_db);
+								prdb_destroy = conn->ssa_db;
 							conn->ssa_db = msg.data.db_upd.db;
 							conn->epoch = prdb_epoch;
 							conn->prdb_epoch = htonll(conn->epoch);
-							ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", ssa_db, ntohll(conn->prdb_epoch));
+							ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 "\n", conn->ssa_db, ntohll(conn->prdb_epoch));
 							if (conn->epoch_len) {
 								pfd2 = (struct pollfd *)(fds + i);
 								pfd2->events = ssa_riowrite(conn, POLLIN);
 							}
 						} else
-							prdb_destroy = ssa_db;
+							prdb_destroy = msg.data.db_upd.db;
 
 						ssa_db_destroy(prdb_destroy);
 
-						/*
-						 * TODO: Destroy ref. counting object: msg.data.db_upd.db
-						 * Or, it could be changed to row pointer.
-						 */
 #ifdef ACCESS
 					} else {
 						struct ssa_db_update db_upd;
@@ -2804,8 +2770,6 @@ static void *ssa_downstream_handler(void *context)
 #endif
 					}
 				} else {
-					struct ssa_db *prdb_destroy = NULL;
-
 					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
 							sizeof log_data, SSA_ADDR_GID,
 							msg.data.db_upd.remote_gid.raw,
@@ -2813,14 +2777,7 @@ static void *ssa_downstream_handler(void *context)
 					ssa_log(SSA_LOG_CTRL,
 						"DB update for GID %s currently not connected\n",
 						log_data);
-					prdb_destroy  = ref_count_object_get(msg.data.db_upd.db);
-					ssa_db_destroy(prdb_destroy);
-
-					/*
-					 * TODO: Destroy ref. counting object: msg.data.db_upd.db
-					 * Or, it could be changed to row pointer.
-					 */
-
+					ssa_db_destroy(msg.data.db_upd.db);
 				}
 				break;
 			default:
@@ -3018,9 +2975,8 @@ out:
 }
 
 #ifdef ACCESS
-static void ssa_access_send_db_update(struct ssa_svc *svc,
-				      struct ref_count_obj *db, int rsock,
-				      int flags, uint16_t remote_lid,
+static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
+				      int rsock, int flags, uint16_t remote_lid,
 				      union ibv_gid *remote_gid)
 {
 	int ret;
@@ -3174,7 +3130,7 @@ skip_db_save:
 }
 
 static void
-ssa_db_update_init(struct ref_count_obj *db, struct ssa_svc *svc,
+ssa_db_update_init(struct ssa_db *db, struct ssa_svc *svc,
 		   uint16_t remote_lid, union ibv_gid *remote_gid,
 		   int rsock, int flags, uint64_t epoch,
 		   struct ssa_db_update *p_db_upd)
@@ -3253,7 +3209,6 @@ static void g_al_callback(gpointer task, gpointer user_data)
 	struct ssa_svc *svc;
 	struct ssa_access_member *consumer;
 	struct ssa_db *prdb;
-	struct ref_count_obj *dbr;
 	struct ssa_db_update db_upd;
 
 	(void) user_data;
@@ -3280,21 +3235,11 @@ static void g_al_callback(gpointer task, gpointer user_data)
 		goto out;
 #endif
 	if (prdb) {
-		dbr = malloc(sizeof(*dbr));
-		if (dbr) {
-			ref_count_obj_init(dbr, prdb);
-ssa_log(SSA_LOG_DEFAULT, "ref count obj %p SSA DB %p\n", dbr, ref_count_object_get(dbr));
-			if (consumer->rsock >= 0) {
-				ssa_db_update_init(dbr, svc, consumer->lid,
-						   &consumer->gid,
-						   consumer->rsock,
-						   0, 0, &db_upd);
-				ssa_push_db_update(&update_queue, &db_upd);
-			}
-		} else {
-			ssa_log(SSA_LOG_DEFAULT,
-				"PRDB ref count memory allocation failed\n");
-			ssa_db_destroy(prdb);
+		if (consumer->rsock >= 0) {
+			ssa_db_update_init(prdb, svc, consumer->lid,
+					   &consumer->gid, consumer->rsock,
+					   0, 0, &db_upd);
+			ssa_push_db_update(&update_queue, &db_upd);
 		}
 	} else
 		ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
@@ -3510,11 +3455,9 @@ static void *ssa_access_handler(void *context)
 	struct pollfd *pfd;
 	struct ssa_ctrl_msg_buf msg;
 	struct ssa_db *prdb = NULL;
-	struct ssa_db *db;
 	int i, ret, d, p, s, svc_cnt = 0;
 #ifdef ACCESS
 	int j;
-	struct ref_count_obj *dbr;
 	struct ssa_access_member *consumer;
 	struct ssa_db_update db_upd;
 #endif
@@ -3658,10 +3601,10 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				ssa_send_db_update_ready(sock_accessextract[1]);
 				break;
 			case SSA_DB_UPDATE:
-				db = ref_count_object_get(msg.data.db_upd.db);
 				ssa_log(SSA_LOG_DEFAULT,
 					"SSA DB update from extract: ssa_db %p flags 0x%x epoch 0x%" PRIx64 "\n",
-					db, msg.data.db_upd.flags, msg.data.db_upd.epoch);
+					msg.data.db_upd.db, msg.data.db_upd.flags,
+					msg.data.db_upd.epoch);
 				update_waiting = 0;
 				if (!(msg.data.db_upd.flags & SSA_DB_UPDATE_CHANGE))
 					break;
@@ -3670,11 +3613,11 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				if (NULL == access_context.smdb)
 					ssa_access_insert_fake_clients(svc_arr,
 								       svc_cnt,
-								       db);
+								       msg.data.db_upd.db);
 #endif
 #endif
 				/* Should epoch be added to access context ? */
-				access_context.smdb = db;
+				access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
 				/* Reinit context should be based on DB update flags indicating full update */
 				ssa_pr_reinit_context(access_context.context,
@@ -3736,21 +3679,20 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 					ssa_send_db_update_ready(svc_arr[i]->sock_accessup[1]);
 					break;
 				case SSA_DB_UPDATE:
-					db = ref_count_object_get(msg.data.db_upd.db);
 					ssa_log(SSA_LOG_DEFAULT,
 						"SSA DB update from upstream thread: ssa_db %p\n",
-						db);
+						msg.data.db_upd.db);
 					update_waiting = 0;
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
 					if (NULL == access_context.smdb)
 						ssa_access_insert_fake_clients(svc_arr,
 									       svc_cnt,
-									       db);
+									       msg.data.db_upd.db);
 #endif
 #endif
 					/* Should epoch be added to access context ? */
-					access_context.smdb = db;
+					access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
 					/* Reinit context should be based on DB update flags indicating full update */
 					ssa_pr_reinit_context(access_context.context,
@@ -3865,27 +3807,18 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 #if 0
 skip_prdb_calc:
 #endif
-						dbr = malloc(sizeof(*dbr));
-						if (dbr) {
-							ref_count_obj_init(dbr,
-									   prdb);
-							if (msg.data.conn->rsock >= 0) {
-								ssa_db_update_init(dbr,
-										   svc_arr[i],
-										   msg.data.conn->remote_lid,
-										   &msg.data.conn->remote_gid,
-										   msg.data.conn->rsock,
-										   0, 0,
-										   &db_upd);
-								ssa_push_db_update(&update_queue,
-										   &db_upd);
-							} else
-								consumer->rsock = -1;
-						} else {
-							ssa_log(SSA_LOG_DEFAULT,
-								"PRDB ref count memory allocation failed\n");
-							ssa_db_destroy(prdb);
-						}
+						if (msg.data.conn->rsock >= 0) {
+							ssa_db_update_init(prdb,
+									   svc_arr[i],
+									   msg.data.conn->remote_lid,
+									   &msg.data.conn->remote_gid,
+									   msg.data.conn->rsock,
+									   0, 0,
+									   &db_upd);
+							ssa_push_db_update(&update_queue,
+									   &db_upd);
+						} else
+							consumer->rsock = -1;
 #endif
 						/*
 						 * TODO: destroy prdb database
@@ -5163,9 +5096,6 @@ void ssa_stop_access(struct ssa_class *ssa)
 {
 	int ret;
 	struct ssa_ctrl_msg msg;
-#ifdef ACCESS
-	struct ssa_db *db = NULL;
-#endif
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 
@@ -5191,9 +5121,7 @@ void ssa_stop_access(struct ssa_class *ssa)
 		ssa_pr_destroy_context(access_context.context);
 		access_context.context = NULL;
 	}
-	if (smdb != NULL)
-		db = ref_count_object_get(smdb);
-	if (access_context.smdb != db)
+	if (access_context.smdb != smdb)
 		ssa_db_destroy(access_context.smdb);
 	access_context.smdb = NULL;
 #endif
@@ -5515,7 +5443,6 @@ static void ssa_close_port(struct ssa_port *port)
 void ssa_close_devices(struct ssa_class *ssa)
 {
 	struct ssa_device *dev;
-	struct ssa_db *db;
 	int d, p;
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
@@ -5533,9 +5460,7 @@ void ssa_close_devices(struct ssa_class *ssa)
 	ssa->dev_cnt = 0;
 
 	if (smdb) {
-		db = ref_count_object_get(smdb);
-		ssa_db_destroy(db);
-		smdb->object = NULL;	/* ??? */
+		ssa_db_destroy(smdb);
 		smdb = NULL;
 	}
 }

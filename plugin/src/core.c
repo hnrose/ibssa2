@@ -136,12 +136,15 @@ pthread_mutex_t ssa_db_diff_lock;
 pthread_t ctrl_thread, extract_thread;
 static osm_opensm_t *osm;
 static struct ssa_extract_data extract_data;
+#ifdef SIM_SUPPORT_SMDB
+static struct ssa_db *p_ref_smdb = NULL;
+#endif
 
 static int sock_coreextract[2];
 
 /* Forward declarations */
 #ifdef SIM_SUPPORT_SMDB
-static int ssa_extract_process(osm_opensm_t *p_osm, struct ref_count_obj *p_ref_smdb,
+static int ssa_extract_process(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 			       int *outstanding_count);
 #endif
 
@@ -1016,10 +1019,8 @@ static void ssa_extract_send_db_update_prepare(int fd)
 	write(fd, (char *) &msg, sizeof(msg));
 }
 
-static void ssa_extract_send_db_update(struct ref_count_obj *db,
-				       int fd, int flags)
+static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 {
-	struct ssa_db *ssa_db;
 	struct ssa_db_update_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
@@ -1030,12 +1031,11 @@ static void ssa_extract_send_db_update(struct ref_count_obj *db,
 	msg.db_upd.flags = flags;
 	memset(&msg.db_upd.remote_gid, 0, sizeof(msg.db_upd.remote_gid));
 	msg.db_upd.remote_lid = 0;
-	ssa_db = ref_count_object_get(db);
-	msg.db_upd.epoch = ssa_db_get_epoch(ssa_db, DB_DEF_TBL_ID);
+	msg.db_upd.epoch = ssa_db_get_epoch(db, DB_DEF_TBL_ID);
 	write(fd, (char *) &msg, sizeof(msg));
 }
 
-static int ssa_extract_db_update_prepare(struct ref_count_obj *db)
+static int ssa_extract_db_update_prepare(struct ssa_db *db)
 {
 	struct ssa_svc *svc;
 	int d, p, s, count = 0;
@@ -1061,7 +1061,7 @@ static int ssa_extract_db_update_prepare(struct ref_count_obj *db)
 	return count;
 }
 
-static void ssa_extract_db_update(struct ref_count_obj *db, int db_changed)
+static void ssa_extract_db_update(struct ssa_db *db, int db_changed)
 {
 	struct ssa_svc *svc;
 	int d, p, s;
@@ -1089,7 +1089,7 @@ static void ssa_extract_db_update(struct ref_count_obj *db, int db_changed)
 #endif
 
 #ifdef SIM_SUPPORT_SMDB
-static int ssa_extract_load_smdb(osm_opensm_t *p_osm, struct ref_count_obj *p_ref_smdb,
+static int ssa_extract_load_smdb(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 				 int *outstanding_count, struct timespec *last_mtime)
 {
 	struct stat smdb_dir_stats;
@@ -1130,17 +1130,14 @@ static int ssa_extract_load_smdb(osm_opensm_t *p_osm, struct ref_count_obj *p_re
 	return 0;
 }
 
-static int ssa_extract_process_smdb(struct ref_count_obj *p_ref_smdb)
+static int ssa_extract_process_smdb(struct ssa_db *p_ref_smdb)
 {
 	struct ssa_db *p_smdb = NULL;
 
 	if (p_ref_smdb) {
-		p_smdb = ref_count_object_get(p_ref_smdb);
-		if (p_smdb)
-			ssa_db_destroy(p_smdb);
+		ssa_db_destroy(p_ref_smdb);
 	} else {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "uninitialized smdb ref_count object\n");
+		ssa_log_err(SSA_LOG_DEFAULT, "uninitialized smdb\n");
 		return -1;
 	}
 
@@ -1152,8 +1149,7 @@ static int ssa_extract_process_smdb(struct ref_count_obj *p_ref_smdb)
 		return -1;
 	}
 
-	/* TODO: change to just set the object instead of reinitialization */
-	ref_count_obj_init(p_ref_smdb, p_smdb);
+	p_ref_smdb = p_smdb;
 
 	return 0;
 }
@@ -1161,7 +1157,6 @@ static int ssa_extract_process_smdb(struct ref_count_obj *p_ref_smdb)
 static void core_extract_db(osm_opensm_t *p_osm)
 {
 	struct ssa_db_diff *ssa_db_diff_old = NULL;
-	struct ssa_db *p_smdb = NULL;
 	uint64_t epoch_prev = 0;
 
 	CL_PLOCK_ACQUIRE(&p_osm->lock);
@@ -1178,10 +1173,8 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 	pthread_mutex_lock(&ssa_db_diff_lock);
 	/* Clear previous version */
-	if (ssa_db_diff) {
-		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
-		epoch_prev = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
-	}
+	if (ssa_db_diff)
+		epoch_prev = ssa_db_get_epoch(ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
 
 	ssa_db_diff_old = ssa_db_diff;
 
@@ -1194,19 +1187,18 @@ static void core_extract_db(osm_opensm_t *p_osm)
 		    ssa_db_diff = ssa_db_diff_old;
 		}
 
-		p_smdb = ref_count_object_get(ssa_db_diff->p_smdb);
 		/*
-		 * TODO: use 'ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID)'
+		 * TODO: use 'ssa_db_get_epoch(ssa_db_diff->p_smdb, DB_DEF_TBL_ID)'
 		 * for getting current epoch and sending it to children.
 		 */
 #ifdef SIM_SUPPORT
 		if (smdb_dump && !lockf(smdb_lock_fd, F_LOCK, 0)) {
-			ssa_db_save(smdb_dump_dir, p_smdb, smdb_dump);
+			ssa_db_save(smdb_dump_dir, ssa_db_diff->p_smdb, smdb_dump);
 			lockf(smdb_lock_fd, F_ULOCK, 0);
 		}
 #else
 		if (smdb_dump)
-			ssa_db_save(smdb_dump_dir, p_smdb, smdb_dump);
+			ssa_db_save(smdb_dump_dir, ssa_db_diff->p_smdb, smdb_dump);
 
 		ssa_extract_db_update(ssa_db_diff->p_smdb, ssa_db_diff->dirty);
 #endif
@@ -1218,7 +1210,7 @@ static void core_extract_db(osm_opensm_t *p_osm)
 #ifndef SIM_SUPPORT
 #ifdef SIM_SUPPORT_SMDB
 static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
-					     struct ref_count_obj *p_ref_smdb,
+					     struct ssa_db *p_ref_smdb,
 					     int *outstanding_count)
 {
 	if (*outstanding_count > 0) {
@@ -1241,11 +1233,11 @@ static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
 	}
 }
 
-static int ssa_extract_process(osm_opensm_t *p_osm, struct ref_count_obj *p_ref_smdb,
+static int ssa_extract_process(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 			       int *outstanding_count)
 {
 	if (*outstanding_count == 0) {
-		if (p_ref_smdb && ref_count_object_get(p_ref_smdb))
+		if (p_ref_smdb)
 			*outstanding_count = ssa_extract_db_update_prepare(p_ref_smdb);
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *outstanding_count);
 		if (*outstanding_count == 0) {
@@ -1303,7 +1295,6 @@ static void *core_extract_handler(void *context)
 #endif
 #ifdef SIM_SUPPORT_SMDB
 	struct timespec smdb_last_mtime;
-	struct ref_count_obj *p_ref_smdb = NULL;
 #endif
 
 	SET_THREAD_NAME(extract_thread, "EXTRACT");
@@ -1313,13 +1304,6 @@ static void *core_extract_handler(void *context)
 #ifdef SIM_SUPPORT_SMDB
 	timeout_msec = 1000;	/* 1 sec */
 	memset(&smdb_last_mtime, 0, sizeof(smdb_last_mtime));
-
-	p_ref_smdb = calloc(1, sizeof(*p_ref_smdb));
-	if (!p_ref_smdb) {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable to allocate ref_cnt object for SMDB\n");
-		goto out;
-	}
 #endif
 
 	fds = calloc(p_extract_data->num_svcs + FIRST_DOWNSTREAM_FD_SLOT,
@@ -1500,11 +1484,8 @@ out:
 	/* currently memory freeing is done in ssa_close_devices() */
 #if 0
 #ifdef SIM_SUPPORT_SMDB
-	if (p_ref_smdb) {
-		while (ref_count_obj_get(p_ref_smdb));
-		ssa_db_destroy(ref_count_object_get(p_ref_smdb));
-		free(p_ref_smdb);
-	}
+	if (p_ref_smdb)
+		ssa_db_destroy(p_ref_smdb);
 #endif
 #endif
 

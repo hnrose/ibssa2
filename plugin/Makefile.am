@@ -32,7 +32,7 @@ src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h \
 	     include/osd.h include/dlist.h \
-	     include/ssa_log.h include/common.h include/ref_count.h \
+	     include/ssa_log.h include/common.h \
 	     libopensmssa.spec.in ibssa_core_opts.cfg
 
 dist-hook: libopensmssa.spec
