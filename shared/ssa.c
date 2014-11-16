@@ -3045,7 +3045,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
                 /*
 		 * !!!!! REMOVE !!!!
 		 * It's a temporary solution
-		 * It should be ssa_db_copy function
+		 * It should use ssa_db_copy function
 		 */
 		ret = ssa_pr_compute_half_world(access_context.smdb,
 						access_context.context,
@@ -3056,8 +3056,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					SSA_ADDR_GID, consumer->gid.raw,
 					sizeof consumer->gid.raw);
 			ssa_log_warn(SSA_LOG_DEFAULT,
-				     "PRDB copy not created for GID %s\n",
-				     log_data);
+				     "PRDB copy not created for GID %s for SMDB with epoch 0x%" PRIx64 "\n",
+				     log_data, epoch);
 		}
 
 		if (prdb_dump) {
