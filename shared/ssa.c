@@ -1589,7 +1589,9 @@ static void *ssa_upstream_handler(void *context)
 								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						} else {
 							ssa_log_err(SSA_LOG_DEFAULT,
-								    "could not allocate ssa_db struct\n");
+								    "could not allocate ssa_db struct for %s on rsock %d\n",
+								    (conn_svc->conn_dataup.dbtype == SSA_CONN_SMDB_TYPE) ? "SMDB" : "PRDB",
+								    fds[UPSTREAM_DATA_FD_SLOT].fd);
 						}
 					}
 				}
@@ -1786,7 +1788,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 							if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
 								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						} else {
-							ssa_log_err(SSA_LOG_DEFAULT, "could not allocate ssa_db struct for rsock %d\n", fds[UPSTREAM_DATA_FD_SLOT].fd);
+							ssa_log_err(SSA_LOG_DEFAULT,
+								    "could not allocate ssa_db struct for rsock %d\n",
+								    fds[UPSTREAM_DATA_FD_SLOT].fd);
 						}
 					}
 				} else {
