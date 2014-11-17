@@ -2712,10 +2712,10 @@ static void *ssa_downstream_handler(void *context)
 						msg.data.db_upd.remote_gid.raw,
 						sizeof msg.data.db_upd.remote_gid.raw);
 				ssa_log(SSA_LOG_DEFAULT,
-					"SSA DB update from access: rsock %d GID %s LID %u ssa_db %p epoch 0x%" PRIx64 "\n",
+					"SSA DB update from access: rsock %d GID %s LID %u ssa_db %p\n",
 					msg.data.db_upd.rsock, log_data,
 					msg.data.db_upd.remote_lid,
-					msg.data.db_upd.db, msg.data.db_upd.epoch);
+					msg.data.db_upd.db);
 				conn = NULL;
 				/* Use rsock in DB update msg as hint */
 				i = msg.data.db_upd.rsock;
