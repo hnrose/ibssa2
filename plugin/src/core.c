@@ -60,7 +60,7 @@ static char lock_file[128] = "/var/run/ibssa.pid";
 static char *smdb_lock_file = "ibssa_smdb.lock";
 static int smdb_lock_fd = -1;
 #endif
-static int first = 1;
+static int first_extraction = 1;
 
 enum {
 	SSA_DTREE_DEFAULT	= 0,
@@ -634,7 +634,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	}
 
 	umad->packet.mad_hdr.status = 0;
-	if (!first) {
+	if (!first_extraction) {
 		parentgid = find_best_parent(core, member);
 		if (parentgid == NULL) {
 			/* class specific status */
@@ -648,14 +648,14 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
 
-	if (!first) {
+	if (!first_extraction) {
 		ret = core_build_tree(core, member, parentgid);
 		if (ret)
 			ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
 		else
 			dtree_epoch_cur++;
 	}
-	if (first || ret) {
+	if (first_extraction || ret) {
 		/* member is orphaned */
 		DListInsertBefore(&member->entry, &core->orphan_list);
 	}
@@ -1176,7 +1176,7 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 	/* For validation */
 	ssa_db_validate(ssa_db->p_dump_db);
-	ssa_db_validate_lft(first);
+	ssa_db_validate_lft(first_extraction);
 
 	/* Update SMDB versions */
 	ssa_db_update(ssa_db);
@@ -1188,7 +1188,7 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 	ssa_db_diff_old = ssa_db_diff;
 
-	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev, first);
+	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev, first_extraction);
 	if (ssa_db_diff) {
 		if (ssa_db_diff->dirty)
 		    ssa_db_diff_destroy(ssa_db_diff_old);
@@ -1364,7 +1364,7 @@ static void *core_extract_handler(void *context)
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
 #ifndef SIM_SUPPORT
-				if (first) {
+				if (first_extraction) {
 					for (i = 0; i < p_extract_data->num_svcs; i++) {
 						struct ssa_core *core;
 
@@ -1380,8 +1380,8 @@ static void *core_extract_handler(void *context)
 #elif !defined(SIM_SUPPORT_SMDB)
 				ssa_extract_process(p_osm, &outstanding_count);
 #endif
-				if (first)
-					first = 0;
+				if (first_extraction)
+					first_extraction = 0;
 
 #ifndef SIM_SUPPORT
 				for (i = 0; i < p_extract_data->num_svcs; i++) {
