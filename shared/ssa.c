@@ -4004,6 +4004,8 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 {
 	struct ibv_async_event event;
 	int ret;
+	uint16_t old_SM_lid;
+	int forward_event_type;
 
 	ssa_log(SSA_LOG_CTRL, "%s\n", dev->name);
 	ret = ibv_get_async_event(dev->verbs, &event);
@@ -4012,14 +4014,19 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 		"async event %s\n", ibv_event_type_str(event.event_type));
+	old_SM_lid = dev->port->sm_lid;
+	forward_event_type = event.event_type;
 	switch (event.event_type) {
 	case IBV_EVENT_SM_CHANGE:
 	case IBV_EVENT_PORT_ACTIVE:
 	case IBV_EVENT_CLIENT_REREGISTER:
 	case IBV_EVENT_PORT_ERR:
 		ssa_ctrl_update_port(ssa_dev_port(dev, event.element.port_num));
+		if (old_SM_lid != dev->port->sm_lid &&
+		    event.event_type == IBV_EVENT_CLIENT_REREGISTER)
+			forward_event_type = IBV_EVENT_SM_CHANGE;
 		ssa_ctrl_send_event(ssa_dev_port(dev, event.element.port_num),
-				    event.event_type);
+				    forward_event_type);
 		break;
 	default:
 		break;
