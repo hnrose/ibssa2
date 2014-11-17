@@ -524,6 +524,7 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 			pfd->revents = 0;
 		}
 		/* fall through to reactivate */
+	case IBV_EVENT_SM_CHANGE:
 	case IBV_EVENT_CLIENT_REREGISTER:
 		svc->state = SSA_STATE_IDLE;
 	case IBV_EVENT_PORT_ACTIVE:
@@ -2569,6 +2570,8 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 			}
 		}
 		break;
+	case IBV_EVENT_SM_CHANGE:
+		break;
 	default:
 		break;
 	}
@@ -4010,6 +4013,7 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 		"async event %s\n", ibv_event_type_str(event.event_type));
 	switch (event.event_type) {
+	case IBV_EVENT_SM_CHANGE:
 	case IBV_EVENT_PORT_ACTIVE:
 	case IBV_EVENT_CLIENT_REREGISTER:
 	case IBV_EVENT_PORT_ERR:
