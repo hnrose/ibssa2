@@ -1130,16 +1130,9 @@ static int ssa_extract_load_smdb(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 	return 0;
 }
 
-static int ssa_extract_process_smdb(struct ssa_db *p_ref_smdb)
+static int ssa_extract_process_smdb(struct ssa_db **pp_smdb)
 {
 	struct ssa_db *p_smdb = NULL;
-
-	if (p_ref_smdb) {
-		ssa_db_destroy(p_ref_smdb);
-	} else {
-		ssa_log_err(SSA_LOG_DEFAULT, "uninitialized smdb\n");
-		return -1;
-	}
 
 	p_smdb = ssa_db_load(smdb_dump_dir, smdb_dump);
 	if (!p_smdb) {
@@ -1149,7 +1142,10 @@ static int ssa_extract_process_smdb(struct ssa_db *p_ref_smdb)
 		return -1;
 	}
 
-	p_ref_smdb = p_smdb;
+	if (pp_smdb && *pp_smdb)
+		ssa_db_destroy(*pp_smdb);
+
+	*pp_smdb = p_smdb;
 
 	return 0;
 }
@@ -1226,7 +1222,7 @@ static void ssa_extract_update_ready_process(osm_opensm_t *p_osm,
 				return;
 			}
 
-			if (!ssa_extract_process_smdb(p_ref_smdb))
+			if (!ssa_extract_process_smdb(&p_ref_smdb))
 				ssa_extract_db_update(p_ref_smdb, 1); /* 1 indicates that smdb was changed */
 			lockf(smdb_lock_fd, F_ULOCK, 0);
 		}
@@ -1241,7 +1237,7 @@ static int ssa_extract_process(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 			*outstanding_count = ssa_extract_db_update_prepare(p_ref_smdb);
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *outstanding_count);
 		if (*outstanding_count == 0) {
-			if (!ssa_extract_process_smdb(p_ref_smdb))
+			if (!ssa_extract_process_smdb(&p_ref_smdb))
 				ssa_extract_db_update(p_ref_smdb, 1); /* 1 indicates that smdb was changed */
 ssa_log(SSA_LOG_DEFAULT, "DB extracted and DB update msgs sent\n");
 		}
