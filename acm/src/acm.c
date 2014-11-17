@@ -3416,7 +3416,7 @@ static void *acm_issue_query(void *context)
 
 	if (ret)
 		ssa_log_warn(SSA_LOG_CTRL,
-			     "terminating without successful DB query last RET %d\n", ret);
+			     "terminating without successful DB query last ret %d\n", ret);
 	acm_issue_query_done = 1;
 	return NULL;
 }
