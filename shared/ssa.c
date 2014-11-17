@@ -512,15 +512,15 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 		ibv_event_type_str(msg->data.event));
 	switch (msg->data.event) {
 	case IBV_EVENT_PORT_ERR:
-	case IBV_EVENT_CLIENT_REREGISTER:
 		if (svc->conn_dataup.rsock >= 0) {
 			ssa_close_ssa_conn(&svc->conn_dataup);
 			pfd->fd = -1;
 			pfd->events = 0;
 			pfd->revents = 0;
 		}
-		svc->state = SSA_STATE_IDLE;
 		/* fall through to reactivate */
+	case IBV_EVENT_CLIENT_REREGISTER:
+		svc->state = SSA_STATE_IDLE;
 	case IBV_EVENT_PORT_ACTIVE:
 		if (svc->port->state == IBV_PORT_ACTIVE &&
 		    svc->state == SSA_STATE_IDLE) {
