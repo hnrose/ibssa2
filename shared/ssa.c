@@ -114,6 +114,7 @@ static int smdb_refcnt;
 static uint64_t epoch;
 
 __thread char log_data[128];
+__thread char log_data1[128];
 __thread int update_pending;
 __thread int update_waiting;
 //static atomic_t counter[SSA_MAX_COUNTER];
