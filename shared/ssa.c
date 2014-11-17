@@ -596,6 +596,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		info_rec = &mad->ssa_mad.info;
 		memcpy(&svc->primary, &info_rec->path_data,
 		       sizeof(svc->primary));
+		svc->primary_type = info_rec->node_type;
 		break;
 	case SSA_STATE_CONNECTING:
 	case SSA_STATE_CONNECTED:		/* TODO compare against current parent, if same done */
@@ -4404,8 +4405,9 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 			SSA_ADDR_GID, (uint8_t *) &dst_addr.sib_addr,
 			sizeof dst_addr.sib_addr);
 	ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-		"dest GID %s LID %u port %u\n",
-		log_data, ntohs(svc->primary.path.dlid), dport);
+		"dest GID %s LID %u port %u type %s\n",
+		log_data, ntohs(svc->primary.path.dlid), dport,
+		ssa_node_type_str(svc->primary_type));
 
 	ret = rconnect(svc->conn_dataup.rsock,
 		       (const struct sockaddr *) &dst_addr, sizeof(dst_addr));

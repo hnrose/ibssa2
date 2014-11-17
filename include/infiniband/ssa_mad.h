@@ -137,6 +137,8 @@ struct ssa_member_record {
 struct ssa_info_record {
 	be64_t			database_id;
 	struct ibv_path_data	path_data;
+	uint8_t			node_type;
+	uint8_t			reserved[7];
 };
 
 struct sa_path_record {

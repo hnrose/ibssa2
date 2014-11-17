@@ -720,6 +720,7 @@ static void core_process_leave(struct ssa_core *core, struct ssa_umad *umad)
 
 void core_init_parent(struct ssa_core *core, struct ssa_mad_packet *mad,
 		      struct ssa_member_record *member,
+		      struct ssa_member_record *parent,
 		      struct ibv_path_record *path)
 {
 	struct ssa_info_record *rec;
@@ -729,6 +730,7 @@ void core_init_parent(struct ssa_core *core, struct ssa_mad_packet *mad,
 
 	rec = &mad->ssa_mad.info;
 	rec->database_id = member->database_id;
+	rec->node_type = parent ? parent->node_type : 0;
 	rec->path_data.flags = IBV_PATH_FLAG_GMP | IBV_PATH_FLAG_PRIMARY |
 			       IBV_PATH_FLAG_BIDIRECTIONAL;
 	rec->path_data.path = *path;
@@ -810,7 +812,10 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 
 	memset(&umad_sa, 0, sizeof umad_sa);
 	umad_set_addr(&umad_sa.umad, child->lid, 1, child->sl, UMAD_QKEY);
-	core_init_parent(core, &umad_sa.packet, &child->rec, path);
+	if (child->primary)
+		core_init_parent(core, &umad_sa.packet, &child->rec, &child->primary->rec, path);
+	else
+		core_init_parent(core, &umad_sa.packet, &child->rec, NULL, path);
 
 	ssa_log(SSA_LOG_CTRL, "sending set parent\n");
 	ret = umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
