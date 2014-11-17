@@ -942,8 +942,8 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 					conn->roffset += ret;
 				} else if (ret == 0) {
 					ssa_log_err(SSA_LOG_DEFAULT,
-						    "rrecv 0 bytes on rsock %d\n",
-						    conn->rsock);
+						    "rrecv 0 out of %d bytes on rsock %d\n",
+						    conn->rsize, conn->rsock);
 				} else {
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
 						return;
@@ -991,8 +991,8 @@ static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
 						conn->roffset += ret;
 					} else if (ret == 0) {
 						ssa_log_err(SSA_LOG_DEFAULT,
-							    "rrecv 0 bytes on rsock %d\n",
-							    conn->rsock);
+							    "rrecv 0 out of %d bytes on rsock %d\n",
+							    conn->rsize, conn->rsock);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -1041,8 +1041,8 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 						conn->roffset += ret;
 					} else if (ret == 0) {
 						ssa_log_err(SSA_LOG_DEFAULT,
-							    "rrecv 0 bytes on rsock %d\n",
-							    conn->rsock);
+							    "rrecv 0 out of %d bytes on rsock %d\n",
+							    conn->rsize, conn->rsock);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -1091,8 +1091,8 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 						conn->roffset += ret;
 					} else if (ret == 0) {
 						ssa_log_err(SSA_LOG_DEFAULT,
-							    "rrecv 0 bytes on rsock %d\n",
-							    conn->rsock);
+							    "rrecv 0 out of %d bytes on rsock %d\n",
+							    conn->rsize, conn->rsock);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -1479,7 +1479,8 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 		ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
 			    errno, strerror(errno), svc->conn_dataup.rsock);
 	} else if (ret == 0) {
-		ssa_log_err(SSA_LOG_DEFAULT, "rrecv 0 bytes on rsock %d\n",
+		ssa_log_err(SSA_LOG_DEFAULT, "rrecv 0 out of %d bytes on rsock %d\n",
+			    svc->conn_dataup.rsize - svc->conn_dataup.roffset,
 			    svc->conn_dataup.rsock);
 	}
 
