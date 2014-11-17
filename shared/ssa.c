@@ -317,6 +317,10 @@ static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
 	rec->database_id = htonll(svc->database_id);
 	rec->node_guid = svc->port->dev->guid;
 	rec->node_type = svc->port->dev->ssa->node_type;
+	if ((svc->port->dev->ssa->node_type & SSA_NODE_CORE) == 0)
+		memcpy(rec->parent_gid, svc->conn_dataup.remote_gid.raw, 16);
+	else
+		memset(rec->parent_gid, 0, 16);
 }
 
 static void sa_init_path_query(struct ssa_svc *svc, struct sa_path_record *mad,

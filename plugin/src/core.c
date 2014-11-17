@@ -592,8 +592,17 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	node_type = rec->node_type;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
-	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s node type %d\n",
-		core->svc.name, log_data, node_type);
+	if (rec->parent_gid[0]) {
+		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+				log_data1, sizeof log_data1, SSA_ADDR_GID,
+				rec->parent_gid, sizeof rec->parent_gid);
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+			"%s %s node type %d old parent %s\n",
+			core->svc.name, log_data, node_type, log_data1);
+	} else {
+		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s node type %d\n",
+			core->svc.name, log_data, node_type);
+	}
 
 	tgid = tfind(rec->port_gid, &core->member_map, ssa_compare_gid);
 	if (!tgid) {
