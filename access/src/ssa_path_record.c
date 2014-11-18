@@ -251,7 +251,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 }
 
 uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,
-		be64_t port_guid)
+				      be64_t port_guid)
 {
 	size_t guid_to_lid_count = 0 , i = 0;
 	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
