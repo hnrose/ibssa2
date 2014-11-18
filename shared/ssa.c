@@ -5224,6 +5224,8 @@ static int ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
 		ssa_log_err(SSA_LOG_CTRL,
 			    "unable to register SSA class on port %s\n",
 			    port->name);
+		ssa_log(SSA_LOG_CTRL,
+			"Check that another SSA component is not already running\n");
 		goto err;
 	}
 
