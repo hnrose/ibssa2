@@ -1494,8 +1494,10 @@ out:
 	/* currently memory freeing is done in ssa_close_devices() */
 #if 0
 #ifdef SIM_SUPPORT_SMDB
-	if (p_ref_smdb)
+	if (p_ref_smdb) {
 		ssa_db_destroy(p_ref_smdb);
+		p_ref_smdb = NULL;
+	}
 #endif
 #endif
 

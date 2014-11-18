@@ -395,7 +395,6 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 	p_ssa_db->p_def_tbl = NULL;
 
 	free(p_ssa_db);
-	p_ssa_db = NULL;
 }
 
 /** =========================================================================

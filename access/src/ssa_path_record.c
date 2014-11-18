@@ -322,8 +322,10 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	return SSA_PR_SUCCESS;
 
 Error:
-	if (*p_prdb)
+	if (*p_prdb) {
 		ssa_db_destroy(*p_prdb);
+		*p_prdb = NULL;
+	}
 	return SSA_PR_ERROR;
 }
 
