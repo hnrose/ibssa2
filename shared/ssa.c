@@ -2556,6 +2556,16 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name,
 		ibv_event_type_str(msg->data.event));
 	switch (msg->data.event) {
+	case IBV_EVENT_SM_CHANGE:
+		if ((svc->port->dev->ssa->node_type & SSA_NODE_CORE) == 0 ||
+		    /* Core node became MASTER */
+		    (svc->port->state == IBV_PORT_ACTIVE &&
+		     svc->port->sm_lid == svc->port->lid))
+			return;
+		/*
+		 * In case of SM handover,
+		 * core node (old SM master) closes all downstream connections
+		 */
 	case IBV_EVENT_PORT_ERR:
 		if (svc->conn_listen_smdb.rsock >= 0)
 			ssa_close_ssa_conn(&svc->conn_listen_smdb);
@@ -2569,8 +2579,6 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 				svc->fd_to_conn[i] = NULL;
 			}
 		}
-		break;
-	case IBV_EVENT_SM_CHANGE:
 		break;
 	default:
 		break;
