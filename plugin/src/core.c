@@ -143,6 +143,7 @@ static struct ssa_db *p_ref_smdb = NULL;
 static int sock_coreextract[2];
 
 /* Forward declarations */
+static void core_free_member(void *gid);
 #ifdef SIM_SUPPORT_SMDB
 static int ssa_extract_process(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 			       int *outstanding_count);
@@ -275,6 +276,27 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 		}
 	}
 	return parentgid;
+}
+
+/* Change to static version with first use of core_clean_tree */
+#if 0
+static void core_clean_tree(struct ssa_svc *svc)
+#else
+void core_clean_tree(struct ssa_svc *svc)
+#endif
+{
+	struct ssa_core *core = container_of(svc, struct ssa_core, svc);
+
+	ssa_log_func(SSA_LOG_CTRL);
+
+	if (core->member_map)
+		tdestroy(core->member_map, core_free_member);
+	core->member_map = NULL;
+
+	DListInit(&core->orphan_list);
+	DListInit(&core->core_list);
+	DListInit(&core->distrib_list);
+	DListInit(&core->access_list);
 }
 
 static int core_build_tree(struct ssa_core *core, struct ssa_member *child,
