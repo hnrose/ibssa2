@@ -3932,6 +3932,10 @@ static void ssa_ctrl_update_port(struct ssa_port *port)
 	if (attr.state == IBV_PORT_ACTIVE) {
 		port->sm_lid = attr.sm_lid;
 		port->sm_sl = attr.sm_sl;
+		if (port->state != IBV_PORT_ACTIVE) {
+			port->lid = attr.lid;
+			port->lid_mask = 0xffff - ((1 << attr.lmc) - 1);
+		}
 		ibv_query_gid(port->dev->verbs, port->port_num, 0, &port->gid);
 #ifdef ACM
 		if (port->state != IBV_PORT_ACTIVE) {
@@ -3956,8 +3960,6 @@ static void ssa_ctrl_update_port(struct ssa_port *port)
 				if (ret || !pkey)
 					break;
 			}
-			port->lid = attr.lid;
-			port->lid_mask = 0xffff - ((1 << attr.lmc) - 1);
 
 			port->sa_dest.av.src_path_bits = 0;
 			port->sa_dest.av.dlid = attr.sm_lid;

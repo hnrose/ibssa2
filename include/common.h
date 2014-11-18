@@ -130,6 +130,8 @@ struct ssa_port {
 	uint8_t			port_num;
 	uint16_t		svc_cnt;
 	struct ssa_svc		**svc;
+	uint16_t		lid;
+	uint16_t		lid_mask;
 #ifdef ACM
 	DLIST_ENTRY		ep_list;
 	struct acm_dest		sa_dest;
@@ -138,8 +140,6 @@ struct ssa_port {
 	int			subnet_timeout;
 	int			gid_cnt;
 	uint16_t		pkey_cnt;
-	uint16_t		lid;
-	uint16_t		lid_mask;
 #endif
 };
 
