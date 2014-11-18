@@ -1491,7 +1491,7 @@ out:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	free(fds);
 
-	/* currently memory freeing is done in ssa_close_devices() */
+	/* currently memory deallocation is done in ssa_close_devices() */
 #if 0
 #ifdef SIM_SUPPORT_SMDB
 	if (p_ref_smdb) {
