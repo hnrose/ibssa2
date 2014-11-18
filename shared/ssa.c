@@ -2241,8 +2241,9 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events,
 	      ssa_log_err(SSA_LOG_CTRL, "rrecv failed: %d (%s) on rsock %d\n",
 			  errno, strerror(errno), conn->rsock);
 	} else if (ret == 0) {
-		ssa_log_err(SSA_LOG_DEFAULT, "rrecv 0 bytes on rsock %d\n",
-			    conn->rsock);
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "rrecv 0 out of %d bytes on rsock %d\n",
+			    conn->rsize - conn->roffset, conn->rsock);
 	}
 
 	return revents;
