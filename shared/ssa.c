@@ -527,9 +527,11 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 			pfd->fd = -1;
 			pfd->events = 0;
 			pfd->revents = 0;
-		}
-		/* fall through to reactivate */
-		svc->state = SSA_STATE_IDLE;
+
+			/* fall through to reactivate */
+			svc->state = SSA_STATE_IDLE;
+		} else
+			break;
 	case IBV_EVENT_PORT_ACTIVE:
 		if (svc->port->state == IBV_PORT_ACTIVE &&
 		    svc->state == SSA_STATE_IDLE) {
