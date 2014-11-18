@@ -2563,8 +2563,8 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 		     svc->port->sm_lid == svc->port->lid))
 			return;
 		/*
-		 * In case of SM handover,
-		 * core node (old SM master) closes all downstream connections
+		 * In case of SM handover/failover, core node (old SM master)
+		 * closes all downstream connections
 		 */
 	case IBV_EVENT_PORT_ERR:
 		if (svc->conn_listen_smdb.rsock >= 0)
