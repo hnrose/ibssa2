@@ -1577,8 +1577,7 @@ static void *ssa_upstream_handler(void *context)
 				if (conn_svc->conn_dataup.state != SSA_CONN_IDLE)
 					ssa_log(SSA_LOG_DEFAULT,
 						"upstream connection state not idle\n");
-				if (conn_svc->port->dev->ssa->node_type ==
-				    SSA_NODE_CONSUMER) {
+				if (conn_svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
 					conn_svc->conn_dataup.dbtype = SSA_CONN_PRDB_TYPE;
 					port = prdb_port;
 				} else {
