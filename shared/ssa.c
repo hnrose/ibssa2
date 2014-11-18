@@ -2561,7 +2561,7 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 		    /* Core node became MASTER */
 		    (svc->port->state == IBV_PORT_ACTIVE &&
 		     svc->port->sm_lid == svc->port->lid))
-			return;
+			break;
 		/*
 		 * In case of SM handover/failover, core node (old SM master)
 		 * closes all downstream connections
