@@ -567,18 +567,22 @@ static void core_dump_tree(struct ssa_core *core, char *svc_name)
 	free(buf);
 }
 
-static void core_orphan_adoption(struct ssa_core *core)
+/* Caller must hold list lock. */
+static void core_adopt_orphans(DLIST_ENTRY *orphan_list, int node_type)
 {
 	DLIST_ENTRY *entry, tmp;
+	struct ssa_core *core =
+		container_of(orphan_list, struct ssa_core, orphan_list);
 	struct ssa_member *member;
 	union ibv_gid *parentgid = NULL;
 	int ret, changed = 0;
 
-	pthread_mutex_lock(&core->list_lock);
-	if (!DListEmpty(&core->orphan_list)) {
-		entry = core->orphan_list.Next;
-		while (entry != &core->orphan_list) {
+	if (!DListEmpty(orphan_list)) {
+		entry = orphan_list->Next;
+		while (entry != orphan_list) {
 			member = container_of(entry, struct ssa_member, entry);
+			if (!(member->rec.node_type & node_type))
+				continue;
 
 			tmp = *entry;
 			entry = entry->Next;
@@ -593,6 +597,15 @@ static void core_orphan_adoption(struct ssa_core *core)
 		if (changed)
 			dtree_epoch_cur++;
 	}
+}
+
+static void core_process_orphans(struct ssa_core *core)
+{
+	pthread_mutex_lock(&core->list_lock);
+	core_adopt_orphans(&core->orphan_list, SSA_NODE_CORE);
+	core_adopt_orphans(&core->orphan_list, SSA_NODE_DISTRIBUTION);
+	core_adopt_orphans(&core->orphan_list, SSA_NODE_ACCESS);
+	core_adopt_orphans(&core->orphan_list, SSA_NODE_CONSUMER);
 	pthread_mutex_unlock(&core->list_lock);
 }
 
@@ -1393,7 +1406,7 @@ static void *core_extract_handler(void *context)
 						core = container_of(p_extract_data->svcs[i],
 								struct ssa_core,
 								svc);
-						core_orphan_adoption(core);
+						core_process_orphans(core);
 					}
 				}
 #endif
