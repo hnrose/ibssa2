@@ -692,8 +692,15 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 			ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
 			/* member is orphaned */
 			DListInsertBefore(&member->entry, &core->orphan_list);
-		} else
+		} else {
+			if (member->rec.node_type & SSA_NODE_DISTRIBUTION) {
+				/* list lock is held in core_process_ssa_mad() */
+				core_adopt_orphans(&core->orphan_list, SSA_NODE_ACCESS);
+				core_adopt_orphans(&core->orphan_list, SSA_NODE_CONSUMER);
+			} else if (member->rec.node_type & SSA_NODE_ACCESS)
+				core_adopt_orphans(&core->orphan_list, SSA_NODE_CONSUMER);
 			dtree_epoch_cur++;
+		}
 	}
 }
 
