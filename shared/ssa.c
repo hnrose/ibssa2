@@ -1709,10 +1709,6 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
 ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due to updated epoch 0x%" PRIx64 "\n", svc->conn_dataup.rsock, svc->conn_dataup.phase, svc->conn_dataup.epoch);
 						/* Check connection state ??? */
-						svc->conn_dataup.roffset = 0;
-						free(svc->conn_dataup.rbuf);
-						svc->conn_dataup.rhdr = NULL;
-						svc->conn_dataup.rbuf = NULL;
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					} else {
 						/* No epoch change */
