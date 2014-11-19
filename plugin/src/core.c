@@ -278,12 +278,7 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 	return parentgid;
 }
 
-/* Change to static version with first use of core_clean_tree */
-#if 0
 static void core_clean_tree(struct ssa_svc *svc)
-#else
-void core_clean_tree(struct ssa_svc *svc)
-#endif
 {
 	struct ssa_core *core = container_of(svc, struct ssa_core, svc);
 
