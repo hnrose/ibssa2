@@ -1344,6 +1344,19 @@ else ssa_log(SSA_LOG_DEFAULT, "extract event with extract already pending\n");
 #endif
 #endif
 
+#ifndef SIM_SUPPORT
+static void core_process_extract_data(struct ssa_extract_data *data)
+{
+	struct ssa_core *core;
+	int i;
+
+	for (i = 0; i < data->num_svcs; i++) {
+		core = container_of(data->svcs[i], struct ssa_core, svc);
+		core_process_orphans(core);
+	}
+}
+#endif
+
 static void *core_extract_handler(void *context)
 {
 	struct ssa_extract_data *p_extract_data = (struct ssa_extract_data *) context;
@@ -1417,16 +1430,8 @@ static void *core_extract_handler(void *context)
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
 #ifndef SIM_SUPPORT
-				if (first_extraction) {
-					for (i = 0; i < p_extract_data->num_svcs; i++) {
-						struct ssa_core *core;
-
-						core = container_of(p_extract_data->svcs[i],
-								struct ssa_core,
-								svc);
-						core_process_orphans(core);
-					}
-				}
+				if (first_extraction)
+					core_process_extract_data(p_extract_data);
 #endif
 #ifdef SIM_SUPPORT
 				core_extract_db(p_osm);
