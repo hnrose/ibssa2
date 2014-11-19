@@ -959,6 +959,13 @@ static int core_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *ms
 	return 0;
 }
 
+static int core_process_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n",
+		svc->name, ibv_event_type_str(msg->data.event));
+	return 0;
+}
+
 static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
@@ -968,6 +975,7 @@ static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	case SSA_SA_MAD:
 		return core_process_sa_mad(svc, msg);
 	case SSA_CTRL_DEV_EVENT:
+		return core_process_dev_event(svc, msg);
 	case SSA_CTRL_EXIT:
 		break;
 	default:
