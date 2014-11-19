@@ -2154,11 +2154,15 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 	short revents = events;
 
 	conn->epoch_len = ntohl(hdr->rdma_len);
+	if (conn->epoch_len != sizeof(conn->prdb_epoch))
+		ssa_log(SSA_LOG_DEFAULT,
+			"published epoch buffer length is %d but should be %d\n",
+			conn->epoch_len, sizeof(conn->prdb_epoch));
 	conn->roffset = 0;
 	free(conn->rbuf);
 	conn->rhdr = NULL;
 	conn->rbuf = NULL;
-	if (conn->ssa_db) {
+	if (conn->ssa_db && conn->epoch_len == sizeof(conn->prdb_epoch)) {
 		epoch = ssa_db_get_epoch(conn->ssa_db, DB_DEF_TBL_ID);
 		if (epoch != DB_EPOCH_INVALID) {
 			/* RDMA write current epoch for the connnection/DB so (limited) ACM restart will work */
