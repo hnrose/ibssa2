@@ -2153,6 +2153,7 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 {
 	short revents = events;
 
+	ssa_log_func(SSA_LOG_CTRL);
 	conn->epoch_len = ntohl(hdr->rdma_len);
 	if (conn->epoch_len != sizeof(conn->prdb_epoch))
 		ssa_log(SSA_LOG_DEFAULT,
