@@ -1477,13 +1477,16 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 				hdr = svc->conn_dataup.rbuf;
 				if (validate_ssa_msg_hdr(hdr))
 					revents = ssa_upstream_handle_op(svc, hdr, events, count);
-				else
+				else {
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "validate_ssa_msg_hdr failed: version %d class %d op %u id 0x%x on rsock %d\n",
 						     hdr->version, hdr->class,
 						     ntohs(hdr->op),
 						     ntohl(hdr->id),
 						     svc->conn_dataup.rsock);
+					free(hdr);	/* same as svc->conn_dataup.rbuf */
+					svc->conn_dataup.rbuf = NULL;
+				}
 			} else
 				revents = ssa_upstream_update_conn(svc, events);
 		}
