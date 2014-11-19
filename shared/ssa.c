@@ -1447,10 +1447,14 @@ ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
 		ssa_log_warn(SSA_LOG_CTRL,
 			     "ignoring SSA_MSG_DB_PUBLISH_EPOCH_BUF on rsock %d\n",
 			     svc->conn_dataup.rsock);
+		free(hdr);		/* same as svc->conn_dataup.rbuf */
+		svc->conn_dataup.rbuf = NULL;
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL, "ignoring unknown op %u on rsock %d\n",
 			     op, svc->conn_dataup.rsock);
+		free(hdr);		/* same as svc->conn_dataup.rbuf */
+		svc->conn_dataup.rbuf = NULL;
 		break;
 	}
 	return revents;
