@@ -963,6 +963,13 @@ static int core_process_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *
 {
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n",
 		svc->name, ibv_event_type_str(msg->data.event));
+	switch (msg->data.event) {
+	case IBV_EVENT_SM_CHANGE:
+		core_clean_tree(svc);
+		break;
+	default:
+		break;
+	};
 	return 0;
 }
 
