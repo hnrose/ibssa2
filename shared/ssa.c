@@ -185,6 +185,7 @@ static void ssa_send_db_update_ready(int fd);
 static void ssa_downstream_smdb_update_ready(struct ssa_conn *conn,
 					     struct ssa_svc *svc,
 					     struct pollfd **fds);
+static void ssa_downstream_start_listen(struct ssa_svc *svc, struct pollfd **fds);
 static void ssa_close_port(struct ssa_port *port);
 #ifdef ACCESS
 static void ssa_db_update_init(struct ssa_svc *svc, struct ssa_db *db,
@@ -2562,11 +2563,15 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 		ibv_event_type_str(msg->data.event));
 	switch (msg->data.event) {
 	case IBV_EVENT_SM_CHANGE:
-		if ((svc->port->dev->ssa->node_type & SSA_NODE_CORE) == 0 ||
-		    /* Core node became MASTER */
-		    (svc->port->state == IBV_PORT_ACTIVE &&
-		     svc->port->sm_lid == svc->port->lid))
+		/* Do nothing for non-core node */
+		if ((svc->port->dev->ssa->node_type & SSA_NODE_CORE) == 0)
 			break;
+		/* Core node became MASTER */
+		if (svc->port->state == IBV_PORT_ACTIVE &&
+		    svc->port->sm_lid == svc->port->lid) {
+			ssa_downstream_start_listen(svc, fds);
+			break;
+		}
 		/*
 		 * In case of SM handover/failover, core node (old SM master)
 		 * closes all downstream connections
@@ -2584,6 +2589,9 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 				svc->fd_to_conn[i] = NULL;
 			}
 		}
+		break;
+	case IBV_EVENT_PORT_ACTIVE:
+		ssa_downstream_start_listen(svc, fds);
 		break;
 	default:
 		break;
