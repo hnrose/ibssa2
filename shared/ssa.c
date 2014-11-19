@@ -1431,8 +1431,7 @@ cate check !!! */
 	case SSA_MSG_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p epoch 0x%" PRIx64 " phase %d rsock %d\n", svc->conn_dataup.ssa_db, ntohll(hdr->rdma_addr), svc->conn_dataup.phase, svc->conn_dataup.rsock);
 		svc->conn_dataup.roffset = 0;
-		free(svc->conn_dataup.rbuf);
-		svc->conn_dataup.rhdr = NULL;
+		free(hdr);		/* same as svc->conn_dataup.rbuf */
 		svc->conn_dataup.rbuf = NULL;
 		if (svc->conn_dataup.ssa_db) {
 			if (*count == 0) {
