@@ -2160,7 +2160,7 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 	conn->rbuf = NULL;
 	if (conn->ssa_db) {
 		epoch = ssa_db_get_epoch(conn->ssa_db, DB_DEF_TBL_ID);
-		if (epoch) {
+		if (epoch != DB_EPOCH_INVALID) {
 			/* RDMA write current epoch for the connnection/DB so (limited) ACM restart will work */
 			revents = ssa_riowrite(conn, events);
 		}
