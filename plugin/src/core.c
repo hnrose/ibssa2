@@ -683,16 +683,17 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
 		  (void *) umad, sizeof umad->packet, 0, 0);
 
-	if (!first_extraction) {
-		ret = core_build_tree(core, member, parentgid);
-		if (ret)
-			ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
-		else
-			dtree_epoch_cur++;
-	}
-	if (first_extraction || ret) {
+	if (first_extraction) {
 		/* member is orphaned */
 		DListInsertBefore(&member->entry, &core->orphan_list);
+	} else {
+		ret = core_build_tree(core, member, parentgid);
+		if (ret) {
+			ssa_log(SSA_LOG_CTRL, "core_build_tree failed %d\n", ret);
+			/* member is orphaned */
+			DListInsertBefore(&member->entry, &core->orphan_list);
+		} else
+			dtree_epoch_cur++;
 	}
 }
 
