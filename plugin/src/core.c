@@ -74,6 +74,7 @@ enum {
 static int distrib_tree_level = SSA_DTREE_DEFAULT;
 static uint64_t dtree_epoch_cur = 0;
 static uint64_t dtree_epoch_prev = 0;
+static int join_timeout = 30; /* timeout for joining to original parent node in seconds */
 #endif
 
 extern int log_flush;
@@ -103,6 +104,7 @@ struct ssa_member {
 	struct ssa_member		*secondary;	/* parent */
 	int				primary_state;
 	int				secondary_state;
+	time_t				join_start_time;
 	uint16_t			lid;
 	uint8_t				sl;
 	int				child_num;
@@ -143,13 +145,14 @@ static struct ssa_db *p_ref_smdb = NULL;
 static int sock_coreextract[2];
 
 /* Forward declarations */
-static void core_free_member(void *gid);
 #ifdef SIM_SUPPORT_SMDB
 static int ssa_extract_process(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 			       int *outstanding_count);
 #endif
 
 #ifndef SIM_SUPPORT
+static void core_free_member(void *gid);
+
 /* Should the following two DList routines go into a new dlist.c in shared ? */
 static DLIST_ENTRY *DListFind(DLIST_ENTRY *entry, DLIST_ENTRY *list)
 {
@@ -212,7 +215,8 @@ static int DListCount(DLIST_ENTRY *list)
  * access node when subnet has a mix of such nodes.
  */
 static union ibv_gid *find_best_parent(struct ssa_core *core,
-				       struct ssa_member *child)
+				       struct ssa_member *child,
+				       int join_time_passed)
 {
 	struct ssa_svc *svc;
 	DLIST_ENTRY *list = NULL, *entry;
@@ -236,6 +240,16 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 		parentgid = &svc->port->gid;
 		break;
 	case SSA_NODE_ACCESS:
+		if (child->rec.parent_gid[0]) {
+			if (join_time_passed < join_timeout) {
+				/* Try to preserve previous tree formation */
+				list = NULL;
+				if (tfind(child->rec.parent_gid, &core->member_map, ssa_compare_gid))
+					parentgid = (union ibv_gid *) child->rec.parent_gid;
+				break;
+			}
+		}
+
 		/* If no distribution nodes yet, parent is core */
 		if (DListCount(&core->distrib_list))
 			list = &core->distrib_list;
@@ -570,7 +584,7 @@ static void core_adopt_orphans(DLIST_ENTRY *orphan_list, int node_type)
 		container_of(orphan_list, struct ssa_core, orphan_list);
 	struct ssa_member *member;
 	union ibv_gid *parentgid = NULL;
-	int ret, changed = 0;
+	int ret, changed = 0, join_time_passed = 0;
 
 	if (!DListEmpty(orphan_list)) {
 		entry = orphan_list->Next;
@@ -582,7 +596,8 @@ static void core_adopt_orphans(DLIST_ENTRY *orphan_list, int node_type)
 			tmp = *entry;
 			entry = entry->Next;
 
-			parentgid = find_best_parent(core, member);
+			join_time_passed = time(NULL) - member->join_start_time;
+			parentgid = find_best_parent(core, member, join_time_passed);
 			ret = core_build_tree(core, member, parentgid);
 			if (!ret) {
 				DListRemove(&tmp);
@@ -615,7 +630,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	union ibv_gid *parentgid;
 	DLIST_ENTRY *entry;
 	uint8_t **tgid, node_type;
-	int ret;
+	int ret, join_time_passed = 0;
 
 	/* TODO: verify ssa_key with core nodes */
 	rec = &umad->packet.ssa_mad.member;
@@ -643,6 +658,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 
 		member->rec = *rec;
 		member->lid = ntohs(umad->umad.addr.lid);
+		member->join_start_time = time(NULL);
 		DListInit(&member->child_list);
 		DListInit(&member->access_child_list);
 		if (!tsearch(&member->rec.port_gid, &core->member_map, ssa_compare_gid)) {
@@ -665,10 +681,14 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 
 	umad->packet.mad_hdr.status = 0;
 	if (!first_extraction) {
-		parentgid = find_best_parent(core, member);
+		join_time_passed = time(NULL) - member->join_start_time;
+		parentgid = find_best_parent(core, member, join_time_passed);
 		if (parentgid == NULL) {
-			/* class specific status */
-			umad->packet.mad_hdr.status = htons(SSA_STATUS_REQ_DENIED << 8);
+			if (!(node_type == SSA_NODE_ACCESS && rec->parent_gid[0] &&
+			      join_time_passed < join_timeout))
+				/* class specific status */
+				umad->packet.mad_hdr.status =
+					htons(SSA_STATUS_REQ_DENIED << 8);
 		}
 	}
 
