@@ -1375,6 +1375,24 @@ static void core_process_extract_data(struct ssa_extract_data *data)
 		core_process_orphans(core);
 	}
 }
+
+static int core_has_orphans(struct ssa_extract_data *data)
+{
+	struct ssa_core *core;
+	int i, ret = 0;
+
+	for (i = 0; i < data->num_svcs; i++) {
+		core = container_of(data->svcs[i], struct ssa_core, svc);
+		pthread_mutex_lock(&core->list_lock);
+		if (!DListEmpty(&core->orphan_list)) {
+			ret = 1;
+			pthread_mutex_unlock(&core->list_lock);
+			break;
+		}
+		pthread_mutex_unlock(&core->list_lock);
+	}
+	return ret;
+}
 #endif
 
 static void *core_extract_handler(void *context)
@@ -1433,15 +1451,21 @@ static void *core_extract_handler(void *context)
 			continue;
 		}
 
-#ifdef SIM_SUPPORT_SMDB
 		if (!ret) {
+#ifndef SIM_SUPPORT
+			core_process_extract_data(p_extract_data);
+			if (!core_has_orphans(p_extract_data))
+				timeout_msec = -1;
+#endif
+#ifdef SIM_SUPPORT_SMDB
 			if (ssa_extract_load_smdb(p_osm, p_ref_smdb,
 						  &outstanding_count,
 						  &smdb_last_mtime) < 0)
 				goto out;
+			timeout_msec = 1000;
 			continue;
-		}
 #endif
+		}
 
 		pfd = (struct pollfd *)fds;
 		if (pfd->revents) {
@@ -1462,6 +1486,9 @@ static void *core_extract_handler(void *context)
 					first_extraction = 0;
 
 #ifndef SIM_SUPPORT
+				if (!core_has_orphans(p_extract_data))
+					timeout_msec = 1000;
+
 				for (i = 0; i < p_extract_data->num_svcs; i++) {
 					struct ssa_svc *svc = p_extract_data->svcs[i];
 					struct ssa_core *core;
