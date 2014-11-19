@@ -2590,6 +2590,22 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 	}
 }
 
+static void ssa_downstream_start_listen(struct ssa_svc *svc, struct pollfd **fds)
+{
+	struct pollfd *pfd;
+
+	if (svc->port->dev->ssa->node_type &
+	    (SSA_NODE_CORE | SSA_NODE_DISTRIBUTION)) {
+		pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
+		pfd->fd = ssa_downstream_listen(svc, &svc->conn_listen_smdb, smdb_port);
+	}
+
+	if (svc->port->dev->ssa->node_type & SSA_NODE_ACCESS) {
+		pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
+		pfd->fd = ssa_downstream_listen(svc, &svc->conn_listen_prdb, prdb_port);
+	}
+}
+
 static void *ssa_downstream_handler(void *context)
 {
 	struct ssa_svc *svc = context;
@@ -2678,17 +2694,7 @@ static void *ssa_downstream_handler(void *context)
 
 			switch (msg.hdr.type) {
 			case SSA_LISTEN:
-				if (svc->port->dev->ssa->node_type &
-				    (SSA_NODE_CORE | SSA_NODE_DISTRIBUTION)) {
-					pfd2 = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
-					pfd2->fd = ssa_downstream_listen(svc, &svc->conn_listen_smdb, smdb_port);
-				}
-
-				if (svc->port->dev->ssa->node_type &
-				    SSA_NODE_ACCESS) {
-					pfd2 = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
-					pfd2->fd = ssa_downstream_listen(svc, &svc->conn_listen_prdb, prdb_port);
-				}
+				ssa_downstream_start_listen(svc, fds);
 				break;
 			case SSA_CTRL_EXIT:
 				goto out;
