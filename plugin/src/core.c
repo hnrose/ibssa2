@@ -1795,6 +1795,8 @@ static void core_set_options(void)
 #ifndef SIM_SUPPORT
 		else if (!strcasecmp("distrib_tree_level", opt))
 			distrib_tree_level = atoi(value);
+		else if (!strcasecmp("join_timeout", opt))
+			join_timeout = atoi(value);
 #endif
 		else if (!strcasecmp("log_flush", opt))
 			log_flush = atoi(value);
@@ -1863,6 +1865,9 @@ static void core_log_options(void)
 			ssa_log(SSA_LOG_DEFAULT, "Max. number of simulated"
 				" clients is unlimited\n");
 	}
+#endif
+#ifndef SIM_SUPPORT
+	ssa_log(SSA_LOG_DEFAULT, "join timeout %d\n", join_timeout);
 #endif
 }
 
