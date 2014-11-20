@@ -74,7 +74,7 @@ enum {
 static int distrib_tree_level = SSA_DTREE_DEFAULT;
 static uint64_t dtree_epoch_cur = 0;
 static uint64_t dtree_epoch_prev = 0;
-static int join_timeout = 30; /* timeout for joining to original parent node in seconds */
+static time_t join_timeout = 30; /* timeout for joining to original parent node in seconds */
 #endif
 
 extern int log_flush;
@@ -216,7 +216,7 @@ static int DListCount(DLIST_ENTRY *list)
  */
 static union ibv_gid *find_best_parent(struct ssa_core *core,
 				       struct ssa_member *child,
-				       int join_time_passed)
+				       time_t join_time_passed)
 {
 	struct ssa_svc *svc;
 	DLIST_ENTRY *list = NULL, *entry;
@@ -584,7 +584,8 @@ static void core_adopt_orphans(DLIST_ENTRY *orphan_list, int node_type)
 		container_of(orphan_list, struct ssa_core, orphan_list);
 	struct ssa_member *member;
 	union ibv_gid *parentgid = NULL;
-	int ret, changed = 0, join_time_passed = 0;
+	time_t join_time_passed = 0;
+	int ret, changed = 0;
 
 	if (!DListEmpty(orphan_list)) {
 		entry = orphan_list->Next;
@@ -630,7 +631,8 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	union ibv_gid *parentgid;
 	DLIST_ENTRY *entry;
 	uint8_t **tgid, node_type;
-	int ret, join_time_passed = 0;
+	time_t join_time_passed = 0;
+	int ret;
 
 	/* TODO: verify ssa_key with core nodes */
 	rec = &umad->packet.ssa_mad.member;
