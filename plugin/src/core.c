@@ -608,7 +608,9 @@ static void core_adopt_orphans(DLIST_ENTRY *orphan_list, int node_type)
 			tmp = *entry;
 			entry = entry->Next;
 
-			join_time_passed = time(NULL) - member->join_start_time;
+			if (member->rec.node_type == SSA_NODE_ACCESS)
+				join_time_passed = time(NULL) - member->join_start_time;
+
 			parentgid = find_best_parent(core, member, join_time_passed);
 			ret = core_build_tree(core, member, parentgid);
 			if (!ret) {
@@ -694,7 +696,9 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 
 	umad->packet.mad_hdr.status = 0;
 	if (!first_extraction) {
-		join_time_passed = time(NULL) - member->join_start_time;
+		if (node_type == SSA_NODE_ACCESS)
+			join_time_passed = time(NULL) - member->join_start_time;
+
 		parentgid = find_best_parent(core, member, join_time_passed);
 		if (parentgid == NULL) {
 			if (!(node_type == SSA_NODE_ACCESS &&
