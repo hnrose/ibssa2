@@ -1488,7 +1488,7 @@ static void *core_extract_handler(void *context)
 					first_extraction = 0;
 
 #ifndef SIM_SUPPORT
-				if (!core_has_orphans(p_extract_data))
+				if (core_has_orphans(p_extract_data))
 					timeout_msec = 1000;
 
 				for (i = 0; i < p_extract_data->num_svcs; i++) {
