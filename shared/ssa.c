@@ -1578,7 +1578,7 @@ static void *ssa_upstream_handler(void *context)
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 			if (svc->process_msg && svc->process_msg(svc, &msg))
-				continue;
+				goto check_fd1;
 
 			switch (msg.hdr.type) {
 			case SSA_CTRL_MAD:
@@ -1632,6 +1632,7 @@ static void *ssa_upstream_handler(void *context)
 			}
 		}
 
+check_fd1:
 		if (fds[1].revents) {
 			fds[1].revents = 0;
 			ret = read(svc->sock_accessup[0], (char *) &msg,
