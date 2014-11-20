@@ -1554,7 +1554,11 @@ static void *ssa_upstream_handler(void *context)
 				    errno, strerror(errno));
 			continue;
 		}
-		errnum = errno;
+		/* Workaround for async rconnect issue */
+		if (errno == EINPROGRESS)
+			errnum = errno;
+		else
+			errnum = 0;
 		if (fds[0].revents) {
 			fds[0].revents = 0;
 			ret = read(svc->sock_upctrl[1], (char *) &msg,
