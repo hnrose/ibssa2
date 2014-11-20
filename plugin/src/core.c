@@ -143,6 +143,7 @@ static struct ssa_db *p_ref_smdb = NULL;
 #endif
 
 static int sock_coreextract[2];
+static const union ibv_gid zero_gid = { {0} };
 
 /* Forward declarations */
 #ifdef SIM_SUPPORT_SMDB
@@ -152,6 +153,16 @@ static int ssa_extract_process(osm_opensm_t *p_osm, struct ssa_db *p_ref_smdb,
 
 #ifndef SIM_SUPPORT
 static void core_free_member(void *gid);
+
+static int is_gid_not_zero(union ibv_gid *gid)
+{
+	int ret = 0;
+
+	if (ssa_compare_gid(&zero_gid, gid))
+		ret = 1;
+
+	return ret;
+}
 
 /* Should the following two DList routines go into a new dlist.c in shared ? */
 static DLIST_ENTRY *DListFind(DLIST_ENTRY *entry, DLIST_ENTRY *list)
@@ -240,7 +251,7 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 		parentgid = &svc->port->gid;
 		break;
 	case SSA_NODE_ACCESS:
-		if (child->rec.parent_gid[0]) {
+		if (is_gid_not_zero((union ibv_gid *) child->rec.parent_gid)) {
 			if (join_time_passed < join_timeout) {
 				/* Try to preserve previous tree formation */
 				list = NULL;
@@ -639,7 +650,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	node_type = rec->node_type;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
-	if (rec->parent_gid[0]) {
+	if (is_gid_not_zero((union ibv_gid *) rec->parent_gid)) {
 		ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 				log_data1, sizeof log_data1, SSA_ADDR_GID,
 				rec->parent_gid, sizeof rec->parent_gid);
@@ -686,8 +697,10 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 		join_time_passed = time(NULL) - member->join_start_time;
 		parentgid = find_best_parent(core, member, join_time_passed);
 		if (parentgid == NULL) {
-			if (!(node_type == SSA_NODE_ACCESS && rec->parent_gid[0] &&
-			      join_time_passed < join_timeout))
+			if (!(node_type == SSA_NODE_ACCESS &&
+			      join_time_passed < join_timeout) &&
+			      is_gid_not_zero((union ibv_gid *) rec->parent_gid))
+
 				/* class specific status */
 				umad->packet.mad_hdr.status =
 					htons(SSA_STATUS_REQ_DENIED << 8);
