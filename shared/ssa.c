@@ -177,7 +177,7 @@ static struct ssa_sysinfo ssa_sysinfo;
 static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn);
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
-static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum);
+static int ssa_upstream_svc_client(struct ssa_svc *svc);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
@@ -1511,7 +1511,7 @@ static void *ssa_upstream_handler(void *context)
 	struct ssa_svc *svc = context, *conn_svc;
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[5];
-	int ret, errnum;
+	int ret, timeout = -1;		/* infinite */
 	int outstanding_count = 0;
 	short port;
 
@@ -1548,17 +1548,12 @@ static void *ssa_upstream_handler(void *context)
 	fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 
 	for (;;) {
-		ret = rpoll(&fds[0], 5, -1);
+		ret = rpoll(&fds[0], 5, timeout);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
 			continue;
 		}
-		/* Workaround for async rconnect issue */
-		if (errno == EINPROGRESS)
-			errnum = errno;
-		else
-			errnum = 0;
 		if (fds[0].revents) {
 			fds[0].revents = 0;
 			ret = read(svc->sock_upctrl[1], (char *) &msg,
@@ -1603,9 +1598,11 @@ static void *ssa_upstream_handler(void *context)
 				fds[UPSTREAM_DATA_FD_SLOT].fd = ssa_upstream_initiate_conn(conn_svc, port);
 				/* Change when more than 1 data connection supported !!! */
 				if (fds[UPSTREAM_DATA_FD_SLOT].fd >= 0) {
-					if (conn_svc->conn_dataup.state != SSA_CONN_CONNECTED)
+					if (conn_svc->conn_dataup.state != SSA_CONN_CONNECTED) {
+						/* 1 msec timeout used for polling for connection completed */
+						timeout = 1;
 						fds[UPSTREAM_DATA_FD_SLOT].events = POLLOUT;
-					else {
+					} else {
 						conn_svc->conn_dataup.ssa_db = calloc(1, sizeof(*conn_svc->conn_dataup.ssa_db));
 						if (conn_svc->conn_dataup.ssa_db) {
 							if (port == prdb_port)
@@ -1793,7 +1790,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & POLLOUT) {
 				/* Check connection state for fd */
 				if (svc->conn_dataup.state != SSA_CONN_CONNECTED) {
-					if (ssa_upstream_svc_client(svc, errnum)) {
+					ret = ssa_upstream_svc_client(svc);
+					if (ret && (errno != EINPROGRESS)) {
 						ssa_log(SSA_LOG_DEFAULT,
 							"ssa_upstream_svc_client error on rsock %d\n",
 							fds[UPSTREAM_DATA_FD_SLOT].fd);
@@ -1802,7 +1800,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 						fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
 						fds[UPSTREAM_DATA_FD_SLOT].events = 0;
 						fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
-					} else {
+					} else if (ret == 0) {
+						timeout = -1;	/* infinite */
 						svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
 						if (svc->conn_dataup.ssa_db) {
 							if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
@@ -4164,13 +4163,10 @@ static void ssa_upstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
 			    ret, sizeof msg);
 }
 
-static int ssa_upstream_svc_client(struct ssa_svc *svc, int errnum)
+static int ssa_upstream_svc_client(struct ssa_svc *svc)
 {
 	int ret, err;
 	socklen_t len;
-
-	if (errnum == EINPROGRESS)
-		return 0;
 
 	if (svc->conn_dataup.state != SSA_CONN_CONNECTING) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
@@ -4474,7 +4470,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	svc->state = SSA_STATE_CONNECTING;
 
 	if (ret == 0) {
-		ret = ssa_upstream_svc_client(svc, 0);
+		ret = ssa_upstream_svc_client(svc);
 		if (ret && (errno != EINPROGRESS))
 			goto close;
 	}
