@@ -957,6 +957,7 @@ static void ssa_upstream_handle_query_defs(struct ssa_conn *conn,
 					ssa_log_err(SSA_LOG_DEFAULT,
 						    "rrecv 0 out of %d bytes on rsock %d\n",
 						    conn->rsize, conn->rsock);
+ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", conn->rbuf, conn->rsize, conn->roffset, conn->state, conn->phase);
 				} else {
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
 						return;
@@ -1006,6 +1007,7 @@ static void ssa_upstream_handle_query_tbl_defs(struct ssa_conn *conn,
 						ssa_log_err(SSA_LOG_DEFAULT,
 							    "rrecv 0 out of %d bytes on rsock %d\n",
 							    conn->rsize, conn->rsock);
+ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", conn->rbuf, conn->rsize, conn->roffset, conn->state, conn->phase);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -1056,6 +1058,7 @@ static void ssa_upstream_handle_query_field_defs(struct ssa_conn *conn,
 						ssa_log_err(SSA_LOG_DEFAULT,
 							    "rrecv 0 out of %d bytes on rsock %d\n",
 							    conn->rsize, conn->rsock);
+ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", conn->rbuf, conn->rsize, conn->roffset, conn->state, conn->phase);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -1106,6 +1109,7 @@ static void ssa_upstream_handle_query_data(struct ssa_conn *conn,
 						ssa_log_err(SSA_LOG_DEFAULT,
 							    "rrecv 0 out of %d bytes on rsock %d\n",
 							    conn->rsize, conn->rsock);
+ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", conn->rbuf, conn->rsize, conn->roffset, conn->state, conn->phase);
 					} else {
 						if (errno == EAGAIN || errno == EWOULDBLOCK)
 							return;
@@ -1501,6 +1505,7 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 		ssa_log_err(SSA_LOG_DEFAULT, "rrecv 0 out of %d bytes on rsock %d\n",
 			    svc->conn_dataup.rsize - svc->conn_dataup.roffset,
 			    svc->conn_dataup.rsock);
+ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", svc->conn_dataup.rbuf, svc->conn_dataup.rsize, svc->conn_dataup.roffset, svc->conn_dataup.state, svc->conn_dataup.phase);
 	}
 
 	return revents;
@@ -2260,6 +2265,7 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events,
 		ssa_log_err(SSA_LOG_DEFAULT,
 			    "rrecv 0 out of %d bytes on rsock %d\n",
 			    conn->rsize - conn->roffset, conn->rsock);
+ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", conn->rbuf, conn->rsize, conn->roffset, conn->state, conn->phase);
 	}
 
 	return revents;
