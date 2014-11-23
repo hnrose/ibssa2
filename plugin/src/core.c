@@ -602,11 +602,12 @@ static void core_adopt_orphans(DLIST_ENTRY *orphan_list, int node_type)
 		entry = orphan_list->Next;
 		while (entry != orphan_list) {
 			member = container_of(entry, struct ssa_member, entry);
-			if (!(member->rec.node_type & node_type))
-				continue;
 
 			tmp = *entry;
 			entry = entry->Next;
+
+			if (!(member->rec.node_type & node_type))
+				continue;
 
 			if (member->rec.node_type == SSA_NODE_ACCESS)
 				join_time_passed = time(NULL) - member->join_start_time;
