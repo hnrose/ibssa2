@@ -2427,11 +2427,9 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB transfer in progress %d update pending %d\n", ssa
 				ssa_downstream_smdb_update_ready(conn, svc, fds);
 		}
 	} else {
-		if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
-			ssa_close_ssa_conn(conn);
+		ssa_close_ssa_conn(conn);
+		if (conn->dbtype == SSA_CONN_PRDB_TYPE)
 			ssa_downstream_conn(svc, conn, 1);
-		} else
-			ssa_close_ssa_conn(conn);
 	}
 }
 
