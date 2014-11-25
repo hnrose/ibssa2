@@ -312,7 +312,8 @@ static void sa_init_mad_hdr(struct ssa_svc *svc, struct umad_hdr *hdr,
 	hdr->attr_id = htons(attr_id);
 }
 
-static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
+static void ssa_init_join(struct ssa_svc *svc, uint8_t bad_parent,
+			  struct ssa_mad_packet *mad)
 {
 	struct ssa_member_record *rec;
 
@@ -324,7 +325,8 @@ static void ssa_init_join(struct ssa_svc *svc, struct ssa_mad_packet *mad)
 	rec->database_id = htonll(svc->database_id);
 	rec->node_guid = svc->port->dev->guid;
 	rec->node_type = svc->port->dev->ssa->node_type;
-	if ((svc->port->dev->ssa->node_type & SSA_NODE_CORE) == 0)
+	rec->bad_parent = bad_parent;
+	if ((svc->port->dev->ssa->node_type & SSA_NODE_CORE) == 0 || bad_parent)
 		memcpy(rec->parent_gid, svc->conn_dataup.remote_gid.raw, 16);
 	else
 		memset(rec->parent_gid, 0, 16);
@@ -349,7 +351,7 @@ static void sa_init_path_query(struct ssa_svc *svc, struct sa_path_record *mad,
 	path->pkey = 0xFFFF;	/* default partition */
 }
 
-static int ssa_svc_join(struct ssa_svc *svc)
+static int ssa_svc_join(struct ssa_svc *svc, uint8_t bad_parent)
 {
 	struct ssa_umad umad;
 	int ret;
@@ -359,7 +361,7 @@ static int ssa_svc_join(struct ssa_svc *svc)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name, log_data);
 	memset(&umad, 0, sizeof umad);
 	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
-	ssa_init_join(svc, &umad.packet);
+	ssa_init_join(svc, bad_parent, &umad.packet);
 	svc->state = SSA_STATE_JOINING;
 
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
@@ -543,7 +545,7 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 		if (svc->port->state == IBV_PORT_ACTIVE &&
 		    svc->state == SSA_STATE_IDLE) {
 			svc->timeout = DEFAULT_TIMEOUT;
-			ssa_svc_join(svc);
+			ssa_svc_join(svc, 0);
 		}
 		break;
 	default:
@@ -577,7 +579,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			return;
 
 		svc->timeout = min(svc->timeout << 1, MAX_TIMEOUT);
-		ssa_svc_join(svc);
+		ssa_svc_join(svc, 0);
 		return;
 	}
 

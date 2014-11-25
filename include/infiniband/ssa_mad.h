@@ -113,7 +113,8 @@ struct ssa_member_record {
 	be64_t		database_id;
 	be64_t		node_guid;
 	uint8_t		node_type;
-	uint8_t		reserved[7];
+	uint8_t		bad_parent;
+	uint8_t		reserved[6];
 };
 
 /**

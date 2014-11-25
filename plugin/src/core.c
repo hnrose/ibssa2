@@ -658,8 +658,9 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 				log_data1, sizeof log_data1, SSA_ADDR_GID,
 				rec->parent_gid, sizeof rec->parent_gid);
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-			"%s %s node type %d old parent %s\n",
-			core->svc.name, log_data, node_type, log_data1);
+			"%s %s node type %d old parent %s %s\n",
+			core->svc.name, log_data, node_type, log_data1,
+			rec->bad_parent ? "BAD": "OK");
 	} else {
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s node type %d\n",
 			core->svc.name, log_data, node_type);
