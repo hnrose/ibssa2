@@ -2457,9 +2457,9 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
 						ssa_downstream_conn(svc, conn_data, 0);
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
-						if (!update_pending && !update_waiting)
+						if (!update_pending && !update_waiting && smdb)
 							pfd->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
-else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update deferred since update is pending %d or waiting %d\n", update_pending, update_waiting);
+else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update deferred since update is pending %d or waiting %d or no SMDB\n", update_pending, update_waiting);
 					else {
 						ssa_close_ssa_conn(conn_data);
 						free(conn_data);
