@@ -615,9 +615,20 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	case SSA_STATE_HAVE_PARENT:
 		mad = &umad->packet;
 		info_rec = &mad->ssa_mad.info;
-		memcpy(&svc->primary, &info_rec->path_data,
-		       sizeof(svc->primary));
-		svc->primary_type = info_rec->node_type;
+
+		if (memcmp(&svc->primary, &info_rec->path_data,
+			   sizeof(svc->primary))) {
+			if (svc->conn_dataup.rsock >= 0)
+				ssa_close_ssa_conn(&svc->conn_dataup);
+			memcpy(&svc->primary, &info_rec->path_data,
+			       sizeof(svc->primary));
+			svc->primary_type = info_rec->node_type;
+			break;
+		}
+
+		if (svc->conn_dataup.rsock >= 0)
+			svc->state = SSA_STATE_CONNECTED;
+
 		break;
 	case SSA_STATE_CONNECTING:
 	case SSA_STATE_CONNECTED:		/* TODO compare against current parent, if same done */
