@@ -543,6 +543,19 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 			pfd->events = 0;
 			pfd->revents = 0;
 		}
+
+		/*
+		 * For the case of consumer already connected to access layer
+		 *
+		 * NOTE: If consumer was directly connected to core and
+		 * it's rsocket connection was closed by previous
+		 * condition above, it will fall through code below
+		 * to reactivate.
+		 */
+		if (svc->conn_dataup.rsock >= 0 &&
+		    svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
+			break;
+
 		/* fall through to reactivate */
 		svc->state = SSA_STATE_IDLE;
 	case IBV_EVENT_PORT_ACTIVE:
