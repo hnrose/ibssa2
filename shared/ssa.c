@@ -84,6 +84,10 @@
 #define ACM_FAKE_RSOCKET_ID 0
 #endif
 
+#ifndef RCLOSE_THREAD_POOL_WORKERS_NUM
+#define RCLOSE_THREAD_POOL_WORKERS_NUM 1
+#endif
+
 struct ssa_db_update_record {
 	DLIST_ENTRY		list_entry;
 	struct ssa_db_update	db_upd;
@@ -5676,7 +5680,8 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 #endif
 
 	thpool_rclose = g_thread_pool_new((GFunc) g_rclose_callback, NULL,
-					  1, TRUE, &g_error);
+					  RCLOSE_THREAD_POOL_WORKERS_NUM, TRUE,
+					  &g_error);
 	if (g_error != NULL) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "Glib thread pool initialization error: %s\n",
