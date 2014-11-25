@@ -116,6 +116,7 @@ struct ssa_access_task {
 };
 
 static struct ssa_db *smdb;
+static struct ssa_db *db_previous;
 static int smdb_refcnt;
 static uint64_t epoch;
 
@@ -1357,6 +1358,13 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p len %d rsock %d\n", svc->conn_
 ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", svc->conn_dataup.ssa_db, epoch, svc->conn_dataup.ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
 			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db,
 						    0, NULL, epoch);
+			if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
+if (db_previous)
+ssa_log(SSA_LOG_DEFAULT, "destroying previous PRDB ssa_db %p\n", db_previous);
+				ssa_db_destroy(db_previous);
+				db_previous = svc->conn_dataup.ssa_db;
+ssa_log(SSA_LOG_DEFAULT, "previous PRDB ssa_db now %p\n", db_previous);
+			}
 		}
 		break;
 	default:
@@ -1667,15 +1675,14 @@ static void *ssa_upstream_handler(void *context)
 						timeout = 1;
 						fds[UPSTREAM_DATA_FD_SLOT].events = POLLOUT;
 					} else {
-						conn_svc->conn_dataup.ssa_db = calloc(1, sizeof(*conn_svc->conn_dataup.ssa_db));
-						if (conn_svc->conn_dataup.ssa_db) {
-							if (port == prdb_port)
-								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
-						} else {
-							ssa_log_err(SSA_LOG_DEFAULT,
-								    "could not allocate ssa_db struct for %s on rsock %d\n",
-								    (conn_svc->conn_dataup.dbtype == SSA_CONN_SMDB_TYPE) ? "SMDB" : "PRDB",
-								    fds[UPSTREAM_DATA_FD_SLOT].fd);
+						if (port == prdb_port)
+							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
+						else {
+							conn_svc->conn_dataup.ssa_db = calloc(1, sizeof(*conn_svc->conn_dataup.ssa_db));
+							if (!conn_svc->conn_dataup.ssa_db)
+								ssa_log_err(SSA_LOG_DEFAULT,
+									    "could not allocate ssa_db struct for SMDB on rsock %d\n",
+									    fds[UPSTREAM_DATA_FD_SLOT].fd);
 						}
 					}
 				}
@@ -1766,10 +1773,13 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 				if (svc->conn_dataup.rsock >= 0) {
 					if (svc->conn_dataup.epoch !=
 					    ntohll(svc->conn_dataup.prdb_epoch)) {
-						if (svc->conn_dataup.ssa_db) {
-							svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
-							svc->conn_dataup.ssa_db->p_db_tables = NULL;
-						}
+						if (svc->conn_dataup.ssa_db)
+							db_previous = svc->conn_dataup.ssa_db;
+						svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
+ssa_log(SSA_LOG_DEFAULT, "PRDB ssa_db new %p old %p\n", svc->conn_dataup.ssa_db, db_previous);
+						if (!svc->conn_dataup.ssa_db)
+							ssa_log_err(SSA_LOG_DEFAULT,
+								    "could not allocate ssa_db struct for new PRDB\n");
 						/* Should response (and epoch update) be after DB is pulled successfully ??? */
 						ssa_upstream_query_db_resp(svc, SSA_DB_QUERY_EPOCH_CHANGED);
 						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
@@ -1881,14 +1891,14 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 						fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 					} else if (ret == 0) {
 						timeout = -1;	/* infinite */
-						svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
-						if (svc->conn_dataup.ssa_db) {
-							if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
-								fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
-						} else {
-							ssa_log_err(SSA_LOG_DEFAULT,
-								    "could not allocate ssa_db struct for rsock %d\n",
-								    fds[UPSTREAM_DATA_FD_SLOT].fd);
+						if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
+							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
+						else {
+							svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
+							if (!svc->conn_dataup.ssa_db)
+								ssa_log_err(SSA_LOG_DEFAULT,
+									    "could not allocate SMDB ssa_db struct for rsock %d\n",
+									    fds[UPSTREAM_DATA_FD_SLOT].fd);
 						}
 					}
 				} else {
