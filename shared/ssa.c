@@ -5691,6 +5691,9 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 		return -1;
 	}
 
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+		"rclose thread pool number of workers %d\n",
+		RCLOSE_THREAD_POOL_WORKERS_NUM);
 	ssa_get_sysinfo();
 	ssa_log_sysinfo();
 
