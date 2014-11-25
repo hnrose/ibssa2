@@ -355,12 +355,18 @@ static int ssa_svc_join(struct ssa_svc *svc, uint8_t bad_parent)
 {
 	struct ssa_umad umad;
 	int ret;
+	uint16_t lid;
 
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, svc->port->gid.raw, sizeof svc->port->gid);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name, log_data);
 	memset(&umad, 0, sizeof umad);
-	umad_set_addr(&umad.umad, svc->port->sm_lid, 1, svc->port->sm_sl, UMAD_QKEY);
+	if (svc->port->dev->ssa->node_type & SSA_NODE_CORE)
+		lid = svc->port->lid;
+	else
+		lid = svc->port->sm_lid;
+
+	umad_set_addr(&umad.umad, lid, 1, svc->port->sm_sl, UMAD_QKEY);
 	ssa_init_join(svc, bad_parent, &umad.packet);
 	svc->state = SSA_STATE_JOINING;
 
