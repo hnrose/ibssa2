@@ -43,6 +43,7 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
+#include <sys/timerfd.h>
 #include <fcntl.h>
 #include <rdma/rsocket.h>
 #include <netinet/tcp.h>
@@ -74,6 +75,7 @@
 #define PRDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 1
 #define SMDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 2
 #define UPSTREAM_DATA_FD_SLOT		4
+#define UPSTREAM_TIMER_SLOT		5
 
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
@@ -1515,10 +1517,11 @@ static void *ssa_upstream_handler(void *context)
 {
 	struct ssa_svc *svc = context, *conn_svc;
 	struct ssa_ctrl_msg_buf msg;
-	struct pollfd fds[5];
+	struct pollfd fds[6];
 	int ret, timeout = -1;		/* infinite */
 	int outstanding_count = 0;
 	short port;
+	struct itimerspec reconnect_timer;
 
 	SET_THREAD_NAME(svc->upstream, "UP %s", svc->name);
 
@@ -1552,8 +1555,30 @@ static void *ssa_upstream_handler(void *context)
 	fds[UPSTREAM_DATA_FD_SLOT].events = 0;
 	fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 
+	reconnect_timer.it_value.tv_sec = 0;
+	reconnect_timer.it_value.tv_nsec = 0;
+	reconnect_timer.it_interval.tv_sec = 0;
+	reconnect_timer.it_interval.tv_nsec = 0;
+
+	fds[UPSTREAM_TIMER_SLOT].fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	if (fds[UPSTREAM_TIMER_SLOT].fd < 0) {
+		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d %d (%s)\n",
+			    ret, errno, strerror(errno));
+		return NULL;
+	}
+	fds[UPSTREAM_TIMER_SLOT].events = POLLIN;
+	fds[UPSTREAM_TIMER_SLOT].revents = 0;
+
+	ret = timerfd_settime(fds[UPSTREAM_TIMER_SLOT].fd, 0, &reconnect_timer, NULL);
+	if (ret) {
+		close(fds[UPSTREAM_TIMER_SLOT].fd);
+		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
+			    ret, errno, strerror(errno));
+		return NULL;
+	}
+
 	for (;;) {
-		ret = rpoll(&fds[0], 5, timeout);
+		ret = rpoll(&fds[0], 6, timeout);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
@@ -1779,6 +1804,21 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			}
 		}
 
+		if (fds[UPSTREAM_TIMER_SLOT].revents & POLLIN) {
+			ssize_t s;
+			uint64_t exp;
+
+			s = read(fds[UPSTREAM_TIMER_SLOT].fd, &exp, sizeof(uint64_t));
+			if (s == sizeof(uint64_t))
+				ssa_log(SSA_LOG_DEFAULT,
+					"reconnect timer exp %" PRIu64 "\n", exp);
+			else
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "%" PRId64 " bytes read\n", s);
+
+			fds[UPSTREAM_TIMER_SLOT].revents = 0;
+		}
+
 		/* Only 1 upstream data connection currently */
 		if (fds[UPSTREAM_DATA_FD_SLOT].revents) {
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & (POLLERR | POLLHUP | POLLNVAL)) {
@@ -1852,6 +1892,9 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 
 	}
 out:
+	if (fds[UPSTREAM_TIMER_SLOT].fd >= 0)
+		close(fds[UPSTREAM_TIMER_SLOT].fd);
+
 	return NULL;
 }
 
