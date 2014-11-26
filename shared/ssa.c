@@ -2459,7 +2459,6 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 	ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
 	if (ret >= 0) {
 		conn->soffset += ret;
-		conn->sid = 0;
 		if (conn->soffset == conn->ssize) {
 			free(conn->sbuf);
 			conn->sbuf = NULL;
