@@ -1277,16 +1277,35 @@ static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
 		if (svc->conn_dataup.rbuf == svc->conn_dataup.rhdr &&
 		    ntohs(((struct ssa_msg_hdr *)svc->conn_dataup.rhdr)->flags) & SSA_MSG_FLAG_END) {
 			svc->conn_dataup.phase = SSA_DB_DATA;
+			if (svc->conn_dataup.rindex != ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db))
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "SSA_DB_FIELD_DEFS protocol error - rindex %d num tables %d mismatch\n",
+					    svc->conn_dataup.rindex,
+					    ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db));
 		} else {
 			if (!svc->conn_dataup.ssa_db->p_db_field_tables) {
 				svc->conn_dataup.ssa_db->p_db_field_tables = svc->conn_dataup.rbuf;
 				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
-				svc->conn_dataup.ssa_db->pp_field_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_field_tables));
+				svc->conn_dataup.ssa_db->pp_field_tables = calloc(1, data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_field_tables));
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p num tables %d rsock %d\n", svc->conn_dataup.ssa_db->pp_field_tables, data_tbl_cnt, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex = 0;
 			} else {
-				if (svc->conn_dataup.ssa_db->pp_field_tables)
+				if (svc->conn_dataup.rindex >=
+				    ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db))
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "SSA_DB_FIELD_DEFS protocol error - ignoring rindex %d num tables %d\n",
+						    svc->conn_dataup.rindex,
+						    ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db));
+				else if (svc->conn_dataup.ssa_db->pp_field_tables) {                                       
+					if (svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex])
+						ssa_log_err(SSA_LOG_DEFAULT,
+							    "SSA_DB_FIELD_DEFS pp_field_tables rindex %d %p not NULL as expected\n",
+							    svc->conn_dataup.rindex,
+							    svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex]);
 					svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+				} else ssa_log_err(SSA_LOG_DEFAULT,
+						   "SSA_DB_FIELD_DEFS no pp_field_tables rindex %d\n",
+						   svc->conn_dataup.rindex);
 {
 void *rbuf;
 int rsize;
@@ -1317,16 +1336,35 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p len %d rsock %d\n", svc-
 		if (svc->conn_dataup.rbuf == svc->conn_dataup.rhdr &&
 		    ntohs(((struct ssa_msg_hdr *)svc->conn_dataup.rhdr)->flags) & SSA_MSG_FLAG_END) {
 			svc->conn_dataup.phase = SSA_DB_IDLE;
+			if (svc->conn_dataup.rindex != ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db))
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "SSA_DB_DATA protocol error - rindex %d num tables %d mismatch\n",
+					    svc->conn_dataup.rindex,
+					    ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db));
 		} else {
 			if (!svc->conn_dataup.ssa_db->p_db_tables) {
 				svc->conn_dataup.ssa_db->p_db_tables = svc->conn_dataup.rbuf;
 				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
-				svc->conn_dataup.ssa_db->pp_tables = malloc(data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_tables));
+				svc->conn_dataup.ssa_db->pp_tables = calloc(1, data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_tables));
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %d rsock %d\n", svc->conn_dataup.ssa_db->pp_tables, data_tbl_cnt, svc->conn_dataup.rsock);
 				svc->conn_dataup.rindex = 0;
 			} else {
-				if (svc->conn_dataup.ssa_db->pp_tables)
+				if (svc->conn_dataup.rindex >=
+				    ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db))
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "SSA_DB_DATA protocol error - ignoring rindex %d num tables %d\n",
+						    svc->conn_dataup.rindex,
+						    ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db));
+				else if (svc->conn_dataup.ssa_db->pp_tables) {
+					if (svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex])
+						ssa_log_err(SSA_LOG_DEFAULT,
+							    "SSA_DB_DATA pp_tables rindex %d %p not NULL as expected\n",
+							    svc->conn_dataup.rindex,
+							    svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex]);
 					svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+				} else ssa_log_err(SSA_LOG_DEFAULT,
+						   "SSA_DB_DATA no pp_tables rindex %d\n",
+						   svc->conn_dataup.rindex);
 {
 void *rbuf;
 int rsize;
