@@ -1519,15 +1519,18 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %
 		svc->conn_dataup.roffset = 0;
 		free(hdr);		/* same as svc->conn_dataup.rbuf */
 		svc->conn_dataup.rbuf = NULL;
-		if (svc->conn_dataup.ssa_db) {
-			if (*count == 0) {
-				*count = ssa_upstream_send_db_update_prepare(svc);
+		/* Ignore DB update notification message if phase is not IDLE */
+		if (svc->conn_dataup.phase == SSA_DB_IDLE) {
+			if (svc->conn_dataup.ssa_db) {
+				if (*count == 0) {
+					*count = ssa_upstream_send_db_update_prepare(svc);
 ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
-				if (*count == 0)
-					revents = ssa_upstream_update_conn(svc, events);
-			}
-		} else
-			revents = ssa_upstream_update_conn(svc, events);
+					if (*count == 0)
+						revents = ssa_upstream_update_conn(svc, events);
+				}
+			} else
+				revents = ssa_upstream_update_conn(svc, events);
+		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
 		ssa_log_warn(SSA_LOG_CTRL,
