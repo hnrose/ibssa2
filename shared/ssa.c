@@ -2438,7 +2438,6 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 					     struct ssa_conn *conn,
 					     uint64_t epoch)
 {
-	uint32_t id;
 	int ret;
 
 	conn->sbuf = malloc(sizeof(struct ssa_msg_hdr));
@@ -2451,14 +2450,13 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 
 	conn->ssize = sizeof(struct ssa_msg_hdr);
 	conn->soffset = 0;
-	id = svc->tid++;
 	ssa_init_ssa_msg_hdr(conn->sbuf, SSA_MSG_DB_UPDATE, conn->ssize,
-			     SSA_MSG_FLAG_END, id, 0, epoch);
+			     SSA_MSG_FLAG_END, 0, 0, epoch);
 	usleep(1000);	/* 1 msec delay is a temporary workaround so rsend does not indicate EAGAIN/EWOULDBLOCK !!! */
 	ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
 	if (ret >= 0) {
 		conn->soffset += ret;
-		conn->sid = id;
+		conn->sid = 0;
 		if (conn->soffset == conn->ssize) {
 			free(conn->sbuf);
 			conn->sbuf = NULL;
