@@ -1431,7 +1431,7 @@ static short ssa_upstream_handle_op(struct ssa_svc *svc,
 		if ((ntohs(hdr->flags) & SSA_MSG_FLAG_RESP))
 			ssa_log(SSA_LOG_DEFAULT,
 				"Ignoring SSA_MSG_FLAG_RESP set in op %u "
-				"in phase %d rsock %d\n",
+				"(SSA_MSG_DB_UPDATE) in phase %d rsock %d\n",
 				op, svc->conn_dataup.phase, svc->conn_dataup.rsock);
 	}
 
