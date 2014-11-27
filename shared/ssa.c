@@ -81,7 +81,7 @@
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
 
 #ifdef SIM_SUPPORT_FAKE_ACM
-#define ACM_FAKE_RSOCKET_ID 0
+#define ACM_FAKE_RSOCKET_ID -1
 #endif
 
 #ifndef RCLOSE_THREAD_POOL_WORKERS_NUM
