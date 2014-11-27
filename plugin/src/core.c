@@ -1261,7 +1261,7 @@ static int ssa_extract_process_smdb(struct ssa_db **pp_smdb)
 static void core_extract_db(osm_opensm_t *p_osm)
 {
 	struct ssa_db_diff *ssa_db_diff_old = NULL;
-	uint64_t epoch_prev = 0;
+	uint64_t epoch_prev = DB_EPOCH_INVALID;
 
 	CL_PLOCK_ACQUIRE(&p_osm->lock);
 	ssa_db->p_dump_db = ssa_db_extract(p_osm);
