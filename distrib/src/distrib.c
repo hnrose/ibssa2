@@ -67,6 +67,8 @@ extern int keepalive;
 #ifdef SIM_SUPPORT_FAKE_ACM
 extern int fake_acm_num;
 #endif
+extern int reconnect_timeout;
+extern int reconnect_max_count;
 
 struct ssa_distrib {
 	struct ssa_svc			svc;
@@ -247,6 +249,10 @@ static void distrib_set_options(void)
 		else if (!strcasecmp("fake_acm_num", opt))
 			fake_acm_num = atoi(value);
 #endif
+		else if (!strcasecmp("reconnect_max_count", opt))
+			 reconnect_max_count = atoi(value);
+		else if (!strcasecmp("reconnect_timeout", opt))
+			 reconnect_timeout = atoi(value);
 	}
 
 	fclose(f);
@@ -278,6 +284,13 @@ static void distrib_log_options(void)
 				" clients is unlimited\n");
 	}
 #endif
+	if (reconnect_max_count < 0 || reconnect_timeout < 0) {
+		ssa_log(SSA_LOG_DEFAULT, "reconnection to upstream node disabled\n");
+	} else {
+		ssa_log(SSA_LOG_DEFAULT, "max. number of reconnections to upstream node %d\n", reconnect_max_count);
+
+		ssa_log(SSA_LOG_DEFAULT, "timeout between reconnections (in sec.) %d\n", reconnect_timeout);
+	}
 }
 
 static void *distrib_construct(int node_type, unsigned short daemon)

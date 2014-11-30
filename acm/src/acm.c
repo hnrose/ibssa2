@@ -206,6 +206,8 @@ extern int prdb_dump;
 extern char prdb_dump_dir[128];
 extern short prdb_port;
 extern int keepalive;
+extern int reconnect_timeout;
+extern int reconnect_max_count;
 
 static void
 acm_format_name(int level, char *name, size_t name_size,
@@ -4045,6 +4047,10 @@ static void acm_set_options(void)
 			acm_query_retries = atoi(value);
 		else if (!strcasecmp("keepalive", opt))
 			keepalive = atoi(value);
+		else if (!strcasecmp("reconnect_max_count", opt))
+			 reconnect_max_count = atoi(value);
+		else if (!strcasecmp("reconnect_timeout", opt))
+			 reconnect_timeout = atoi(value);
 	}
 
 	fclose(f);
@@ -4079,6 +4085,13 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_timeout %lu\n",acm_query_timeout);
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_retries %d\n", acm_query_retries);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
+	if (reconnect_max_count < 0 || reconnect_timeout < 0) {
+		ssa_log(SSA_LOG_DEFAULT, "reconnection to upstream node disabled\n");
+	} else {
+		ssa_log(SSA_LOG_DEFAULT, "max. number of reconnections to upstream node %d\n", reconnect_max_count);
+
+		ssa_log(SSA_LOG_DEFAULT, "timeout between reconnections (in sec.) %d\n", reconnect_timeout);
+	}
 }
 
 static void *acm_ctrl_handler(void *context)

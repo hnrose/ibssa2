@@ -348,6 +348,22 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "keepalive 60\n");
 	fprintf(f, "\n");
+	fprintf(f, "# reconnect_max_count\n");
+	fprintf(f, "# Specifies max. number of reconnection retries to upstream node.\n");
+	fprintf(f, "# If the number is reached, the node will rejoin to the distribution tree.\n");
+	fprintf(f, "# < 0, reconnection is disabled,\n");
+	fprintf(f, "# = 0, skip reconnect, rejoin.\n");
+	fprintf(f, "# > 0, max. number if reconnections.\n");
+	fprintf(f, "\n");
+	fprintf(f, "reconnect_max_count 10\n");
+	fprintf(f, "\n");
+	fprintf(f, "# reconnect_timeout\n");
+	fprintf(f, "# Specifies timeout (in sec.) between reconnection retries to upstream node.\n");
+	fprintf(f, "# < 0 , reconnection is disabled.\n");
+	fprintf(f, "# default - 10 sec.\n");
+	fprintf(f, "\n");
+	fprintf(f, "reconnect_timeout 10\n");
+	fprintf(f, "\n");
 }
 
 static int open_dir(void)
