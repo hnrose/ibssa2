@@ -339,6 +339,15 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "acm_query_retries %d\n", ACM_DEFAULT_QUERY_RETRIES);
 	fprintf(f, "\n");
+	fprintf(f, "# keepalive:\n");
+	fprintf(f, "# Indicates whether to use keepalives on the parent\n");
+	fprintf(f, "# side of rsocket AF_IB connection and if so, the\n");
+	fprintf(f, "# idle time (in seconds)\n");
+	fprintf(f, "# 0 is disabled\n");
+	fprintf(f, "# default - 60 seconds\n");
+	fprintf(f, "\n");
+	fprintf(f, "keepalive 60\n");
+	fprintf(f, "\n");
 }
 
 static int open_dir(void)

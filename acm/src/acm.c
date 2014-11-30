@@ -205,6 +205,7 @@ extern int accum_log_file;
 extern int prdb_dump;
 extern char prdb_dump_dir[128];
 extern short prdb_port;
+extern int keepalive;
 
 static void
 acm_format_name(int level, char *name, size_t name_size,
@@ -4042,6 +4043,8 @@ static void acm_set_options(void)
 			acm_query_timeout = atol(value);
 		else if (!strcasecmp("acm_query_retries", opt))
 			acm_query_retries = atoi(value);
+		else if (!strcasecmp("keepalive", opt))
+			keepalive = atoi(value);
 	}
 
 	fclose(f);
@@ -4075,6 +4078,7 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "acm mode %d\n", acm_mode);
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_timeout %lu\n",acm_query_timeout);
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_retries %d\n", acm_query_retries);
+	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
 }
 
 static void *acm_ctrl_handler(void *context)
