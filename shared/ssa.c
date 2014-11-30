@@ -145,6 +145,8 @@ char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 short smdb_port = 7472;
 short prdb_port = 7473;
 int keepalive = 60;		/* seconds */
+int reconnect_timeout = 10;	/* seconds */
+int reconnect_max_count = 10;
 
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
@@ -677,6 +679,7 @@ static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type,
 	conn->epoch = DB_EPOCH_INVALID;
 	conn->prdb_epoch = DB_EPOCH_INVALID;
 	conn->epoch_len = 0;
+	conn->reconnect_count = 0;
 }
 
 static void ssa_close_ssa_conn(struct ssa_conn *conn)
@@ -1601,6 +1604,84 @@ ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", svc-
 	return revents;
 }
 
+static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
+{
+	int ret;
+	struct itimerspec reconnect_timer;
+
+	/*
+	 * Set state to IDLE regardless to current reconnection count.
+	 * After unsuccessful reconnection, the state could be SSA_CONN_CONNECTING.
+	 */
+	svc->conn_dataup.state = SSA_CONN_IDLE;
+	svc->state = SSA_STATE_HAVE_PARENT;
+
+	fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
+	fds[UPSTREAM_DATA_FD_SLOT].events = 0;
+	fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
+
+	/* Upstream is in a middle of reconnection */
+	if (svc->conn_dataup.reconnect_count > 0)
+		return;
+
+	if (svc->conn_dataup.rsock >= 0)
+		ssa_close_ssa_conn(&svc->conn_dataup);
+
+	if (reconnect_max_count >= 0 && reconnect_timeout >= 0) {
+		reconnect_timer.it_value.tv_sec = reconnect_timeout;
+		if (reconnect_timeout > 0)
+			reconnect_timer.it_value.tv_nsec = 0;
+		else
+			/* Generate reconnect event immediately */
+			reconnect_timer.it_value.tv_nsec = 100;
+
+		if (reconnect_max_count > 1)
+			reconnect_timer.it_interval.tv_sec = reconnect_timeout;
+		else
+			reconnect_timer.it_interval.tv_sec = 0;
+
+		reconnect_timer.it_interval.tv_nsec = 0;
+
+		ret = timerfd_settime(fds[UPSTREAM_TIMER_SLOT].fd, 0,
+				      &reconnect_timer, NULL);
+		if (ret) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "timerfd_settime %d %d (%s)\n",
+				    ret, errno, strerror(errno));
+			close(fds[UPSTREAM_TIMER_SLOT].fd);
+		}
+		fds[UPSTREAM_TIMER_SLOT].events = POLLIN;
+		fds[UPSTREAM_TIMER_SLOT].revents = 0;
+	} else {
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			     "upstream connection lost. reconnection disabled\n");
+	}
+}
+
+static void ssa_upstream_stop_reconnection(struct ssa_svc *svc, struct pollfd *fds)
+{
+	int ret;
+	struct itimerspec reconnect_timer;
+
+	reconnect_timer.it_value.tv_sec = 0;
+	reconnect_timer.it_value.tv_nsec = 0;
+	reconnect_timer.it_interval.tv_sec = 0;
+	reconnect_timer.it_interval.tv_nsec = 0;
+
+	ret = timerfd_settime(fds[UPSTREAM_TIMER_SLOT].fd, 0,
+			      &reconnect_timer, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
+			    ret, errno, strerror(errno));
+		close(fds[UPSTREAM_TIMER_SLOT].fd);
+	}
+
+	fds[UPSTREAM_TIMER_SLOT].events = 0;
+	fds[UPSTREAM_TIMER_SLOT].revents = 0;
+
+	svc->conn_dataup.reconnect_count = 0;
+}
+
 static void *ssa_upstream_handler(void *context)
 {
 	struct ssa_svc *svc = context, *conn_svc;
@@ -1609,7 +1690,6 @@ static void *ssa_upstream_handler(void *context)
 	int ret, timeout = -1;		/* infinite */
 	int outstanding_count = 0;
 	short port;
-	struct itimerspec reconnect_timer;
 
 	SET_THREAD_NAME(svc->upstream, "UP %s", svc->name);
 
@@ -1643,24 +1723,9 @@ static void *ssa_upstream_handler(void *context)
 	fds[UPSTREAM_DATA_FD_SLOT].events = 0;
 	fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 
-	reconnect_timer.it_value.tv_sec = 0;
-	reconnect_timer.it_value.tv_nsec = 0;
-	reconnect_timer.it_interval.tv_sec = 0;
-	reconnect_timer.it_interval.tv_nsec = 0;
-
 	fds[UPSTREAM_TIMER_SLOT].fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
 	if (fds[UPSTREAM_TIMER_SLOT].fd < 0) {
 		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d %d (%s)\n",
-			    ret, errno, strerror(errno));
-		return NULL;
-	}
-	fds[UPSTREAM_TIMER_SLOT].events = POLLIN;
-	fds[UPSTREAM_TIMER_SLOT].revents = 0;
-
-	ret = timerfd_settime(fds[UPSTREAM_TIMER_SLOT].fd, 0, &reconnect_timer, NULL);
-	if (ret) {
-		close(fds[UPSTREAM_TIMER_SLOT].fd);
-		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
 			    ret, errno, strerror(errno));
 		return NULL;
 	}
@@ -1731,6 +1796,8 @@ static void *ssa_upstream_handler(void *context)
 									    fds[UPSTREAM_DATA_FD_SLOT].fd);
 						}
 					}
+				} else {
+					ssa_upstream_reconnect(svc, fds);
 				}
 				break;
 			case SSA_CONN_DONE:
@@ -1901,11 +1968,48 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			s = read(fds[UPSTREAM_TIMER_SLOT].fd, &exp, sizeof(uint64_t));
 			if (s == sizeof(uint64_t))
 				ssa_log(SSA_LOG_DEFAULT,
-					"reconnect timer exp %" PRIu64 "\n", exp);
+					"reconnect timer expiration %" PRIu64 "\n",
+					exp);
 			else
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "%" PRId64 " bytes read\n", s);
 
+			if (svc->conn_dataup.state == SSA_CONN_CONNECTED) {
+				ssa_upstream_stop_reconnection(svc, fds);
+				ssa_log(SSA_LOG_DEFAULT,
+					"upstream connection established. stopped reconnection\n");
+				continue;
+			}
+
+			if (svc->conn_dataup.state == SSA_CONN_CONNECTING) {
+				fds[UPSTREAM_TIMER_SLOT].revents = 0;
+				ssa_log(SSA_LOG_DEFAULT,
+					"upstream connection is being established\n");
+				continue;
+			}
+
+			if (svc->conn_dataup.state == SSA_CONN_IDLE) {
+				if (svc->state == SSA_STATE_HAVE_PARENT) {
+					if (++svc->conn_dataup.reconnect_count <= reconnect_max_count) {
+						ssa_log(SSA_LOG_DEFAULT,
+							"reconnection %d of %d\n",
+							svc->conn_dataup.reconnect_count,
+							reconnect_max_count);
+						ssa_ctrl_conn(svc->port->dev->ssa, svc);
+					} else {
+						if (svc->conn_dataup.rsock >= 0)
+							ssa_close_ssa_conn(&svc->conn_dataup);
+						fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
+						fds[UPSTREAM_DATA_FD_SLOT].events = 0;
+						fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
+						svc->state = SSA_STATE_IDLE;
+						ssa_upstream_stop_reconnection(svc, fds);
+						ssa_log(SSA_LOG_DEFAULT,
+							"reconnection failed. start rejoin indicating bad parent\n");
+						ssa_svc_join(svc, 1);
+					}
+				}
+			}
 			fds[UPSTREAM_TIMER_SLOT].revents = 0;
 		}
 
@@ -1916,11 +2020,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 					"error event 0x%x on rsock %d\n",
 					fds[UPSTREAM_DATA_FD_SLOT].revents,
 					fds[UPSTREAM_DATA_FD_SLOT].fd);
-				if (svc->conn_dataup.rsock >= 0)
-					ssa_close_ssa_conn(&svc->conn_dataup);
-				fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
-				fds[UPSTREAM_DATA_FD_SLOT].events = 0;
-				fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
+				ssa_upstream_reconnect(svc, fds);
 			}
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & POLLOUT) {
 				/* Check connection state for fd */
@@ -1930,11 +2030,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 						ssa_log(SSA_LOG_DEFAULT,
 							"ssa_upstream_svc_client error on rsock %d\n",
 							fds[UPSTREAM_DATA_FD_SLOT].fd);
-						if (svc->conn_dataup.rsock >= 0)
-							ssa_close_ssa_conn(&svc->conn_dataup);
-						fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
-						fds[UPSTREAM_DATA_FD_SLOT].events = 0;
-						fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
+						ssa_upstream_reconnect(svc, fds);
 					} else if (ret == 0) {
 						timeout = -1;	/* infinite */
 						if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
@@ -4349,6 +4445,7 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 		return ret;
 	}
 
+	svc->conn_dataup.reconnect_count = 0;
 	ssa_upstream_conn_done(svc, &svc->conn_dataup);
 
 	return 0;

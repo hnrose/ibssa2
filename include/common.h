@@ -196,6 +196,7 @@ struct ssa_conn {
 	volatile be64_t		prdb_epoch;
 	uint32_t		epoch_len;
 	uint16_t		remote_lid;
+	int			reconnect_count;
 };
 
 enum ssa_svc_state {
