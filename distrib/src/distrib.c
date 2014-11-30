@@ -371,6 +371,8 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
+	srand(time(NULL));
+
 	distrib_set_options();
 	ssa = distrib_construct(node_type, daemon);
 	if (!ssa)

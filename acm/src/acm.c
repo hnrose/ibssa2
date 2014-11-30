@@ -4168,6 +4168,8 @@ int main(int argc, char **argv)
 	if (daemon)
 		ssa_daemonize();
 
+	srand(time(NULL));
+
 	acm_set_options();
 
 	ret = ssa_open_lock_file(lock_file, msg, sizeof msg);

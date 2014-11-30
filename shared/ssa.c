@@ -1606,7 +1606,7 @@ ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", svc-
 
 static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 {
-	int ret;
+	int ret, first_timeout;
 	struct itimerspec reconnect_timer;
 
 	/*
@@ -1629,7 +1629,10 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 
 	if (reconnect_max_count >= 0 && reconnect_timeout >= 0) {
 		reconnect_timer.it_value.tv_sec = reconnect_timeout;
-		if (reconnect_timeout > 0)
+		first_timeout = rand() % (2 * reconnect_timeout);
+		reconnect_timer.it_value.tv_sec = first_timeout;
+
+		if (first_timeout > 0)
 			reconnect_timer.it_value.tv_nsec = 0;
 		else
 			/* Generate reconnect event immediately */
@@ -1649,6 +1652,12 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 				    "timerfd_settime %d %d (%s)\n",
 				    ret, errno, strerror(errno));
 			close(fds[UPSTREAM_TIMER_SLOT].fd);
+		} else {
+			ssa_log(SSA_LOG_DEFAULT,
+				"reconnect to upstream node. first reconnection"
+				" after %d sec., next after %d sec.\n",
+				reconnect_timer.it_value.tv_sec,
+				reconnect_timer.it_interval.tv_sec);
 		}
 		fds[UPSTREAM_TIMER_SLOT].events = POLLIN;
 		fds[UPSTREAM_TIMER_SLOT].revents = 0;
