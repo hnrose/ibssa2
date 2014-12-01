@@ -207,10 +207,15 @@ static void ssa_access_process_task(struct ssa_access_task *task);
 
 static void g_rclose_callback(gint rsock, gpointer user_data)
 {
+	int ret;
+
 	(void) user_data;
 	ssa_log(SSA_LOG_DEFAULT, "closing rsock %d\n", GPOINTER_TO_INT(rsock));
-	rclose(GPOINTER_TO_INT(rsock));
-	ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", GPOINTER_TO_INT(rsock));
+	ret = rclose(GPOINTER_TO_INT(rsock));
+	if (ret)
+		ssa_log_err(SSA_LOG_CTRL, "rclose error %d on rsocket %d\n", ret, GPOINTER_TO_INT(rsock));
+	else
+		ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", GPOINTER_TO_INT(rsock));
 }
 
 static void ssa_get_sysinfo()
