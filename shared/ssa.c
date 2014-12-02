@@ -2842,6 +2842,8 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 		 * closes all downstream connections
 		 */
 	case IBV_EVENT_PORT_ERR:
+#if 0
+		/* Listening rsockets are not closed, due to RDMA CM library limitation */
 		if (svc->conn_listen_smdb.rsock >= 0) {
 			ssa_close_ssa_conn(&svc->conn_listen_smdb);
 			pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
@@ -2856,6 +2858,7 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 			pfd->events = 0;
 			pfd->revents = 0;
 		}
+#endif
 		for (i = 0; i < FD_SETSIZE; i++) {
 			if (svc->fd_to_conn[i] &&
 			    svc->fd_to_conn[i]->rsock >= 0) {
