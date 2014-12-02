@@ -2821,7 +2821,8 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 				     struct ssa_ctrl_msg_buf *msg,
 				     struct pollfd **fds)
 {
-	int i;
+	struct pollfd *pfd;
+	int i, slot;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n", svc->name,
 		ibv_event_type_str(msg->data.event));
@@ -2841,16 +2842,40 @@ static void ssa_downstream_dev_event(struct ssa_svc *svc,
 		 * closes all downstream connections
 		 */
 	case IBV_EVENT_PORT_ERR:
-		if (svc->conn_listen_smdb.rsock >= 0)
+		if (svc->conn_listen_smdb.rsock >= 0) {
 			ssa_close_ssa_conn(&svc->conn_listen_smdb);
-		if (svc->conn_listen_prdb.rsock >= 0)
+			pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
+			pfd->fd = -1;
+			pfd->events = 0;
+			pfd->revents = 0;
+		}
+		if (svc->conn_listen_prdb.rsock >= 0) {
 			ssa_close_ssa_conn(&svc->conn_listen_prdb);
+			pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
+			pfd->fd = -1;
+			pfd->events = 0;
+			pfd->revents = 0;
+		}
 		for (i = 0; i < FD_SETSIZE; i++) {
 			if (svc->fd_to_conn[i] &&
 			    svc->fd_to_conn[i]->rsock >= 0) {
 				ssa_downstream_close_ssa_conn(svc->fd_to_conn[i],
 							      svc, fds);
 				svc->fd_to_conn[i] = NULL;
+
+				for (slot = FIRST_DATA_FD_SLOT; slot < FD_SETSIZE; slot++) {
+					pfd = (struct pollfd *)(fds + slot);
+					if (pfd->fd == i) {
+						pfd->fd = -1;
+						pfd->events = 0;
+						pfd->revents = 0;
+						break;
+					}
+				}
+
+				if (slot == FD_SETSIZE)
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "unable to find rsock %d in fd_to_conn struct\n", i);
 			}
 		}
 		break;
