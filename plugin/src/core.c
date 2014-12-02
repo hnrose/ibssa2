@@ -642,7 +642,7 @@ static void core_process_orphans(struct ssa_core *core)
  */
 static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 {
-	struct ssa_member_record *rec;
+	struct ssa_member_record *rec, *umad_rec;
 	struct ssa_member *member;
 	union ibv_gid *parentgid;
 	DLIST_ENTRY *entry;
@@ -651,7 +651,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 	int ret;
 
 	/* TODO: verify ssa_key with core nodes */
-	rec = &umad->packet.ssa_mad.member;
+	umad_rec = rec = &umad->packet.ssa_mad.member;
 	node_type = rec->node_type;
 	ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL, log_data, sizeof log_data,
 			SSA_ADDR_GID, rec->port_gid, sizeof rec->port_gid);
@@ -692,8 +692,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 			ssa_log(SSA_LOG_CTRL, "removing member in orphan list\n");
 			DListRemove(&member->entry);
 		}
-		/* Can more than just the node type change ? */
-		member->rec.node_type = node_type;
+		member->rec = *umad_rec;
 		/* Need to handle child_list/access_child_list */
 		/* and other fields in member struct */
 	}
