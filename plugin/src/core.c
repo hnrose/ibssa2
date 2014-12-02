@@ -238,7 +238,7 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 	int least_child_num;
 	uint8_t node_type;
 
-	if (child->primary)
+	if (child->primary && !child->rec.bad_parent)
 		return (union ibv_gid *) child->primary->rec.port_gid;
 
 	svc = &core->svc;
@@ -253,7 +253,8 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 		parentgid = &svc->port->gid;
 		break;
 	case SSA_NODE_ACCESS:
-		if (is_gid_not_zero((union ibv_gid *) child->rec.parent_gid)) {
+		if (is_gid_not_zero((union ibv_gid *) child->rec.parent_gid) &&
+		    !child->rec.bad_parent) {
 			if (join_time_passed < join_timeout) {
 				/* Try to preserve previous tree formation */
 				list = NULL;
@@ -284,6 +285,9 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 			if (node_type == SSA_NODE_CONSUMER) {
 				member = container_of(entry, struct ssa_member,
 						      access_entry);
+				if (child->rec.bad_parent &&
+				    !memcmp(child->rec.parent_gid, member->rec.port_gid, 16))
+						continue;
 				if (member->access_child_num < least_child_num) {
 					parentgid = (union ibv_gid *) member->rec.port_gid;
 					least_child_num = member->access_child_num;
@@ -293,6 +297,9 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 			} else {
 				member = container_of(entry, struct ssa_member,
 						      entry);
+				if (child->rec.bad_parent &&
+				    !memcmp(child->rec.parent_gid, member->rec.port_gid, 16))
+						continue;
 				if (member->child_num < least_child_num) {
 					parentgid = (union ibv_gid *) member->rec.port_gid;
 					least_child_num = member->child_num;
