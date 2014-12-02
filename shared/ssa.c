@@ -1653,6 +1653,7 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 				    "timerfd_settime %d %d (%s)\n",
 				    ret, errno, strerror(errno));
 			close(fds[UPSTREAM_TIMER_SLOT].fd);
+			fds[UPSTREAM_TIMER_SLOT].fd = -1;
 		} else {
 			ssa_log(SSA_LOG_DEFAULT,
 				"reconnect to upstream node. first reconnection"
@@ -1688,6 +1689,7 @@ static void ssa_upstream_stop_reconnection(struct ssa_svc *svc, struct pollfd *f
 		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
 			    ret, errno, strerror(errno));
 		close(fds[UPSTREAM_TIMER_SLOT].fd);
+		fds[UPSTREAM_TIMER_SLOT].fd = -1;
 	}
 
 	fds[UPSTREAM_TIMER_SLOT].events = 0;
