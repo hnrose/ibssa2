@@ -1627,7 +1627,8 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 	if (svc->conn_dataup.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_dataup);
 
-	if (reconnect_max_count >= 0 && reconnect_timeout >= 0) {
+	if (reconnect_max_count >= 0 && reconnect_timeout >= 0 &&
+	    svc->port->state == IBV_PORT_ACTIVE) {
 		reconnect_timer.it_value.tv_sec = reconnect_timeout;
 		first_timeout = rand() % (2 * reconnect_timeout);
 		reconnect_timer.it_value.tv_sec = first_timeout;
@@ -1662,8 +1663,12 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 		fds[UPSTREAM_TIMER_SLOT].events = POLLIN;
 		fds[UPSTREAM_TIMER_SLOT].revents = 0;
 	} else {
-		ssa_log_warn(SSA_LOG_DEFAULT,
-			     "upstream connection lost. reconnection disabled\n");
+		if (svc->port->state == IBV_PORT_ACTIVE)
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "upstream connection lost. reconnection disabled\n");
+		else
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "upstream connection lost. IB port is not active\n");
 	}
 }
 
@@ -1987,6 +1992,13 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 				ssa_upstream_stop_reconnection(svc, fds);
 				ssa_log(SSA_LOG_DEFAULT,
 					"upstream connection established. stopped reconnection\n");
+				continue;
+			}
+
+			if (svc->port->state != IBV_PORT_ACTIVE) {
+				ssa_upstream_stop_reconnection(svc, fds);
+				ssa_log(SSA_LOG_DEFAULT,
+					"port is not active. stopped reconnection\n");
 				continue;
 			}
 
