@@ -1494,7 +1494,7 @@ static void *core_extract_handler(void *context)
 	if (pfd->fd < 0) {
 		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d (%s)\n",
 			    errno, strerror(errno));
-		return NULL;
+		goto out;
 	}
 	pfd->events = 0;
 	pfd->revents = 0;
