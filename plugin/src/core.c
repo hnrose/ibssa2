@@ -1291,6 +1291,7 @@ static void core_extract_db(osm_opensm_t *p_osm)
 		else if (ssa_db_diff_old) {
 		    ssa_db_diff_destroy(ssa_db_diff);
 		    ssa_db_diff = ssa_db_diff_old;
+		    ssa_db_diff->dirty = 0;
 		}
 
 		/*
