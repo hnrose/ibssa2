@@ -1985,55 +1985,52 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			uint64_t exp;
 
 			s = read(fds[UPSTREAM_TIMER_SLOT].fd, &exp, sizeof(uint64_t));
-			if (s == sizeof(uint64_t))
-				ssa_log(SSA_LOG_DEFAULT,
-					"reconnect timer expiration %" PRIu64 "\n",
-					exp);
-			else
+			if (s != sizeof(uint64_t)) {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "%" PRId64 " bytes read\n", s);
-
-			if (svc->conn_dataup.state == SSA_CONN_CONNECTED) {
-				ssa_upstream_stop_reconnection(svc, fds);
-				ssa_log(SSA_LOG_DEFAULT,
-					"upstream connection established. stopped reconnection\n");
-				continue;
-			}
-
-			if (svc->port->state != IBV_PORT_ACTIVE) {
+			} else if (svc->port->state != IBV_PORT_ACTIVE) {
 				ssa_upstream_stop_reconnection(svc, fds);
 				ssa_log(SSA_LOG_DEFAULT,
 					"port is not active. stopped reconnection\n");
-				continue;
-			}
-
-			if (svc->conn_dataup.state == SSA_CONN_CONNECTING) {
-				fds[UPSTREAM_TIMER_SLOT].revents = 0;
+			} else {
 				ssa_log(SSA_LOG_DEFAULT,
-					"upstream connection is being established\n");
-				continue;
-			}
+					"reconnect timer expiration %" PRIu64 "\n",
+					exp);
 
-			if (svc->conn_dataup.state == SSA_CONN_IDLE) {
-				if (svc->state == SSA_STATE_HAVE_PARENT) {
-					if (++svc->conn_dataup.reconnect_count <= reconnect_max_count) {
-						ssa_log(SSA_LOG_DEFAULT,
-							"reconnection %d of %d\n",
-							svc->conn_dataup.reconnect_count,
-							reconnect_max_count);
-						ssa_ctrl_conn(svc->port->dev->ssa, svc);
-					} else {
-						if (svc->conn_dataup.rsock >= 0)
-							ssa_close_ssa_conn(&svc->conn_dataup);
-						fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
-						fds[UPSTREAM_DATA_FD_SLOT].events = 0;
-						fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
-						svc->state = SSA_STATE_IDLE;
-						ssa_upstream_stop_reconnection(svc, fds);
-						ssa_log(SSA_LOG_DEFAULT,
-							"reconnection failed. start rejoin indicating bad parent\n");
-						ssa_svc_join(svc, 1);
+				switch (svc->conn_dataup.state) {
+				case SSA_CONN_CONNECTED:
+					ssa_upstream_stop_reconnection(svc, fds);
+					ssa_log(SSA_LOG_DEFAULT,
+						"upstream connection established. stopped reconnection\n");
+					break;
+				case SSA_CONN_CONNECTING:
+					ssa_log(SSA_LOG_DEFAULT,
+						"upstream connection is being established\n");
+					break;
+				case SSA_CONN_IDLE:
+					if (svc->state == SSA_STATE_HAVE_PARENT) {
+						if (++svc->conn_dataup.reconnect_count <= reconnect_max_count) {
+							ssa_log(SSA_LOG_DEFAULT,
+								"reconnection %d of %d\n",
+								svc->conn_dataup.reconnect_count,
+								reconnect_max_count);
+							ssa_ctrl_conn(svc->port->dev->ssa, svc);
+						} else {
+							if (svc->conn_dataup.rsock >= 0)
+								ssa_close_ssa_conn(&svc->conn_dataup);
+							fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
+							fds[UPSTREAM_DATA_FD_SLOT].events = 0;
+							fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
+							svc->state = SSA_STATE_IDLE;
+							ssa_upstream_stop_reconnection(svc, fds);
+							ssa_log(SSA_LOG_DEFAULT,
+								"reconnection failed. start rejoin indicating bad parent\n");
+							ssa_svc_join(svc, 1);
+						}
 					}
+					break;
+				default:
+					break;
 				}
 			}
 			fds[UPSTREAM_TIMER_SLOT].revents = 0;
