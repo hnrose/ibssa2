@@ -1810,6 +1810,8 @@ static void core_report(void *context, osm_epi_event_id_t event_id, void *event_
 			"SM state (%u: %s) change event currently ignored\n",
 			osm->subn.sm_state,
 			sm_state_str(osm->subn.sm_state));
+		if (osm->subn.sm_state != IB_SMINFO_STATE_MASTER)
+			first_extraction = 1;
 		break;
 	default:
 		/* Ignoring all other events for now... */
