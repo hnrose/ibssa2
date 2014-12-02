@@ -35,6 +35,7 @@
 
 #include <limits.h>
 #include <syslog.h>
+#include <sys/timerfd.h>
 #include <infiniband/osm_headers.h>
 #include <search.h>
 #include <common.h>
@@ -46,7 +47,8 @@
 #include <infiniband/ssa_db_helper.h>
 
 #define SSA_CORE_OPTS_FILE SSA_FILE_PREFIX "_core" SSA_OPTS_FILE_SUFFIX
-#define FIRST_DOWNSTREAM_FD_SLOT 2
+#define EXTRACT_TIMER_FD_SLOT		2
+#define FIRST_DOWNSTREAM_FD_SLOT	3
 
 /*
  * Service options - may be set through ibssa_opts.cfg file.
@@ -1416,6 +1418,29 @@ static int core_has_orphans(struct ssa_extract_data *data)
 }
 #endif
 
+static void core_start_dtree_timer(struct pollfd **fds)
+{
+	struct itimerspec dtree_timer;
+	struct pollfd *pfd;
+	int ret;
+
+	dtree_timer.it_value.tv_sec = 1;
+	dtree_timer.it_value.tv_nsec = 0;
+	dtree_timer.it_interval.tv_sec = 1;
+	dtree_timer.it_interval.tv_nsec = 0;
+
+	pfd = (struct pollfd *)(fds + EXTRACT_TIMER_FD_SLOT);
+	ret = timerfd_settime(pfd->fd, 0, &dtree_timer, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
+			    ret, errno, strerror(errno));
+		close(pfd->fd);
+		return;
+	}
+	pfd->events = POLLIN;
+	pfd->revents = 0;
+}
+
 static void *core_extract_handler(void *context)
 {
 	struct ssa_extract_data *p_extract_data = (struct ssa_extract_data *) context;
@@ -1455,6 +1480,15 @@ static void *core_extract_handler(void *context)
 		pfd->events = POLLIN;
 	else
 		pfd->events = 0;
+	pfd->revents = 0;
+	pfd = (struct pollfd *)(fds + EXTRACT_TIMER_FD_SLOT);
+	pfd->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	if (pfd->fd < 0) {
+		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d (%s)\n",
+			    errno, strerror(errno));
+		return NULL;
+	}
+	pfd->events = 0;
 	pfd->revents = 0;
 	for (i = 0; i < p_extract_data->num_svcs; i++) {
 		pfd = (struct pollfd *)(fds + i + FIRST_DOWNSTREAM_FD_SLOT);
@@ -1510,20 +1544,7 @@ static void *core_extract_handler(void *context)
 				if (core_has_orphans(p_extract_data))
 					timeout_msec = 1000;
 
-				for (i = 0; i < p_extract_data->num_svcs; i++) {
-					struct ssa_svc *svc = p_extract_data->svcs[i];
-					struct ssa_core *core;
-
-					core = container_of(svc, struct ssa_core, svc);
-					if (dtree_epoch_prev != dtree_epoch_cur &&
-					    svc->state != SSA_STATE_IDLE) {
-						if (pthread_mutex_trylock(&core->list_lock) == 0) {
-							core_dump_tree(core, svc->name);
-							pthread_mutex_unlock(&core->list_lock);
-						}
-						dtree_epoch_prev = dtree_epoch_cur;
-					}
-				}
+				core_start_dtree_timer(fds);
 #endif
 				break;
 			case SSA_DB_LFT_CHANGE:
@@ -1573,6 +1594,34 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 			}
 		}
 
+		pfd = (struct pollfd *)(fds + EXTRACT_TIMER_FD_SLOT);
+		if (pfd->revents & POLLIN) {
+			ssize_t s;
+			uint64_t exp;
+
+			s = read(pfd->fd, &exp, sizeof exp);
+			if (s != sizeof exp)
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "%" PRId64 " bytes read\n", s);
+
+			for (i = 0; i < p_extract_data->num_svcs; i++) {
+				struct ssa_svc *svc = p_extract_data->svcs[i];
+				struct ssa_core *core;
+
+				core = container_of(svc, struct ssa_core, svc);
+				if (dtree_epoch_prev != dtree_epoch_cur &&
+				    svc->state != SSA_STATE_IDLE) {
+					if (pthread_mutex_trylock(&core->list_lock) == 0) {
+						core_dump_tree(core, svc->name);
+						pthread_mutex_unlock(&core->list_lock);
+					}
+					dtree_epoch_prev = dtree_epoch_cur;
+				}
+			}
+
+			pfd->revents = 0;
+		}
+
 		for (i = 0; i < p_extract_data->num_svcs; i++) {
 			pfd = (struct pollfd *)(fds + i + FIRST_DOWNSTREAM_FD_SLOT);
 			if (pfd->revents) {
@@ -1614,6 +1663,12 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count
 		}
 	}
 out:
+	pfd = (struct pollfd *)(fds + EXTRACT_TIMER_FD_SLOT);
+	if (pfd->fd >= 0) {
+		close(pfd->fd);
+		pfd->events = 0;
+		pfd->revents = 0;
+	}
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	free(fds);
 
