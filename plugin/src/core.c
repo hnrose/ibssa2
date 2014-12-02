@@ -1601,22 +1601,23 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 			uint64_t exp;
 
 			s = read(pfd->fd, &exp, sizeof exp);
-			if (s != sizeof exp)
+			if (s != sizeof exp) {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "%" PRId64 " bytes read\n", s);
+			} else {
+				for (i = 0; i < p_extract_data->num_svcs; i++) {
+					struct ssa_svc *svc = p_extract_data->svcs[i];
+					struct ssa_core *core;
 
-			for (i = 0; i < p_extract_data->num_svcs; i++) {
-				struct ssa_svc *svc = p_extract_data->svcs[i];
-				struct ssa_core *core;
-
-				core = container_of(svc, struct ssa_core, svc);
-				if (dtree_epoch_prev != dtree_epoch_cur &&
-				    svc->state != SSA_STATE_IDLE) {
-					if (pthread_mutex_trylock(&core->list_lock) == 0) {
-						core_dump_tree(core, svc->name);
-						pthread_mutex_unlock(&core->list_lock);
+					core = container_of(svc, struct ssa_core, svc);
+					if (dtree_epoch_prev != dtree_epoch_cur &&
+					    svc->state != SSA_STATE_IDLE) {
+						if (pthread_mutex_trylock(&core->list_lock) == 0) {
+							core_dump_tree(core, svc->name);
+							pthread_mutex_unlock(&core->list_lock);
+						}
+						dtree_epoch_prev = dtree_epoch_cur;
 					}
-					dtree_epoch_prev = dtree_epoch_cur;
 				}
 			}
 
