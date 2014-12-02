@@ -1616,6 +1616,9 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 	svc->conn_dataup.state = SSA_CONN_IDLE;
 	svc->state = SSA_STATE_HAVE_PARENT;
 
+	if (svc->conn_dataup.rsock >= 0)
+		ssa_close_ssa_conn(&svc->conn_dataup);
+
 	fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
 	fds[UPSTREAM_DATA_FD_SLOT].events = 0;
 	fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
@@ -1623,9 +1626,6 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 	/* Upstream is in a middle of reconnection */
 	if (svc->conn_dataup.reconnect_count > 0)
 		return;
-
-	if (svc->conn_dataup.rsock >= 0)
-		ssa_close_ssa_conn(&svc->conn_dataup);
 
 	if (reconnect_max_count >= 0 && reconnect_timeout >= 0 &&
 	    svc->port->state == IBV_PORT_ACTIVE) {
