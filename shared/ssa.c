@@ -1654,6 +1654,9 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 				    ret, errno, strerror(errno));
 			close(fds[UPSTREAM_TIMER_SLOT].fd);
 			fds[UPSTREAM_TIMER_SLOT].fd = -1;
+			fds[UPSTREAM_TIMER_SLOT].events = 0;
+			fds[UPSTREAM_TIMER_SLOT].revents = 0;
+			return;
 		} else {
 			ssa_log(SSA_LOG_DEFAULT,
 				"reconnect to upstream node. first reconnection"
