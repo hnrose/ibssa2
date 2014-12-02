@@ -1435,6 +1435,7 @@ static void core_start_dtree_timer(struct pollfd **fds)
 		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
 			    ret, errno, strerror(errno));
 		close(pfd->fd);
+		pfd->fd = -1;
 		return;
 	}
 	pfd->events = POLLIN;
