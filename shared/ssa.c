@@ -188,6 +188,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static int ssa_upstream_svc_client(struct ssa_svc *svc);
 static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
+static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds);
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
 static void ssa_send_db_update_ready(int fd);
@@ -1557,7 +1558,8 @@ ssa_log(SSA_LOG_DEFAULT, "%d DB update prepare msgs sent\n", *count);
 	return revents;
 }
 
-static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
+static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count,
+				struct pollfd *fds)
 {
 	struct ssa_msg_hdr *hdr;
 	int ret;
@@ -1599,6 +1601,8 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count)
 			    svc->conn_dataup.rsize - svc->conn_dataup.roffset,
 			    svc->conn_dataup.rsock);
 ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", svc->conn_dataup.rbuf, svc->conn_dataup.rsize, svc->conn_dataup.roffset, svc->conn_dataup.state, svc->conn_dataup.phase);
+		ssa_upstream_reconnect(svc, fds);
+		return 0;
 	}
 
 	return revents;
@@ -2083,7 +2087,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 							    fds[UPSTREAM_DATA_FD_SLOT].fd);
 				}
 				if (svc->conn_dataup.rbuf)
-					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_rrecv(svc, fds[UPSTREAM_DATA_FD_SLOT].events, &outstanding_count);
+					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_rrecv(svc, fds[UPSTREAM_DATA_FD_SLOT].events, &outstanding_count, fds);
 			}
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & ~(POLLOUT | POLLIN)) {
 				ssa_log(SSA_LOG_DEFAULT,
