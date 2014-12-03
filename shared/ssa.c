@@ -3080,10 +3080,15 @@ static void *ssa_downstream_handler(void *context)
 							conn->epoch = prdb_epoch;
 							conn->prdb_epoch = htonll(conn->epoch);
 							ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 " epoch length %d\n", conn->ssa_db, ntohll(conn->prdb_epoch), conn->epoch_len);
-							if (conn->epoch_len) {
+							if (conn->epoch_len ==
+							    sizeof(conn->prdb_epoch)) {
 								pfd2 = (struct pollfd *)(fds + i);
 								pfd2->events = ssa_riowrite(conn, POLLIN);
-							}
+							} else
+								ssa_log(SSA_LOG_DEFAULT,
+									"epoch length is %d but should be %d\n",
+									conn->epoch_len,
+									sizeof(conn->prdb_epoch));
 						} else
 							prdb_destroy = msg.data.db_upd.db;
 
