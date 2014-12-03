@@ -3250,9 +3250,12 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			ssa_log(SSA_LOG_DEFAULT,
 				"error event 0x%x on SMDB listen rsock %d\n",
 				pfd->revents, pfd->fd);
+#if 0
+			/* TODO: uncomment when RDMA CM library limitations will be understood better */
 			if (svc->conn_listen_smdb.rsock >= 0)
 				ssa_close_ssa_conn(&svc->conn_listen_smdb);
 			pfd->fd = -1;
+#endif
 		} else if (pfd->revents) {
 			pfd->revents = 0;
 			ssa_check_listen_events(svc, fds, SSA_CONN_SMDB_TYPE);
@@ -3263,9 +3266,12 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			ssa_log(SSA_LOG_DEFAULT,
 				"error event 0x%x on PRDB listen rsock %d\n",
 				pfd->revents, pfd->fd);
+#if 0
+			/* TODO: uncomment when RDMA CM library limitations will be understood better */
 			if (svc->conn_listen_prdb.rsock >= 0)
 				ssa_close_ssa_conn(&svc->conn_listen_prdb);
 			pfd->fd = -1;
+#endif
 		} else if (pfd->revents) {
 			pfd->revents = 0;
 			ssa_check_listen_events(svc, fds, SSA_CONN_PRDB_TYPE);
