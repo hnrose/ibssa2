@@ -895,8 +895,8 @@ static struct ssa_db *ssa_db_load_allocate_new(const char *path_dir,
 		fclose(fd);
 	}
 
-	p_ssa_db = ssa_db_create(num_recs_arr, recs_size_arr, num_fields_arr,
-				 data_tbls_n);
+	p_ssa_db = ssa_db_alloc(num_recs_arr, recs_size_arr, num_fields_arr,
+				data_tbls_n);
 
 	free(recs_size_arr);
 	free(num_fields_arr);

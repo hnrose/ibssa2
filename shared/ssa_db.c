@@ -195,10 +195,10 @@ uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id)
 
 /** =========================================================================
  */
-struct ssa_db *ssa_db_create(uint64_t * p_num_recs_arr,
-			     size_t * p_data_recs_size_arr,
-			     uint64_t * p_num_field_recs_arr,
-			     uint64_t tbl_cnt)
+struct ssa_db *ssa_db_alloc(uint64_t * p_num_recs_arr,
+			    size_t * p_data_recs_size_arr,
+			    uint64_t * p_num_field_recs_arr,
+			    uint64_t tbl_cnt)
 {
 	struct ssa_db *p_db;
 	int i, k;

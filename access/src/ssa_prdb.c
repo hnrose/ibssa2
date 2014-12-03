@@ -77,8 +77,8 @@ struct ssa_db  *ssa_prdb_create(uint64_t epoch, uint64_t num_recs)
 	recs_size_arr[SSA_PR_TABLE_ID] = sizeof(struct ep_pr_tbl_rec);
 	num_field_recs_arr[SSA_PR_TABLE_ID] = SSA_PR_FIELDS_ID_MAX;
 
-	p_ssa_db = ssa_db_create(num_recs_arr, recs_size_arr,
-				 num_field_recs_arr, SSA_PR_TABLE_ID_MAX);
+	p_ssa_db = ssa_db_alloc(num_recs_arr, recs_size_arr,
+				num_field_recs_arr, SSA_PR_TABLE_ID_MAX);
 
 	ssa_db_init(p_ssa_db, "PRDB", 10 /*just some db_id */, epoch, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);

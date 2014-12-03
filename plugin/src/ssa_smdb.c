@@ -152,8 +152,8 @@ struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SSA_TABLE_
 	num_field_recs_arr[SSA_TABLE_ID_LFT_TOP] = SSA_FIELD_ID_LFT_TOP_MAX;
 	num_field_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = SSA_FIELD_ID_LFT_BLOCK_MAX;
 
-	p_ssa_db = ssa_db_create(data_rec_cnt, recs_size_arr,
-				 num_field_recs_arr, SSA_TABLE_ID_MAX);
+	p_ssa_db = ssa_db_alloc(data_rec_cnt, recs_size_arr,
+				num_field_recs_arr, SSA_TABLE_ID_MAX);
 
 	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, epoch, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);
