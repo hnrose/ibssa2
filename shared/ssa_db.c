@@ -58,6 +58,19 @@ void ssa_db_def_init(struct db_def * p_db_def, uint8_t version,
 	p_db_def->table_def_size	= htonl(table_def_size);
 }
 
+static int ssa_db_def_cmp(struct db_def const *db_def1,
+			  struct db_def const *db_def2) {
+	if ((db_def1->size		!= db_def2->size) ||
+	    (db_def1->id.db		!= db_def2->id.db) ||
+	    (db_def1->id.table		!= db_def2->id.table) ||
+	    (db_def1->id.field		!= db_def2->id.field) ||
+	    (db_def1->version		!= db_def2->version) ||
+	    (db_def1->table_def_size	!= db_def2->table_def_size))
+		return 1;
+
+	return 0;
+}
+
 /** =========================================================================
  */
 void ssa_db_dataset_init(struct db_dataset * p_dataset,
@@ -77,6 +90,22 @@ void ssa_db_dataset_init(struct db_dataset * p_dataset,
 	p_dataset->set_size	= htonll(set_size);
 	p_dataset->set_offset	= htonll(set_offset);
 	p_dataset->set_count	= htonll(set_count);
+}
+
+static int ssa_db_dataset_cmp(struct db_dataset const *dataset1,
+			      struct db_dataset const *dataset2)
+{
+	if ((dataset1->size		!= dataset2->size) ||
+	    (dataset1->version		!= dataset2->version) ||
+	    (dataset1->access		!= dataset2->access) ||
+	    (dataset1->id.db		!= dataset2->id.db) ||
+	    (dataset1->id.table		!= dataset2->id.table) ||
+	    (dataset1->id.field		!= dataset2->id.field) ||
+	    (dataset1->set_size		!= dataset2->set_size) ||
+	    (dataset1->set_count	!= dataset2->set_count))
+		return 1;
+
+	return 0;
 }
 
 /** =========================================================================
@@ -110,6 +139,23 @@ void ssa_db_table_def_insert(struct db_table_def * p_tbl,
 	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
 }
 
+static int ssa_db_tbl_def_cmp(struct db_table_def const *tbl_def1,
+			      struct db_table_def const *tbl_def2)
+{
+	if ((tbl_def1->version		!= tbl_def2->version) ||
+	    (tbl_def1->size		!= tbl_def2->size) ||
+	    (tbl_def1->type		!= tbl_def2->type) ||
+	    (tbl_def1->access		!= tbl_def2->access) ||
+	    (tbl_def1->id.db		!= tbl_def2->id.db) ||
+	    (tbl_def1->id.table		!= tbl_def2->id.table) ||
+	    (tbl_def1->id.field		!= tbl_def2->id.field) ||
+	    (tbl_def1->record_size	!= tbl_def2->record_size) ||
+	    (tbl_def1->ref_table_id	!= tbl_def2->ref_table_id))
+		return 1;
+
+	return 0;
+}
+
 /** =========================================================================
  */
 void ssa_db_field_def_insert(struct db_field_def * p_tbl,
@@ -136,6 +182,21 @@ void ssa_db_field_def_insert(struct db_field_def * p_tbl,
 	       sizeof(*p_tbl));
 	p_dataset->set_count = htonll(ntohll(p_dataset->set_count) + 1);
 	p_dataset->set_size = htonll(ntohll(p_dataset->set_size) + sizeof(*p_tbl));
+}
+
+static int ssa_db_field_def_cmp(struct db_field_def *field_def1,
+				struct db_field_def *field_def2)
+{
+	if ((field_def1->version	!= field_def2->version) ||
+	    (field_def1->type		!= field_def2->type) ||
+	    (field_def1->id.db		!= field_def2->id.db) ||
+	    (field_def1->id.table	!= field_def2->id.table) ||
+	    (field_def1->id.field	!= field_def2->id.field) ||
+	    (field_def1->field_size	!= field_def2->field_size) ||
+	    (field_def1->field_offset	!= field_def2->field_offset))
+		return 1;
+
+	return 0;
 }
 
 /** =========================================================================
@@ -395,6 +456,78 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 	p_ssa_db->p_def_tbl = NULL;
 
 	free(p_ssa_db);
+}
+
+int ssa_db_cmp(struct ssa_db const *ssa_db1, struct ssa_db const *ssa_db2)
+{
+	uint64_t i, j;
+	int ret = 0;
+
+	if (!ssa_db1 ||				!ssa_db2 ||
+	    !ssa_db1->p_def_tbl ||		!ssa_db2->p_def_tbl ||
+	    !ssa_db1->p_db_field_tables ||	!ssa_db2->p_db_field_tables ||
+	    !ssa_db1->pp_field_tables ||	!ssa_db2->pp_field_tables ||
+	    !ssa_db1->p_db_tables ||		!ssa_db2->p_db_tables ||
+	    !ssa_db1->pp_tables ||		!ssa_db2->pp_tables) {
+		ret = -1;
+		goto out;
+	}
+
+	if (ssa_db_def_cmp(&ssa_db1->db_def, &ssa_db2->db_def) ||
+	    ssa_db_dataset_cmp(&ssa_db1->db_table_def, &ssa_db2->db_table_def)) {
+		ret = 1;
+		goto out;
+	}
+
+	for (i = 0; i < ntohll(ssa_db1->db_table_def.set_count); i++) {
+		if (ssa_db_tbl_def_cmp(&ssa_db1->p_def_tbl[i],
+				       &ssa_db2->p_def_tbl[i])) {
+			ret = 1;
+			goto out;
+		}
+	}
+
+	if (ssa_db1->data_tbl_cnt != ssa_db2->data_tbl_cnt) {
+		ret = 1;
+		goto out;
+	}
+
+	for (i = 0; i < ssa_db1->data_tbl_cnt; i++) {
+		struct db_dataset *dataset1 = &ssa_db1->p_db_field_tables[i];
+		struct db_dataset *dataset2 = &ssa_db2->p_db_field_tables[i];
+
+		if (ssa_db_dataset_cmp(dataset1, dataset2)) {
+			ret = 1;
+			goto out;
+		}
+
+		for (j = 0; j < ntohll(dataset1->set_count); j++) {
+			if (ssa_db_field_def_cmp(&ssa_db1->pp_field_tables[i][j],
+						 &ssa_db2->pp_field_tables[i][j])) {
+				ret = 1;
+				goto out;
+			}
+		}
+	}
+
+	for (i = 0; i < ssa_db1->data_tbl_cnt; i ++) {
+		struct db_dataset *dataset1 = &ssa_db1->p_db_tables[i];
+		struct db_dataset *dataset2 = &ssa_db2->p_db_tables[i];
+
+		if (ssa_db_dataset_cmp(dataset1, dataset2)) {
+			ret = 1;
+			goto out;
+		}
+
+		if (memcmp(ssa_db1->pp_tables[i], ssa_db2->pp_tables[i],
+			   ntohll(dataset1->set_size))) {
+			ret = 1;
+			goto out;
+		}
+	}
+
+out:
+	return ret;
 }
 
 /** =========================================================================
