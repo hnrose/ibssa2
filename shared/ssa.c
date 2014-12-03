@@ -3079,7 +3079,7 @@ static void *ssa_downstream_handler(void *context)
 							conn->ssa_db = msg.data.db_upd.db;
 							conn->epoch = prdb_epoch;
 							conn->prdb_epoch = htonll(conn->epoch);
-							ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 " epoch len %d\n", conn->ssa_db, ntohll(conn->prdb_epoch), conn->epoch_len);
+							ssa_log(SSA_LOG_DEFAULT, "PRDB %p epoch 0x%" PRIx64 " epoch length %d\n", conn->ssa_db, ntohll(conn->prdb_epoch), conn->epoch_len);
 							if (conn->epoch_len) {
 								pfd2 = (struct pollfd *)(fds + i);
 								pfd2->events = ssa_riowrite(conn, POLLIN);
