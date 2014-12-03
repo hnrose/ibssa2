@@ -3255,6 +3255,8 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			if (svc->conn_listen_smdb.rsock >= 0)
 				ssa_close_ssa_conn(&svc->conn_listen_smdb);
 			pfd->fd = -1;
+#else
+			pfd->revents = 0;
 #endif
 		} else if (pfd->revents) {
 			pfd->revents = 0;
@@ -3271,6 +3273,8 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			if (svc->conn_listen_prdb.rsock >= 0)
 				ssa_close_ssa_conn(&svc->conn_listen_prdb);
 			pfd->fd = -1;
+#else
+			pfd->revents = 0;
 #endif
 		} else if (pfd->revents) {
 			pfd->revents = 0;
