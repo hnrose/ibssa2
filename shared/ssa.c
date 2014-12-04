@@ -2093,6 +2093,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 							    "failed to allocate ssa_msg_hdr for rrecv on rsock %d\n",
 							    fds[UPSTREAM_DATA_FD_SLOT].fd);
 				}
+else ssa_log(SSA_LOG_DEFAULT, "reusing rbuf %p rsize %d roffset %d rhdr %p\n", svc->conn_dataup.rbuf, svc->conn_dataup.rsize, svc->conn_dataup.roffset, svc->conn_dataup.rhdr);
 				if (svc->conn_dataup.rbuf)
 					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_rrecv(svc, fds[UPSTREAM_DATA_FD_SLOT].events, &outstanding_count, fds);
 			}
