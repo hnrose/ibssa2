@@ -1565,6 +1565,13 @@ static short ssa_upstream_rrecv(struct ssa_svc *svc, short events, int *count,
 	int ret;
 	short revents = events;
 
+	if (svc->conn_dataup.rsize - svc->conn_dataup.roffset == 0) {
+		ssa_log_err(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d\n",
+			    svc->conn_dataup.rbuf, svc->conn_dataup.rsize,
+			    svc->conn_dataup.roffset);
+		return 0; 
+	}
+
 	ret = rrecv(svc->conn_dataup.rsock,
 		    svc->conn_dataup.rbuf + svc->conn_dataup.roffset,
 		    svc->conn_dataup.rsize - svc->conn_dataup.roffset,
