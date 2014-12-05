@@ -1408,10 +1408,10 @@ ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables
 						    0, NULL, epoch);
 			if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
 if (db_previous)
-ssa_log(SSA_LOG_DEFAULT, "destroying previous PRDB ssa_db %p\n", db_previous);
+ssa_log(SSA_LOG_DEFAULT, "destroying previous ssa_db %p\n", db_previous);
 				ssa_db_destroy(db_previous);
 				db_previous = svc->conn_dataup.ssa_db;
-ssa_log(SSA_LOG_DEFAULT, "previous PRDB ssa_db now %p\n", db_previous);
+ssa_log(SSA_LOG_DEFAULT, "previous ssa_db now %p\n", db_previous);
 			}
 		}
 		break;
