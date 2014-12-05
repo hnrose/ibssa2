@@ -1311,7 +1311,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS ssa_db allocated pp_field_tables %p 
 							    "SSA_DB_FIELD_DEFS pp_field_tables rindex %d %p not NULL as expected\n",
 							    svc->conn_dataup.rindex,
 							    svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex]);
-					svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+					if (svc->conn_dataup.rbuf != svc->conn_dataup.rhdr)
+						svc->conn_dataup.ssa_db->pp_field_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
 				} else ssa_log_err(SSA_LOG_DEFAULT,
 						   "SSA_DB_FIELD_DEFS no pp_field_tables for rindex %d\n",
 						   svc->conn_dataup.rindex);
