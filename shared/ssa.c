@@ -1406,13 +1406,11 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p len %d rsock %d\n", svc->conn_
 ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", svc->conn_dataup.ssa_db, epoch, svc->conn_dataup.ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
 			ssa_upstream_send_db_update(svc, svc->conn_dataup.ssa_db,
 						    0, NULL, epoch);
-			if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER) {
 if (db_previous)
 ssa_log(SSA_LOG_DEFAULT, "destroying previous ssa_db %p\n", db_previous);
-				ssa_db_destroy(db_previous);
-				db_previous = svc->conn_dataup.ssa_db;
+			ssa_db_destroy(db_previous);
+			db_previous = svc->conn_dataup.ssa_db;
 ssa_log(SSA_LOG_DEFAULT, "previous ssa_db now %p\n", db_previous);
-			}
 		}
 		break;
 	default:
@@ -1873,10 +1871,13 @@ check_fd1:
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
-						/* Should the next 2 lines be dependent on flags (full update) in DB update ready msg ? */
-						svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
-						svc->conn_dataup.ssa_db->p_db_tables = NULL;
-						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
+						db_previous = svc->conn_dataup.ssa_db;
+						svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
+						if (svc->conn_dataup.ssa_db)
+							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
+						else
+							ssa_log_err(SSA_LOG_DEFAULT,
+								    "could not allocate ssa_db struct for new SMDB\n");
 					}
 				}
 				break;
@@ -1976,10 +1977,13 @@ ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due 
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding count %d\n", outstanding_count);
 				if (outstanding_count > 0) {
 					if (--outstanding_count == 0) {
-						/* Should the next 2 lines be dependent on flags (full update) in DB update ready msg ? */
-						svc->conn_dataup.ssa_db->p_db_field_tables = NULL;
-						svc->conn_dataup.ssa_db->p_db_tables = NULL;
-						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
+						db_previous = svc->conn_dataup.ssa_db;
+						svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
+						if (svc->conn_dataup.ssa_db)
+							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
+						else
+							ssa_log_err(SSA_LOG_DEFAULT,
+								    "could not allocate ssa_db struct for new SMDB\n");
 					}
 				}
 				break;
