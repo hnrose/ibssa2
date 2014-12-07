@@ -461,7 +461,7 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 	free(p_ssa_db);
 }
 
-int ssa_db_cmp(struct ssa_db const *ssa_db1, struct ssa_db const *ssa_db2)
+int ssa_db_cmp(struct ssa_db const * const ssa_db1, struct ssa_db const * const ssa_db2)
 {
 	uint64_t i, j;
 	int ret = 0;
