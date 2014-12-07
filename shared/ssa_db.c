@@ -103,6 +103,7 @@ static int ssa_db_dataset_cmp(struct db_dataset const *dataset1,
 	    (dataset1->id.field		!= dataset2->id.field) ||
 	    (dataset1->set_size		!= dataset2->set_size) ||
 	    (dataset1->set_count	!= dataset2->set_count))
+	    /* 'set_offset' field comparison is omitted, because currently it is not used */
 		return 1;
 
 	return 0;
