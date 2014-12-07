@@ -533,6 +533,81 @@ out:
 	return ret;
 }
 
+struct ssa_db *ssa_db_copy(struct ssa_db const * const ssa_db)
+{
+	uint64_t *field_cnt = NULL, *rec_cnt = NULL;
+	struct ssa_db *ssa_db_copy = NULL;
+	size_t *rec_size = NULL;
+	uint64_t tbl_cnt, i, j;
+
+	if (!ssa_db || !ssa_db->p_def_tbl ||
+	    !ssa_db->p_db_field_tables || !ssa_db->pp_field_tables ||
+	    !ssa_db->p_db_tables || !ssa_db->pp_tables)
+		goto out;
+
+	tbl_cnt = ssa_db->data_tbl_cnt;
+
+	field_cnt = (uint64_t *) malloc(tbl_cnt * sizeof(*field_cnt));
+	if (!field_cnt)
+		goto out;
+
+	rec_cnt = (uint64_t *) malloc(tbl_cnt * sizeof(*rec_cnt));
+	if (!rec_cnt)
+		goto err1;
+
+	rec_size = (size_t *) malloc(tbl_cnt * sizeof(*rec_size));
+	if (!rec_size)
+		goto err2;
+
+	for (i = 0; i < tbl_cnt; i++) {
+		field_cnt[i] = ntohll(ssa_db->p_db_field_tables[i].set_count);
+		rec_cnt[i] = ntohll(ssa_db->p_db_tables[i].set_count);
+
+		for (j = 0; j < ntohll(ssa_db->db_table_def.set_count); j++) {
+			if (ssa_db->p_def_tbl[j].id.table ==
+			    ssa_db->p_db_tables[i].id.table) {
+				rec_size[i] = ntohl(ssa_db->p_def_tbl[j].record_size);
+				break;
+			}
+		}
+	}
+
+	ssa_db_copy = ssa_db_alloc(rec_cnt, rec_size, field_cnt, tbl_cnt);
+	if (!ssa_db_copy)
+		goto err3;
+
+	ssa_db_copy->db_def = ssa_db->db_def;
+
+	ssa_db_copy->db_table_def = ssa_db->db_table_def;
+	memcpy(ssa_db_copy->p_def_tbl, ssa_db->p_def_tbl,
+	       ntohll(ssa_db->db_table_def.set_size));
+
+	ssa_db_copy->data_tbl_cnt = tbl_cnt;
+
+	memcpy(ssa_db_copy->p_db_field_tables, ssa_db->p_db_field_tables,
+	       tbl_cnt * sizeof(*ssa_db_copy->p_db_field_tables));
+
+	memcpy(ssa_db_copy->p_db_tables, ssa_db->p_db_tables,
+	       tbl_cnt * sizeof(*ssa_db_copy->p_db_tables));
+
+	for (i = 0; i < tbl_cnt; i++) {
+		if (ssa_db->pp_field_tables[i])
+			memcpy(ssa_db_copy->pp_field_tables[i], ssa_db->pp_field_tables[i],
+			       ntohll(ssa_db->p_db_field_tables[i].set_size));
+		memcpy(ssa_db_copy->pp_tables[i], ssa_db->pp_tables[i],
+		       ntohll(ssa_db->p_db_tables[i].set_size));
+	}
+
+err3:
+	free(rec_size);
+err2:
+	free(rec_cnt);
+err1:
+	free(field_cnt);
+out:
+	return ssa_db_copy;
+}
+
 /** =========================================================================
  */
 uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db)
