@@ -441,6 +441,7 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 		p_ssa_db->pp_field_tables[i] = NULL;
 	}
 	free(p_ssa_db->pp_field_tables);
+	p_ssa_db->pp_field_tables = NULL;
 
 	for (i = tbl_cnt - 1; i >= 0; i--) {
 		free(p_ssa_db->pp_tables[i]);
@@ -450,6 +451,7 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 	p_ssa_db->pp_tables = NULL;
 
 	free(p_ssa_db->p_db_field_tables);
+	p_ssa_db->p_db_field_tables = NULL;
 	free(p_ssa_db->p_db_tables);
 	p_ssa_db->p_db_tables = NULL;
 
