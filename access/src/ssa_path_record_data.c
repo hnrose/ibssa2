@@ -300,6 +300,8 @@ int ssa_pr_build_indexes(struct ssa_pr_smdb_index *p_index,
 		return res;
 	}
 
+	p_index->epoch = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
+
 	return 0;
 }
 
