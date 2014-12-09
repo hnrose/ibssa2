@@ -426,7 +426,7 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db);
 int ssa_db_cmp(struct ssa_db const * const ssa_db1, struct ssa_db const * const ssa_db2);
 struct ssa_db *ssa_db_copy(struct ssa_db const * const ssa_db);
 uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db);
-uint64_t ssa_db_get_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id);
+uint64_t ssa_db_get_epoch(const struct ssa_db *p_ssa_db, uint8_t tbl_id);
 void ssa_db_set_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id, uint64_t epoch);
 uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id);
 #ifdef __cplusplus
