@@ -205,7 +205,7 @@ static int ssa_db_field_def_cmp(struct db_field_def *field_def1,
 uint64_t ssa_db_get_epoch(const struct ssa_db *p_ssa_db, uint8_t tbl_id)
 {
 	if (!p_ssa_db)
-		return 0;
+		return DB_EPOCH_INVALID;
 
 	if (tbl_id == DB_DEF_TBL_ID)
 		return ntohll(p_ssa_db->db_def.epoch);
