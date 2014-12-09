@@ -339,28 +339,16 @@ void ssa_pr_destroy_indexes(struct ssa_pr_smdb_index *p_index)
 	p_index->epoch = DB_EPOCH_INVALID;
 }
 
-static int epoch_table_ids[] = {
-	SSA_TABLE_ID_GUID_TO_LID,
-	SSA_TABLE_ID_LINK,
-	SSA_TABLE_ID_PORT,
-	SSA_TABLE_ID_LFT_TOP,
-	SSA_TABLE_ID_LFT_BLOCK
-};
-
 int ssa_pr_rebuild_indexes(struct ssa_pr_smdb_index *p_index,
 			   const struct ssa_db *p_smdb)
 {
-	int i = 0;
 	uint64_t smdb_epoch = DB_EPOCH_INVALID;
 	int res = 0;
 
 	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(p_index);
 
-	for (i = 0; i < sizeof(epoch_table_ids) / sizeof(epoch_table_ids[0]); ++i) {
-		const struct db_dataset *p_dataset = &p_smdb->p_db_tables[epoch_table_ids[i]];
-		smdb_epoch = smdb_epoch > ntohll(p_dataset->epoch) ? smdb_epoch : ntohll(p_dataset->epoch);
-	}
+	smdb_epoch = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
 
 	if (p_index->epoch != smdb_epoch) {
 		ssa_pr_destroy_indexes(p_index);
