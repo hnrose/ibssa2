@@ -3406,7 +3406,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		if (consumer->prdb_current) {
 			ret = ssa_db_cmp(prdb, consumer->prdb_current);
 			if (!ret) {
-				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+				ssa_sprint_addr(SSA_LOG_CTRL, log_data, sizeof log_data,
 						SSA_ADDR_GID, consumer->gid.raw,
 						sizeof consumer->gid.raw);
 				ssa_log(SSA_LOG_CTRL,
