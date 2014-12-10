@@ -41,6 +41,7 @@
 #include <assert.h>
 #include <string.h>
 #include <inttypes.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <ssa_log.h>
@@ -751,7 +752,10 @@ static void removedir(const char *dirname)
 				    strcmp(ep->d_name, ".."))
 					removedir(abs_filename);
 			} else {
-				remove(abs_filename);
+				if (remove(abs_filename))
+					ssa_log(SSA_LOG_DEFAULT,
+						"unable to remove file %s ERROR %d (%s)\n",
+						abs_filename, errno, strerror(errno));
 			}
 		}
 		closedir(dp);
@@ -759,7 +763,10 @@ static void removedir(const char *dirname)
 		ssa_log_err(SSA_LOG_DEFAULT, "Couldn't open '%s' directory\n", dirname);
 	}
 
-	remove(dirname);
+	if (remove(dirname))
+		ssa_log(SSA_LOG_DEFAULT,
+			"unable to remove directory %s ERROR %d (%s)\n",
+			dirname, errno, strerror(errno));
 }
 
 /* recursive function - equivalent to linux 'mkdir -p' */
@@ -780,7 +787,10 @@ static void mkpath(const char *dir, mode_t mode)
 	if (!lstat(path, &dstat)) {
 		if (!lstat(dir, &dstat))
 			removedir(dir);
-		mkdir(dir, mode);
+		if (mkdir(dir, mode))
+			ssa_log(SSA_LOG_DEFAULT,
+				"unable to create %s directory ERROR %d (%s)\n",
+				dir, errno, strerror(errno));
 		return;
 	}
 
@@ -788,7 +798,10 @@ static void mkpath(const char *dir, mode_t mode)
 
 	if (!lstat(dir, &dstat))
 		removedir(dir);
-	mkdir(dir, mode);
+	if (mkdir(dir, mode))
+		ssa_log(SSA_LOG_DEFAULT,
+			"unable to create %s directory ERROR %d (%s)\n",
+			dir, errno, strerror(errno));
 }
 
 void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
