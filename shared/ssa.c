@@ -3407,16 +3407,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		 *       If prdb is "equal" to consumer->prdb_current
 		 *       return NULL.
 		 */
-                /*
-		 * !!!!! REMOVE !!!!
-		 * It's a temporary solution
-		 * It should use ssa_db_copy function
-		 */
-		ret = ssa_pr_compute_half_world(access_context.smdb,
-						access_context.context,
-						consumer->gid.global.interface_id,
-						&prdb_copy);
-		if (ret != SSA_PR_SUCCESS) {
+		prdb_copy = ssa_db_copy(prdb);
+		if (!prdb_copy) {
 			ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 					SSA_ADDR_GID, consumer->gid.raw,
 					sizeof consumer->gid.raw);
@@ -3482,10 +3474,6 @@ skip_db_save:
 		if (++prdb_epoch == DB_EPOCH_INVALID)
 			prdb_epoch++;
 		ssa_db_set_epoch(prdb, DB_DEF_TBL_ID, prdb_epoch);
-		/*
-		 * !!! REMOVE !!!
-		 * Remove next line after ssa_db_copy implementation
-		 */
 		ssa_db_set_epoch(prdb_copy, DB_DEF_TBL_ID, prdb_epoch);
 		consumer->smdb_epoch = epoch;
 		ssa_db_destroy(consumer->prdb_current);
