@@ -615,10 +615,12 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "join successful\n");
 			svc->state = SSA_STATE_ORPHAN;
 		} else {
-			/* Need to reschedule join after timeout */
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 				"join rejected with status 0x%x\n",
 				ntohs(umad->packet.mad_hdr.status));
+			svc->timeout = min(svc->timeout << 1, MAX_TIMEOUT);
+			ssa_svc_join(svc, 0);
+			return;
 		}
 	}
 
