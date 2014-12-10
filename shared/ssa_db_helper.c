@@ -762,24 +762,46 @@ static void removedir(const char *dirname)
 	remove(dirname);
 }
 
+/* recursive function - equivalent to linux 'mkdir -p' */
+static void mkpath(const char *dir, mode_t mode)
+{
+	struct stat dstat;
+	char path[128];
+	char *p = NULL;
+
+	snprintf(path, sizeof path, "%s", dir);
+	for (p = path + strlen(dir) - 1; p != path; p--) {
+		if (*p != '/')
+			continue;
+		*p = '\0';
+		break;
+	}
+
+	if (!lstat(path, &dstat)) {
+		if (!lstat(dir, &dstat))
+			removedir(dir);
+		mkdir(dir, mode);
+		return;
+	}
+
+	mkpath(path, mode);
+
+	if (!lstat(dir, &dstat))
+		removedir(dir);
+	mkdir(dir, mode);
+}
+
 void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 		 enum ssa_db_helper_mode mode)
 {
 	FILE *fd;
-	DIR *d;
 	int i = 0, tbls_n = 0;
 	char buffer[SSA_DB_HELPER_PATH_MAX] = {};
 
 	ssa_log_func(SSA_LOG_DEFAULT);
 	assert(p_ssa_db);
 
-	d = opendir(path_dir);
-	if (d) {
-		closedir(d);
-		removedir(path_dir);
-	}
-
-	mkdir(path_dir, S_IRWXU | S_IRWXG | S_IRWXO);
+	mkpath(path_dir, S_IRWXU | S_IRWXG | S_IRWXO);
 
 	tbls_n = ntohll(p_ssa_db->db_table_def.set_count);
 
