@@ -3401,12 +3401,26 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 				     ". Last used epoch 0x%" PRIx64 "\n",
 				     log_data, epoch, consumer->smdb_epoch);
 	} else if (ret == SSA_PR_SUCCESS) {
-                /*
-		 * TODO: Compare prdb and consumer->prdb_current
-		 *       Create ssa_db_comp function.
-		 *       If prdb is "equal" to consumer->prdb_current
-		 *       return NULL.
-		 */
+		if (consumer->prdb_current) {
+			ret = ssa_db_cmp(prdb, consumer->prdb_current);
+			if (!ret) {
+				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+						SSA_ADDR_GID, consumer->gid.raw,
+						sizeof consumer->gid.raw);
+				ssa_log(SSA_LOG_CTRL,
+					"PRDB calculated for GID %s is equal to "
+					"previous PRDB with epoch 0x%" PRIx64 "\n",
+					log_data, prdb_epoch);
+				return NULL;
+			} else if (ret == -1) {
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "invalid PRDB structure (new prdb %p"
+					    " or previously calculated one %p)\n",
+					    prdb, consumer->prdb_current);
+				return NULL;
+			}
+		}
+
 		prdb_copy = ssa_db_copy(prdb);
 		if (!prdb_copy) {
 			ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
