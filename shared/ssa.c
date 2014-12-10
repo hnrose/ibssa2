@@ -3415,10 +3415,13 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					log_data, prdb_epoch);
 				return NULL;
 			} else if (ret == -1) {
+				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+						SSA_ADDR_GID, consumer->gid.raw,
+						sizeof consumer->gid.raw);
 				ssa_log_err(SSA_LOG_DEFAULT,
-					    "invalid PRDB structure (new prdb %p"
-					    " or previously calculated one %p)\n",
-					    prdb, consumer->prdb_current);
+					    "invalid PRDB structure for GID %s (new "
+					    "prdb %p or previously calculated one %p)\n",
+					    log_data, prdb, consumer->prdb_current);
 				return NULL;
 			}
 		}
