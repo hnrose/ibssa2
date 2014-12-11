@@ -945,7 +945,7 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 	DIR *d;
 	FILE *fd;
 	struct dirent *dir;
-	struct ssa_db *p_ssa_db;
+	struct ssa_db *p_ssa_db = NULL;
 	char *tbl_names;
 	uint64_t data_tbls_n = 0;
 	uint64_t i = 0;
@@ -1033,5 +1033,7 @@ struct ssa_db *ssa_db_load(const char *path_dir, enum ssa_db_helper_mode mode)
 
 Error:
 	free(tbl_names);
+	if (p_ssa_db)
+		ssa_db_destroy(p_ssa_db);
 	return NULL;
 }
