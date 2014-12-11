@@ -41,7 +41,7 @@
 
 static size_t find_port_index(const struct ssa_db *p_smdb,
 			      const struct ssa_pr_smdb_index *p_index,
-			      const be16_t lid, const int port_num);
+			      const be16_t lid, const unsigned int port_num);
 
 inline static size_t get_dataset_count(const struct ssa_db *p_smdb,
 				       unsigned int table_id)
@@ -445,7 +445,7 @@ int find_destination_port(const struct ssa_db *p_smdb,
 
 static size_t find_port_index(const struct ssa_db *p_smdb,
 			      const struct ssa_pr_smdb_index *p_index,
-			      const be16_t lid, const int port_num)
+			      const be16_t lid, const unsigned int port_num)
 {
 	size_t port_index = -1;
 
@@ -458,7 +458,7 @@ static size_t find_port_index(const struct ssa_db *p_smdb,
 		uint64_t *switch_port_lookup = p_index->switch_port_lookup[ntohs(lid)];
 
 		if (!switch_port_lookup) {
-			SSA_PR_LOG_ERROR("Port not found. LID: %u Port num: %d",
+			SSA_PR_LOG_ERROR("Port not found. LID: %u Port num: %u",
 					 ntohs(lid), port_num);
 			return -1;
 		}
