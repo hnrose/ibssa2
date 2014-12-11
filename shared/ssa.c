@@ -136,6 +136,8 @@ static pthread_t *access_prdb_handler;
 #endif
 static GThreadPool *thpool_rclose;
 
+static int lock_fd = -1;
+
 int smdb_dump = 0;
 int err_smdb_dump = 0;
 int prdb_dump = 0;
@@ -5856,7 +5858,6 @@ void ssa_close_devices(struct ssa_class *ssa)
  */
 int ssa_open_lock_file(char *lock_file, char *msg, int n)
 {
-	int lock_fd;
 	char buf[16];
 	int ret;
 	int result = 0;
@@ -5872,7 +5873,7 @@ int ssa_open_lock_file(char *lock_file, char *msg, int n)
 	}
 
 	if (lockf(lock_fd, F_TLOCK, 0)) {
-		close(lock_fd);
+		ssa_close_lock_file();
 		if (errno == EACCES || errno == EAGAIN)
 			result = 1;
 		else
@@ -5905,6 +5906,14 @@ out:
 				 pid, ppid);
 	}
 	return result;
+}
+
+void ssa_close_lock_file()
+{
+	if (lock_fd >= 0) {
+		close(lock_fd);
+		lock_fd = -1;
+	}
 }
 
 void ssa_daemonize(void)

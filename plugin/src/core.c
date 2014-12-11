@@ -2102,6 +2102,7 @@ err2:
 err1:
 	ssa_close_log();
 	ssa_cleanup(&ssa);
+	ssa_close_lock_file();
 	return NULL;
 }
 
@@ -2157,6 +2158,7 @@ static void core_destroy(void *context)
 	ssa_log(SSA_LOG_VERBOSE, "that's all folks!\n");
 	ssa_cleanup(&ssa);
 	ssa_close_log();
+	ssa_close_lock_file();
 }
 
 #if OSM_EVENT_PLUGIN_INTERFACE_VER != 2

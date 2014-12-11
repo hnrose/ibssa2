@@ -317,6 +317,7 @@ static void *distrib_construct(int node_type, unsigned short daemon)
 		       sizeof(struct ssa_port));
 	if (ret) {
 		ssa_close_log();
+		ssa_close_lock_file();
 		return NULL;
 	}
 
@@ -334,6 +335,7 @@ static void distrib_destroy()
 	ssa_log(SSA_LOG_VERBOSE, "that's all folks!\n");
 	ssa_cleanup(&ssa);
 	ssa_close_log();
+	ssa_close_lock_file();
 }
 
 static void show_usage(char *program)

@@ -4192,6 +4192,7 @@ int main(int argc, char **argv)
 		       sizeof(struct ssa_port));
 	if (ret) {
 		ssa_close_log();
+		ssa_close_lock_file();
 		return ret;
 	}
 
@@ -4206,12 +4207,14 @@ int main(int argc, char **argv)
 	if (acm_mode == ACM_MODE_ACM) {
 		if (acm_open_devices()) {
 			ssa_log_err(0, "unable to open any ACM device\n");
+			ssa_close_lock_file();
 			return -1;
 		}
 	} else { /* ACM_MODE_SSA */
 		ssa_log(SSA_LOG_VERBOSE, "starting SSA framework\n");
 		if (ssa_open_devices(&ssa)) {
 			ssa_log_err(0, "unable to open any SSA device\n");
+			ssa_close_lock_file();
 			return -1;
 		}
 		pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
@@ -4228,6 +4231,7 @@ int main(int argc, char **argv)
 	pthread_join(ctrl_thread, NULL);
 	ssa_cleanup(&ssa);
 	ssa_close_log();
+	ssa_close_lock_file();
 	free(lid2guid_cached);
 	return 0;
 }
