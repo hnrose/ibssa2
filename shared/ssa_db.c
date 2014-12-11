@@ -461,6 +461,12 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
 	free(p_ssa_db);
 }
 
+/*
+ *	Return values:
+ *	 0 - equal ssa_db structures
+ *	 1 - different ssa_db structures
+ *	-1 - invalid ssa_db structures
+ */
 int ssa_db_cmp(struct ssa_db const * const ssa_db1, struct ssa_db const * const ssa_db2)
 {
 	uint64_t i, j;
