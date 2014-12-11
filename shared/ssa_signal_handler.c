@@ -93,6 +93,7 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 				default:
 					break;
 			}
+			break;
 		case SIGILL:
 			switch(siginfo->si_code)
 			{
