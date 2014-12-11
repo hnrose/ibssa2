@@ -371,7 +371,7 @@ const char *ib_acm_cntr_name(int index)
 		[ACM_CNTR_ROUTE_CACHE]	= "Route Cache Count",
 	};
 
-	if (index < ACM_CNTR_ERROR || index > ACM_MAX_COUNTER)
+	if (index < ACM_CNTR_ERROR || index > (ACM_MAX_COUNTER - 1))
 		return "Unknown";
 
 	return cntr_name[index];
