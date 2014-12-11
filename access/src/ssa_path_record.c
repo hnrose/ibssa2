@@ -385,7 +385,7 @@ const struct ep_port_tbl_rec *get_host_port(const struct ssa_db *p_ssa_db_smdb,
 	 * For host there is only one record in port table.
 	 * Port num is not relevant
 	 */
-	return find_port(p_ssa_db_smdb, p_index, lid, -1);
+	return find_port(p_ssa_db_smdb, p_index, lid, 0);
 }
 
 static
