@@ -2031,7 +2031,7 @@ static void *core_construct(osm_opensm_t *opensm)
 	for (d = 0; d < ssa.dev_cnt; d++)
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++)
 			extract_data.num_svcs++;
-	extract_data.svcs = calloc(1, extract_data.num_svcs * sizeof(extract_data.svcs));
+	extract_data.svcs = calloc(extract_data.num_svcs, sizeof(*extract_data.svcs));
 
 	j = 0;
 	for (d = 0; d < ssa.dev_cnt; d++) {
