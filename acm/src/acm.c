@@ -380,6 +380,47 @@ static void acm_release_sa_dest(struct acm_dest *dest)
 	atomic_dec(&dest->refcnt);
 }
 
+static void acm_update_sa_dest(struct ssa_port *port)
+{
+	uint16_t old_sm_lid;
+	be16_t sm_lid;
+
+	if (!port || port->sa_dest.av.dlid == port->sm_lid)
+		return;
+
+	old_sm_lid = port->sa_dest.av.dlid;
+
+	/* We wait for the SA destination to be released */
+	atomic_dec(&port->sa_dest.refcnt);
+	while (atomic_get(&port->sa_dest.refcnt))
+		sleep(0);
+	ibv_destroy_ah(port->sa_dest.ah);
+
+	port->sa_dest.av.src_path_bits = 0;
+	port->sa_dest.av.dlid = port->sm_lid;
+	port->sa_dest.av.sl = port->sm_sl;
+	port->sa_dest.av.port_num = port->port_num;
+	port->sa_dest.remote_qpn = 1;
+	sm_lid = htons(port->sm_lid);
+	acm_set_dest_addr(&port->sa_dest, ACM_ADDRESS_LID,
+			  (uint8_t *) &sm_lid, sizeof(sm_lid));
+
+	port->sa_dest.ah = ibv_create_ah(port->dev->pd,
+					 &port->sa_dest.av);
+	if (!port->sa_dest.ah) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to create %s port SA dest address handler\n",
+			    port->name);
+		return;
+	}
+
+	atomic_set(&port->sa_dest.refcnt, 1);
+
+	ssa_log(SSA_LOG_DEFAULT,
+		"%s SA dest SM LID was updated to %u (previous SM LID %u)\n",
+		port->name, ntohs(sm_lid), old_sm_lid);
+}
+
 /* Caller must hold ep lock. */
 //static void
 //acm_remove_dest(struct acm_ep *ep, struct acm_dest *dest)
@@ -3944,6 +3985,25 @@ static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	return 0;
 }
 
+static void acm_process_sm_lid_change(struct ssa_svc *svc)
+{
+	acm_update_sa_dest(svc->port);
+}
+
+static int acm_process_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+{
+	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s %s\n",
+		svc->name, ibv_event_type_str(msg->data.event));
+	switch (msg->data.event) {
+	case IBV_EVENT_SM_CHANGE:
+		acm_process_sm_lid_change(svc);
+		break;
+	default:
+		break;
+	};
+	return 0;
+}
+
 static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
@@ -3965,6 +4025,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", ((stru
 				"ERROR - unable to preload ACM cache\n");
 		return 1;
 	case SSA_CTRL_DEV_EVENT:
+		return acm_process_dev_event(svc, msg);
 	case SSA_CONN_REQ:
 	case SSA_CTRL_EXIT:
 		break;
