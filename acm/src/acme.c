@@ -927,7 +927,7 @@ static char *get_dest(char *arg, char *format)
 static int resolve(char *svc)
 {
 	char **dest_list, **src_list;
-	struct ibv_path_record path;
+	struct ibv_path_record path = {};
 	int ret = 0, d = 0, s = 0;
 	char dest_type;
 
