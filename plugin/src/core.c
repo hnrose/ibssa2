@@ -1477,7 +1477,7 @@ static void *core_extract_handler(void *context)
 	fds = calloc(p_extract_data->num_svcs + FIRST_DOWNSTREAM_FD_SLOT,
 		     sizeof(**fds));
 	if (!fds)
-		goto out;
+		goto out2;
 	pfd = (struct pollfd *)fds;
 	pfd->fd = sock_coreextract[1];
 	pfd->events = POLLIN;
@@ -1678,6 +1678,7 @@ out:
 		pfd->events = 0;
 		pfd->revents = 0;
 	}
+out2:
 	ssa_log(SSA_LOG_VERBOSE, "Exiting smdb extract thread\n");
 	free(fds);
 
