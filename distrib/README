@@ -1,3 +1,22 @@
+This README is for userspace SSA distribution.
+
 The distribution layer is responsible for quickly and
 efficiently exchanging data up and down the SSA
 network of nodes.
+
+Distribution node can be "pure" distribution or
+"combined" which also supports access layer, or
+access only. Distribution layer fans out SMDB
+to access nodes. Access nodes support consumer
+(ACM) nodes.
+
+
+Building
+========
+To make this directory, run:
+./autogen.sh && ./configure && make && make install
+
+Typically the autogen and configure steps only need be done the first
+time unless configure.in or Makefile.am changes.
+
+Libraries are installed by default at /usr/local/lib.
