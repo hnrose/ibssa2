@@ -3,6 +3,9 @@ This README is for userspace IB CM assistant library.
 This version of ACM is for SSA and is not currently fully
 tested in ACM mode.
 
+In SSA mode, ACM is consumer node in SSA distribution
+and connects to access layer.
+
 
 Building
 ========
