@@ -395,7 +395,7 @@ static void gen_addr_temp(FILE *f)
 {
 	fprintf(f, "# InfiniBand Communication Management Assistant for clusters address file\n");
 	fprintf(f, "#\n");
-	fprintf(f, "# Use ib_acme utility with -G option to automatically generate a sample\n");
+	fprintf(f, "# Use ib_acme utility with -A option to automatically generate a sample\n");
 	fprintf(f, "# ibacm_addr.cfg file for the current system.\n");
 	fprintf(f, "#\n");
 	fprintf(f, "# Entry format is:\n");
