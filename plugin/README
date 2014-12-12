@@ -1,3 +1,14 @@
+This README is for SSA plugin library (libopensmssa)
+for OpenSM.
+
+SSA plugin library functions as the core layer in
+the SSA distribution tree. It can function as "pure"
+core or as "combined" with access. Core layer
+fans out SMDB to distribution nodes in the SSA tree.
+OpenSM plugin is responsible for extracting the
+SMDB.
+
+
 Building
 ========
 To make this directory, run:
