@@ -1,0 +1,143 @@
+              Scalable Subnet Administration (SSA)
+                  Version 0.0.8 Release Notes
+                         December 2014
+
+===============================================================================
+Table of Contents
+===============================================================================
+1. Overview
+2. Building and Installing
+3. Known Limitations/Issues
+
+===============================================================================
+1. Overview
+===============================================================================
+These are the release notes for Scalable Subnet Administration (SSA)
+release 0.0.8. SSA is composed of several user space software modules.
+
+SSA forms a distribution tree with up to 4 layers. At the top of
+the tree is the core layer which is coresident with the OpenSM.
+Next layer in the tree is the distribution layer, which fans out to
+the access layer. Consumer/compute node (ACMs) are at the lowest layer
+of the tree. The size of the distribution tree is dependent on
+the number of compute nodes.
+
+SSA distributes the SM database down the distribution tree to the
+access nodes. The access nodes compute the SA path record ("half-world")
+database for their client (compute) nodes and populates the caches
+in the ACMs. "Half-world" means paths from the client (compute) node
+to every other node in the IB subnet.
+
+
+1.1 SSA 0.0.8 Prerequisites
+-------------------------
+
+1.1.1 Kernel 3.11 or later
+
+SSA requires a kernel which contains AF_IB address family support.
+This went into upstream kernel 3.11 so any kernel/distro 3.11 or
+later is sufficient.
+
+Some known distros with recent enough kernels for SSA:
+Fedora Core (Rawhide, FC19 or later)
+OpenSuSE 13.2 uses 3.16 going for 3.17
+SLES 12.0 is 3.12 based
+Probably RHEL 7.1 will have 3.11 or later kernel as RHEL 7.0 uses 3.10
+but no date for this as yet
+Ubuntu 14.04 is 3.13 based
+
+1.1.2 libibumad 1.3.10 or later
+
+1.1.3 OpenSM 3.3.17 or later
+If not running PerfMgr, OpenSM 3.3.17 or later is sufficient.
+If running PerfMgr, OpenSM 3.3.19 is needed.
+
+1.1.4 libibverbs 1.1.8
+
+1.1.5 librdmacm 1.0.19-1 or later (AF_IB and keepalive support)
+Note that librdmacm contains 2 AF_IB capable examples: rstream
+and ucmatose.
+
+1.1.6 User space library for HCAs used
+
+1.1.6.1 libmlx4 1.0.6
+
+1.1.6.2 libmlx5 1.0.1
+
+1.1.7 glib-2.0
+
+
+1.2 SSA 0.0.8 Contents
+--------------------
+SSA contains the following 3 packages:
+- OpenSM SSA 0.0.8 plugin (libopenssa)
+- ibssa 0.0.8 executable (for distribution and access nodes)
+- ibacm 1.0.7 executable (for consumer/compute nodes)
+- scripts and configuration files
+
+
+1.3 OpenMPI with AF_IB Support
+------------------------------
+Not included with SSA so needs building and installing
+Part of upcoming 1.9 release
+On mainline of OpenMPI svn tree
+
+
+===============================================================================
+2. Building and Installing
+===============================================================================
+On core nodes, libibumad, OpenSM, libibverbs, librdmacm, and HCA specific
+library must be built and installed prior to libopensmssa.  
+
+On distribution or access nodes, libibumad, libibverbs, librdmacm, and HCA
+specific library must be built and installed prior to SSA. 
+
+On consumer nodes, libibumad, libibverbs, librdmacm, and HCA specific
+library must be built and installed prior to ACM.
+
+Once the prerequisites are built and installed, the relevant SSA
+tar ball(s) is/are then built and installed via:
+./autogen.sh && ./configure && make && make install
+in libopensmssa, distrib, and acm directories.
+
+
+OpenSM (on core nodes) needs to be configured as follows in Opensm
+configuration file (typically openm.conf):
+#
+# Event Plugin Options
+#
+# Event plugin name(s)
+event_plugin_name opensmssa
+
+# Options string that would be passed to the plugin(s)
+event_plugin_options (null)
+
+
+SSA configuration is then performed as follows:
+Core nodes have ibssa_core_opts.cfg file.
+Distribution nodes have ibssa_opts.cfg file.
+ACM/consumer nodes have ibacm_opts.cfg file. 
+Follow instructions in those files.
+
+On ACM nodes, ib_acme can be run with -A and -O options
+to generate ibacm_opts.cfg and ibacm_addr.cfg files
+for that machine/system. This is only needed to be done
+once (at initial install time).
+
+
+===============================================================================
+3. Known Limitations/Issues
+===============================================================================
+Only x86_64 processor architecture has been tested/qualified.
+
+Connect-IB (mlx5) has not yet been tested/qualified with SSA.
+Only rudimentary testing with qib (verified keepalives).
+
+mlx4_core HW2SW_MPT -16 error requires restart or recent firmware
+(internal build 2.33.1230 or later, GA build 2.33.5000).
+
+If running with OpenSM PerfMgr, need OpenSM 3.3.19 or later.
+Possible seg fault in PerfMgr was fixed there.
+
+ACM is only tested in SSA acm_mode.
+
