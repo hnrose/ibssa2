@@ -75,7 +75,7 @@
 #define PRDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 1
 #define SMDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 2
 #define UPSTREAM_DATA_FD_SLOT		4
-#define UPSTREAM_TIMER_SLOT		5
+#define UPSTREAM_RECONNECT_TIMER_SLOT	5
 
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
@@ -1660,16 +1660,16 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 
 		reconnect_timer.it_interval.tv_nsec = 0;
 
-		ret = timerfd_settime(fds[UPSTREAM_TIMER_SLOT].fd, 0,
+		ret = timerfd_settime(fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd, 0,
 				      &reconnect_timer, NULL);
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "timerfd_settime %d %d (%s)\n",
 				    ret, errno, strerror(errno));
-			close(fds[UPSTREAM_TIMER_SLOT].fd);
-			fds[UPSTREAM_TIMER_SLOT].fd = -1;
-			fds[UPSTREAM_TIMER_SLOT].events = 0;
-			fds[UPSTREAM_TIMER_SLOT].revents = 0;
+			close(fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd);
+			fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd = -1;
+			fds[UPSTREAM_RECONNECT_TIMER_SLOT].events = 0;
+			fds[UPSTREAM_RECONNECT_TIMER_SLOT].revents = 0;
 			return;
 		} else {
 			ssa_log(SSA_LOG_DEFAULT,
@@ -1678,8 +1678,8 @@ static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 				reconnect_timer.it_value.tv_sec,
 				reconnect_timer.it_interval.tv_sec);
 		}
-		fds[UPSTREAM_TIMER_SLOT].events = POLLIN;
-		fds[UPSTREAM_TIMER_SLOT].revents = 0;
+		fds[UPSTREAM_RECONNECT_TIMER_SLOT].events = POLLIN;
+		fds[UPSTREAM_RECONNECT_TIMER_SLOT].revents = 0;
 	} else {
 		if (svc->port->state == IBV_PORT_ACTIVE)
 			ssa_log_warn(SSA_LOG_DEFAULT,
@@ -1700,17 +1700,17 @@ static void ssa_upstream_stop_reconnection(struct ssa_svc *svc, struct pollfd *f
 	reconnect_timer.it_interval.tv_sec = 0;
 	reconnect_timer.it_interval.tv_nsec = 0;
 
-	ret = timerfd_settime(fds[UPSTREAM_TIMER_SLOT].fd, 0,
+	ret = timerfd_settime(fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd, 0,
 			      &reconnect_timer, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
 			    ret, errno, strerror(errno));
-		close(fds[UPSTREAM_TIMER_SLOT].fd);
-		fds[UPSTREAM_TIMER_SLOT].fd = -1;
+		close(fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd);
+		fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd = -1;
 	}
 
-	fds[UPSTREAM_TIMER_SLOT].events = 0;
-	fds[UPSTREAM_TIMER_SLOT].revents = 0;
+	fds[UPSTREAM_RECONNECT_TIMER_SLOT].events = 0;
+	fds[UPSTREAM_RECONNECT_TIMER_SLOT].revents = 0;
 
 	svc->conn_dataup.reconnect_count = 0;
 }
@@ -1756,8 +1756,8 @@ static void *ssa_upstream_handler(void *context)
 	fds[UPSTREAM_DATA_FD_SLOT].events = 0;
 	fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 
-	fds[UPSTREAM_TIMER_SLOT].fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-	if (fds[UPSTREAM_TIMER_SLOT].fd < 0) {
+	fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	if (fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd < 0) {
 		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d %d (%s)\n",
 			    ret, errno, strerror(errno));
 		return NULL;
@@ -2000,11 +2000,11 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			}
 		}
 
-		if (fds[UPSTREAM_TIMER_SLOT].revents & POLLIN) {
+		if (fds[UPSTREAM_RECONNECT_TIMER_SLOT].revents & POLLIN) {
 			ssize_t s;
 			uint64_t exp;
 
-			s = read(fds[UPSTREAM_TIMER_SLOT].fd, &exp, sizeof(uint64_t));
+			s = read(fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd, &exp, sizeof(uint64_t));
 			if (s != sizeof(uint64_t)) {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "%" PRId64 " bytes read\n", s);
@@ -2053,7 +2053,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 					break;
 				}
 			}
-			fds[UPSTREAM_TIMER_SLOT].revents = 0;
+			fds[UPSTREAM_RECONNECT_TIMER_SLOT].revents = 0;
 		}
 
 		/* Only 1 upstream data connection currently */
@@ -2122,8 +2122,8 @@ else ssa_log(SSA_LOG_DEFAULT, "reusing rbuf %p rsize %d roffset %d rhdr %p\n", s
 
 	}
 out:
-	if (fds[UPSTREAM_TIMER_SLOT].fd >= 0)
-		close(fds[UPSTREAM_TIMER_SLOT].fd);
+	if (fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd >= 0)
+		close(fds[UPSTREAM_RECONNECT_TIMER_SLOT].fd);
 
 	return NULL;
 }
