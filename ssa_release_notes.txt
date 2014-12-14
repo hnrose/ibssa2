@@ -130,6 +130,10 @@ once (at initial install time).
 ===============================================================================
 Only x86_64 processor architecture has been tested/qualified.
 
+Only single P_Key (full default partition - 0xFFFF) currently supported.
+
+Virtualization (alias GUIDs) and QoS not currently supported.
+
 Connect-IB (mlx5) has not yet been tested/qualified with SSA.
 Only rudimentary testing with qib (verified keepalives).
 
