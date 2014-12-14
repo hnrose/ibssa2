@@ -68,14 +68,16 @@
 
 #define DEFAULT_UMAD_TIMEOUT	1000 /* in milliseconds */
 #define MAX_UMAD_TIMEOUT	120 * DEFAULT_UMAD_TIMEOUT /* in milliseconds */
+#define DEFAULT_REJOIN_TIMEOUT 1  /* in seconds */
 
-#define FIRST_DATA_FD_SLOT		6
+#define FIRST_DATA_FD_SLOT		7
 #define ACCESS_FDS_PER_SERVICE		2
 #define ACCESS_FIRST_SERVICE_FD_SLOT	2
 #define PRDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 1
 #define SMDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 2
 #define UPSTREAM_DATA_FD_SLOT		4
 #define UPSTREAM_RECONNECT_TIMER_SLOT	5
+#define UPSTREAM_JOIN_TIMER_SLOT	6
 #define UPSTREAM_FD_SLOTS		FIRST_DATA_FD_SLOT + 1
 
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
@@ -210,6 +212,8 @@ static int ssa_push_db_update(struct ssa_db_update_queue *p_queue,
 static void ssa_access_wait_for_tasks_completion();
 static void ssa_access_process_task(struct ssa_access_task *task);
 #endif
+static void ssa_svc_schedule_join(struct ssa_svc *svc);
+
 
 static void g_rclose_callback(gint rsock, gpointer user_data)
 {
@@ -574,6 +578,7 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 		if (svc->port->state == IBV_PORT_ACTIVE &&
 		    svc->state == SSA_STATE_IDLE) {
 			svc->umad_timeout = DEFAULT_UMAD_TIMEOUT;
+			svc->rejoin_timeout = DEFAULT_REJOIN_TIMEOUT;
 			ssa_svc_join(svc, 0);
 		}
 		break;
@@ -594,6 +599,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 			"in idle state, discarding MAD\n");
 		svc->umad_timeout = DEFAULT_UMAD_TIMEOUT;
+		svc->rejoin_timeout = DEFAULT_REJOIN_TIMEOUT;
 		return;
 	}
 
@@ -608,7 +614,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			return;
 
 		svc->umad_timeout = min(svc->umad_timeout << 1, MAX_UMAD_TIMEOUT);
-		ssa_svc_join(svc, 0);
+		ssa_svc_schedule_join(svc);
 		return;
 	}
 
@@ -621,8 +627,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 				"join rejected with status 0x%x\n",
 				ntohs(umad->packet.mad_hdr.status));
-			svc->umad_timeout = min(svc->umad_timeout << 1, MAX_UMAD_TIMEOUT);
-			ssa_svc_join(svc, 0);
+			ssa_svc_schedule_join(svc);
 			return;
 		}
 	}
@@ -637,6 +642,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	switch (svc->state) {
 	case SSA_STATE_ORPHAN:
 		svc->state = SSA_STATE_HAVE_PARENT;
+		svc->rejoin_timeout = DEFAULT_REJOIN_TIMEOUT;
 	case SSA_STATE_HAVE_PARENT:
 		mad = &umad->packet;
 		info_rec = &mad->ssa_mad.info;
@@ -1619,6 +1625,46 @@ ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", svc-
 	return revents;
 }
 
+static void ssa_svc_schedule_join(struct ssa_svc *svc)
+{
+	int ret;
+	struct itimerspec join_timer;
+
+	if (svc->join_timer_fd < 0) {
+		ssa_log_err(SSA_LOG_CTRL, "join timer disarmed\n");
+		return;
+	}
+
+	if (svc->port->state != IBV_PORT_ACTIVE)
+		/*
+		 * Join request will be sent at IBV_EVENT_PORT_ACTIVE
+		 * event processing.
+		 */
+		return;
+
+	join_timer.it_value.tv_sec = svc->rejoin_timeout;
+	join_timer.it_value.tv_nsec = 0;
+	join_timer.it_interval.tv_sec = 0;
+	join_timer.it_interval.tv_nsec = 0;
+
+	ret = timerfd_settime(svc->join_timer_fd, 0, &join_timer, NULL);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "timerfd_settime %d %d (%s)\n",
+			    ret, errno, strerror(errno));
+		close(svc->join_timer_fd);
+		svc->join_timer_fd = -1;
+		return;
+	} else {
+		ssa_log(SSA_LOG_DEFAULT,
+			"join to distribution tree after %d sec\n",
+			svc->rejoin_timeout);
+	}
+
+	svc->rejoin_timeout = svc->rejoin_timeout << 1;
+	svc->state = SSA_STATE_IDLE;
+}
+
 static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds)
 {
 	int ret, first_timeout;
@@ -1763,6 +1809,10 @@ static void *ssa_upstream_handler(void *context)
 			    ret, errno, strerror(errno));
 		return NULL;
 	}
+
+	fds[UPSTREAM_JOIN_TIMER_SLOT].fd = svc->join_timer_fd;
+	fds[UPSTREAM_JOIN_TIMER_SLOT].events = POLLIN;
+	fds[UPSTREAM_JOIN_TIMER_SLOT].revents = 0;
 
 	for (;;) {
 		ret = rpoll(&fds[0], UPSTREAM_FD_SLOTS, timeout);
@@ -2055,6 +2105,39 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 				}
 			}
 			fds[UPSTREAM_RECONNECT_TIMER_SLOT].revents = 0;
+		}
+
+		if (fds[UPSTREAM_JOIN_TIMER_SLOT].revents & POLLIN) {
+			ssize_t s;
+			uint64_t exp;
+
+			if (fds[UPSTREAM_JOIN_TIMER_SLOT].fd != svc->join_timer_fd ||
+			    svc->join_timer_fd < 0) {
+				/* ssa_svc_schedule_join could close > join_timer_fd */
+				ssa_log_err(SSA_LOG_CTRL,
+					    "rejoin timerfd closed\n");
+				fds[UPSTREAM_JOIN_TIMER_SLOT].fd = -1;
+				fds[UPSTREAM_JOIN_TIMER_SLOT].events = 0;
+			} else {
+				s = read(fds[UPSTREAM_JOIN_TIMER_SLOT].fd, &exp, sizeof(uint64_t));
+				if (s != sizeof(uint64_t)) {
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "%" PRId64 " bytes read\n", s);
+				} else if (svc->port->state != IBV_PORT_ACTIVE) {
+					ssa_log(SSA_LOG_DEFAULT,
+						"port is not active. stopped rejoin\n");
+				} else if (svc->state != SSA_STATE_IDLE) {
+					ssa_log(SSA_LOG_DEFAULT,
+						"svc state is not IDLE. stopped rejoin\n");
+				} else {
+					ssa_log(SSA_LOG_DEFAULT,
+						"join timer expiration %" PRIu64 "\n",
+						exp);
+					ssa_svc_join(svc, 0);
+				}
+			}
+
+			fds[UPSTREAM_JOIN_TIMER_SLOT].revents = 0;
 		}
 
 		/* Only 1 upstream data connection currently */
@@ -5144,17 +5227,25 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	svc->process_msg = process_msg;
 	//pthread_mutex_init(&svc->lock, NULL);
 
+	svc->join_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	if (svc->join_timer_fd < 0) {
+		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d (%s)\n",
+			    errno, strerror(errno));
+		errno = ret;
+		goto err7;
+	}
+
 	ret = pthread_create(&svc->upstream, NULL, ssa_upstream_handler, svc);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating upstream thread\n");
 		errno = ret;
-		goto err7;
+		goto err8;
 	}
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with upstream thread\n");
-		goto err8;
+		goto err9;
 	}
 
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
@@ -5163,23 +5254,26 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating downstream thread\n");
 			errno = ret;
-			goto err8;
+			goto err9;
 		}
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 			ssa_log_err(SSA_LOG_CTRL, "with downstream thread\n");
-			goto err9;
+			goto err10;
 		}
 	}
 
+
 	port->svc[port->svc_cnt++] = svc;
 	return svc;
-
-err9:
+err10:
 	pthread_join(svc->downstream, NULL);
-err8:
+err9:
 	pthread_join(svc->upstream, NULL);
+err8:
+	close(svc->join_timer_fd);
+	svc->join_timer_fd = -1;
 err7:
 	if (svc->port->dev->ssa->node_type & SSA_NODE_CORE) {
 		close(svc->sock_extractdown[0]);
@@ -5815,6 +5909,8 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 	}
 	close(svc->sock_upctrl[0]);
 	close(svc->sock_upctrl[1]);
+	if (svc->join_timer_fd >= 0)
+		close(svc->join_timer_fd);
 	free(svc);
 }
 

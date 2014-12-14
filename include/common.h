@@ -236,10 +236,12 @@ struct ssa_svc {
 	//pthread_mutex_t		lock;
 	int			umad_timeout;	/* in milliseconds */
 	enum ssa_svc_state	state;
+	int			rejoin_timeout; /* in seconds */
 	struct ibv_path_data	primary;	/* parent */
 	struct ibv_path_data	secondary;	/* parent */
 	uint8_t			primary_type;
 	uint8_t			secondary_type;
+	int			join_timer_fd;
 #ifdef ACCESS
 	void			*access_map;
 #endif
