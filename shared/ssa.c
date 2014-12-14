@@ -3415,7 +3415,6 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					"PRDB calculated for GID %s is equal to "
 					"previous PRDB with epoch 0x%" PRIx64 "\n",
 					log_data, prdb_epoch);
-				return NULL;
 			} else if (ret == -1) {
 				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 						SSA_ADDR_GID, consumer->gid.raw,
@@ -3424,6 +3423,16 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					    "invalid PRDB structure for GID %s (new "
 					    "prdb %p or previously calculated one %p)\n",
 					    log_data, prdb, consumer->prdb_current);
+			}
+			/*
+			 * Destroy new PRDB and don't send PRDB update,
+			 * if it's equal to the previous PRDB (ret == 0), or
+			 * it's structure is wrong (ret == -1). If
+			 * structure is wrong, assumption is it's new PRDB
+			 * structure.
+			 */
+			if (ret != 1) {
+				ssa_db_destroy(prdb);
 				return NULL;
 			}
 		}
