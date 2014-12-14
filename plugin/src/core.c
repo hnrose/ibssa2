@@ -906,7 +906,7 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 
 	ssa_log(SSA_LOG_CTRL, "sending set parent\n");
 	ret = umad_send(core->svc.port->mad_portid, core->svc.port->mad_agentid,
-			(void *) &umad_sa, sizeof umad_sa.packet, core->svc.timeout, 0);
+			(void *) &umad_sa, sizeof umad_sa.packet, core->svc.umad_timeout, 0);
 	if (ret)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"ERROR - failed to send set parent\n");

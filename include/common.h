@@ -234,7 +234,7 @@ struct ssa_svc {
 	pthread_t		upstream;
 	pthread_t		downstream;
 	//pthread_mutex_t		lock;
-	int			timeout;
+	int			umad_timeout;	/* in milliseconds */
 	enum ssa_svc_state	state;
 	struct ibv_path_data	primary;	/* parent */
 	struct ibv_path_data	secondary;	/* parent */

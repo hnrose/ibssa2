@@ -66,8 +66,8 @@
 #include <ssa_log.h>
 #include <glib.h>
 
-#define DEFAULT_TIMEOUT 1000
-#define MAX_TIMEOUT	120 * DEFAULT_TIMEOUT
+#define DEFAULT_UMAD_TIMEOUT	1000 /* in milliseconds */
+#define MAX_UMAD_TIMEOUT	120 * DEFAULT_UMAD_TIMEOUT /* in milliseconds */
 
 #define FIRST_DATA_FD_SLOT		6
 #define ACCESS_FDS_PER_SERVICE		2
@@ -383,7 +383,7 @@ static int ssa_svc_join(struct ssa_svc *svc, uint8_t bad_parent)
 	svc->state = SSA_STATE_JOINING;
 
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
-			(void *) &umad, sizeof umad.packet, svc->timeout, 0);
+			(void *) &umad, sizeof umad.packet, svc->umad_timeout, 0);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "failed to send join request\n");
 		svc->state = SSA_STATE_IDLE;
@@ -530,7 +530,7 @@ int ssa_svc_query_path(struct ssa_svc *svc, union ibv_gid *dgid,
 	sa_init_path_query(svc, &umad.sa_mad.path_rec, dgid, sgid);
 
 	ret = umad_send(svc->port->mad_portid, svc->port->mad_agentid,
-			(void *) &umad, sizeof umad.sa_mad.packet, svc->timeout, 0);
+			(void *) &umad, sizeof umad.sa_mad.packet, svc->umad_timeout, 0);
 	if (ret)
 		ssa_log_err(SSA_LOG_CTRL, "failed to send path query to SA\n");
 	return ret;
@@ -573,7 +573,7 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 	case IBV_EVENT_PORT_ACTIVE:
 		if (svc->port->state == IBV_PORT_ACTIVE &&
 		    svc->state == SSA_STATE_IDLE) {
-			svc->timeout = DEFAULT_TIMEOUT;
+			svc->umad_timeout = DEFAULT_UMAD_TIMEOUT;
 			ssa_svc_join(svc, 0);
 		}
 		break;
@@ -593,7 +593,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	if (svc->state == SSA_STATE_IDLE) {
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 			"in idle state, discarding MAD\n");
-		svc->timeout = DEFAULT_TIMEOUT;
+		svc->umad_timeout = DEFAULT_UMAD_TIMEOUT;
 		return;
 	}
 
@@ -607,12 +607,12 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		if (svc->state != SSA_STATE_JOINING)
 			return;
 
-		svc->timeout = min(svc->timeout << 1, MAX_TIMEOUT);
+		svc->umad_timeout = min(svc->umad_timeout << 1, MAX_UMAD_TIMEOUT);
 		ssa_svc_join(svc, 0);
 		return;
 	}
 
-	svc->timeout = DEFAULT_TIMEOUT;
+	svc->umad_timeout = DEFAULT_UMAD_TIMEOUT;
 	if (svc->state == SSA_STATE_JOINING) {
 		if (!umad->packet.mad_hdr.status) {
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "join successful\n");
@@ -621,7 +621,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 				"join rejected with status 0x%x\n",
 				ntohs(umad->packet.mad_hdr.status));
-			svc->timeout = min(svc->timeout << 1, MAX_TIMEOUT);
+			svc->umad_timeout = min(svc->umad_timeout << 1, MAX_UMAD_TIMEOUT);
 			ssa_svc_join(svc, 0);
 			return;
 		}
