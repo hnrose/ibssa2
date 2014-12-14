@@ -364,6 +364,12 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "reconnect_timeout 10\n");
 	fprintf(f, "\n");
+	fprintf(f, "# rejoin_timeout\n");
+	fprintf(f, "# Specifies start timeout (in sec.) before first rejoin attempt.\n");
+	fprintf(f, "# Exponential backoff is used to space out join retries.\n");
+	fprintf(f, "\n");
+	fprintf(f, "rejoin_timeout 1\n");
+	fprintf(f, "\n");
 }
 
 static int open_dir(void)

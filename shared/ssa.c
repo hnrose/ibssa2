@@ -68,7 +68,6 @@
 
 #define DEFAULT_UMAD_TIMEOUT	1000 /* in milliseconds */
 #define MAX_UMAD_TIMEOUT	120 * DEFAULT_UMAD_TIMEOUT /* in milliseconds */
-#define DEFAULT_REJOIN_TIMEOUT 1  /* in seconds */
 
 #define FIRST_DATA_FD_SLOT		7
 #define ACCESS_FDS_PER_SERVICE		2
@@ -152,6 +151,7 @@ short prdb_port = 7473;
 int keepalive = 60;		/* seconds */
 int reconnect_timeout = 10;	/* seconds */
 int reconnect_max_count = 10;
+int rejoin_timeout = 1;		/* seconds */
 
 #ifdef ACCESS
 #ifdef SIM_SUPPORT_FAKE_ACM
@@ -578,7 +578,7 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 		if (svc->port->state == IBV_PORT_ACTIVE &&
 		    svc->state == SSA_STATE_IDLE) {
 			svc->umad_timeout = DEFAULT_UMAD_TIMEOUT;
-			svc->rejoin_timeout = DEFAULT_REJOIN_TIMEOUT;
+			svc->rejoin_timeout = rejoin_timeout;
 			ssa_svc_join(svc, 0);
 		}
 		break;
@@ -599,7 +599,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 			"in idle state, discarding MAD\n");
 		svc->umad_timeout = DEFAULT_UMAD_TIMEOUT;
-		svc->rejoin_timeout = DEFAULT_REJOIN_TIMEOUT;
+		svc->rejoin_timeout = rejoin_timeout;
 		return;
 	}
 
@@ -642,7 +642,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	switch (svc->state) {
 	case SSA_STATE_ORPHAN:
 		svc->state = SSA_STATE_HAVE_PARENT;
-		svc->rejoin_timeout = DEFAULT_REJOIN_TIMEOUT;
+		svc->rejoin_timeout = rejoin_timeout;
 	case SSA_STATE_HAVE_PARENT:
 		mad = &umad->packet;
 		info_rec = &mad->ssa_mad.info;

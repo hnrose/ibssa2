@@ -208,6 +208,7 @@ extern short prdb_port;
 extern int keepalive;
 extern int reconnect_timeout;
 extern int reconnect_max_count;
+extern int rejoin_timeout;
 
 static void
 acm_format_name(int level, char *name, size_t name_size,
@@ -4116,6 +4117,8 @@ static void acm_set_options(void)
 			 reconnect_max_count = atoi(value);
 		else if (!strcasecmp("reconnect_timeout", opt))
 			 reconnect_timeout = atoi(value);
+		else if (!strcasecmp("rejoin_timeout", opt))
+			 rejoin_timeout = atoi(value);
 	}
 
 	fclose(f);
@@ -4157,6 +4160,10 @@ static void acm_log_options(void)
 
 		ssa_log(SSA_LOG_DEFAULT, "timeout between reconnections (in sec.) %d\n", reconnect_timeout);
 	}
+	if (rejoin_timeout < 0)
+		ssa_log(SSA_LOG_DEFAULT, "rejoin to distribution tree after previous request failure disabled\n");
+	else
+		ssa_log(SSA_LOG_DEFAULT, "timeout before next join request (in sec.) %d\n", rejoin_timeout );
 }
 
 static void *acm_ctrl_handler(void *context)
