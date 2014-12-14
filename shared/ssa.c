@@ -76,6 +76,7 @@
 #define SMDB_LISTEN_FD_SLOT	FIRST_DATA_FD_SLOT - 2
 #define UPSTREAM_DATA_FD_SLOT		4
 #define UPSTREAM_RECONNECT_TIMER_SLOT	5
+#define UPSTREAM_FD_SLOTS		FIRST_DATA_FD_SLOT + 1
 
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
@@ -1719,7 +1720,7 @@ static void *ssa_upstream_handler(void *context)
 {
 	struct ssa_svc *svc = context, *conn_svc;
 	struct ssa_ctrl_msg_buf msg;
-	struct pollfd fds[6];
+	struct pollfd fds[UPSTREAM_FD_SLOTS];
 	int ret, timeout = -1;		/* infinite */
 	int outstanding_count = 0;
 	short port;
@@ -1764,7 +1765,7 @@ static void *ssa_upstream_handler(void *context)
 	}
 
 	for (;;) {
-		ret = rpoll(&fds[0], 6, timeout);
+		ret = rpoll(&fds[0], UPSTREAM_FD_SLOTS, timeout);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
