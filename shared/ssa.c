@@ -1635,6 +1635,9 @@ static void ssa_svc_schedule_join(struct ssa_svc *svc)
 		return;
 	}
 
+	if (svc->rejoin_timeout < 0)
+		return;
+
 	if (svc->port->state != IBV_PORT_ACTIVE)
 		/*
 		 * Join request will be sent at IBV_EVENT_PORT_ACTIVE
