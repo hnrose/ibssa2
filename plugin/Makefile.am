@@ -32,8 +32,15 @@ src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h \
 	     include/osd.h include/dlist.h \
-	     include/ssa_log.h include/common.h \
-	     libopensmssa.spec.in ibssa_core_opts.cfg
+	     include/ssa_log.h include/common.h include/ssa_ctrl.h \
+	     include/ssa_path_record_data.h include/ssa_path_record_helper.h \
+	     include/infiniband/osm_headers.h include/infiniband/ssa_mad.h \
+	     include/infiniband/ssa_extract.h include/infiniband/ssa_comparison.h \
+	     include/infiniband/ssa_db_helper.h include/infiniband/ssa_database.h \
+	     include/infiniband/ssa_smdb.h include/infiniband/ssa_db.h \
+	     include/infiniband/ssa.h include/infiniband/ssa_path_record.h \
+	     include/infiniband/ssa_smdb_api.h include/infiniband/ssa_prdb.h \
+	     libopensmssa.spec.in ibssa_core_opts.cfg autogen.sh
 
 dist-hook: libopensmssa.spec
 	cp libopensmssa.spec $(distdir)
