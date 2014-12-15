@@ -5853,7 +5853,11 @@ void ssa_close_devices(struct ssa_class *ssa)
 	free(ssa->dev);
 	ssa->dev_cnt = 0;
 
-	if (smdb) {
+	/*
+	 * In case of CORE node, smdb is destroyed in core_destroy()
+	 * call via its wrapper object destroy method.
+	 */
+	if (smdb && !(ssa->node_type & SSA_NODE_CORE)) {
 		ssa_db_destroy(smdb);
 		smdb = NULL;
 	}
