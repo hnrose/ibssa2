@@ -145,3 +145,8 @@ Possible seg fault in PerfMgr was fixed there.
 
 ACM is only tested in SSA acm_mode.
 
+Ignore the following warning during ./configure:
+checking rsockets getsockopt RDMA_ROUTE... no
+configure: WARNING: rsockets does not support getsockopt RDMA_ROUTE.
+librdmacm 1.0.19 or beyond is needed.
+
