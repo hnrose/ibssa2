@@ -1952,6 +1952,13 @@ static void *core_construct(osm_opensm_t *opensm)
 	char buf[PATH_MAX];
 #else
 	char msg[256] = {};
+
+	if (ssa_open_lock_file(lock_file, msg, sizeof msg)) {
+		openlog("ibssa", LOG_PERROR | LOG_PID, LOG_USER);
+		syslog(LOG_INFO, "%s", msg);
+		closelog();
+		return NULL;
+	}
 #endif
 
 	core_set_options();
@@ -1975,6 +1982,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		       sizeof(struct ssa_port));
 	if (ret) {
 		ssa_close_log();
+		ssa_close_lock_file();
 		return NULL;
 	}
 
@@ -1995,14 +2003,6 @@ static void *core_construct(osm_opensm_t *opensm)
 	if (smdb_lock_fd < 0) {
 		ssa_log_err(SSA_LOG_DEFAULT,
 			    "can't open smdb lock file: %s\n", buf);
-		goto err1;
-	}
-#else
-	if (ssa_open_lock_file(lock_file, msg, sizeof msg)) {
-		ssa_log(SSA_LOG_DEFAULT, "%s\n", msg);
-		openlog("ibssa", LOG_PERROR | LOG_PID, LOG_USER);
-		syslog(LOG_INFO, "%s", msg);
-		closelog();
 		goto err1;
 	}
 #endif
@@ -2099,8 +2099,8 @@ err2:
 #if defined(SIM_SUPPORT) || defined (SIM_SUPPORT_SMDB)
 	if (smdb_lock_fd >= 0)
 		close(smdb_lock_fd);
-#endif
 err1:
+#endif
 	ssa_close_log();
 	ssa_cleanup(&ssa);
 	ssa_close_lock_file();
