@@ -644,26 +644,26 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		svc->state = SSA_STATE_HAVE_PARENT;
 		svc->rejoin_timeout = rejoin_timeout;
 	case SSA_STATE_HAVE_PARENT:
+	case SSA_STATE_CONNECTING:
+	case SSA_STATE_CONNECTED:
 		mad = &umad->packet;
 		info_rec = &mad->ssa_mad.info;
 
 		if (memcmp(&svc->primary, &info_rec->path_data,
 			   sizeof(svc->primary))) {
-			if (svc->conn_dataup.rsock >= 0)
+			if (svc->conn_dataup.rsock >= 0) {
 				ssa_close_ssa_conn(&svc->conn_dataup);
+				svc->state = SSA_STATE_HAVE_PARENT;
+			}
 			memcpy(&svc->primary, &info_rec->path_data,
 			       sizeof(svc->primary));
 			svc->primary_type = info_rec->node_type;
 			break;
 		}
 
-		if (svc->conn_dataup.rsock >= 0)
+		if (svc->conn_dataup.rsock >= 0 && svc->state != SSA_STATE_CONNECTING)
 			svc->state = SSA_STATE_CONNECTED;
 
-		break;
-	case SSA_STATE_CONNECTING:
-	case SSA_STATE_CONNECTED:		/* TODO compare against current parent, if same done */
-		/* if parent is different, save parent, close rsock, and reopen */
 		break;
 	default:
 		break;
