@@ -1623,22 +1623,24 @@ static int core_has_orphans(struct ssa_extract_data *data)
 }
 #endif
 
-static void core_start_dtree_timer(struct pollfd **fds)
+static void core_start_timer(struct pollfd **fds, int fd_slot,
+			     time_t time_sec, time_t interval_sec)
 {
-	struct itimerspec dtree_timer;
+	struct itimerspec timer;
 	struct pollfd *pfd;
 	int ret;
 
-	dtree_timer.it_value.tv_sec = 1;
-	dtree_timer.it_value.tv_nsec = 0;
-	dtree_timer.it_interval.tv_sec = 1;
-	dtree_timer.it_interval.tv_nsec = 0;
+	timer.it_value.tv_sec		= time_sec;
+	timer.it_value.tv_nsec		= 0;
+	timer.it_interval.tv_sec	= interval_sec;
+	timer.it_interval.tv_nsec	= 0;
 
-	pfd = (struct pollfd *)(fds + EXTRACT_TIMER_FD_SLOT);
-	ret = timerfd_settime(pfd->fd, 0, &dtree_timer, NULL);
+	pfd = (struct pollfd *)(fds + fd_slot);
+	ret = timerfd_settime(pfd->fd, 0, &timer, NULL);
 	if (ret) {
-		ssa_log_err(SSA_LOG_CTRL, "timerfd_settime %d %d (%s)\n",
-			    ret, errno, strerror(errno));
+		ssa_log_err(SSA_LOG_CTRL,
+			    "timerfd_settime %d %d (%s) for fd %d\n",
+			    ret, errno, strerror(errno), fd_slot);
 		close(pfd->fd);
 		pfd->fd = -1;
 		return;
@@ -1750,7 +1752,7 @@ static void *core_extract_handler(void *context)
 				if (core_has_orphans(p_extract_data))
 					timeout_msec = 1000;
 
-				core_start_dtree_timer(fds);
+				core_start_timer(fds, EXTRACT_TIMER_FD_SLOT, 1, 1);
 #endif
 				break;
 			case SSA_DB_LFT_CHANGE:
