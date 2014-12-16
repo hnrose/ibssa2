@@ -22,8 +22,12 @@ man_MANS = \
 
 EXTRA_DIST = src/acm_mad.h src/libacm.h ibacm.init.in \
 	     include/osd.h include/dlist.h \
-	     include/ssa_log.h include/common.h \
-	     ibacm.spec.in $(man_MANS) ibacm_opts.cfg ibacm_addr.cfg
+	     include/ssa_log.h include/common.h include/acm_shared.h \
+	     include/ssa_ctrl.h include/infiniband/ssa.h \
+	     include/infiniband/ssa_mad.h include/infiniband/ssa_db.h \
+	     include/infiniband/ssa_db_helper.h include/infiniband/ssa_prdb.h \
+	     ibacm.spec.in $(man_MANS) ibacm_opts.cfg ibacm_addr.cfg \
+	     autogen.sh
 
 install-exec-hook:
 	install -D -m 755 ibacm.init $(DESTDIR)$(sysconfdir)/init.d/ibacm;
