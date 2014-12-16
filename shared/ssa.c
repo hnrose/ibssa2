@@ -171,14 +171,6 @@ struct ssa_access_member {
 	int rsock;
 	uint16_t lid;
 };
-
-/* From libgcc (tsearch.c) so can walk binary tree and supply private pointer */
-struct node_t {
-	const void *key;
-	struct node_t *left;
-	struct node_t *right;
-	unsigned int red:1;
-};
 #endif
 
 struct ssa_sysinfo {
@@ -3812,10 +3804,10 @@ static void *ssa_access_prdb_handler(void *context)
 	return NULL;
 }
 
-static void ssa_twalk(const struct node_t *root,
-		      void (*callback)(const void *nodep, const VISIT which,
-				       const void *priv),
-		      const void *priv)
+void ssa_twalk(const struct node_t *root,
+	       void (*callback)(const void *nodep, const VISIT which,
+				const void *priv),
+	       const void *priv)
 {
 	if (root->left == NULL && root->right == NULL)
 		callback(root, leaf, priv);

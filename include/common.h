@@ -247,6 +247,17 @@ struct ssa_svc {
 #endif
 };
 
+
+#ifdef ACCESS
+/* From libgcc (tsearch.c) so can walk binary tree and supply private pointer */
+struct node_t {
+	const void *key;
+	struct node_t *left;
+	struct node_t *right;
+	unsigned int red:1;
+};
+#endif
+
 int ssa_open_devices(struct ssa_class *ssa);
 void ssa_close_devices(struct ssa_class *ssa);
 
@@ -291,6 +302,13 @@ struct ssa_svc *ssa_get_svc(struct ssa_port *port, int index);
 #endif
 
 int ssa_set_ssa_signal_handler();
+
+#ifdef ACCESS
+void ssa_twalk(const struct node_t *root,
+	       void (*callback)(const void *nodep, const VISIT which,
+				const void *priv),
+	       const void *priv);
+#endif
 
 #ifdef __cplusplus
 }
