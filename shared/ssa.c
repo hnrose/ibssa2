@@ -4886,6 +4886,9 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 		goto close;
 	}
 
+	if (svc->port->dev->ssa->node_type == SSA_NODE_CONSUMER)
+		svc->conn_dataup.epoch = DB_EPOCH_INVALID;
+
 	svc->conn_dataup.state = SSA_CONN_CONNECTING;
 	svc->state = SSA_STATE_CONNECTING;
 
