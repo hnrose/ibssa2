@@ -725,6 +725,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 	conn->state = SSA_CONN_IDLE;
 	conn->phase = SSA_DB_IDLE;
 	conn->epoch_len = 0;
+	conn->rdma_write = 0;
 }
 
 static int ssa_upstream_send_query(int rsock, struct ssa_msg_hdr *msg,
