@@ -2093,7 +2093,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 					if (svc->state == SSA_STATE_HAVE_PARENT) {
 						if (++svc->conn_dataup.reconnect_count <= reconnect_max_count) {
 							ssa_log(SSA_LOG_DEFAULT,
-								"reconnection %d of %d\n",
+								"reconnection attempt %d of %d\n",
 								svc->conn_dataup.reconnect_count,
 								reconnect_max_count);
 							ssa_ctrl_conn(svc->port->dev->ssa, svc);
