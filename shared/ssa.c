@@ -90,6 +90,10 @@
 #define RCLOSE_THREAD_POOL_WORKERS_NUM 1
 #endif
 
+#ifndef MAX_ACCESS_POOL_WORKERS_NUM
+#define MAX_ACCESS_POOL_WORKERS_NUM 0xffff
+#endif
+
 struct ssa_db_update_record {
 	DLIST_ENTRY		list_entry;
 	struct ssa_db_update	db_upd;
@@ -5332,6 +5336,7 @@ static int ssa_access_thread_pool_init()
 	}
 
 	access_context.num_workers = ssa_sysinfo.nprocs > 3 ? ssa_sysinfo.nprocs - 3 : 1;
+	access_context.num_workers = min(access_context.num_workers, MAX_ACCESS_POOL_WORKERS_NUM);
 	ssa_log(SSA_LOG_DEFAULT, "Number of access workers %d\n",
 		access_context.num_workers);
 
