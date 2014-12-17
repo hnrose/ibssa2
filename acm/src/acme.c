@@ -367,6 +367,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# rejoin_timeout\n");
 	fprintf(f, "# Specifies start timeout (in sec.) before first rejoin attempt.\n");
 	fprintf(f, "# Exponential backoff is used to space out join retries.\n");
+	fprintf(f, "# At some stage, timeout becomes constant.\n");
 	fprintf(f, "\n");
 	fprintf(f, "rejoin_timeout 1\n");
 	fprintf(f, "\n");

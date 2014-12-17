@@ -94,6 +94,10 @@
 #define MAX_ACCESS_POOL_WORKERS_NUM 0xffff
 #endif
 
+#ifndef MAX_REJOIN_TIMEOUT_FACTOR
+#define MAX_REJOIN_TIMEOUT_FACTOR 120
+#endif
+
 struct ssa_db_update_record {
 	DLIST_ENTRY		list_entry;
 	struct ssa_db_update	db_upd;
@@ -210,6 +214,10 @@ static void ssa_access_process_task(struct ssa_access_task *task);
 #endif
 static void ssa_svc_schedule_join(struct ssa_svc *svc);
 
+static inline int get_max_rejoin_timeout()
+{
+	return MAX_REJOIN_TIMEOUT_FACTOR * rejoin_timeout;
+}
 
 static void g_rclose_callback(gint rsock, gpointer user_data)
 {
@@ -1661,7 +1669,7 @@ static void ssa_svc_schedule_join(struct ssa_svc *svc)
 			svc->rejoin_timeout);
 	}
 
-	svc->rejoin_timeout = svc->rejoin_timeout << 1;
+	svc->rejoin_timeout = min(svc->rejoin_timeout << 1, get_max_rejoin_timeout());
 	svc->state = SSA_STATE_IDLE;
 }
 
