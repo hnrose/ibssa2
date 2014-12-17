@@ -1634,6 +1634,7 @@ static void ssa_svc_schedule_join(struct ssa_svc *svc)
 {
 	int ret;
 	struct itimerspec join_timer;
+	long random_shift;
 
 	if (svc->join_timer_fd < 0) {
 		ssa_log_err(SSA_LOG_CTRL, "join timer disarmed\n");
@@ -1650,8 +1651,10 @@ static void ssa_svc_schedule_join(struct ssa_svc *svc)
 		 */
 		return;
 
+	random_shift = 1000 + 999999000 * (rand() / RAND_MAX);
+
 	join_timer.it_value.tv_sec = svc->rejoin_timeout;
-	join_timer.it_value.tv_nsec = 0;
+	join_timer.it_value.tv_nsec = random_shift;
 	join_timer.it_interval.tv_sec = 0;
 	join_timer.it_interval.tv_nsec = 0;
 
