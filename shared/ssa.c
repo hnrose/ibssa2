@@ -3520,7 +3520,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					    log_data, prdb, consumer->prdb_current);
 			}
 			/*
-			 * Destroy new PRDB and don't send PRDB update,
+			 * Destroy new PRDB but still need to send PRDB update,
 			 * if it's equal to the previous PRDB (ret == 0), or
 			 * it's structure is wrong (ret == -1). If
 			 * structure is wrong, assumption is it's new PRDB
@@ -3528,7 +3528,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 			 */
 			if (ret != 1) {
 				ssa_db_destroy(prdb);
-				return NULL;
+				return consumer->prdb_current;
 			}
 		}
 
