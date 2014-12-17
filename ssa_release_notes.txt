@@ -56,7 +56,7 @@ If running PerfMgr, OpenSM 3.3.19 is needed.
 
 1.1.5 librdmacm (AF_IB and keepalive support)
 
-Note that 1.0.19-1 is missing critical rsocket.c patch
+Note that 1.0.19-1 is missing rsocket.c patch
 which avoids segmentation fault in rclose.
 
 Currently, there is no released package.
@@ -71,6 +71,21 @@ riounmap called from rs_free_iomappings).
 
 Signed-off-by: Sasha Kotchubievsky <sashakot@mellanox.com>
 Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+SSA framework was changed so that this is no longer critical:
+
+commit 5017f98ed84b3c77fd8884577b6f0b9e2a2d3b1e
+Author: Hal Rosenstock <hal@mellanox.com>
+Date:   Sat Aug 16 15:06:55 2014 +0300
+
+ssa.c: riounmap epoch buffer on ACM/consumer upstream connection before rclose
+
+Not doing this revealed rclose segmentation fault where there
+appears to be ordering issue in cleanup there. Issue found by
+Sasha and patch has been proposed but not yet incorporated into
+librdmacm.
+
+Signed-off-by: Hal Rosenstock <hal@mellanox.com>
 
 Note that librdmacm contains 2 AF_IB capable examples: rstream
 and ucmatose.
