@@ -54,7 +54,24 @@ If running PerfMgr, OpenSM 3.3.19 is needed.
 
 1.1.4 libibverbs 1.1.8
 
-1.1.5 librdmacm 1.0.19-1 or later (AF_IB and keepalive support)
+1.1.5 librdmacm (AF_IB and keepalive support)
+
+Note that 1.0.19-1 is missing critical rsocket.c patch
+which avoids segmentation fault in rclose.
+
+Currently, there is no released package.
+librdmacm must be taken from:
+git.openfabrics.org:~shefty/librdmacm.git
+
+It must contain commit ID cf7aae3d0cc460eee6b2904172b6442d774a0af4:
+rsocket: Index map item is cleaned before it is used in iomapping cleanup
+rs_free function clears index map item corresponding to the roscket (in
+idm_clear called from rs_remove) and then uses it in iomapping cleanup (in
+riounmap called from rs_free_iomappings).
+
+Signed-off-by: Sasha Kotchubievsky <sashakot@mellanox.com>
+Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
 Note that librdmacm contains 2 AF_IB capable examples: rstream
 and ucmatose.
 
