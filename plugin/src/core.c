@@ -48,7 +48,12 @@
 
 #define SSA_CORE_OPTS_FILE SSA_FILE_PREFIX "_core" SSA_OPTS_FILE_SUFFIX
 #define EXTRACT_TIMER_FD_SLOT		2
-#define FIRST_DOWNSTREAM_FD_SLOT	3
+#define TREE_BALANCE_TIMER_FD_SLOT	3
+#define FIRST_DOWNSTREAM_FD_SLOT	4
+
+#ifndef CORE_BALANCE_TIMEOUT
+#define CORE_BALANCE_TIMEOUT 300	/* 5 minutes in seconds */
+#endif
 
 /*
  * Service options - may be set through ibssa_opts.cfg file.
@@ -1698,6 +1703,15 @@ static void *core_extract_handler(void *context)
 	}
 	pfd->events = 0;
 	pfd->revents = 0;
+	pfd = (struct pollfd *)(fds + TREE_BALANCE_TIMER_FD_SLOT);
+	pfd->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+	if (pfd->fd < 0) {
+		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d (%s)\n",
+			    errno, strerror(errno));
+		goto out;
+	}
+	pfd->events = 0;
+	pfd->revents = 0;
 	for (i = 0; i < p_extract_data->num_svcs; i++) {
 		pfd = (struct pollfd *)(fds + i + FIRST_DOWNSTREAM_FD_SLOT);
 		pfd->fd = p_extract_data->svcs[i]->sock_extractdown[1];
@@ -1737,8 +1751,10 @@ static void *core_extract_handler(void *context)
 			switch (msg.type) {
 			case SSA_DB_START_EXTRACT:
 #ifndef SIM_SUPPORT
-				if (first_extraction)
+				if (first_extraction) {
 					core_process_extract_data(p_extract_data);
+					core_start_timer(fds, TREE_BALANCE_TIMER_FD_SLOT, CORE_BALANCE_TIMEOUT, 0);
+				}
 #endif
 #ifdef SIM_SUPPORT
 				core_extract_db(p_osm);
@@ -1831,6 +1847,31 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 			pfd->revents = 0;
 		}
 
+		pfd = (struct pollfd *)(fds + TREE_BALANCE_TIMER_FD_SLOT);
+		if (pfd->revents & POLLIN) {
+			ssize_t s;
+			uint64_t exp;
+
+			s = read(pfd->fd, &exp, sizeof exp);
+			if (s != sizeof exp) {
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "%" PRId64 " bytes read\n", s);
+			} else {
+				for (i = 0; i < p_extract_data->num_svcs; i++) {
+					struct ssa_svc *svc = p_extract_data->svcs[i];
+					struct ssa_core *core;
+
+					if (svc->port->state == IBV_PORT_ACTIVE) {
+						core = container_of(svc, struct ssa_core, svc);
+						core_rebalance_tree(core);
+					}
+				}
+			}
+
+			pfd->revents = 0;
+		}
+
+
 		for (i = 0; i < p_extract_data->num_svcs; i++) {
 			pfd = (struct pollfd *)(fds + i + FIRST_DOWNSTREAM_FD_SLOT);
 			if (pfd->revents) {
@@ -1872,6 +1913,13 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY on pfds[%u] with outstanding count
 		}
 	}
 out:
+	pfd = (struct pollfd *)(fds + TREE_BALANCE_TIMER_FD_SLOT);
+	if (pfd->fd >= 0) {
+		close(pfd->fd);
+		pfd->events = 0;
+		pfd->revents = 0;
+	}
+
 	pfd = (struct pollfd *)(fds + EXTRACT_TIMER_FD_SLOT);
 	if (pfd->fd >= 0) {
 		close(pfd->fd);
