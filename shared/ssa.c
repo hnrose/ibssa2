@@ -6115,6 +6115,9 @@ void ssa_cleanup(struct ssa_class *ssa)
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 				"%d rsockets still waiting for rclose completion\n",
 				rclose_unprocessed);
+		ssa_log(SSA_LOG_DEFAULT,
+			"closing opened rsockets. this may take a while\n");
 		g_thread_pool_free(thpool_rclose, FALSE, TRUE);
+		ssa_log(SSA_LOG_DEFAULT, "all rsockets are now closed\n");
 	}
 }
