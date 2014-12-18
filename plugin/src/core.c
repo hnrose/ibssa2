@@ -114,8 +114,8 @@ struct ssa_member {
 	time_t				join_start_time;
 	uint16_t			lid;
 	uint8_t				sl;
-	int				child_num;
-	int				access_child_num; /* used when combined or access node type */
+	atomic_t			child_num;
+	atomic_t			access_child_num; /* used when combined or access node type */
 	DLIST_ENTRY			child_list;
 	DLIST_ENTRY			access_child_list; /* used when combined or access node type */
 	DLIST_ENTRY			entry;
@@ -305,9 +305,9 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 				if (child->rec.bad_parent &&
 				    !memcmp(child->rec.parent_gid, member->rec.port_gid, 16))
 						continue;
-				if (member->access_child_num < least_child_num) {
+				if (atomic_get(&member->access_child_num) < least_child_num) {
 					parentgid = (union ibv_gid *) member->rec.port_gid;
-					least_child_num = member->access_child_num;
+					least_child_num = atomic_get(&member->access_child_num);
 					if (!least_child_num)
 						break;
 				}
@@ -317,9 +317,9 @@ static union ibv_gid *find_best_parent(struct ssa_core *core,
 				if (child->rec.bad_parent &&
 				    !memcmp(child->rec.parent_gid, member->rec.port_gid, 16))
 						continue;
-				if (member->child_num < least_child_num) {
+				if (atomic_get(&member->child_num) < least_child_num) {
 					parentgid = (union ibv_gid *) member->rec.port_gid;
-					least_child_num = member->child_num;
+					least_child_num = atomic_get(&member->child_num);
 					if (!least_child_num)
 						break;
 				}
@@ -449,9 +449,9 @@ static void core_update_tree(struct ssa_core *core, struct ssa_member *child,
 	rec = container_of(*tgid, struct ssa_member_record, port_gid);
 	parent = container_of(rec, struct ssa_member, rec);
 	if (node_type & SSA_NODE_CONSUMER)
-		parent->access_child_num--;
+		atomic_dec(&parent->access_child_num);
 	else if ((node_type & SSA_NODE_CORE) != SSA_NODE_CORE)
-		parent->child_num--;
+		atomic_dec(&parent->child_num);
 	child->primary = NULL;
 	child->primary_state = SSA_CHILD_IDLE;
 }
@@ -484,11 +484,11 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member, int lev
 	    ((level & SSA_DTREE_DISTRIB) &&
 	     (member_rec->node_type & SSA_NODE_DISTRIBUTION)))
 		snprintf(children, sizeof children,
-			 " [ children %d ]", member->child_num);
+			 " [ children %d ]", atomic_get(&member->child_num));
 	else if ((level & SSA_DTREE_ACCESS) &&
 		 (member_rec->node_type & SSA_NODE_ACCESS))
 		snprintf(children, sizeof children,
-			 " [ children %d ]", member->access_child_num);
+			 " [ children %d ]", atomic_get(&member->access_child_num));
 	else if ((level & SSA_DTREE_CONSUMER) &&
 		 (member_rec->node_type & SSA_NODE_CONSUMER))
 		snprintf(children, sizeof children, "[ no children ]");
@@ -686,13 +686,13 @@ static void core_handle_node(struct ssa_member_record *rec,
 
 			context_num = (int *) context->priv;
 			if (child->rec.node_type & SSA_NODE_ACCESS) {
-				parent_children_num = parent->child_num;
+				parent_children_num = atomic_get(&parent->child_num);
 				if (*context_num < parent_children_num)
-					parent->child_num--;
+					atomic_dec(&parent->child_num);
 			} else if (child->rec.node_type & SSA_NODE_CONSUMER) {
-				parent_children_num = parent->access_child_num;
+				parent_children_num = atomic_get(&parent->access_child_num);
 				if (*context_num < parent_children_num)
-					parent->access_child_num--;
+					atomic_dec(&parent->access_child_num);
 			}
 
 			if (*context_num < parent_children_num) {
@@ -885,6 +885,8 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 		member->rec = *rec;
 		member->lid = ntohs(umad->umad.addr.lid);
 		member->join_start_time = time(NULL);
+		atomic_init(&member->child_num);
+		atomic_init(&member->access_child_num);
 		DListInit(&member->child_list);
 		DListInit(&member->access_child_list);
 		if (!tsearch(&member->rec.port_gid, &core->member_map, ssa_compare_gid)) {
@@ -1062,10 +1064,10 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 		child->primary = parent;
 		if (child->rec.node_type == SSA_NODE_CONSUMER) {
 			if (!(child->primary_state & SSA_CHILD_PARENTED))
-				parent->access_child_num++;
+				atomic_inc(&parent->access_child_num);
 		} else if ((child->rec.node_type & SSA_NODE_CORE) != SSA_NODE_CORE) {
 			if (!(child->primary_state & SSA_CHILD_PARENTED))
-				parent->child_num++;
+				atomic_inc(&parent->child_num);
 		}
 		child->primary_state |= SSA_CHILD_PARENTED;
 
