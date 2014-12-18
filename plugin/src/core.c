@@ -345,6 +345,53 @@ static void core_clean_tree(struct ssa_svc *svc)
 	DListInit(&core->access_list);
 }
 
+static void core_update_children_counter(struct ssa_core *core, union ibv_gid *parentgid,
+					 union ibv_gid *childgid, int increment)
+{
+	struct ssa_member_record *rec;
+	struct ssa_member *parent, *child;
+	uint8_t **member;
+	atomic_t *children_num = NULL;
+
+	member = tfind(parentgid, &core->member_map, ssa_compare_gid);
+	if (!member) {
+		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
+				sizeof log_data, SSA_ADDR_GID,
+				(uint8_t *) parentgid, sizeof(*parentgid));
+		ssa_log_err(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			    "couldn't find parent with GID %s\n", log_data);
+		return;
+	} else {
+		rec = container_of(*member, struct ssa_member_record, port_gid);
+		parent = container_of(rec, struct ssa_member, rec);
+
+		member = tfind(childgid, &core->member_map, ssa_compare_gid);
+		if (!member) {
+			ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL, log_data,
+					sizeof log_data, SSA_ADDR_GID,
+					(uint8_t *) childgid, sizeof(*childgid));
+			ssa_log_err(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				    "couldn't find child with GID %s\n", log_data);
+			return;
+		 } else {
+			rec = container_of(*member, struct ssa_member_record, port_gid);
+			child = container_of(rec, struct ssa_member, rec);
+
+			if (child->rec.node_type == SSA_NODE_CONSUMER)
+				children_num = &parent->access_child_num;
+			else if ((child->rec.node_type & SSA_NODE_CORE) != SSA_NODE_CORE)
+				children_num = &parent->child_num;
+
+			if (children_num) {
+				if (increment)
+					atomic_inc(children_num);
+				else
+					atomic_dec(children_num);
+			}
+		}
+	}
+}
+
 static int core_build_tree(struct ssa_core *core, struct ssa_member *child,
 			   union ibv_gid *parentgid)
 {
@@ -402,6 +449,10 @@ static int core_build_tree(struct ssa_core *core, struct ssa_member *child,
 				    "no access node joined as yet\n");
 		break;
 	}
+
+	if (parentgid && !ret)
+		core_update_children_counter(core, parentgid, gid, 1);
+
 	return ret;
 }
 
@@ -1062,13 +1113,6 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 		rec = container_of(*parentgid, struct ssa_member_record, port_gid);
 		parent = container_of(rec, struct ssa_member, rec);
 		child->primary = parent;
-		if (child->rec.node_type == SSA_NODE_CONSUMER) {
-			if (!(child->primary_state & SSA_CHILD_PARENTED))
-				atomic_inc(&parent->access_child_num);
-		} else if ((child->rec.node_type & SSA_NODE_CORE) != SSA_NODE_CORE) {
-			if (!(child->primary_state & SSA_CHILD_PARENTED))
-				atomic_inc(&parent->child_num);
-		}
 		child->primary_state |= SSA_CHILD_PARENTED;
 
 		ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
@@ -1116,6 +1160,7 @@ static void core_process_path_rec(struct ssa_core *core, struct sa_umad *umad)
 
 static int core_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
+	struct ibv_path_record *path;
 	struct ssa_core *core;
 	struct sa_umad *umad_sa;
 
@@ -1126,6 +1171,14 @@ static int core_process_sa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 			umad_sa->sa_mad.packet.mad_hdr.method,
 			ntohs(umad_sa->sa_mad.packet.mad_hdr.attr_id),
 			umad_sa->umad.status);
+
+		if (ntohs(umad_sa->sa_mad.packet.mad_hdr.attr_id) ==
+		    UMAD_SA_ATTR_PATH_REC) {
+			core = container_of(svc, struct ssa_core, svc);
+			path = &umad_sa->sa_mad.path_rec.path;
+			core_update_children_counter(core, &path->dgid, &path->sgid, 0);
+		}
+
 		return 1;
 	}
 
