@@ -133,6 +133,18 @@ struct ssa_extract_data {
 	struct ssa_svc			**svcs;
 };
 
+enum core_tree_action {
+	CORE_TREE_NODE_TYPE_COUNT,
+	CORE_TREE_NODE_PARENT_TEST
+};
+
+struct core_tree_context {
+	struct ssa_core		*core;
+	enum core_tree_action	action;
+	int			node_type;
+	void			*priv;
+};
+
 static struct ssa_class ssa;
 struct ssa_database *ssa_db;
 static struct ssa_db_diff *ssa_db_diff = NULL;
@@ -640,6 +652,192 @@ static void core_process_orphans(struct ssa_core *core)
 	core_adopt_orphans(&core->orphan_list, SSA_NODE_DISTRIBUTION);
 	core_adopt_orphans(&core->orphan_list, SSA_NODE_ACCESS);
 	core_adopt_orphans(&core->orphan_list, SSA_NODE_CONSUMER);
+	pthread_mutex_unlock(&core->list_lock);
+}
+
+static void core_handle_node(struct ssa_member_record *rec,
+			     struct core_tree_context *context)
+{
+	struct ssa_member *parent = NULL, *child = NULL;
+	int *context_num = NULL;
+
+	if (!(context->node_type & rec->node_type))
+		return;
+
+	switch (context->action) {
+	case CORE_TREE_NODE_TYPE_COUNT:
+		context_num = (int *) context->priv;
+		*context_num = *context_num + 1;;
+		break;
+	case CORE_TREE_NODE_PARENT_TEST:
+		child = container_of(rec, struct ssa_member, rec);
+		if (child->primary_state & SSA_CHILD_PARENTED)
+			parent = child->primary;
+		else if (child->secondary_state & SSA_CHILD_PARENTED)
+			parent = child->secondary;
+
+		if (parent) {
+			int parent_children_num = 0;
+
+			context_num = (int *) context->priv;
+			if (child->rec.node_type & SSA_NODE_ACCESS) {
+				parent_children_num = parent->child_num;
+				if (*context_num < parent_children_num)
+					parent->child_num--;
+			} else if (child->rec.node_type & SSA_NODE_CONSUMER) {
+				parent_children_num = parent->access_child_num;
+				if (*context_num < parent_children_num)
+					parent->access_child_num--;
+			}
+
+			if (*context_num < parent_children_num) {
+				child->primary		= NULL;
+				child->secondary	= NULL;
+				child->primary_state	= SSA_CHILD_IDLE;
+				child->secondary_state	= SSA_CHILD_IDLE;
+				memset(child->rec.parent_gid, 0, 16);
+
+				DListInsertBefore(&child->entry,
+						  &context->core->orphan_list);
+
+				if (child->rec.node_type & SSA_NODE_ACCESS) {
+					if (DListFind(&child->access_entry,
+						      &context->core->access_list))
+						DListRemove(&child->access_entry);
+				}
+			}
+		}
+		break;
+	default:
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			     "unknown action %d for node type %d (%s)\n",
+			     context->action, context->node_type,
+			     ssa_node_type_str(context->node_type));
+		break;
+	}
+}
+
+static void core_tree_callback(const void *nodep, const VISIT which,
+			       const void *priv)
+{
+	struct core_tree_context *context = (struct core_tree_context *) priv;
+	struct ssa_member_record *rec = NULL;
+	int handle_node = 0;
+
+	switch (which) {
+	case preorder:
+		break;
+	case postorder:
+		handle_node = 1;
+		break;
+	case endorder:
+		break;
+	case leaf:
+		handle_node = 1;
+		break;
+	}
+
+	if (handle_node) {
+		rec = container_of(* (struct ssa_member **) nodep,
+				   struct ssa_member_record, port_gid);
+		core_handle_node(rec, context);
+	}
+}
+
+static void core_rebalance_tree_layer(struct ssa_core *core, int max_children,
+				      int child_type)
+{
+	struct core_tree_context context;
+
+	context.core		= core;
+	context.node_type	= child_type;
+	context.action		= CORE_TREE_NODE_PARENT_TEST;
+	context.priv		= &max_children;
+
+	ssa_twalk(core->member_map, core_tree_callback, &context);
+
+	ssa_log(SSA_LOG_DEFAULT,
+		"child type %d (%s) max children allowed per parent %d\n",
+		child_type, ssa_node_type_str(child_type), max_children);
+}
+
+/*
+ * Current algorithm for distribution tree rebalancing
+ * is to balance the number of children for distribution
+ * and access layers.
+ *
+ * Balanced tree assures that maximum difference in
+ * fanout (number of children) between nodes, that belong
+ * to the same layer, is not more than 1.
+ *
+ * The algorithm works as follows:
+ *
+ * - Maximum fanout is being calculated per layer
+ *
+ * - For each node whose actual fanout is larger
+ *   than the maximum allowed, we take the proper number
+ *   of children, reset their member_record parent_gid
+ *   field and add them to orphan list.
+ *
+ * - Orphan list members are being adopted (assigned with
+ *   new parents)
+ *
+ * Algorithm purpose is to keep ssa distribution tree
+ * balanced in case of unordered ssa fabric bringup.
+ *
+ * IMPORTANT NOTE:
+ * Current rebalancing mechanism is currently only accurate at
+ * initial ssa bring-up phase, because it relies
+ * on children counters that are not currently updated when
+ * some node leaves the distribution tree.
+ *
+ */
+static void core_rebalance_tree(struct ssa_core *core)
+{
+	struct core_tree_context context;
+	int distrib_num, access_num, consumer_num = 0;
+	int distrib_child_max, access_child_max;
+
+	if (!core)
+		return;
+
+	ssa_log_func(SSA_LOG_DEFAULT);
+
+	pthread_mutex_lock(&core->list_lock);
+
+	distrib_num	= DListCount(&core->distrib_list);
+	access_num	= DListCount(&core->access_list);
+
+	context.core		= core;
+	context.node_type	= SSA_NODE_CONSUMER;
+	context.action		= CORE_TREE_NODE_TYPE_COUNT;
+	context.priv		= &consumer_num;
+
+	ssa_twalk(core->member_map, core_tree_callback, &context);
+
+	if (distrib_num > 0) {
+		distrib_child_max = access_num / distrib_num;
+		if (access_num % distrib_num)
+			distrib_child_max++;
+
+		if (distrib_child_max)
+			core_rebalance_tree_layer(core, distrib_child_max,
+						  SSA_NODE_ACCESS);
+	}
+
+	if (access_num > 0) {
+		access_child_max = consumer_num / access_num;
+		if (consumer_num % access_num)
+			access_child_max++;
+
+		if (access_child_max)
+			core_rebalance_tree_layer(core, access_child_max,
+						  SSA_NODE_CONSUMER);
+	}
+
+	core_adopt_orphans(&core->orphan_list, SSA_NODE_ACCESS);
+	core_adopt_orphans(&core->orphan_list, SSA_NODE_CONSUMER);
+
 	pthread_mutex_unlock(&core->list_lock);
 }
 
