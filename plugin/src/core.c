@@ -803,9 +803,6 @@ static void core_rebalance_tree(struct ssa_core *core)
 	int distrib_num, access_num, consumer_num = 0;
 	int distrib_child_max, access_child_max;
 
-	if (!core)
-		return;
-
 	ssa_log_func(SSA_LOG_DEFAULT);
 
 	pthread_mutex_lock(&core->list_lock);
