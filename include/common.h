@@ -265,7 +265,9 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg);
 struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			      size_t svc_size,
 			      int (*process_msg)(struct ssa_svc *svc,
-					         struct ssa_ctrl_msg_buf *msg));
+					         struct ssa_ctrl_msg_buf *msg),
+			      int (*init_svc)(struct ssa_svc *svc),
+			      void (*destroy_svc)(struct ssa_svc *svc));
 int ssa_start_access(struct ssa_class *ssa);
 void ssa_stop_access(struct ssa_class *ssa);
 int ssa_ctrl_run(struct ssa_class *ssa);

@@ -4166,6 +4166,15 @@ static void acm_log_options(void)
 		ssa_log(SSA_LOG_DEFAULT, "timeout before next join request (in sec.) %d\n", rejoin_timeout );
 }
 
+static int acm_init_svc(struct ssa_svc *svc)
+{
+	return 0;
+}
+
+static void acm_destroy_svc(struct ssa_svc *svc)
+{
+}
+
 static void *acm_ctrl_handler(void *context)
 {
 	struct ssa_svc *svc;
@@ -4174,7 +4183,8 @@ static void *acm_ctrl_handler(void *context)
 	SET_THREAD_NAME(ctrl_thread, "CTRL");
 
 	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
-			    sizeof *svc, acm_process_msg);
+			    sizeof *svc, acm_process_msg, acm_init_svc,
+			    acm_destroy_svc);
 	if (!svc) {
 		ssa_log_err(0, "starting service\n");
 		goto close;

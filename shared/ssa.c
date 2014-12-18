@@ -5133,7 +5133,9 @@ void ssa_ctrl_stop(struct ssa_class *ssa)
 struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			      size_t svc_size,
 			      int (*process_msg)(struct ssa_svc *svc,
-					         struct ssa_ctrl_msg_buf *msg))
+					         struct ssa_ctrl_msg_buf *msg),
+			      int (*init_svc)(struct ssa_svc *svc),
+			      void (*destroy_svc)(struct ssa_svc *svc))
 {
 	struct ssa_svc *svc, **list;
 	struct ssa_ctrl_msg msg;
@@ -5148,6 +5150,9 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	port->svc = list;
 	svc = calloc(1, svc_size);
 	if (!svc)
+		return NULL;
+
+	if (init_svc(svc))
 		return NULL;
 
 	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_upctrl);
@@ -5320,6 +5325,7 @@ err2:
 	close(svc->sock_upctrl[0]);
 	close(svc->sock_upctrl[1]);
 err1:
+	destroy_svc(svc);
 	free(svc);
 	return NULL;
 }

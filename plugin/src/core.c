@@ -2039,8 +2039,9 @@ static void *core_construct(osm_opensm_t *opensm)
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
 			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
 					    SSA_DB_PATH_DATA, sizeof(struct ssa_core),
-					    core_process_msg);
-			if (!svc || core_init_svc(svc)) {
+					    core_process_msg, core_init_svc,
+					    core_destroy_svc);
+			if (!svc) {
 				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
 				goto err5;
 			}

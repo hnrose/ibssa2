@@ -146,6 +146,15 @@ static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	return 0;
 }
 
+static int distrib_init_svc(struct ssa_svc *svc)
+{
+	return 0;
+}
+
+static void distrib_destroy_svc(struct ssa_svc *svc)
+{
+}
+
 static void *distrib_ctrl_handler(void *context)
 {
 	struct ssa_svc *svc;
@@ -165,7 +174,9 @@ static void *distrib_ctrl_handler(void *context)
 			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
 					    SSA_DB_PATH_DATA,
 					    sizeof(struct ssa_distrib),
-					    distrib_process_msg);
+					    distrib_process_msg,
+					    distrib_init_svc,
+					    distrib_destroy_svc);
 			if (!svc) {
 				ssa_log(SSA_LOG_DEFAULT, "ERROR starting service\n");
 				goto close;
