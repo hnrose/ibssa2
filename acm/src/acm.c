@@ -1468,10 +1468,10 @@ static void *acm_comp_handler(void *context)
 	int cnt;
 
 	if (acm_mode == ACM_MODE_ACM) {
-		SET_THREAD_NAME(comp_thread, "COMP 0x%" PRIx64,
+		SET_THREAD_NAME(comp_thread, "COMP_0x%" PRIx64,
 				((struct acm_device *)context)->guid);
 	} else {	/* ACM_MODE_SSA */
-		SET_THREAD_NAME(comp_thread, "COMP %s",
+		SET_THREAD_NAME(comp_thread, "COMP_%s",
 				((struct ssa_device *)context)->name);
 	}
 
@@ -3777,7 +3777,7 @@ static void *acm_event_handler(void *context)
 	struct ibv_async_event event;
 	int i, ret;
 
-	SET_THREAD_NAME(event_thread, "EVENT 0x%" PRIx64, dev->guid);
+	SET_THREAD_NAME(event_thread, "EVENT_0x%" PRIx64, dev->guid);
 
 	ssa_log(SSA_LOG_VERBOSE, "started\n");
 	for (i = 0; i < dev->port_cnt; i++) {

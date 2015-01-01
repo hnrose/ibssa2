@@ -1782,7 +1782,7 @@ static void *ssa_upstream_handler(void *context)
 	int outstanding_count = 0;
 	short port;
 
-	SET_THREAD_NAME(svc->upstream, "UP %s", svc->name);
+	SET_THREAD_NAME(svc->upstream, "UP_%s", svc->name);
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
@@ -3033,7 +3033,7 @@ static void *ssa_downstream_handler(void *context)
 	int ret, i;
 	struct ssa_ctrl_msg_buf msg;
 
-	SET_THREAD_NAME(svc->downstream, "DN %s", svc->name);
+	SET_THREAD_NAME(svc->downstream, "DN_%s", svc->name);
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	msg.hdr.len = sizeof msg.hdr;
@@ -3801,7 +3801,7 @@ static void *ssa_access_prdb_handler(void *context)
 {
 	struct ssa_db_update db_upd;
 
-	SET_THREAD_NAME(*access_prdb_handler, "ACCESS PRDB");
+	SET_THREAD_NAME(*access_prdb_handler, "ACCESS_PRDB");
 
 	ssa_log_func(SSA_LOG_CTRL);
 
