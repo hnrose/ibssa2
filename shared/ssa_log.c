@@ -72,7 +72,7 @@ int log_flush = 1;
 static int log_level = SSA_LOG_DEFAULT;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static const char * month_str[] = {
+const char * month_str[] = {
 	"Jan",
 	"Feb",
 	"Mar",

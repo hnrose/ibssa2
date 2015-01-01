@@ -43,12 +43,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #define MAX_BACKTRACE_FRAMES 100
 
 extern FILE *flog;
 extern void get_thread_id(char *buff, int size);
+extern char *month_str[];
 
 static pthread_spinlock_t signal_handler_lock;
 
@@ -56,14 +58,26 @@ static int ssa_print_backtrace(int start_frame, FILE *flog);
 
 static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 {
+	char thread_name[20];
+	struct timeval tv;
+	time_t tim;
+	struct tm result;
 	int ret;
 	(void)context;
+
+	gettimeofday(&tv, NULL);
+	tim = tv.tv_sec;
+	localtime_r(&tim, &result);
+	get_thread_id(thread_name, sizeof thread_name);
 
 	ret = pthread_spin_trylock(&signal_handler_lock);
 	if(ret == EBUSY)
 		return;
 
-	fprintf(flog, "signal %d received \n", sig);
+	fprintf(flog, "%s %02d %02d:%02d:%02d %06d [%.16s]: signal %d received\n",
+		(result.tm_mon < 12 ? month_str[result.tm_mon] : "???"),
+		result.tm_mday, result.tm_hour, result.tm_min,
+		result.tm_sec, (unsigned int)tv.tv_usec, thread_name, sig);
 
 	switch(sig)
 	{
