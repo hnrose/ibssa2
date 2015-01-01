@@ -4278,25 +4278,20 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 
 					if (access_context.smdb) {
 						if (consumer->prdb_current) {
-							/* Is SMDB epoch same as when PRDB was last calculated ? */
-#if 0
-							/*
-							 *  !!!! REMOVE !!!!
-							 *  It's temporary solution
-							 */
 							if (consumer->smdb_epoch ==
 							    ssa_db_get_epoch(access_context.smdb,
 									     DB_DEF_TBL_ID)) {
-								prdb = consumer->prdb_current;
+								prdb = ssa_db_copy(consumer->prdb_current);
 								goto skip_prdb_calc;
 							}
-#endif
 						}
 
 						ssa_log(SSA_LOG_DEFAULT,
 							"calculating PRDB for GID %s LID %u client\n",
 							log_data, consumer->lid);
 						prdb = ssa_calculate_prdb(svc_arr[i], consumer);
+						if (!prdb && consumer->prdb_current)
+							 prdb = ssa_db_copy(consumer->prdb_current);
 #endif
 						if (!prdb)
 							continue;
@@ -4304,9 +4299,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 						ssa_log(SSA_LOG_DEFAULT,
 							"GID %s LID %u rsock %d PRDB %p calculation complete\n",
 							log_data, msg.data.conn->remote_lid, msg.data.conn->rsock, prdb);
-#if 0
 skip_prdb_calc:
-#endif
 						if (msg.data.conn->rsock >= 0) {
 							ssa_db_update_init(svc_arr[i],
 									   prdb,
