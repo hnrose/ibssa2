@@ -3228,9 +3228,9 @@ static void *ssa_downstream_handler(void *context)
 							sizeof log_data, SSA_ADDR_GID,
 							msg.data.db_upd.remote_gid.raw,
 							sizeof msg.data.db_upd.remote_gid.raw);
-					ssa_log(SSA_LOG_CTRL,
-						"DB update for GID %s currently not connected\n",
-						log_data);
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "DB update for GID %s currently not connected\n",
+						     log_data);
 					ssa_db_destroy(msg.data.db_upd.db);
 				}
 				break;
