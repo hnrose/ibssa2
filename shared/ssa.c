@@ -2076,8 +2076,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 					"port is not active. stopped reconnection\n");
 			} else {
 				ssa_log(SSA_LOG_DEFAULT,
-					"reconnect timer expiration %" PRIu64 "\n",
-					exp);
+					"reconnect timer expiration %" PRIu64
+					", conn state %d, conn phase %d, svc state %d\n",
+					exp, svc->conn_dataup.state,
+					svc->conn_dataup.phase, svc->state);
 
 				switch (svc->conn_dataup.state) {
 				case SSA_CONN_CONNECTED:
