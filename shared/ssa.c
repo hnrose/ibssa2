@@ -2821,6 +2821,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 					pfd = (struct  pollfd *)(fds + slot);
 					pfd->fd = fd;
 					pfd->events = POLLIN;
+					pfd->revents = 0;
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
 						ssa_downstream_conn(svc, conn_data, 0);
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
