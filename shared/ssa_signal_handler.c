@@ -207,8 +207,30 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 
 	return 0;
 }
+
+static int parse_backtrace_line(const char *bt_line, int frame, FILE *flog)
+{
+	char *lib_name = NULL, *lib_addr = NULL;
+	void *addr = NULL;
+	int ret;
+
+	lib_name = strtok(strdup(bt_line), "(");
+	if (!lib_name)
+		return 1;
+
+	lib_addr = strtok(NULL, ")");
+	if (!lib_addr || lib_addr[0] != '+')
+		return 1;
+
+	ret = sscanf(lib_addr + 1, "%p", (void **) &addr);
+	if (ret != 1)
+		return 1;
+
+	return run_add2line(lib_name, addr, frame, flog);
+}
 #else
 #define run_add2line(var1, var2, var3, var4) (1)
+#define parse_backtrace_line(var1, var2, var3) (1)
 #endif
 
 
@@ -262,8 +284,8 @@ static int ssa_print_backtrace(int start_frame, FILE *flog)
 	/* start_frame allows skipping non-informative frames such as signal_handler */
 	for (i = start_frame; i < (backtrace_size - 2); ++i)
 	{
-		if (run_add2line(program_invocation_name,
-					backtrace_buffer[i], i, flog) != 0)
+		if (run_add2line(program_invocation_name, backtrace_buffer[i], i, flog) &&
+		    parse_backtrace_line(strings[i], i, flog))
 		{
 			fprintf(flog, "#%-3d%s\n", i, strings[i]);
 		}
