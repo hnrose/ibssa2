@@ -49,6 +49,7 @@
 #define MAX_BACKTRACE_FRAMES 100
 
 extern FILE *flog;
+extern int log_level;
 extern void get_thread_id(char *buff, int size);
 extern char *month_str[];
 
@@ -64,6 +65,8 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 	struct tm result;
 	int ret;
 	(void)context;
+
+	log_level = 0;
 
 	gettimeofday(&tv, NULL);
 	tim = tv.tv_sec;
