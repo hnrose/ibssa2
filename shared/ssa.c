@@ -4981,7 +4981,7 @@ int ssa_ctrl_run(struct ssa_class *ssa)
 	ssa_ctrl_activate_ports(ssa);
 
 	for (;;) {
-		ret = rpoll(ssa->fds, ssa->nfds, -1);
+		ret = poll(ssa->fds, ssa->nfds, -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
