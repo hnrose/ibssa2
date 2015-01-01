@@ -5337,11 +5337,16 @@ static int ssa_access_thread_pool_init()
 						     NULL,
 						     access_context.num_workers,
 						     1, &g_error);
-	if (g_error != NULL) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "Glib thread pool initialization error: %s\n",
-			    g_error->message);
-		g_error_free(g_error);
+	if (!access_context.g_th_pool) {
+		if (g_error != NULL) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "Glib thread pool initialization error: %s\n",
+				    g_error->message);
+			g_error_free(g_error);
+		} else {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "Glib thread pool initialization error\n");
+		}
 		ret = -1;
 		goto err3;
 	}
@@ -6071,11 +6076,16 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 	thpool_rclose = g_thread_pool_new((GFunc) g_rclose_callback, NULL,
 					  RCLOSE_THREAD_POOL_WORKERS_NUM, TRUE,
 					  &g_error);
-	if (g_error != NULL) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "Glib thread pool initialization error: %s\n",
-			    g_error->message);
-		g_error_free(g_error);
+	if (!thpool_rclose) {
+		if (g_error != NULL) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "Glib thread pool initialization error: %s\n",
+				    g_error->message);
+			g_error_free(g_error);
+		} else {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "Glib thread pool initialization error\n");
+		}
 		umad_done();
 		return -1;
 	}
