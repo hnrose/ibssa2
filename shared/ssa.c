@@ -6065,14 +6065,13 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 	if (ret)
 		return ret;
 
-#if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
 	/*
 	 * g_thread_init is not needed to be called starting with Glib 2.32
 	 */
 #if (!GLIB_CHECK_VERSION(2, 32, 0))
 	g_thread_init(NULL);
 #endif
-
+#if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
 	thpool_rclose = g_thread_pool_new((GFunc) g_rclose_callback, NULL,
 					  RCLOSE_THREAD_POOL_WORKERS_NUM, TRUE,
 					  &g_error);
