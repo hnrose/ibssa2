@@ -4249,7 +4249,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 					if (update_waiting) {
 						ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 							"access update waiting %d "
-							"PRDB will be calculated after the update",
+							"PRDB will be calculated after the update\n",
 							update_waiting);
 						continue;
 					}
