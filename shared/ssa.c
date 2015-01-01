@@ -144,7 +144,9 @@ static pthread_t *access_thread;
 static struct ssa_db_update_queue update_queue;
 static pthread_t *access_prdb_handler;
 #endif
+#if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
 static GThreadPool *thpool_rclose;
+#endif /* RCLOSE_THREAD_POOL_WORKERS_NUM > 0 */
 
 static int lock_fd = -1;
 
@@ -230,6 +232,23 @@ static void g_rclose_callback(gint rsock, gpointer user_data)
 		ssa_log_err(SSA_LOG_CTRL, "rclose error %d on rsocket %d\n", ret, GPOINTER_TO_INT(rsock));
 	else
 		ssa_log(SSA_LOG_VERBOSE, "rsock %d now closed\n", GPOINTER_TO_INT(rsock));
+}
+
+static inline void ssa_close_rsocket(int rsock)
+{
+#if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
+	GError *g_error = NULL;
+
+	g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(rsock), &g_error);
+	if (g_error != NULL) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "rsock %d thread pool push failed: %s\n",
+			    rsock, g_error->message);
+		g_error_free(g_error);
+	}
+#else
+	g_rclose_callback(rsock, NULL);
+#endif
 }
 
 static void ssa_get_sysinfo()
@@ -700,8 +719,6 @@ static void ssa_init_ssa_conn(struct ssa_conn *conn, int conn_type,
 
 static void ssa_close_ssa_conn(struct ssa_conn *conn)
 {
-	GError *g_error = NULL;
-
 	if (!conn)
 		return;
 
@@ -716,13 +733,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn)
 		}
 	}
 
-	g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(conn->rsock), &g_error);
-	if (g_error != NULL) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "rsock %d thread pool push failed: %s\n",
-			    conn->rsock, g_error->message);
-		g_error_free(g_error);
-	}
+	ssa_close_rsocket(conn->rsock);
 
 	conn->rsock = -1;
 	conn->dbtype = SSA_CONN_NODB_TYPE;
@@ -4681,7 +4692,6 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	struct sockaddr_ib peer_addr;
 	struct ibv_path_data route;
 	socklen_t peer_len, route_len;
-	GError *g_error = NULL;
 
 	if (conn->dbtype == SSA_CONN_SMDB_TYPE)
 		conn_listen = &svc->conn_listen_smdb;
@@ -4714,26 +4724,14 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 				"rgetpeername fd %d family %d not AF_IB\n",
 				fd, peer_addr.sib_family);
-			g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
-			if (g_error != NULL) {
-				ssa_log_err(SSA_LOG_CTRL,
-					    "rsock %d thread pool push failed: %s\n",
-					    fd, g_error->message);
-				g_error_free(g_error);
-			}
+			ssa_close_rsocket(fd);
 			return -1;
 		}
 	} else {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rgetpeername rsock %d ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
-		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
-		if (g_error != NULL) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "rsock %d thread pool push failed: %s\n",
-				    fd, g_error->message);
-			g_error_free(g_error);
-		}
+		ssa_close_rsocket(fd);
 		return -1;
 	}
 
@@ -4742,13 +4740,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"update pending %d or waiting %d; closing rsock %d\n",
 			update_pending, update_waiting, fd);
-		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
-		if (g_error != NULL) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "rsock %d thread pool push failed: %s\n",
-				    fd, g_error->message);
-			g_error_free(g_error);
-		}
+		ssa_close_rsocket(fd);
 		return -1;
 	}
 
@@ -4761,13 +4753,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rsetsockopt rsock %d TCP_NODELAY ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
-		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
-		if (g_error != NULL) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "rsock %d thread pool push failed: %s\n",
-				    fd, g_error->message);
-			g_error_free(g_error);
-		}
+		ssa_close_rsocket(fd);
 		return -1;
 	}
 	ret = rfcntl(fd, F_SETFL, O_NONBLOCK);
@@ -4775,13 +4761,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"rfcntl rsock %d ERROR %d (%s)\n",
 			fd, errno, strerror(errno));
-		g_thread_pool_push(thpool_rclose, GINT_TO_POINTER(fd), &g_error);
-		if (g_error != NULL) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "rsock %d thread pool push failed: %s\n",
-				    fd, g_error->message);
-			g_error_free(g_error);
-		}
+		ssa_close_rsocket(fd);
 		return -1;
 	}
 
@@ -4806,7 +4786,6 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 {
 	struct sockaddr_ib dst_addr;
 	int ret, val;
-	GError *g_error = NULL;
 
 	svc->conn_dataup.rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (svc->conn_dataup.rsock < 0) {
@@ -4912,14 +4891,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 	return svc->conn_dataup.rsock;
 
 close:
-	g_thread_pool_push(thpool_rclose,
-			   GINT_TO_POINTER(svc->conn_dataup.rsock), &g_error);
-	if (g_error != NULL) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "rsock %d thread pool push failed: %s\n",
-			    svc->conn_dataup.rsock, g_error->message);
-		g_error_free(g_error);
-	}
+	ssa_close_rsocket(svc->conn_dataup.rsock);
 	svc->conn_dataup.rsock = -1;
 	svc->conn_dataup.state = SSA_CONN_IDLE;
 	return -1;
@@ -6075,7 +6047,9 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 	     size_t port_size)
 {
 	int ret;
+#if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
 	GError *g_error = NULL;
+#endif /* RCLOSE_THREAD_POOL_WORKERS_NUM > 0 */
 
 	memset(ssa, 0, sizeof *ssa);
 	ssa->sock[0] = ssa->sock[1] = -1;
@@ -6086,6 +6060,7 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 	if (ret)
 		return ret;
 
+#if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
 	/*
 	 * g_thread_init is not needed to be called starting with Glib 2.32
 	 */
@@ -6108,6 +6083,7 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 		"rclose thread pool number of workers %d\n",
 		RCLOSE_THREAD_POOL_WORKERS_NUM);
+#endif /* RCLOSE_THREAD_POOL_WORKERS_NUM > 0 */
 	ssa_get_sysinfo();
 	ssa_log_sysinfo();
 
@@ -6116,10 +6092,12 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 
 void ssa_cleanup(struct ssa_class *ssa)
 {
-	int rclose_unprocessed;
-
 	umad_done();
+
+#if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
 	if (thpool_rclose != NULL) {
+		int rclose_unprocessed;
+
 		rclose_unprocessed = g_thread_pool_unprocessed(thpool_rclose);
 		if (rclose_unprocessed)
 			ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
@@ -6130,4 +6108,5 @@ void ssa_cleanup(struct ssa_class *ssa)
 		g_thread_pool_free(thpool_rclose, FALSE, TRUE);
 		ssa_log(SSA_LOG_DEFAULT, "all rsockets are now closed\n");
 	}
+#endif /* RCLOSE_THREAD_POOL_WORKERS_NUM > 0 */
 }
