@@ -202,7 +202,7 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 	if (name[0] == '?' && name[1] == '?')
 		return 1;
 
-	fprintf(flog, "#%-3d%p in %s () from %s\n", frame, addr,
+	fprintf(flog, "#%-3d0x%016lx in %s () from %s\n", frame, (unsigned long) addr,
 			name, source);
 
 	return 0;
