@@ -3239,7 +3239,7 @@ static void *ssa_downstream_handler(void *context)
 						ssa_db_update_init(svc, msg.data.db_upd.db,
 								   msg.data.db_upd.remote_lid,
 								   &msg.data.db_upd.remote_gid,
-								   msg.data.db_upd.rsock,
+								   conn->rsock,
 								   0, 0, &db_upd);
 						ssa_push_db_update(&update_queue,
 								   &db_upd);
