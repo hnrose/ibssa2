@@ -2538,6 +2538,7 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just decremented to %u\n", ssadb
 }
 
 static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
+						 struct ssa_svc *svc,
 						 struct ssa_msg_hdr *hdr,
 						 short events)
 {
@@ -2561,6 +2562,7 @@ static short ssa_downstream_handle_epoch_publish(struct ssa_conn *conn,
 		}
 	}
 
+	ssa_downstream_conn(svc, conn, 0);
 	return revents;
 }
 
@@ -2601,7 +2603,7 @@ ssa_log(SSA_LOG_DEFAULT, "rsock %d in SSA_DB_IDLE phase with update pending\n", 
 		}
 		break;
 	case SSA_MSG_DB_PUBLISH_EPOCH_BUF:
-		revents = ssa_downstream_handle_epoch_publish(conn, hdr, events);
+		revents = ssa_downstream_handle_epoch_publish(conn, svc, hdr, events);
 		break;
 	default:
 		ssa_log_warn(SSA_LOG_CTRL, "unknown op %u on rsock %d\n",
@@ -2834,7 +2836,8 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 					pfd->events = POLLIN;
 					pfd->revents = 0;
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
-						ssa_downstream_conn(svc, conn_data, 0);
+						ssa_log(SSA_LOG_DEFAULT,
+							"PRDB connection accepted, but Access notification is deferred until RDMA buffer is published\n");
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
 						if (!update_pending && !update_waiting && smdb)
 							pfd->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
