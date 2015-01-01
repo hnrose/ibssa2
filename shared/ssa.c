@@ -3195,6 +3195,14 @@ static void *ssa_downstream_handler(void *context)
 						}
 					}
 				}
+
+				if (conn && conn->rsock != msg.data.db_upd.rsock)
+					ssa_log_warn(SSA_LOG_DEFAULT,
+						     "client %s reconnected from rsock %d to rsock %d\n",
+						     log_data,
+						     msg.data.db_upd.rsock,
+						     conn->rsock);
+
 				/* Now ready to rsend to downstream client upon request */
 				if (conn && conn->state == SSA_CONN_CONNECTED) {
 					if (conn->phase == SSA_DB_IDLE && conn->epoch_len) {
