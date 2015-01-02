@@ -3969,7 +3969,7 @@ static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 			ntohs(umad->packet.mad_hdr.attr_id),
 			ssa_attribute_str(umad->packet.mad_hdr.attr_id),
 			umad->umad.status);
-		return 0;	/* need to rerequest */
+		return 0;
 	}
 
 	switch (umad->packet.mad_hdr.method) {

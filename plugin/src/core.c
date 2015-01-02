@@ -1217,7 +1217,7 @@ static int core_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *ms
 			ntohs(umad->packet.mad_hdr.attr_id),
 			ssa_attribute_str(umad->packet.mad_hdr.attr_id),
 			umad->umad.status);
-		return 0;	/* need to rerequest */
+		return 0;
 	}
 
 	core = container_of(svc, struct ssa_core, svc);
