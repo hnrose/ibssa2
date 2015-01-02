@@ -69,7 +69,7 @@ void get_thread_id(char *buff, int size)
 FILE *flog;
 int accum_log_file = 0;
 int log_flush = 1;
-int log_level = SSA_LOG_DEFAULT;
+static int log_level = SSA_LOG_DEFAULT;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
 const char * month_str[] = {
