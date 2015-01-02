@@ -3209,7 +3209,7 @@ static void *ssa_downstream_handler(void *context)
 				/* Now ready to rsend to downstream client upon request */
 				if (conn && conn->state == SSA_CONN_CONNECTED) {
 					if (conn->phase == SSA_DB_IDLE &&
-					    conn->epoch_len) {
+					    conn->epoch_len > 0) {
 						uint64_t prdb_epoch;
 						struct ssa_db *prdb_destroy = NULL;
 
