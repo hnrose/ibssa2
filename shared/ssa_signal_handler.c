@@ -45,11 +45,11 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <ssa_log.h>
 
 #define MAX_BACKTRACE_FRAMES 100
 
 extern FILE *flog;
-extern int log_level;
 extern void get_thread_id(char *buff, int size);
 extern char *month_str[];
 
@@ -66,7 +66,7 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 	int ret;
 	(void)context;
 
-	log_level = 0;
+	ssa_set_log_level(0);
 
 	gettimeofday(&tv, NULL);
 	tim = tv.tv_sec;
