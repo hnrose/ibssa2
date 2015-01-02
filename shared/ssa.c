@@ -3208,13 +3208,15 @@ static void *ssa_downstream_handler(void *context)
 
 				/* Now ready to rsend to downstream client upon request */
 				if (conn && conn->state == SSA_CONN_CONNECTED) {
-					if (conn->phase == SSA_DB_IDLE && conn->epoch_len) {
+					if (conn->phase == SSA_DB_IDLE &&
+					    conn->epoch_len) {
 						uint64_t prdb_epoch;
 						struct ssa_db *prdb_destroy = NULL;
 
 						prdb_epoch = ssa_db_get_epoch(msg.data.db_upd.db, DB_DEF_TBL_ID);
 
-						if (prdb_epoch > conn->epoch || conn->epoch == DB_EPOCH_INVALID) {
+						if (prdb_epoch > conn->epoch ||
+						    conn->epoch == DB_EPOCH_INVALID) {
 							if (conn->ssa_db)
 								prdb_destroy = conn->ssa_db;
 							conn->ssa_db = msg.data.db_upd.db;
@@ -4036,8 +4038,8 @@ static void *ssa_access_handler(void *context)
 
 	for (;;) {
 		ret = poll((struct pollfd *)fds,
-			    ACCESS_FIRST_SERVICE_FD_SLOT + svc_cnt * ACCESS_FDS_PER_SERVICE,
-			    -1);
+			   ACCESS_FIRST_SERVICE_FD_SLOT + svc_cnt * ACCESS_FDS_PER_SERVICE,
+			   -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
