@@ -1265,6 +1265,7 @@ static int core_process_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *
 	switch (msg->data.event) {
 	case IBV_EVENT_SM_CHANGE:
 		core_clean_tree(svc);
+		first_extraction = 1;
 		break;
 	default:
 		break;
