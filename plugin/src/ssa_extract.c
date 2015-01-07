@@ -254,7 +254,7 @@ ssa_db_extract_lft(osm_switch_t *p_sw, uint64_t *p_top_offset,
 		       rec_key, &p_map_rec->map_item);
 	*p_top_offset = *p_top_offset + 1;
 
-	for(i = 0; i < max_block; i++) {
+	for (i = 0; i < max_block; i++) {
 		rec_key = ep_rec_gen_key(lid_ho, i);
 		ep_lft_block_tbl_rec_init(p_sw, lid_ho, i,
 					  &ssa_db->p_lft_db->p_db_lft_block_tbl[*p_block_offset]);
