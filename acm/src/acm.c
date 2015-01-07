@@ -1663,6 +1663,7 @@ static void acm_process_timeouts(void)
 				rec->dest_type, rec->dest, sizeof rec->dest);
 		ssa_log(SSA_LOG_DEFAULT, "notice - dest %s\n", log_data);
 		msg->resp_handler(msg, NULL, NULL);
+		acm_free_send(msg);
 	}
 }
 
