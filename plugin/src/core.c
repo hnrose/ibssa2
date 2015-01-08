@@ -514,7 +514,7 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member, int lev
 	char addr[INET6_ADDRSTRLEN];
 	char parent[64] = { 0 }, children[64] = { 0 };
 	int ret = 0;
-	uint8_t parent_lid = 0;
+	uint16_t parent_lid = 0;
 
 	/*
 	 * Currently only primary parent is supported in
