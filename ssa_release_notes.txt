@@ -94,7 +94,7 @@ and ucmatose.
 
 1.1.6.1 libmlx4 1.0.6
 
-1.1.6.2 libmlx5 1.0.1
+1.1.6.2 libmlx5 1.0.2
 
 1.1.7 glib-2.0
 
