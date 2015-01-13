@@ -392,9 +392,10 @@ static void acm_update_sa_dest(struct ssa_port *port)
 	old_sm_lid = port->sa_dest.av.dlid;
 
 	/* We wait for the SA destination to be released */
-	atomic_dec(&port->sa_dest.refcnt);
-	while (atomic_get(&port->sa_dest.refcnt))
+	while (atomic_get(&port->sa_dest.refcnt) > 1)
 		sleep(0);
+
+	pthread_mutex_lock(&port->lock);
 	ibv_destroy_ah(port->sa_dest.ah);
 
 	port->sa_dest.av.src_path_bits = 0;
@@ -409,13 +410,14 @@ static void acm_update_sa_dest(struct ssa_port *port)
 	port->sa_dest.ah = ibv_create_ah(port->dev->pd,
 					 &port->sa_dest.av);
 	if (!port->sa_dest.ah) {
+		pthread_mutex_unlock(&port->lock);
 		ssa_log_err(SSA_LOG_DEFAULT,
 			    "unable to create %s port SA dest address handler\n",
 			    port->name);
 		return;
 	}
 
-	atomic_set(&port->sa_dest.refcnt, 1);
+	pthread_mutex_unlock(&port->lock);
 
 	ssa_log(SSA_LOG_DEFAULT,
 		"%s SA dest SM LID was updated to %u (previous SM LID %u)\n",
