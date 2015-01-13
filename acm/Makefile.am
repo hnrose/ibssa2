@@ -9,7 +9,7 @@ svc_ibacm_SOURCES = src/acm.c src/ssa.c src/ssa_db.c src/ssa_db_helper.c src/ssa
 util_ib_acme_SOURCES = src/acme.c src/libacm.c src/parse.c
 svc_ibacm_CFLAGS = $(AM_CFLAGS)
 util_ib_acme_CFLAGS = $(AM_CFLAGS)
-svc_ibacm_LDADD = -lrdmacm -L$(libdir) $(GLIB_LIBS)
+svc_ibacm_LDADD = -lrdmacm -lpthread -L$(libdir) $(GLIB_LIBS)
 
 ibacmincludedir = $(includedir)/infiniband
 

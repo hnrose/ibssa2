@@ -26,7 +26,7 @@ src_libopensmssa_la_SOURCES = src/core.c src/ssa.c src/ssa_db.c src/ssa_db_helpe
 src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
 		$(libopensmssa_version_script)
 src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map
-src_libopensmssa_la_LIBADD = -lrdmacm -L$(libdir) -losmcomp \
+src_libopensmssa_la_LIBADD = -lrdmacm -lpthread -L$(libdir) -losmcomp \
 		$(GLIB_LIBS)
 
 # headers are distributed as part of the include dir
