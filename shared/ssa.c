@@ -5124,6 +5124,9 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 	struct ssa_ctrl_msg msg;
 	int ret;
 
+	if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+		return NULL;
+
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s:%llu\n",
 		port->name, database_id);
 	list = realloc(port->svc, (port->svc_cnt + 1) * sizeof(svc));
@@ -5646,13 +5649,14 @@ static int set_bit(int nr, void *method_mask)
 }
 
 static int ssa_open_port(struct ssa_port *port, struct ssa_device *dev,
-			 uint8_t port_num)
+			 uint8_t port_num, uint8_t link_layer)
 {
 	long methods[16 / sizeof(long)];
 	int ret;
 
 	port->dev = dev;
 	port->port_num = port_num;
+	port->link_layer = link_layer;
 	snprintf(port->name, sizeof port->name, "%s:%d", dev->name, port_num);
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", port->name);
 	pthread_mutex_init(&port->lock, NULL);
@@ -5707,6 +5711,7 @@ err:
 static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 			struct ibv_device *ibdev)
 {
+	struct ssa_port *port;
 	struct ibv_device_attr attr;
 	struct ibv_port_attr port_attr;
 	int i, ret, j;
@@ -5765,10 +5770,11 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 #endif
 
 	for (i = 1; i <= dev->port_cnt; i++) {
+		port = ssa_dev_port(dev, i);
 		ret = ibv_query_port(dev->verbs, i, &port_attr);
 		if (ret == 0) {
 			if (port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND) {
-				ret = ssa_open_port(ssa_dev_port(dev, i), dev, i);
+				ret = ssa_open_port(port, dev, i, port_attr.link_layer);
 				if (ret < 0) {
 					for (j = 1; j < i; j++) {
 						ret = ibv_query_port(dev->verbs, j, &port_attr);
@@ -5778,13 +5784,17 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 					}
 					goto err3;
 				}
-			} else
+			} else {
 				ssa_log(SSA_LOG_CTRL,
 					"%s:%d link layer %d is not IB\n",
 					dev->name, i, port_attr.link_layer);
-		} else
+				port->link_layer = port_attr.link_layer;
+			}
+		} else {
 			ssa_log_err(0, "ibv_query_port (%s:%d) %d\n",
 				    dev->name, i, ret);
+			port->link_layer = IBV_LINK_LAYER_UNSPECIFIED;
+		}
 	}
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s opened\n", dev->name);

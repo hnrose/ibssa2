@@ -142,6 +142,7 @@ struct ssa_port {
 	int			gid_cnt;
 	uint16_t		pkey_cnt;
 #endif
+	uint8_t			link_layer;
 };
 
 enum ssa_conn_type {
