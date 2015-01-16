@@ -5269,7 +5269,6 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		}
 	}
 
-
 	port->svc[port->svc_cnt++] = svc;
 	return svc;
 err10:
