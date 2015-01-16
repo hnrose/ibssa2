@@ -1,6 +1,6 @@
               Scalable Subnet Administration (SSA)
                   Version 0.0.8 Release Notes
-                         December 2014
+                         January 2015
 
 ===============================================================================
 Table of Contents
@@ -170,6 +170,8 @@ Only single P_Key (full default partition - 0xFFFF) currently supported.
 
 Virtualization (alias GUIDs) and QoS not currently supported.
 
+VPI ConnectX-3 with ethernet port is not yet qualified.
+
 Connect-IB (mlx5) has not yet been tested/qualified with SSA.
 Only rudimentary testing with qib (verified keepalives).
 
@@ -179,7 +181,7 @@ mlx4_core HW2SW_MPT -16 error requires restart or recent firmware
 If running with OpenSM PerfMgr, need OpenSM 3.3.19 or later.
 Possible seg fault in PerfMgr was fixed there.
 
-ACM is only tested in SSA acm_mode.
+ACM is only tested in SSA acm_mode and not ACM acm_mode.
 
 Ignore the following warning during ./configure:
 checking rsockets getsockopt RDMA_ROUTE... no
