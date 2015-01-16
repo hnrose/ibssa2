@@ -30,8 +30,7 @@ src_libopensmssa_la_LIBADD = -lrdmacm -lpthread -L$(libdir) -losmcomp \
 		$(GLIB_LIBS)
 
 # headers are distributed as part of the include dir
-EXTRA_DIST = $(srcdir)/libopensmssa.map $(srcdir)/src/*.h \
-	     include/osd.h include/dlist.h \
+EXTRA_DIST = $(srcdir)/libopensmssa.map include/osd.h include/dlist.h \
 	     include/ssa_log.h include/common.h include/ssa_ctrl.h \
 	     include/ssa_path_record_data.h include/ssa_path_record_helper.h \
 	     include/infiniband/osm_headers.h include/infiniband/ssa_mad.h \
