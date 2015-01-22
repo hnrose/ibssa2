@@ -45,6 +45,7 @@ AM_CONFIG_HEADER(config.h)
 
 dnl Auto make
 AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 
 dnl Provides control over re-making of all auto files
 dnl We also use it to define swig dependencies so end
