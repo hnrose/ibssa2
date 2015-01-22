@@ -94,13 +94,43 @@ Signed-off-by: Hal Rosenstock <hal@mellanox.com>
 Note that librdmacm contains 2 AF_IB capable examples: rstream
 and ucmatose.
 
-1.1.6 User space library for HCAs used
+1.1.6 librdmacm 1.0.19-SSA1
 
-1.1.6.1 libmlx4 1.0.6
+In order to work with various new kernels (SLES 12, newer Ubuntu, etc.
+distros), there is a workaround required. It is only currently found in
+the SSA release of the librdmacm. This will be incorporated upstream.
 
-1.1.6.2 libmlx5 1.0.2
+Patch is as follows:
 
-1.1.7 glib-2.0
+commit dd3300948102ad7baf4dd3c1ad3b095ba4a063e0
+Author: Ilya Nelkenbaum <ilyan@mellanox.com>
+Date:   Thu Jan 22 14:45:37 2015 +0200
+
+    cma.c: Workaround for rmda_ucm kernel bug
+    
+    For certain new kernels, IB_QP_SMAC bit is erroneously
+    set in QP attribute mask. This workaround turns
+    off that bit. It allows SSA connections (AF_IB)
+    to work. Without this workaround, there are issues
+    on the client side.
+    
+    Kernel patch which caused issue is commit dd5f03b
+    IB/core: Ethernet L2 attributes in verbs/cm structures
+    
+    Kernel patch to fix this is being submitted to
+    upstream and stable (hopefully in 3.19):
+    IB/core: Initialize SA path record in ucma_set_ib_path
+    
+    Signed-off-by: Ilya Nelkenbaum <ilyan@mellanox.com>
+    Signed-off-by: Hal Rosenstock <hal@mellanox.com>
+
+1.1.7 User space library for HCAs used
+
+1.1.7.1 libmlx4 1.0.6
+
+1.1.7.2 libmlx5 1.0.2
+
+1.1.8 glib-2.0
 
 
 1.2 SSA 0.0.8 Contents
