@@ -1,5 +1,5 @@
 Name: ibssa
-Version: 0.0.1
+Version: 0.0.8
 Release: 1%{?dist}
 Summary: Scalable SA Distribution/Access
 

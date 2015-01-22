@@ -1,7 +1,7 @@
 %define ver @VERSION@
 
 Name: libopensmssa
-Version: 0.0.1
+Version: 0.0.8
 Release: 1%{?dist}
 Summary: OpenSM Scalable SA Core Plug-in Library
 
