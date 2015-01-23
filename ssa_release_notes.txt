@@ -173,7 +173,8 @@ Connect-IB (mlx5) has not yet been tested/qualified with SSA.
 Only rudimentary testing with qib (verified keepalives).
 
 mlx4_core HW2SW_MPT -16 error requires restart or recent firmware
-(internal build 2.33.1230 or later, GA build 2.33.5000).
+(internal build 2.33.1230 or later, GA build 2.33.5000
+for ConnectX-3 Pro).
 
 If running with OpenSM PerfMgr, need OpenSM 3.3.19 or later.
 Possible seg fault in PerfMgr was fixed there.
