@@ -58,7 +58,30 @@ If running PerfMgr, OpenSM 3.3.19 is needed.
 
 1.1.4 libibverbs 1.1.8
 
-1.1.5 librdmacm 1.0.19-SSA1
+1.1.5 librdmacm 1.0.19-SSA1 (AF_IB and keepalive support)
+
+Even the latest 1.0.19-1 librdmacm release is missing a
+critical patch needed for SSA:
+
+Author: Sasha Kotchubievsky <sashakot@mellanox.com>
+Date:   Thu Sep 4 09:16:21 2014 -0700
+
+    rsocket: Index map item is cleaned before it is used in iomapping cleanup
+    
+    rs_free function clears index map item corresponding to the roscket
+    (in idm_clear called from rs_remove) and then uses it in
+    iomapping cleanup (in riounmap called from rs_free_iomappings).
+    
+    Signed-off-by: Sasha Kotchubievsky <sashakot@mellanox.com>
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+This is currently only in git://git.openfabrics.org:~shefty/librdmacm.git
+on the master.
+
+Due to that and the below, SSA is currently releasing it's
+own temporary librdmacm package. This will persist until
+all SSA patches are incorporated upstream and there is an
+upstream release which includes them.
 
 In order to work with various new kernels (SLES 12, newer Ubuntu, etc.
 distros), there is a workaround required. It is only currently found in
