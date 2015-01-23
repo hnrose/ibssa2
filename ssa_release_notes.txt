@@ -58,43 +58,7 @@ If running PerfMgr, OpenSM 3.3.19 is needed.
 
 1.1.4 libibverbs 1.1.8
 
-1.1.5 librdmacm (AF_IB and keepalive support)
-
-Note that 1.0.19-1 is missing rsocket.c patch
-which avoids segmentation fault in rclose.
-
-Currently, there is no released package.
-librdmacm must be taken from:
-git.openfabrics.org:~shefty/librdmacm.git
-
-It must contain commit ID cf7aae3d0cc460eee6b2904172b6442d774a0af4:
-rsocket: Index map item is cleaned before it is used in iomapping cleanup
-rs_free function clears index map item corresponding to the roscket (in
-idm_clear called from rs_remove) and then uses it in iomapping cleanup (in
-riounmap called from rs_free_iomappings).
-
-Signed-off-by: Sasha Kotchubievsky <sashakot@mellanox.com>
-Signed-off-by: Sean Hefty <sean.hefty@intel.com>
-
-SSA framework was changed so that this is no longer critical:
-
-commit 5017f98ed84b3c77fd8884577b6f0b9e2a2d3b1e
-Author: Hal Rosenstock <hal@mellanox.com>
-Date:   Sat Aug 16 15:06:55 2014 +0300
-
-ssa.c: riounmap epoch buffer on ACM/consumer upstream connection before rclose
-
-Not doing this revealed rclose segmentation fault where there
-appears to be ordering issue in cleanup there. Issue found by
-Sasha and patch has been proposed but not yet incorporated into
-librdmacm.
-
-Signed-off-by: Hal Rosenstock <hal@mellanox.com>
-
-Note that librdmacm contains 2 AF_IB capable examples: rstream
-and ucmatose.
-
-1.1.6 librdmacm 1.0.19-SSA1
+1.1.5 librdmacm 1.0.19-SSA1
 
 In order to work with various new kernels (SLES 12, newer Ubuntu, etc.
 distros), there is a workaround required. It is only currently found in
@@ -124,13 +88,16 @@ Date:   Thu Jan 22 14:45:37 2015 +0200
     Signed-off-by: Ilya Nelkenbaum <ilyan@mellanox.com>
     Signed-off-by: Hal Rosenstock <hal@mellanox.com>
 
-1.1.7 User space library for HCAs used
+Note that librdmacm contains 2 AF_IB capable examples: rstream
+and ucmatose.
 
-1.1.7.1 libmlx4 1.0.6
+1.1.6 User space library for HCAs used
 
-1.1.7.2 libmlx5 1.0.2
+1.1.6.1 libmlx4 1.0.6
 
-1.1.8 glib-2.0
+1.1.6.2 libmlx5 1.0.2
+
+1.1.7 glib-2.0
 
 
 1.2 SSA 0.0.8 Contents
