@@ -195,7 +195,7 @@ VPI ConnectX-3 with ethernet port is not yet qualified.
 Connect-IB (mlx5) has not yet been tested/qualified with SSA.
 Only rudimentary testing with qib (verified keepalives).
 
-mlx4_core HW2SW_MPT -16 error requires restart or recent firmware
+mlx4_core HW2SW_MPT -16 error requires update to recent firmware
 (internal build 2.33.1230 or later, GA build 2.33.5000
 for ConnectX-3 Pro).
 
