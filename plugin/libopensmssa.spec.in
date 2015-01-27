@@ -38,6 +38,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
+%{_libdir}/lib*.a
+%{_libdir}/lib*.so
 %{_libdir}/lib*.so.*
 %doc AUTHORS COPYING README
 %defattr(640,root,root)
