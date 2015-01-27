@@ -2468,8 +2468,8 @@ static void core_destroy(void *context)
 #error OpenSM plugin interface version missmatch
 #endif
 osm_event_plugin_t osm_event_plugin = {
-      osm_version:OSM_VERSION,
-      create:core_construct,
-      delete:core_destroy,
-      report:core_report
+      OSM_VERSION,
+      core_construct,
+      core_destroy,
+      core_report
 };
