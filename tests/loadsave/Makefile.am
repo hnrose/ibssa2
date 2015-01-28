@@ -32,10 +32,6 @@
 
 SUBDIRS = .
 
-
-INCLUDES = -I. -I../include
-
-
 # Support debug mode through config variable
 DBG =
 if DEBUG
@@ -44,7 +40,7 @@ DBG += -g
 endif
 
 
-AM_CFLAGS  = $(DBG) -Wall -Werror -D_GNU_SOURCE
+AM_CFLAGS  = -I. -I../include $(DBG) -Wall -Werror -D_GNU_SOURCE
 
 
 bin_PROGRAMS = loadsave

@@ -1,7 +1,6 @@
-INCLUDES = -I$(srcdir)/include -I$(includedir)
-
-AM_CFLAGS = -g -Wall -DACM -D_GNU_SOURCE -DSYSCONFDIR=\"$(sysconfdir)\" -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\" \
-		$(GLIB_CFLAGS)
+AM_CFLAGS = -I$(srcdir)/include -I$(includedir) \
+	    -g -Wall -DACM -D_GNU_SOURCE -DSYSCONFDIR=\"$(sysconfdir)\" \
+	    -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\" $(GLIB_CFLAGS)
 
 bin_PROGRAMS = util/ib_acme
 sbin_PROGRAMS = svc/ibacm

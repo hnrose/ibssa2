@@ -32,11 +32,9 @@
 
 SUBDIRS = .
 
-
-INCLUDES = -I../include -I../include/infiniband \
-	   -I$(prefix)/include/ \
-	   -I$(prefix)/include/infiniband
-
+INCLUDE_DIRS = -I../include -I../include/infiniband \
+	       -I$(prefix)/include/ \
+	       -I$(prefix)/include/infiniband
 
 # Support debug mode through config variable
 DBG =
@@ -45,9 +43,7 @@ DBG += -DDEBUG
 DBG += -g
 endif
 
-
-AM_CPPFLAGS = $(DBG) -Wall -Werror -g
-
+AM_CPPFLAGS = $(INCLUDE_DIRS) $(DBG) -Wall -Werror -g
 
 COV =
 if COVERAGE
@@ -72,7 +68,7 @@ pr_pair_SOURCES = ./pr_pair.c \
 		  ./ssa_path_record_helper.c ./ssa_db.c ./ssa_prdb.c \
 		  ./ssa_smdb.c ./ssa_db_helper.c ./ssa_log.c \
 		  ./ssa_signal_handler.c
-pr_pair_CPPFLAGS =  $(INCLUDES) -I$(includedir)  $(DEPS_CFLAGS)  -g -D_GNU_SOURCE
+pr_pair_CPPFLAGS =  $(INCLUDE_DIRS) -I$(includedir)  $(DEPS_CFLAGS)  -g -D_GNU_SOURCE
 pr_pair_LDFLAGS = -lpthread
 
 #pr_pair_LDADD =  $(GLIB_LIBS)
