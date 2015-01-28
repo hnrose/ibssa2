@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(ibacm, 1.0.7-1, linux-rdma@vger.kernel.org)
+AC_INIT(ibacm, 1.0.7.1, linux-rdma@vger.kernel.org)
 AC_CONFIG_SRCDIR([src/acm.c])
 AC_CONFIG_AUX_DIR(config)
 AM_CONFIG_HEADER(config.h)

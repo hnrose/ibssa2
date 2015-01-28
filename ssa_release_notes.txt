@@ -128,7 +128,7 @@ and ucmatose.
 SSA contains the following 3 packages:
 - OpenSM SSA 0.0.8 plugin (libopenssa)
 - ibssa 0.0.8 executable (for distribution and access nodes)
-- ibacm 1.0.7-1 executable (for consumer/compute nodes)
+- ibacm 1.0.7.1 executable (for consumer/compute nodes)
 - scripts and configuration files
 
 
