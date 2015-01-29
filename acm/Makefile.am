@@ -27,6 +27,7 @@ EXTRA_DIST = src/acm_mad.h src/libacm.h ibacm.init.in \
 	     include/infiniband/ssa_db_helper.h include/infiniband/ssa_prdb.h \
 	     include/infiniband/ssa_path_record.h \
 	     ibacm.spec.in $(man_MANS) ibacm_opts.cfg ibacm_addr.cfg \
+	     ibacm_logrotate \
 	     autogen.sh ssa_release_notes.txt
 
 install-exec-hook:
