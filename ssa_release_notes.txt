@@ -188,7 +188,8 @@ Only x86_64 processor architecture has been tested/qualified.
 
 Only single P_Key (full default partition - 0xFFFF) currently supported.
 
-Virtualization (alias GUIDs) and QoS not currently supported.
+Virtualization (alias GUIDs) and QoS (including QoS based routing - e.g.
+torus-2QoS) is not currently supported.
 
 VPI ConnectX-3 with ethernet port is not yet qualified.
 
