@@ -2334,6 +2334,11 @@ static void *core_construct(osm_opensm_t *opensm)
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++)
 			extract_data.num_svcs++;
 	extract_data.svcs = calloc(extract_data.num_svcs, sizeof(*extract_data.svcs));
+	if (!extract_data.svcs) {
+		ssa_log_err(SSA_LOG_DEFAULT, "unable to allocate extract_data.svcs\n");
+		ssa_close_devices(&ssa);
+		goto err4;
+	}
 
 	j = 0;
 	for (d = 0; d < ssa.dev_cnt; d++) {
