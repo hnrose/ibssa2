@@ -165,7 +165,6 @@ static int ptrvector_pushback(ptrvector_t *vec,void *element)
 }
 
 
-static const char *log_verbosity_level[] = {"No log","Error","Info","Debug"};
 static char log_file[PATH_MAX] = "/var/log/pr_pair.log";
 
 static void print_usage(FILE *file,const char *name)
@@ -183,8 +182,12 @@ static void print_usage(FILE *file,const char *name)
 	fprintf(file,"\t-g\t\t-Input ID is GUID. It's a default parameter\n");
 	fprintf(file,"\t-L\t\t-Access Layer log file path. If ommited, stdout is used.\n");
 	fprintf(file,"\t-v\t\t-Log verbosity level. Default value is 1\n");
-	for(i = 0; i < sizeof(log_verbosity_level) / sizeof(log_verbosity_level[0]); ++i)
-		fprintf(file,"\t\t\t\t-%d - %s.\n",i,log_verbosity_level[i]);
+	fprintf(file,"\t\t\t\t# Indicates the amount of detailed data written to the log file.  Log levels\n");
+	fprintf(file,"\t\t\t\t# should be one of the following values:\n");
+	fprintf(file,"\t\t\t\t\t# bit 0 - basic configuration & errors\n");
+	fprintf(file,"\t\t\t\t\t# bit 1 - verbose configuration & errors\n");
+	fprintf(file,"\t\t\t\t\t# bit 2 - verbose operation\n");
+	fprintf(file,"\t\t\t\t\t# bit 5 - verbose PathRecord computation\n");
 	fprintf(file,"\tinput folder\t-SMDB database\n");
 }
 
@@ -256,8 +259,8 @@ struct input_prm
 static void print_input_prm(const struct input_prm *prm)
 {
 	printf("Log path: %s\n",prm->log_path);
-	if(prm->log_verbosity >= 0 && prm->log_verbosity < sizeof(log_verbosity_level) / sizeof(log_verbosity_level[0])) {
-		printf("Log verbosity: %s\n",log_verbosity_level[prm->log_verbosity]);
+	if(prm->log_verbosity >= 0) {
+		printf("Log verbosity: %d\n", prm->log_verbosity);
 	} else {
 		printf("Log verbosity: --- The parameter is wrong ---");
 	}
@@ -783,8 +786,7 @@ int main(int argc,char *argv[])
 			exit(EXIT_FAILURE);
 		}
 
-		if(verbosity < 0 ||
-				verbosity >= sizeof(log_verbosity_level) / sizeof(log_verbosity_level[0])) {
+		if(verbosity < 0) {
 			fprintf(stderr,"Vebosity paramater has wrong value: %d.\n",verbosity);
 			print_usage(stderr,argv[0]);
 			exit(EXIT_FAILURE);
@@ -804,6 +806,7 @@ int main(int argc,char *argv[])
 	}
 
 	ssa_open_log(prm.log_path);
+	ssa_set_log_level(prm.log_verbosity);
 
 	if(!is_dir_exist(smdb_path)) {
 		fprintf(stderr,"Directory does not exist: %s\n",smdb_path);
