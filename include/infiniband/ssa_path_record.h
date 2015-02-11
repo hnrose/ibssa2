@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2014 Mellanox Technologies LTD. All rights reserved.
+ * Copyright 2004-2015 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the terms of the
  * OpenIB.org BSD license included below:
