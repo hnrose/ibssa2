@@ -5482,17 +5482,7 @@ int ssa_start_access(struct ssa_class *ssa)
 	}
 
 #ifdef ACCESS
-	/*
-	 * TODO:
-	 * 1. Pass required log verbosity. Access layer now has:
-	 *  SSA_PR_NO_LOG = 0,
-	 *  SSA_PR_ERROR_LEVEL = 1,
-	 *  SSA_PR_INFO_LEVEL = 2,
-	 *  SSA_PR_DEBUG_LEVEL = 3
-	 * 2. Change errno
-	 *
-	 */
-	access_context.context = ssa_pr_create_context(0);
+	access_context.context = ssa_pr_create_context();
 	if (!access_context.context) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "unable to create access layer context\n");

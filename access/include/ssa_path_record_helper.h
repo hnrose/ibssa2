@@ -52,14 +52,6 @@ extern "C" {
 #define INFO_TAG "INFO"
 #define DEBUG_TAG "DEBUG"
 
-enum {
-	SSA_PR_NO_LOG = 0,
-	SSA_PR_ERROR_LEVEL = 1,
-	SSA_PR_INFO_LEVEL = 2,
-	SSA_PR_DEBUG_LEVEL = 3
-};
-
-extern int ssa_pr_log_level;
 extern const char *get_time();
 
 extern int rates_cmp_table[19][19];
@@ -76,8 +68,8 @@ static inline int ib_path_compare_rates_fast(const int rate1, const int rate2)
 }
 
 #define SSA_PR_LOG_ERROR(message, args...) { ssa_log_err(SSA_LOG_CTRL, message "\n", ##args); }
-#define SSA_PR_LOG_INFO(message, args...) { if (ssa_pr_log_level >= SSA_PR_INFO_LEVEL) ssa_log(SSA_LOG_PR, message "\n", ##args); }
-#define SSA_PR_LOG_DEBUG(message, args...) { if (ssa_pr_log_level >= SSA_PR_DEBUG_LEVEL) ssa_log(SSA_LOG_PR, message "\n", ##args); }
+#define SSA_PR_LOG_INFO(message, args...) { ssa_log(SSA_LOG_CTRL|SSA_LOG_PR, message "\n", ##args); }
+#define SSA_PR_LOG_DEBUG(message, args...) { ssa_log(SSA_LOG_PR, message "\n", ##args); }
 #ifdef __cplusplus
 }
 #endif

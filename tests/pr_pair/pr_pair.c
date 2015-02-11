@@ -538,7 +538,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		goto Exit;
 	}
 
-	p_context = ssa_pr_create_context(p_prm->log_verbosity);
+	p_context = ssa_pr_create_context();
 	if(NULL == p_context) {
 		fprintf(stderr,"Can't create path record calculation context\n");
 		res = -1;
