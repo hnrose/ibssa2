@@ -5498,7 +5498,7 @@ int ssa_start_access(struct ssa_class *ssa)
 	 * 2. Change errno
 	 *
 	 */
-	access_context.context = ssa_pr_create_context(flog, 0);
+	access_context.context = ssa_pr_create_context(0);
 	if (!access_context.context) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "unable to create access layer context\n");

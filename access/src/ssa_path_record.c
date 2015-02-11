@@ -566,12 +566,11 @@ void ssa_pr_reinit_context(void *context, struct ssa_db *smdb)
 	ssa_pr_build_indexes(p_context->p_index, smdb);
 }
 
-void *ssa_pr_create_context(FILE *log_fd, int log_level)
+void *ssa_pr_create_context(int log_level)
 {
 	struct ssa_pr_context *p_context = NULL;
 
 	ssa_pr_log_level = log_level;
-	ssa_pr_log_fd = log_fd;
 
 	p_context = (struct ssa_pr_context *)malloc(sizeof(struct ssa_pr_context));
 	if (!p_context) {
@@ -603,7 +602,6 @@ Error:
 	}
 
 	ssa_pr_log_level = 0;
-	ssa_pr_log_fd = NULL;
 
 	return NULL;
 }
@@ -623,5 +621,4 @@ void ssa_pr_destroy_context(void *ctx)
 	}
 
 	ssa_pr_log_level = 0;
-	ssa_pr_log_fd = NULL;
 }

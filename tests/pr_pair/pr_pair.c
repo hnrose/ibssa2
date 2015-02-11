@@ -490,8 +490,6 @@ static int run_pr_calculation(struct input_prm* p_prm)
 	short dump_to_stdout = 0;
 	short dump_to_prdb = 1;
 	FILE *fd_dump = NULL;
-	FILE *fd_log = NULL;
-	int close_log = 0;
 	struct ssa_db *p_db_diff = NULL;
 	void *p_context = NULL;
 	be64_t *p_guids = NULL;
@@ -503,18 +501,6 @@ static int run_pr_calculation(struct input_prm* p_prm)
 	ssa_pr_status_t pr_res = SSA_PR_SUCCESS;
 	struct ssa_db *p_prdb = NULL;
 
-	if(!strlen(p_prm->log_path) || !strcmp(p_prm->log_path,"stderr"))
-		fd_log = stderr;
-	else if(!strcmp(p_prm->log_path,"stdout"))
-		fd_log = stdout;
-	else {
-		fd_log = fopen(p_prm->log_path,"w");
-		if(!fd_log) {
-			fprintf(stderr,"Can't open file for writing: %s\n",p_prm->log_path);
-			return -1;
-		}
-		close_log  = 1;
-	}
 
 	dump_to_prdb = strlen(p_prm->prdb_path);
 	if(!dump_to_prdb) {
@@ -552,7 +538,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 		goto Exit;
 	}
 
-	p_context = ssa_pr_create_context(fd_log,p_prm->log_verbosity);
+	p_context = ssa_pr_create_context(p_prm->log_verbosity);
 	if(NULL == p_context) {
 		fprintf(stderr,"Can't create path record calculation context\n");
 		res = -1;
@@ -634,10 +620,6 @@ Exit:
 		ptrvector_destroy(guids_arr);
 		guids_arr = NULL;
 	}
-	if(close_log && fd_log) {
-		fclose(fd_log);
-		fd_log = NULL;
-	}
 	if(p_prdb) {
 		ssa_db_destroy(p_prdb);
 		p_prdb = NULL;
@@ -675,8 +657,6 @@ int main(int argc,char *argv[])
 	int option_index = 0;
 
 	memset(&prm,'\0',sizeof(prm));
-
-	ssa_open_log(log_file);
 
 	ssa_set_ssa_signal_handler();
 
@@ -822,6 +802,8 @@ int main(int argc,char *argv[])
 	} else {
 		strncpy(prm.log_path,"stderr",PATH_MAX);
 	}
+
+	ssa_open_log(prm.log_path);
 
 	if(!is_dir_exist(smdb_path)) {
 		fprintf(stderr,"Directory does not exist: %s\n",smdb_path);

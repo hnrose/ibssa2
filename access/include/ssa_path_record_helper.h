@@ -36,6 +36,7 @@
  */
 
 #include <stdio.h>
+#include <ssa_log.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +60,6 @@ enum {
 };
 
 extern int ssa_pr_log_level;
-extern FILE *ssa_pr_log_fd;
 extern const char *get_time();
 
 extern int rates_cmp_table[19][19];
@@ -75,14 +75,9 @@ static inline int ib_path_compare_rates_fast(const int rate1, const int rate2)
 	return rates_cmp_table[rate1][rate2];
 }
 
-#define _FILE strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__
-#define SSA_PR_LOG_FORMAT "%s | %-7s | %-15s:%d | %s |"
-#define SSA_PR_LOG_PREFIX_ARGS(tag) get_time(), tag, _FILE, __LINE__, __func__
-#define SSA_PR_LOG_PRINT_FUNCTION(format,...) fprintf(ssa_pr_log_fd, format, __VA_ARGS__)
-
-#define SSA_PR_LOG_ERROR(message, args...) { if (ssa_pr_log_level >= SSA_PR_ERROR_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(ERROR_TAG), ##args); }
-#define SSA_PR_LOG_INFO(message, args...) { if (ssa_pr_log_level >= SSA_PR_INFO_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(INFO_TAG), ##args); }
-#define SSA_PR_LOG_DEBUG(message, args...) { if (ssa_pr_log_level >= SSA_PR_DEBUG_LEVEL) SSA_PR_LOG_PRINT_FUNCTION(SSA_PR_LOG_FORMAT message "\n", SSA_PR_LOG_PREFIX_ARGS(DEBUG_TAG), ##args); }
+#define SSA_PR_LOG_ERROR(message, args...) { if (ssa_pr_log_level >= SSA_PR_ERROR_LEVEL) ssa_log_err(SSA_LOG_PR, message "\n", ##args); }
+#define SSA_PR_LOG_INFO(message, args...) { if (ssa_pr_log_level >= SSA_PR_INFO_LEVEL) ssa_log(SSA_LOG_PR, message "\n", ##args); }
+#define SSA_PR_LOG_DEBUG(message, args...) { if (ssa_pr_log_level >= SSA_PR_DEBUG_LEVEL) ssa_log(SSA_LOG_PR, message "\n", ##args); }
 #ifdef __cplusplus
 }
 #endif

@@ -55,6 +55,7 @@ enum {
 	SSA_LOG_CTRL		= 1 << 2,
 	SSA_LOG_DB		= 1 << 3,
 	SSA_LOG_COMM		= 1 << 4,
+	SSA_LOG_PR		= 1 << 5,
 	SSA_LOG_ALL		= 0xFFFFFFFF,
 };
 
