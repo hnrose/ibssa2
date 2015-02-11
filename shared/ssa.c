@@ -4708,9 +4708,9 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 	if (fd < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return -1;	/* ignore these errors */
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"raccept rsock %d ERROR %d (%s)\n",
-			conn_listen->rsock, errno, strerror(errno));
+		ssa_log_err(SSA_LOG_CTRL,
+			    "raccept rsock %d ERROR %d (%s)\n",
+			    conn_listen->rsock, errno, strerror(errno));
 		return -1;
 	}
 
