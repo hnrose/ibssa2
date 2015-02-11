@@ -169,12 +169,6 @@ int rejoin_timeout = 1;		/* seconds */
 int fake_acm_num = 0;
 #endif
 
-/*
- * needed for ssa_pr_create_context()
- * eliminate in the future
- */
-extern FILE *flog;
-
 struct ssa_access_member {
 	union ibv_gid gid;		/* consumer GID */
 	struct ssa_db *prdb_current;
