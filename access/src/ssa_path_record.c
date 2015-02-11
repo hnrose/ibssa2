@@ -133,8 +133,6 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	uint16_t source_last_lid = 0;
 	uint16_t source_lid = 0;
 	struct ssa_pr_context *p_context = (struct ssa_pr_context *)p_ctnx;
-	clock_t start, end;
-	double cpu_time_used;
 	int rt;
 
 	SSA_ASSERT(port_guid);
@@ -168,7 +166,6 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	source_last_lid = source_base_lid + (0x01 << p_source_rec->lmc) - 1;
 
 	for (source_lid = source_base_lid; source_lid <= source_last_lid; ++source_lid) {
-		start = clock();
 		for (i = 0; i < guid_to_lid_count; i++) {
 			uint16_t dest_base_lid = 0;
 			uint16_t dest_last_lid = 0;
@@ -242,10 +239,6 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 				}
 			}
 		}
-		end = clock();
-		cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-		SSA_PR_LOG_DEBUG("\"half world\" path records for: %u"
-				 " time: %f sec.", source_lid, cpu_time_used);
 	}
 	return SSA_PR_SUCCESS;
 }
