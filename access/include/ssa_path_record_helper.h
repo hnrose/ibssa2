@@ -75,7 +75,7 @@ static inline int ib_path_compare_rates_fast(const int rate1, const int rate2)
 	return rates_cmp_table[rate1][rate2];
 }
 
-#define SSA_PR_LOG_ERROR(message, args...) { if (ssa_pr_log_level >= SSA_PR_ERROR_LEVEL) ssa_log_err(SSA_LOG_PR, message "\n", ##args); }
+#define SSA_PR_LOG_ERROR(message, args...) { ssa_log_err(SSA_LOG_CTRL, message "\n", ##args); }
 #define SSA_PR_LOG_INFO(message, args...) { if (ssa_pr_log_level >= SSA_PR_INFO_LEVEL) ssa_log(SSA_LOG_PR, message "\n", ##args); }
 #define SSA_PR_LOG_DEBUG(message, args...) { if (ssa_pr_log_level >= SSA_PR_DEBUG_LEVEL) ssa_log(SSA_LOG_PR, message "\n", ##args); }
 #ifdef __cplusplus
