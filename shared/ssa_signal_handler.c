@@ -45,6 +45,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <limits.h>
 #include <ssa_log.h>
 
 #define MAX_BACKTRACE_FRAMES 100
@@ -56,6 +57,17 @@ extern char *month_str[];
 static pthread_spinlock_t signal_handler_lock;
 
 static int ssa_print_backtrace(int start_frame, FILE *flog);
+
+static char exe_path[PATH_MAX];
+
+#if defined(__linux__)
+int get_exe_path()
+{
+	return readlink("/proc/self/exe", exe_path, sizeof(exe_path)) > 0 ? 0: -1;
+}
+#else
+#define get_exe_path(var) (1)
+#endif
 
 static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 {
@@ -227,13 +239,16 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 
 static int parse_backtrace_line(const char *bt_line, int frame, FILE *flog)
 {
-	char *lib_name = NULL, *lib_addr = NULL;
+	const char *lib_name = NULL, *lib_addr = NULL;
 	void *addr = NULL;
 	int ret;
 
 	lib_name = strtok(strdup(bt_line), "(");
 	if (!lib_name)
 		return 1;
+
+	if (!strcmp(program_invocation_short_name, lib_name))
+		lib_name = exe_path;
 
 	lib_addr = strtok(NULL, ")");
 	if (!lib_addr || lib_addr[0] != '+')
@@ -338,6 +353,10 @@ int ssa_set_ssa_signal_handler()
 	if(ret) {
 		return ret;
 	}
+
+	ret = get_exe_path();
+	if (ret)
+		return ret;
 
 	action.sa_sigaction = ssa_signal_handler;
 	sigemptyset(&action.sa_mask);
