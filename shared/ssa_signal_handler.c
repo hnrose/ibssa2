@@ -63,7 +63,7 @@ static char exe_path[PATH_MAX];
 #if defined(__linux__)
 int get_exe_path()
 {
-	return readlink("/proc/self/exe", exe_path, sizeof(exe_path)) > 0 ? 0: -1;
+	return readlink("/proc/self/exe", exe_path, sizeof(exe_path)) > 0 ? 0 : -1;
 }
 #else
 #define get_exe_path(var) (1)
@@ -76,7 +76,7 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 	time_t tim;
 	struct tm result;
 	int ret;
-	(void)context;
+	(void) context;
 
 	ssa_set_log_level(0);
 
@@ -195,7 +195,7 @@ out:
 
 #ifdef HAVE_ADDR2LINE
 static int run_add2line(const char *appl_name, const void *addr, int frame,
-		FILE *flog)
+			FILE *flog)
 {
 	char cmd[1024] = {};
 	char out[1024] = {};
@@ -206,7 +206,7 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 		return 0;
 
 	sprintf(cmd,"%s -s -f -i  -e %.256s %p 2>/dev/null",
-			ADDR2LINE_PATH, appl_name, addr);
+		ADDR2LINE_PATH, appl_name, addr);
 
 	rt = run_cmd(cmd, out , 1024);
 	if (!rt)
@@ -214,9 +214,9 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 
 	line = strtok(strdup(out), "\n");
 	while (line) {
-		if(0 == i)
+		if (0 == i)
 			name = line;
-		else if(1 == i)
+		else if (1 == i)
 			source = line;
 		line  = strtok(NULL, "\n");
 		i++;
@@ -228,8 +228,8 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 	if (name[0] == '?' && name[1] == '?')
 		return 1;
 
-	fprintf(flog, "#%-3d0x%016lx in %s () from %s\n", frame, (unsigned long) addr,
-			name, source);
+	fprintf(flog, "#%-3d0x%016lx in %s () from %s\n",
+		frame, (unsigned long) addr, name, source);
 
 	return 0;
 }
@@ -271,7 +271,7 @@ static int ssa_print_backtrace_with_gstack(FILE *flog)
 	pid_t pid;
 	int rt;
 
-	if(!flog)
+	if (!flog)
 		return 0;
 
 	pid = getpid();
@@ -280,11 +280,11 @@ static int ssa_print_backtrace_with_gstack(FILE *flog)
 	rt = run_cmd(cmd, output, 1024);
 	if (rt)
 		fprintf(flog,
-				"backtrace obtained with gstack for process %d:\n"
-				"==== [gstack BACKTRACE] ====\n"
-				"%s\n"
-				"==== [gstack  BACKTRACE] ====\n\n",
-				pid, output);
+			"backtrace obtained with gstack for process %d:\n"
+			"==== [gstack BACKTRACE] ====\n"
+			"%s\n"
+			"==== [gstack  BACKTRACE] ====\n\n",
+			pid, output);
 
 	return 0;
 }
@@ -307,19 +307,17 @@ static int ssa_print_backtrace(int start_frame, FILE *flog)
 	backtrace_size = backtrace(backtrace_buffer, MAX_BACKTRACE_FRAMES);
 	strings = backtrace_symbols(backtrace_buffer, backtrace_size);
 	fprintf(flog,
-			"backtrace obtained with system backtrace function for process %d thread (%s):\n"
-			"==== [BACKTRACE] ====\n", getpid(), thread_name);
+		"backtrace obtained with system backtrace function for process %d thread (%s):\n"
+		"==== [BACKTRACE] ====\n", getpid(), thread_name);
 
 	/* start_frame allows skipping non-informative frames such as signal_handler */
-	for (i = start_frame; i < (backtrace_size - 2); ++i)
-	{
+	for (i = start_frame; i < (backtrace_size - 2); ++i) {
 		if (run_add2line(program_invocation_name, backtrace_buffer[i], i, flog) &&
-		    parse_backtrace_line(strings[i], i, flog))
-		{
+		    parse_backtrace_line(strings[i], i, flog)) {
 			fprintf(flog, "#%-3d%s\n", i, strings[i]);
 		}
 	}
-	fprintf(flog,"==== [BACKTRACE] ====\n\n");
+	fprintf(flog, "==== [BACKTRACE] ====\n\n");
 
 	if (strings)
 		free(strings);
@@ -339,7 +337,7 @@ int ssa_set_ssa_signal_handler()
 	 */
 	stack_t our_stack;
 
-	our_stack.ss_sp = (void*)malloc(SIGSTKSZ);
+	our_stack.ss_sp = (void *) malloc(SIGSTKSZ);
 	our_stack.ss_size = SIGSTKSZ;
 	our_stack.ss_flags = 0;
 
@@ -347,9 +345,8 @@ int ssa_set_ssa_signal_handler()
 		return 1;
 #endif
 	ret = pthread_spin_init(&signal_handler_lock, 0);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
 
 	ret = get_exe_path();
 	if (ret)
@@ -394,9 +391,9 @@ void *incr(void *ptr)
 {
 	int *ptr_x = (int *)ptr;
 
-	while(1) {
+	while (1) {
 		(*ptr_x)++;
-		if(*ptr_x % 100)
+		if (*ptr_x % 100)
 			foo();
 	}
 
@@ -428,7 +425,6 @@ int main(int argc, char **argv)
 	if (pthread_create(&inc_y_thread, NULL, incr, &x)) {
 		fprintf(stderr, "Error creating thread\n");
 		return 1;
-
 	}
 
 	printf("\n");
@@ -459,7 +455,7 @@ int main (int argc, char **argv)
 	for (i = 1; i < argc; ++i)
 		size += (strlen(argv[i]) + 1);
 
-	cmd = (char *)malloc(size + 1);
+	cmd = (char *) malloc(size + 1);
 
 	for (i = 1; i < argc; ++i) {
 		strcat(cmd, argv[i]);
@@ -469,7 +465,7 @@ int main (int argc, char **argv)
 	printf("Command line : %s\n", cmd);
 	rt = run_cmd(cmd, output, 1024);
 	if (!rt)
-		fprintf(stderr, "Execution is failed\n");
+		fprintf(stderr, "Execution failed\n");
 	else
 		printf("%s\n", output);
 
