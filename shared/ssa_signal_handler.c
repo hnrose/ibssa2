@@ -86,7 +86,7 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 	get_thread_id(thread_name, sizeof thread_name);
 
 	ret = pthread_spin_trylock(&signal_handler_lock);
-	if(ret == EBUSY)
+	if (ret == EBUSY)
 		return;
 
 	fprintf(flog, "%s %02d %02d:%02d:%02d %06d [%.16s]: signal %d received\n",
@@ -94,15 +94,13 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 		result.tm_mday, result.tm_hour, result.tm_min,
 		result.tm_sec, (unsigned int)tv.tv_usec, thread_name, sig);
 
-	switch(sig)
-	{
+	switch(sig) {
 		case SIGSEGV:
 			break;
 		case SIGINT:
 			break;
 		case SIGFPE:
-			switch(siginfo->si_code)
-			{
+			switch(siginfo->si_code) {
 				case FPE_INTDIV:
 					break;
 				case FPE_INTOVF:
@@ -124,8 +122,7 @@ static void ssa_signal_handler(int sig, siginfo_t *siginfo, void *context)
 			}
 			break;
 		case SIGILL:
-			switch(siginfo->si_code)
-			{
+			switch(siginfo->si_code) {
 				case ILL_ILLOPC:
 					break;
 				case ILL_ILLOPN:
@@ -185,7 +182,7 @@ static int run_cmd(const char *cmd, char *buf, int n)
 		goto out;
 
 	size = fread(buf, 1, n, stream);
-	if(!size)
+	if (!size)
 		goto out;
 
 out:
@@ -205,14 +202,14 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 	int i = 0, rt;
 	char *line = NULL, *name = NULL , *source = NULL;
 
-	if(!flog)
+	if (!flog)
 		return 0;
 
 	sprintf(cmd,"%s -s -f -i  -e %.256s %p",
 			ADDR2LINE_PATH, appl_name, addr);
 
 	rt = run_cmd(cmd, out , 1024);
-	if(!rt)
+	if (!rt)
 		return 1;
 
 	line = strtok(strdup(out), "\n");
@@ -281,7 +278,7 @@ static int ssa_print_backtrace_with_gstack(FILE *flog)
 
 	snprintf(cmd, sizeof(cmd) - 1, "%s %d", GSTACK_PATH, pid);
 	rt = run_cmd(cmd, output, 1024);
-	if(rt)
+	if (rt)
 		fprintf(flog,
 				"backtrace obtained with gstack for process %d:\n"
 				"==== [gstack BACKTRACE] ====\n"
@@ -302,7 +299,7 @@ static int ssa_print_backtrace(int start_frame, FILE *flog)
 	void *backtrace_buffer[MAX_BACKTRACE_FRAMES];
 	char thread_name[20];
 
-	if(!flog)
+	if (!flog)
 		return 0;
 
 	get_thread_id(thread_name, sizeof thread_name);
@@ -350,7 +347,7 @@ int ssa_set_ssa_signal_handler()
 		return 1;
 #endif
 	ret = pthread_spin_init(&signal_handler_lock, 0);
-	if(ret) {
+	if (ret) {
 		return ret;
 	}
 
@@ -421,14 +418,14 @@ int main(int argc, char **argv)
 	printf("Current call stack:\n");
 	ssa_print_backtrace(0, stderr);
 	/* create a thread which executes inc_x(&x) */
-	if(pthread_create(&inc_x_thread, NULL, incr, &x)) {
+	if (pthread_create(&inc_x_thread, NULL, incr, &x)) {
 		fprintf(stderr, "Error creating thread\n");
 		return 1;
 
 	}
 
 	/* create a thread which executes inc_x(&x) */
-	if(pthread_create(&inc_y_thread, NULL, incr, &x)) {
+	if (pthread_create(&inc_y_thread, NULL, incr, &x)) {
 		fprintf(stderr, "Error creating thread\n");
 		return 1;
 
@@ -437,12 +434,12 @@ int main(int argc, char **argv)
 	printf("\n");
 	printf("Call stack from segmentation handler \n");
 
-	if(pthread_join(inc_x_thread, NULL)) {
+	if (pthread_join(inc_x_thread, NULL)) {
 		fprintf(stderr, "Error joining thread\n");
 		return 2;
 	}
 
-	if(pthread_join(inc_y_thread, NULL)) {
+	if (pthread_join(inc_y_thread, NULL)) {
 		fprintf(stderr, "Error joining thread\n");
 		return 2;
 	}
@@ -456,22 +453,22 @@ int main (int argc, char **argv)
 	char *cmd;
 	char output[1024] = {};
 
-	if(argc == 1)
+	if (argc == 1)
 		return 0;
 
-	for(i = 1; i < argc; ++i)
+	for (i = 1; i < argc; ++i)
 		size += (strlen(argv[i]) + 1);
 
 	cmd = (char *)malloc(size + 1);
 
-	for(i = 1; i < argc; ++i) {
+	for (i = 1; i < argc; ++i) {
 		strcat(cmd, argv[i]);
 		strcat(cmd, " ");
 	}
 
 	printf("Command line : %s\n", cmd);
 	rt = run_cmd(cmd, output, 1024);
-	if(!rt)
+	if (!rt)
 		fprintf(stderr, "Execution is failed\n");
 	else
 		printf("%s\n", output);
