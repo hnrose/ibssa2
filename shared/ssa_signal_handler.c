@@ -205,7 +205,7 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 	if (!flog)
 		return 0;
 
-	sprintf(cmd,"%s -s -f -i  -e %.256s %p",
+	sprintf(cmd,"%s -s -f -i  -e %.256s %p 2>/dev/null",
 			ADDR2LINE_PATH, appl_name, addr);
 
 	rt = run_cmd(cmd, out , 1024);
@@ -276,7 +276,7 @@ static int ssa_print_backtrace_with_gstack(FILE *flog)
 
 	pid = getpid();
 
-	snprintf(cmd, sizeof(cmd) - 1, "%s %d", GSTACK_PATH, pid);
+	snprintf(cmd, sizeof(cmd) - 1, "%s %d 2>/dev/null", GSTACK_PATH, pid);
 	rt = run_cmd(cmd, output, 1024);
 	if (rt)
 		fprintf(flog,
