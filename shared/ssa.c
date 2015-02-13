@@ -2832,7 +2832,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 					pfd->revents = 0;
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
 						ssa_log(SSA_LOG_DEFAULT,
-							"PRDB connection accepted, but Access notification is deferred until RDMA buffer is published\n");
+							"PRDB connection accepted, but access notification is deferred until RDMA epoch buffer is published\n");
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
 						if (!update_pending && !update_waiting && smdb)
 							pfd->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
