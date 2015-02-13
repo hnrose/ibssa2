@@ -2305,13 +2305,19 @@ test:
 		}
 		goto queue;
 	case ACM_INIT:
-		ssa_log(SSA_LOG_VERBOSE, "sending resolve msg to dest\n");
-		status = acm_send_resolve(ep, dest, saddr);
-		if (status) {
+		if (acm_mode == ACM_MODE_ACM) {
+			ssa_log(SSA_LOG_VERBOSE, "sending resolve msg to dest\n");
+			status = acm_send_resolve(ep, dest, saddr);
+			if (status) {
+				break;
+			}
+			dest->state = ACM_QUERY_ADDR;
+			/* fall through */
+		} else {	/* ACM_MODE_SSA */
+			ssa_log(SSA_LOG_VERBOSE, "SSA mode but dest not cached\n");
+			status = ACM_STATUS_ENODATA;
 			break;
 		}
-		dest->state = ACM_QUERY_ADDR;
-		/* fall through */
 	default:
 queue:
 		if (daddr->flags & ACM_FLAGS_NODELAY) {
