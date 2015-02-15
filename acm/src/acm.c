@@ -3615,7 +3615,7 @@ err0:
 
 static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 {
-	struct ssa_device *ssa_dev1;
+	struct ssa_device *ssa_dev1 = NULL;
 	struct ssa_port *port;
 	struct acm_ep *acm_ep;
 	uint64_t *lid2guid;
