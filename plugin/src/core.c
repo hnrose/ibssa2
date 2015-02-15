@@ -902,7 +902,7 @@ static void core_process_join(struct ssa_core *core, struct ssa_umad *umad)
 {
 	struct ssa_member_record *rec, *umad_rec;
 	struct ssa_member *member;
-	union ibv_gid *parentgid;
+	union ibv_gid *parentgid = NULL;
 	DLIST_ENTRY *entry;
 	uint8_t **tgid, node_type;
 	time_t join_time_passed = 0;
