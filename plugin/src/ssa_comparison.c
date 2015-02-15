@@ -1310,7 +1310,7 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 			 boolean_t *tbl_changed)
 {
 	struct ssa_db *p_smdb;
-	char *tbl_name;
+	char *tbl_name = NULL;
 	uint64_t epoch_old, epoch_new;
 	uint64_t i, k, tbl_cnt;
 	boolean_t update_global_epoch = FALSE;
