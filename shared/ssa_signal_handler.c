@@ -236,26 +236,54 @@ static int run_add2line(const char *appl_name, const void *addr, int frame,
 
 static int parse_backtrace_line(const char *bt_line, int frame, FILE *flog)
 {
-	const char *lib_name = NULL, *lib_addr = NULL;
-	void *addr = NULL;
+	const char *start_function = NULL;
+	const char *start_offset = NULL;
+	const char *start_address = NULL;
+	const char *p;
+	char *module = NULL;
+	char *address = NULL;
+	char *function = NULL;
+	char *offset = NULL;
 	int ret;
 
-	lib_name = strtok(strdup(bt_line), "(");
-	if (!lib_name)
-		return 1;
+	for (p = bt_line; *p ; p++) {
+		switch (*p) {
+		case '(':
+			start_function = p + 1;
+			break;
+		case '[':
+			start_address = p + 1;
+			break;
+		case '+':
+			start_offset = p + 1;
+			break;
+		};
+	}
 
-	if (!strcmp(program_invocation_short_name, lib_name))
-		lib_name = exe_path;
+	sscanf(bt_line, "%m[^(]", &module);
 
-	lib_addr = strtok(NULL, ")");
-	if (!lib_addr || lib_addr[0] != '+')
-		return 1;
+	if (start_function)
+		sscanf(start_function, "%m[^+)]", &function);
+	if (start_offset)
+		sscanf(start_offset, "%m[^)]", &offset);
+	if (start_address)
+		sscanf(start_address, "%m[^]\n]", &address);
 
-	ret = sscanf(lib_addr + 1, "%p", (void **) &addr);
-	if (ret != 1)
-		return 1;
+	if (module && address) {
+		if (!strcmp(program_invocation_short_name, module))
+			ret = run_add2line(exe_path, address, frame, flog);
+		else
+			ret = run_add2line(module, address, frame, flog);
+	} else {
+		ret = -1;
+	}
 
-	return run_add2line(lib_name, addr, frame, flog);
+	free(address);
+	free(offset);
+	free(function);
+	free(module);
+
+	return ret;
 }
 #else
 #define run_add2line(var1, var2, var3, var4) (1)
