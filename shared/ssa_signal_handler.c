@@ -340,10 +340,8 @@ static int ssa_print_backtrace(int start_frame, FILE *flog)
 
 	/* start_frame allows skipping non-informative frames such as signal_handler */
 	for (i = start_frame; i < (backtrace_size - 2); ++i) {
-		if (run_add2line(program_invocation_name, backtrace_buffer[i], i, flog) &&
-		    parse_backtrace_line(strings[i], i, flog)) {
+		if (parse_backtrace_line(strings[i], i, flog))
 			fprintf(flog, "#%-3d%s\n", i, strings[i]);
-		}
 	}
 	fprintf(flog, "==== [BACKTRACE] ====\n\n");
 
