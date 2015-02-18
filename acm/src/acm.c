@@ -2852,6 +2852,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
 	port_lid = GET_PORT_FIELD_PTR(ep->port, uint16_t, lid);
 	ibv_query_gid(verbs, *port_num, 0, &sgid);
+
 	/* Search for endpoint's SLID */
 	while (fgets(s, sizeof s, f)) {
 		if (s[0] == '#')
