@@ -996,7 +996,7 @@ out:
 
 static void query_perf(char *svc)
 {
-	static int lables;
+	static int labels;
 	int ret, cnt, i;
 	uint64_t *counters;
 
@@ -1007,11 +1007,11 @@ static void query_perf(char *svc)
 	}
 
 	if (perf_query == PERF_QUERY_ROW) {
-		if (!lables) {
+		if (!labels) {
 			for (i = 0; i < cnt - 1; i++)
 				printf("%s,", ib_acm_cntr_name(i));
 			printf("%s\n", ib_acm_cntr_name(i));
-			lables = 1;
+			labels = 1;
 		}
 		printf("%s,", svc);
 		for (i = 0; i < cnt - 1; i++)
