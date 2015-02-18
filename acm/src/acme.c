@@ -620,7 +620,7 @@ static int gen_addr_ip(FILE *f)
 {
 	struct ifconf *ifc;
 	struct ifreq *ifr;
-	char ip[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"];
+	char ip[INET6_ADDRSTRLEN];
 	int s, ret, dev_index, i, len;
 	uint16_t pkey;
 	uint8_t port;

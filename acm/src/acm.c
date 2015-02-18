@@ -3273,7 +3273,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 	char *dev_name;
 	uint8_t *port_num;
 	char s[120];
-	char dev[32], addr[32], pkey_str[8];
+	char dev[32], addr[INET6_ADDRSTRLEN], pkey_str[8];
 	uint16_t pkey;
 	uint8_t type;
 	int port, index = 0;
@@ -3296,7 +3296,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		if (s[0] == '#')
 			continue;
 
-		if (sscanf(s, "%32s%32s%d%8s", addr, dev, &port, pkey_str) != 4)
+		if (sscanf(s, "%46s%32s%d%8s", addr, dev, &port, pkey_str) != 4)
 			continue;
 
 		ssa_log(SSA_LOG_VERBOSE, "%s", s);
