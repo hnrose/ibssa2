@@ -2840,7 +2840,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 	uint64_t guid;
 	uint16_t lid, dlid, net_dlid;
 	int sl, mtu, rate;
-	int ret = 1, i;
+	int ret, i;
 	uint8_t addr[ACM_MAX_ADDRESS];
 	uint8_t addr_type;
 
@@ -2851,7 +2851,12 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 
 	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
 	port_lid = GET_PORT_FIELD_PTR(ep->port, uint16_t, lid);
-	ibv_query_gid(verbs, *port_num, 0, &sgid);
+	ret = ibv_query_gid(verbs, *port_num, 0, &sgid);
+	if (ret < 0) {
+		ssa_log_err(0, "unable to query gid for port num %d\n",
+			    *port_num);
+		return ret;
+	}
 
 	/* Search for endpoint's SLID */
 	while (fgets(s, sizeof s, f)) {
