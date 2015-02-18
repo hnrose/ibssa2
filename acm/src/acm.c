@@ -4157,8 +4157,8 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "minimum mtu %d\n", min_mtu);
 	ssa_log(SSA_LOG_DEFAULT, "minimum rate %d\n", min_rate);
 	ssa_log(SSA_LOG_DEFAULT, "route preload %d\n", route_preload);
-	ssa_log(SSA_LOG_DEFAULT, "routing data file %s\n", route_data_file);
-	ssa_log(SSA_LOG_DEFAULT, "routing data directory %s\n", route_data_dir);
+	ssa_log(SSA_LOG_DEFAULT, "route data file %s\n", route_data_file);
+	ssa_log(SSA_LOG_DEFAULT, "route data directory %s\n", route_data_dir);
 	ssa_log(SSA_LOG_DEFAULT, "acm mode %d\n", acm_mode);
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_timeout %lu\n",acm_query_timeout);
 	ssa_log(SSA_LOG_DEFAULT, "acm_query_retries %d\n", acm_query_retries);
