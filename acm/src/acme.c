@@ -105,7 +105,7 @@ static void show_usage(char *program)
 
 static void gen_opts_temp(FILE *f)
 {
-	fprintf(f, "# InfiniBand Assistant to Communication Manager for clusters configuration file\n");
+	fprintf(f, "# InfiniBand Communication Manager Assistant for clusters configuration file\n");
 	fprintf(f, "#\n");
 	fprintf(f, "# Use ib_acme utility with -O option to automatically generate a sample\n");
 	fprintf(f, "# ibacm_opts.cfg file for the current system.\n");
@@ -262,10 +262,10 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "# send_depth:\n");
 	fprintf(f, "# Specifies the number of outstanding send operations that can\n");
-	fprintf(f, "# be in progress simultaneously.  A larger send depth consumes\n");
-	fprintf(f, "# more system resources, but increases subnet load.  The send_depth\n");
-	fprintf(f, "# is in addition to resolve_depth and sa_depth, and limits the\n");
-	fprintf(f, "# transfer of responses.\n");
+	fprintf(f, "# be in progress simultaneously.  A larger send depth allows for\n");
+	fprintf(f, "# greater parallelism, but consumes more system resources and subnet load.\n");
+	fprintf(f, "# The send_depth is in addition to resolve_depth and sa_depth, and limits\n");
+	fprintf(f, "# the transfer of responses.\n");
 	fprintf(f, "\n");
 	fprintf(f, "send_depth 1\n");
 	fprintf(f, "\n");
