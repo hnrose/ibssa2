@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009-2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the OpenFabrics.org BSD license
  * below:
@@ -66,6 +67,9 @@ extern "C" {
 #define ACM_OPTS_FILE   ACM_FILE_PREFIX SSA_OPTS_FILE_SUFFIX
 #define SSA_FILE_PREFIX "ibssa"
 #define SSA_OPTS_FILE	SSA_FILE_PREFIX SSA_OPTS_FILE_SUFFIX
+
+#define LIB_DESTRUCTOR __attribute__((destructor))
+#define CDECL_FUNC
 
 #ifndef container_of
 #define container_of(ptr, type, field) \
