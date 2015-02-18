@@ -856,6 +856,8 @@ acm_record_acm_route(struct acm_ep *ep, struct acm_dest *dest)
 	dest->path.dlid = htons(dest->av.dlid);
 	dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
 	dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
+	ssa_log(SSA_LOG_VERBOSE, "timeout addr %llu route %llu\n",
+		dest->addr_timeout, dest->route_timeout);
 	dest->state = ACM_READY;
 	return ACM_STATUS_SUCCESS;
 }
