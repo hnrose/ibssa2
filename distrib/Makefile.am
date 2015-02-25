@@ -1,6 +1,6 @@
-AM_CFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(prefix)/include \
-	    -I$(prefix)/include/infiniband \
-	    -g -Wall -D_GNU_SOURCE -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\" \
+AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(prefix)/include \
+	      -I$(prefix)/include/infiniband
+AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\" \
 	     $(GLIB_CFLAGS)
 
 sbin_PROGRAMS = svc/ibssa
