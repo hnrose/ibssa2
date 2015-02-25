@@ -1,13 +1,15 @@
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.57)
-AC_INIT(libopensmssa, 0.0.8, linux-rdma@vger.kernel.org)
+AC_PREREQ(2.63)
+AC_INIT([libopensmssa], [0.0.8], linux-rdma@vger.kernel.org)
 AC_CONFIG_SRCDIR([src/core.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+LT_INIT
 
 dnl Checks for programs
 AC_PROG_CC
