@@ -1,9 +1,9 @@
 lib_LTLIBRARIES = src/libopensmssa.la
 
 ACLOCAL_AMFLAGS = -I config
-AM_CFLAGS = -I$(srcdir)/include -I$(includedir) \
-	    -I$(prefix)/include/infiniband \
-	    -g -Wall -D_GNU_SOURCE -Wno-deprecated-declarations \
+AM_CPPFLAGS = -I$(srcdir)/include -I$(includedir) \
+	      -I$(prefix)/include/infiniband
+AM_CFLAGS = -g -Wall -D_GNU_SOURCE -Wno-deprecated-declarations \
 	     $(GLIB_CFLAGS) -DSYSCONFDIR=\"$(sysconfdir)\" \
 	    -DRDMADIR=\"@rdmadir@\"
 
