@@ -1,3 +1,5 @@
+%define ver @VERSION@
+
 Name: ibssa
 Version: 0.0.8
 Release: 1%{?dist}
@@ -17,6 +19,9 @@ ExcludeArch: s390, s390x
 %description
 The %{name} daemon is part of the Scalable SA which is comprised of
 OpenSM plugin and core, distribution/access, and ACM (consumer).
+
+%prep
+%setup -q -n %{name}-%{ver}
 
 %build
 aclocal -I config && libtoolize --force --copy && autoheader && \
