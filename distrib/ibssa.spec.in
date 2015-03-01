@@ -42,4 +42,5 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING README
 %{_sbindir}/ibssa
+%{_sysconfdir}/init.d/ibssa
 
