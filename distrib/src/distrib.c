@@ -158,6 +158,7 @@ static void distrib_destroy_svc(struct ssa_svc *svc)
 static void *distrib_ctrl_handler(void *context)
 {
 	struct ssa_svc *svc;
+	struct ssa_port *port;
 	int ret, d, p;
 
 	SET_THREAD_NAME(ctrl_thread, "CTRL");
@@ -171,8 +172,11 @@ static void *distrib_ctrl_handler(void *context)
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
-					    SSA_DB_PATH_DATA,
+			port = ssa_dev_port(ssa_dev(&ssa, d), p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			svc = ssa_start_svc(port, SSA_DB_PATH_DATA,
 					    sizeof(struct ssa_distrib),
 					    distrib_process_msg,
 					    distrib_init_svc,

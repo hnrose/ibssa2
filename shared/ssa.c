@@ -3976,6 +3976,9 @@ static void *ssa_access_handler(void *context)
 		dev = ssa_dev(ssa, d);
 		for (p = 1; p <= dev->port_cnt; p++) {
 			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
 			svc_cnt += port->svc_cnt;
 		}
 	}
@@ -3998,6 +4001,9 @@ static void *ssa_access_handler(void *context)
 		dev = ssa_dev(ssa, d);
 		for (p = 1; p <= dev->port_cnt; p++) {
 			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
 			for (s = 0; s < port->svc_cnt; s++) {
 				svc_arr[i++] = port->svc[s];
 			}
@@ -4375,9 +4381,15 @@ static void ssa_ctrl_port_send(struct ssa_port *port, struct ssa_ctrl_msg *msg)
 /*
 static void ssa_ctrl_dev_send(struct ssa_device *dev, struct ssa_ctrl_msg *msg)
 {
+	struct ssa_port *port;
 	int i;
-	for (i = 1; i <= dev->port_cnt; i++)
-		ssa_ctrl_port_send(ssa_dev_port(dev, i), msg);
+
+	for (i = 1; i <= dev->port_cnt; i++) {
+		port = ssa_dev_port(dev, i);
+		if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+			continue;
+		ssa_ctrl_port_send(port, msg);
+	}
 }
 */
 
@@ -4484,6 +4496,7 @@ static void ssa_ctrl_update_port(struct ssa_port *port)
 static void ssa_ctrl_device(struct ssa_device *dev)
 {
 	struct ibv_async_event event;
+	struct ssa_port *port;
 	int ret;
 	uint16_t old_SM_lid;
 	int forward_event_type;
@@ -4502,12 +4515,20 @@ static void ssa_ctrl_device(struct ssa_device *dev)
 	case IBV_EVENT_PORT_ACTIVE:
 	case IBV_EVENT_CLIENT_REREGISTER:
 	case IBV_EVENT_PORT_ERR:
-		ssa_ctrl_update_port(ssa_dev_port(dev, event.element.port_num));
+		port = ssa_dev_port(dev, event.element.port_num);
+		if (port->link_layer != IBV_LINK_LAYER_INFINIBAND) {
+			ssa_log_warn(SSA_LOG_DEFAULT,
+				     "%s:%d link layer %d is not IB\n",
+				     dev->name, event.element.port_num,
+				     port->link_layer);
+			break;
+		}
+
+		ssa_ctrl_update_port(port);
 		if (old_SM_lid != dev->port->sm_lid &&
 		    event.event_type == IBV_EVENT_CLIENT_REREGISTER)
 			forward_event_type = IBV_EVENT_SM_CHANGE;
-		ssa_ctrl_send_event(ssa_dev_port(dev, event.element.port_num),
-				    forward_event_type);
+		ssa_ctrl_send_event(port, forward_event_type);
 		break;
 	default:
 		break;
@@ -4908,9 +4929,11 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 	ssa->nfds += ssa->dev_cnt;	/* async device events */
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
-		ssa->nfds += dev->port_cnt;	/* mads */
 		for (p = 1; p <= dev->port_cnt; p++) {
 			port = ssa_dev_port(dev, p);
+			if (port->link_layer == IBV_LINK_LAYER_INFINIBAND)
+				ssa->nfds++;		/* mads */
+
 			ssa->nsfds += port->svc_cnt;	/* service listen */
 		}
 	}
@@ -4934,6 +4957,9 @@ static int ssa_ctrl_init_fds(struct ssa_class *ssa)
 
 		for (p = 1; p <= dev->port_cnt; p++) {
 			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
 			ssa->fds[i].fd = umad_get_fd(port->mad_portid);
 			ssa->fds[i].events = POLLIN;
 			ssa->fds_obj[i].type = SSA_OBJ_PORT;
@@ -4953,6 +4979,9 @@ static void ssa_ctrl_activate_ports(struct ssa_class *ssa)
 		dev = ssa_dev(ssa, d);
 		for (p = 1; p <= dev->port_cnt; p++) {
 			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
 			ssa_ctrl_update_port(port);
 			if (port->state == IBV_PORT_ACTIVE) {
 				ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", port->name);
@@ -5936,13 +5965,19 @@ static void ssa_close_port(struct ssa_port *port)
 void ssa_close_devices(struct ssa_class *ssa)
 {
 	struct ssa_device *dev;
+	struct ssa_port *port;
 	int d, p;
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
-		for (p = 1; p <= dev->port_cnt; p++)
-			ssa_close_port(ssa_dev_port(dev, p));
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			ssa_close_port(port);
+		}
 
 		if (dev->verbs != NULL)
 			ibv_close_device(dev->verbs);

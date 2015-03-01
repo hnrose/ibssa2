@@ -1410,6 +1410,7 @@ static void ssa_extract_send_db_update(struct ssa_db *db, int fd, int flags)
 static int ssa_extract_db_update_prepare(struct ssa_db *db)
 {
 	struct ssa_svc *svc;
+	struct ssa_port *port;
 	int d, p, s, count = 0;
 
 	if (!db)
@@ -1417,8 +1418,12 @@ static int ssa_extract_db_update_prepare(struct ssa_db *db)
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
-				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
+			port = ssa_dev_port(ssa_dev(&ssa, d), p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			for (s = 0; s < port->svc_cnt; s++) {
+				svc = port->svc[s];
 				ssa_extract_send_db_update_prepare(svc->sock_extractdown[1]);
 				count++;
 			}
@@ -1436,6 +1441,7 @@ static int ssa_extract_db_update_prepare(struct ssa_db *db)
 static void ssa_extract_db_update(struct ssa_db *db, int db_changed)
 {
 	struct ssa_svc *svc;
+	struct ssa_port *port;
 	int d, p, s;
 	enum ssa_db_update_flag flags = 0;
 
@@ -1447,8 +1453,12 @@ static void ssa_extract_db_update(struct ssa_db *db, int db_changed)
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
-				svc = ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s];
+			port = ssa_dev_port(ssa_dev(&ssa, d), p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			for (s = 0; s < port->svc_cnt; s++) {
+				svc = port->svc[s];
 				ssa_extract_send_db_update(db,
 							   svc->sock_extractdown[1], flags);
 			}
@@ -2245,6 +2255,7 @@ static void *core_construct(osm_opensm_t *opensm)
 {
 #ifndef SIM_SUPPORT
 	struct ssa_svc *svc;
+	struct ssa_port *port;
 	int d, p, j;
 #endif
 	int ret;
@@ -2330,9 +2341,16 @@ static void *core_construct(osm_opensm_t *opensm)
 		goto err4;
 	}
 
-	for (d = 0; d < ssa.dev_cnt; d++)
-		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++)
+	for (d = 0; d < ssa.dev_cnt; d++) {
+		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
+			port = ssa_dev_port(ssa_dev(&ssa, d), p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
 			extract_data.num_svcs++;
+		}
+	}
+
 	extract_data.svcs = calloc(extract_data.num_svcs, sizeof(*extract_data.svcs));
 	if (!extract_data.svcs) {
 		ssa_log_err(SSA_LOG_DEFAULT, "unable to allocate extract_data.svcs\n");
@@ -2343,8 +2361,12 @@ static void *core_construct(osm_opensm_t *opensm)
 	j = 0;
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, d), p),
-					    SSA_DB_PATH_DATA, sizeof(struct ssa_core),
+			port = ssa_dev_port(ssa_dev(&ssa, d), p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			svc = ssa_start_svc(port, SSA_DB_PATH_DATA,
+					    sizeof(struct ssa_core),
 					    core_process_msg, core_init_svc,
 					    core_destroy_svc);
 			if (!svc) {
@@ -2417,6 +2439,7 @@ err1:
 static void core_destroy(void *context)
 {
 #ifndef SIM_SUPPORT
+	struct ssa_port *port;
 	int d, p, s;
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down control thread\n");
@@ -2435,8 +2458,12 @@ static void core_destroy(void *context)
 
 	for (d = 0; d < ssa.dev_cnt; d++) {
 		for (p = 1; p <= ssa_dev(&ssa, d)->port_cnt; p++) {
-			for (s = 0; s < ssa_dev_port(ssa_dev(&ssa, d), p)->svc_cnt; s++) {
-				core_destroy_svc(ssa_dev_port(ssa_dev(&ssa, d), p)->svc[s]);
+			port = ssa_dev_port(ssa_dev(&ssa, d), p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			for (s = 0; s < port->svc_cnt; s++) {
+				core_destroy_svc(port->svc[s]);
 			}
 		}
 	}
