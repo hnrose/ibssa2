@@ -1,3 +1,4 @@
+ACLOCAL_AMFLAGS = -I config
 AM_CPPFLAGS = -I$(srcdir)/include -I$(srcdir) -I$(prefix)/include \
 	      -I$(prefix)/include/infiniband
 AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\" \
