@@ -176,7 +176,7 @@ ACM/consumer nodes have ibacm_opts.cfg file.
 Follow instructions in those files.
 
 On ACM nodes, ib_acme can be run with -A and -O options
-to generate ibacm_opts.cfg and ibacm_addr.cfg files
+to generate ibacm_opts.cfg and ibacm_addr.data files
 for that machine/system. This is only needed to be done
 once (at initial install time).
 
