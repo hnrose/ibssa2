@@ -37,7 +37,7 @@ EXTRA_DIST = $(srcdir)/libopensmssa.map include/osd.h include/dlist.h \
 	     include/infiniband/ssa_smdb.h include/infiniband/ssa_db.h \
 	     include/infiniband/ssa.h include/infiniband/ssa_path_record.h \
 	     include/infiniband/ssa_smdb_api.h include/infiniband/ssa_prdb.h \
-	     libopensmssa.spec.in ibssa_core_opts.cfg autogen.sh \
+	     libopensmssa.spec.in ibssa_core_opts.cfg autogen.sh ibssa_logrotate \
 	     ssa_release_notes.txt
 
 dist-hook: libopensmssa.spec

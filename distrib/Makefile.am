@@ -21,7 +21,7 @@ EXTRA_DIST = include/osd.h include/dlist.h \
 	     include/infiniband/ssa_mad.h include/infiniband/ssa_db_helper.h \
 	     include/infiniband/ssa_db.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_path_record.h include/infiniband/ssa_smdb.h \
-	     include/infiniband/ssa_prdb.h \
+	     include/infiniband/ssa_prdb.h ibssa_logrotate \
 	     ibssa.spec.in ibssa_opts.cfg autogen.sh ssa_release_notes.txt
 
 install-exec-hook:
