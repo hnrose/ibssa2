@@ -1,7 +1,7 @@
 # InfiniBand Communication Management Assistant for clusters address file
 #
 # Use ib_acme utility with -A option to automatically generate a sample
-# ibacm_addr.cfg file for the current system.
+# ibacm_addr.data file for the current system.
 #
 # Entry format is:
 # address device port pkey
