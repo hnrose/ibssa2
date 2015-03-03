@@ -66,6 +66,10 @@
 #include <ssa_log.h>
 #include <glib.h>
 
+/* not sure why this isn't in verbs.h but is in libibverbs.map */
+extern int ibv_read_sysfs_file(const char *dir, const char *file,
+			       char *buf, size_t size);
+
 #define DEFAULT_UMAD_TIMEOUT	1000 /* in milliseconds */
 #define MAX_UMAD_TIMEOUT	120 * DEFAULT_UMAD_TIMEOUT /* in milliseconds */
 
@@ -5764,6 +5768,10 @@ static int ssa_open_dev(struct ssa_device *dev, struct ssa_class *ssa,
 	dev->guid = ibv_get_device_guid(ibdev);
 	ssa_log(SSA_LOG_CTRL, "Node GUID 0x%" PRIx64 "\n", ntohll(dev->guid));
 	snprintf(dev->name, sizeof dev->name, "%s", ibdev->name);
+	if (ibv_read_sysfs_file(ibdev->ibdev_path, "node_desc",
+				dev->node_desc, sizeof dev->node_desc) < 0)
+		ssa_log(SSA_LOG_DEFAULT,
+			"Reading %s/node_desc file failed\n", ibdev->ibdev_path);
 	dev->port_cnt = attr.phys_port_cnt;
 	dev->port_size = ssa->port_size;
 

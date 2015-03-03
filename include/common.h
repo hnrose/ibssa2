@@ -108,6 +108,7 @@ struct ssa_device {
 	struct ibv_context      *verbs;
 	uint64_t                guid;
 	char			name[SSA_NAME_SIZE];
+	char			node_desc[64];
 	size_t			port_size;
 	int                     port_cnt;
 	struct ssa_port         *port;
