@@ -78,8 +78,8 @@ ibacm configuration files:
 .P
 The ibacm service relies on two configuration files.
 .P
-The ibacm_addr.cfg file contains name and address mappings for each IB
-<device, port, pkey> endpoint.  Although the names in the ibacm_addr.cfg
+The ibacm_addr.data file contains name and address mappings for each IB
+<device, port, pkey> endpoint.  Although the names in the ibacm_addr.data
 file can be anything, ib_acme maps the host name and IP addresses to
 the IB endpoints.  If the address file cannot be found, the ibacm
 service will attempt to create one using default values.
@@ -114,7 +114,7 @@ Specifically, all IB endpoints join a number of multicast groups.
 Multicast groups differ based on rates, mtu, sl, etc., and are prioritized.
 All participating endpoints must be able to communicate on the lowest
 priority multicast group.  The ibacm assigns one or more names/addresses
-to each IB endpoint using the ibacm_addr.cfg file.  Clients provide source
+to each IB endpoint using the ibacm_addr.data file.  Clients provide source
 and destination names or addresses as input to the service, and receive
 as output path record data.
 .P
