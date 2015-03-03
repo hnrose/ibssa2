@@ -3384,7 +3384,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 	if (acm_mode == ACM_MODE_ACM)
 		dev_name = ((struct acm_port *)ep->port)->dev->verbs->device->name;
 	else /* ACM_MODE_SSA */
-		dev_name = ((struct ssa_port *)ep->port)->dev->verbs->device->name;
+		dev_name = ((struct ssa_port *)ep->port)->dev->name;
 
 	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
 	ssa_log(SSA_LOG_VERBOSE, "device %s, port %d, pkey 0x%x\n",
