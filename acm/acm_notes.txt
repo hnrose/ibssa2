@@ -39,7 +39,7 @@ Quick Start Guide
    This installs ib_acm, and ib_acme.
 3. Run ib_acme -A -O
    This will generate IB ACM address and options configuration files.
-   (ibacm_addr.cfg and ibacm_opts.cfg)
+   (ibacm_addr.data and ibacm_opts.cfg)
 4. Run ib_acm and leave running.
    ib_acm will eventually be converted to a service/daemon, but for now
    is a userspace application.  Because ib_acm uses the libibumad
@@ -64,8 +64,8 @@ or eliminate manual setup.
 acm configuration files:
 The ib_acm service relies on two configuration files.
 
-The ibacm_addr.cfg file contains name and address mappings for each IB
-<device, port, pkey> endpoint.  Although the names in the ibacm_addr.cfg
+The ibacm_addr.data file contains name and address mappings for each IB
+<device, port, pkey> endpoint.  Although the names in the ibacm_addr.data
 file can be anything, ib_acme maps the host name and IP addresses to
 the IB endpoints.
 
@@ -101,7 +101,7 @@ Specifically, all IB endpoints join a number of multicast groups.
 Multicast groups differ based on rates, mtu, sl, etc., and are prioritized.
 All participating endpoints must be able to communicate on the lowest
 priority multicast group.  The ib_acm assigns one or more names/addresses
-to each IB endpoint using the ibacm_addr.cfg file.  Clients provide source
+to each IB endpoint using the ibacm_addr.data file.  Clients provide source
 and destination names or addresses as input to the service, and receive
 as output path record data.
 
