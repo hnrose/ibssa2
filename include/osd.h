@@ -60,7 +60,7 @@ extern "C" {
 #define RDMADIR "rdma"
 #endif
 #define RDMA_CONF_DIR SYSCONFDIR "/" RDMADIR
-#define SSA_ADDR_FILE_SUFFIX "_addr.cfg"
+#define SSA_ADDR_FILE_SUFFIX "_addr.data"
 #define SSA_OPTS_FILE_SUFFIX "_opts.cfg"
 #define ACM_FILE_PREFIX "ibacm"
 #define ACM_ADDR_FILE   ACM_FILE_PREFIX SSA_ADDR_FILE_SUFFIX
