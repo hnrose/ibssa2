@@ -57,37 +57,6 @@ AC_CHECK_HEADER(infiniband/verbs.h, [],
 AC_CHECK_HEADER(rdma/rsocket.h, [],
     AC_MSG_ERROR([<rdma/rsocket.h> not found.  Is librdmacm installed?]))
 
-dnl Checks for getsockopt RDMA_ROUTE support in librdmacm.
-AC_LANG(C)
-AC_MSG_CHECKING([rsockets getsockopt RDMA_ROUTE])
-AC_RUN_IFELSE(
-    [AC_LANG_PROGRAM(
-        [[#include <stdio.h>
-          #include <errno.h>
-          #include <netinet/in.h>
-          #include <netinet/tcp.h>
-          #include <sys/types.h>
-          #include <rdma/rsocket.h>
-          #include <infiniband/ib.h>]],
-        [[
-          int rsock;
-          struct ibv_path_data route;
-          socklen_t route_len = sizeof(route) - 1;
-          rsock = rsocket(AF_IB, SOCK_STREAM, 0);
-          if (rsock < 0)
-              return 1;
-          rgetsockopt(rsock, SOL_RDMA, RDMA_ROUTE, &route, &route_len);
-          rclose(rsock);
-          if (errno != EINVAL)
-              return 1;
-          return 0;
-        ]])],
-        [ AC_MSG_RESULT([yes]) ],
-        [ AC_MSG_RESULT([no])
-          AC_MSG_WARN([rsockets does not support getsockopt RDMA_ROUTE.  librdmacm 1.0.19 or beyond is needed.])
-        ]
-)
-
 AC_CHECK_MEMBER(struct umad_hdr.base_version, [],
     AC_MSG_ERROR([struct umad_hdr not found.  A newer version of libibumad is required.]),
     [#include <infiniband/umad_types.h>])
