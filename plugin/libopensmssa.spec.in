@@ -1,7 +1,6 @@
-%define ver @VERSION@
 
 Name: libopensmssa
-Version: 0.0.8
+Version: @VERSION@
 Release: 1%{?dist}
 Summary: OpenSM Scalable SA Core Plug-in Library
 
@@ -18,7 +17,7 @@ libopensmssa is part of a scalable SA for InfiniBand fabrics.
 Scalable SA includes this plugin to OpenSM, plus SSA distribution deamons.
 
 %prep
-%setup -q -n %{name}-%{ver}
+%setup -q -n %{name}-%{version}
 
 %build
 %configure

@@ -1,7 +1,6 @@
-%define ver @VERSION@
 
 Name: ibssa
-Version: 0.0.8
+Version: @VERSION@
 Release: 1%{?dist}
 Summary: Scalable SA Distribution/Access
 
@@ -21,7 +20,7 @@ The %{name} daemon is part of the Scalable SA which is comprised of
 OpenSM plugin and core, distribution/access, and ACM (consumer).
 
 %prep
-%setup -q -n %{name}-%{ver}
+%setup -q -n %{name}-%{version}
 
 %build
 aclocal -I config && libtoolize --force --copy && autoheader && \
