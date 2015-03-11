@@ -1,4 +1,4 @@
-.TH "IBACM" 7 "2012-03-01" "IBACM" "IB ACM User Guide" IBACM
+.TH "IBACM" 7 "2015-03-10" "IBACM" "IB ACM User Guide" IBACM
 .SH NAME
 ibacm \- InfiniBand communication management assistant
 .SH SYNOPSIS
@@ -14,7 +14,7 @@ path record data using efficient mechanisms, including caching of data.
 The IB ACM provides information needed to establish a connection, but does
 not implement the communication management protocol.  It provides services
 similar to rdma_getaddrinfo, rdma_resolve_addr, and rdma_resolve_route using
-IB multicast.
+IB multicast when in ACM mode and scalable SA (SSA) when in SSA mode.
 The IB ACM does not require IPoIB or use standard naming services, such as
 DNS, and limits network communication, especially with the IB SA.
 The ib_acme utility assists in verifying what options of the ibacm service
