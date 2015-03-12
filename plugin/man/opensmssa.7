@@ -1,0 +1,56 @@
+.TH "opensmssa" 1 "2015-03-12" "opensmssa" "opensmssa" opensmssa
+.SH NAME
+opensmssa \- Scalable Subnet Administration (SSA) plugin library for OpenSM.
+.SH "DESCRIPTION"
+SSA (Scalable Subnet Administration) implements a distributed SA
+currently supporting path records.  SSA forms a distribution
+tree starting at the SM. It consists of 4 layers: core,
+distribution, access, and consumer.  Core and access as well
+as distribution and access layers can be combined in
+a single node.
+.P
+libopensmssa is a library which is a plugin to OpenSM.  It
+supports the core layer of the SSA distribution tree.
+.P
+SSA uses rsockets with AF_IB addressing and keepalives to distribute
+the databases it supports.  rsockets with AF_IB addressing 
+and keepalives is part of librdmacm 1.0.19 release but
+there are several bug fixes beyond that that are required for SSA.
+.P
+libopensmssa is available for OpenSM in Linux only.  Additional details
+are given below.
+.SH "QUICK START GUIDE"
+1. Prerequisites: libibverbs must be installed.
+These steps assume that the user has administrative privileges.
+.P
+2. Install an SSA capable librdmacm.
+.P
+3. Install OpenSM.
+.P
+4. Install the libopensmssa package.  This installs the OpenSM SSA plugin.
+.P
+5. Configure opensm.conf for event plugin options.  See NOTES below.
+.P
+5. Run 'opensm' as administrator to start the opensm daemon.
+.SH "NOTES"
+.P
+OpenSM configuration file (typically opensm.conf):
+.P
+.nf
+#
+# Event Plugin Options
+#
+# Event plugin name(s)
+event_plugin_name opensmssa
+
+# Options string that would be passed to the plugin(s)
+event_plugin_options (null)
+.fi
+.P
+ibssa configuration file (ibssa_core_opts.cfg):
+.P
+The ibssa_core_opts.cfg file provides a set of configurable options for the
+OpenSM SSA plugin, such as timeouts, number of retries, logging level, etc.
+If an option file cannot be found, default values will be used.
+.SH "SEE ALSO"
+opensm(8), ibssa(7), ibacm(1), ibacm(7)

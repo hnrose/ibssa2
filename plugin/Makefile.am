@@ -27,6 +27,9 @@ src_libopensmssa_la_DEPENDENCIES = $(srcdir)/libopensmssa.map
 src_libopensmssa_la_LIBADD = -lrdmacm -lpthread -L$(libdir) -losmcomp \
 		$(GLIB_LIBS)
 
+man_MANS = \
+	     man/opensmssa.7
+
 # headers are distributed as part of the include dir
 EXTRA_DIST = $(srcdir)/libopensmssa.map include/osd.h include/dlist.h \
 	     include/ssa_log.h include/common.h include/ssa_ctrl.h \
@@ -38,7 +41,7 @@ EXTRA_DIST = $(srcdir)/libopensmssa.map include/osd.h include/dlist.h \
 	     include/infiniband/ssa.h include/infiniband/ssa_path_record.h \
 	     include/infiniband/ssa_smdb_api.h include/infiniband/ssa_prdb.h \
 	     libopensmssa.spec.in ibssa_core_opts.cfg autogen.sh ibssa_logrotate \
-	     ssa_release_notes.txt
+	     $(man_MANS) ssa_release_notes.txt
 
 dist-hook: libopensmssa.spec
 	cp libopensmssa.spec $(distdir)
