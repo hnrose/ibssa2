@@ -158,7 +158,7 @@ in libopensmssa, distrib, and acm directories.
 
 
 OpenSM (on core nodes) needs to be configured as follows in Opensm
-configuration file (typically openm.conf):
+configuration file (typically opensm.conf):
 #
 # Event Plugin Options
 #
