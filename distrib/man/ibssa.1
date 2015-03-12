@@ -1,0 +1,58 @@
+.TH "ibssa" 1 "2015-03-12" "ibssa" "ibssa" ibssa
+.SH NAME
+ibssa \- Scalable Subnet Administration (SSA) services for InfiniBand.
+.SH SYNOPSIS
+.sp
+.nf
+\fIibssa\fR [-P] [-O option_file]
+.fi
+.SH "DESCRIPTION"
+SSA (Scalable Subnet Administration) implements a distributed SA
+currently supporting path records.  SSA forms a distribution
+tree starting at the SM. It consists of 4 layers: core,
+distribution, access, and consumer.  Core and access as well
+as distribution and access layers can be combined in
+a single node.
+.P
+ibssa is an executable which supports the distribution and
+access layers.  Distribution nodes allow the SSA tree to fan out
+to the access nodes.  Access nodes calculate the path record
+database for the consumer nodes (ACM nodes in SSA mode) assigned
+to it. 
+.P
+SSA uses rsockets with AF_IB addressing and keepalives to distribute
+the databases it supports.  rsockets with AF_IB addressing 
+and keepalives is part of librdmacm 1.0.19 release but
+there are several bug fixes beyond that that are required for SSA.
+.P
+The IB SSA package is comprised of the ibssa service which is a
+userspace component available for Linux only.  Additional details
+are given below.
+.SH "OPTIONS"
+.TP
+\-P
+run as standard process (default is to run as daemon)
+.TP
+\-O option_file
+option configuration file (default is ibssa_opts.cfg)
+.SH "QUICK START GUIDE"
+1. Prerequisites: libibverbs and libibumad must be installed.
+The IB stack should be running with IPoIB configured.
+These steps assume that the user has administrative privileges.
+.P
+2. Install an SSA capable librdmacm.
+.P
+3. Install the IB SSA package.  This installs ibssa and init.d scripts.
+.P
+4. Configure ibssa_opts.cfg for non default options.
+.P
+5. Run 'ibssa' as administrator to start the ibssa daemon.
+.SH "NOTES"
+.P
+ibssa configuration file (ibssa_opts.cfg):
+.P
+The ibssa_opts.cfg file provides a set of configurable options for the
+ibssa service, such as timeouts, number of retries, logging level, etc.
+If an option file cannot be found, ibssa will use default values.
+.SH "SEE ALSO"
+ibssa(7), ibacm(1), ibacm(7)

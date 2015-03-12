@@ -15,6 +15,10 @@ svc_ibssa_LDADD = -lrdmacm -lpthread -L$(libdir) $(GLIB_LIBS)
 
 ibssa_includedir = $(includedir)/infiniband
 
+man_MANS = \
+        man/ibssa.1 \
+        man/ibssa.7
+
 EXTRA_DIST = include/osd.h include/dlist.h \
 	     include/ssa_log.h include/common.h include/ssa_ctrl.h \
 	     include/ssa_path_record_data.h include/ssa_path_record_helper.h \
@@ -22,7 +26,8 @@ EXTRA_DIST = include/osd.h include/dlist.h \
 	     include/infiniband/ssa_db.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_path_record.h include/infiniband/ssa_smdb.h \
 	     include/infiniband/ssa_prdb.h ibssa_logrotate \
-	     ibssa.spec.in ibssa_opts.cfg autogen.sh ssa_release_notes.txt
+	     ibssa.spec.in $(man_MANS) ibssa_opts.cfg autogen.sh \
+	     ssa_release_notes.txt
 
 install-exec-hook:
 	install -D -m 755 ibssa.init $(DESTDIR)$(sysconfdir)/init.d/ibssa;

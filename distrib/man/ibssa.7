@@ -1,0 +1,25 @@
+.TH "IBSSA" 7 "2015-03-12" "IBSSA" "IB SSA User Guide" IBSSA
+.SH NAME
+ibssa \- Scalable Subnet Administration (SSA) services for InfiniBand.
+.SH SYNOPSIS
+.B "#include <infiniband/ssa.h>"
+.SH "DESCRIPTION"
+SSA (Scalable Subnet Administration) implements a distributed SA
+currently supporting path records.  SSA forms a distribution
+tree starting at the SM. It consists of 4 layers: core,
+distribution, access, and consumer.  Core and access as well
+as distribution and access layers can be combined in
+a single node.
+.P
+ibssa is an executable which supports the distribution and
+access layers.  Distribution nodes allow the SSA tree to fan out
+to the access nodes.  Access nodes calculate the path record
+database for the consumer nodes (ACM nodes in SSA mode) assigned
+to it.
+.SH "RETURN CODES"
+.IP "== 0"
+success
+.IP "!= 0"
+error
+.SH "SEE ALSO"
+ibssa(1), ibacm(1), ibacm(7)
