@@ -191,6 +191,8 @@ Only single P_Key (full default partition - 0xFFFF) currently supported.
 Virtualization (alias GUIDs) and QoS (including QoS based routing - e.g.
 torus-2QoS) is not currently supported.
 
+mlx5 has been tested with Connect-IB but not ConnectX-4.
+
 Only rudimentary testing with qib (verified keepalives).
 
 mlx4_core HW2SW_MPT -16 error requires update to recent firmware
