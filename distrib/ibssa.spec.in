@@ -42,4 +42,6 @@ rm -rf $RPM_BUILD_ROOT
 %doc AUTHORS COPYING README
 %{_sbindir}/ibssa
 %{_sysconfdir}/init.d/ibssa
+%{_mandir}/man1/*
+%{_mandir}/man7/*
 
