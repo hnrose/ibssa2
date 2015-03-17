@@ -28,6 +28,7 @@ rm -rf $RPM_BUILD_ROOT
 %makeinstall
 # remove unpackaged files from the buildroot
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
+install -D -m 644 ibssa_logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/ibssa
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -40,6 +41,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/lib*.a
 %{_libdir}/lib*.so
 %{_libdir}/lib*.so.*
+%{_sysconfdir}/logrotate.d/ibssa
 %{_mandir}/man7/*
 %doc AUTHORS COPYING README
 %defattr(640,root,root)

@@ -31,7 +31,7 @@ make %{?_smp_mflags}
 %install
 rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=$RPM_BUILD_ROOT
-install -D -m 644 ibssa_logrotate $etc/logrotate.d/ibssa
+install -D -m 644 ibssa_logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/ibssa
 %makeinstall
 
 %clean
@@ -42,6 +42,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc AUTHORS COPYING README
 %{_sbindir}/ibssa
 %{_sysconfdir}/init.d/ibssa
+%{_sysconfdir}/logrotate.d/ibssa
 %{_mandir}/man1/*
 %{_mandir}/man7/*
 
