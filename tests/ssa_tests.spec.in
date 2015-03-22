@@ -73,7 +73,7 @@ rm -rf ${RPM_BUILD_ROOT}
 
 
 %changelog
-* Wed Jan 22 2013 - Sasha Kotchubievsky <sashakot@mellanox.com>
+* Wed Jan 22 2014 - Sasha Kotchubievsky <sashakot@mellanox.com>
 - Adding pr_pair
 * Sun Nov 17 2013 - Ilya Nelkenbaum <ilyan@mellanox.com>
 - Initial package: adding loadsavetest
