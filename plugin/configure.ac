@@ -86,6 +86,15 @@ else
 	AC_MSG_NOTICE([verbose logging mode is disabled by default])
 fi
 
+dnl check pkg-config
+AC_PATH_PROG([PKG_CONFIG], [pkg-config], [no])
+AS_IF([test "x$PKG_CONFIG" = "xno"],[
+   AC_MSG_WARN([
+   *** The pkg-config script could not be found. Make sure it is
+   *** in your path, or set the PKG_CONFIG environment variable
+   *** to the full path to pkg-config.])
+])
+
 dnl Check for libraries
 if test "$disable_libcheck" != "yes"; then
 AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
