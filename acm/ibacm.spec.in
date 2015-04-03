@@ -84,6 +84,6 @@ fi
 
 %changelog
 * Tue Feb 28 2012 Doug Ledford <dledford@redhat.com> - 1.0.5-1
-- Ininital version for rhel6
+- Initial version for rhel6
 - Related: bz700285
 
