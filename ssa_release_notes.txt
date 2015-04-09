@@ -85,7 +85,7 @@ SSA contains the following 3 packages:
 ------------------------------
 Not included with SSA so needs building and installing
 Part of upcoming 1.9 release
-On mainline of OpenMPI svn tree
+On mainline of OpenMPI github tree
 To build OpenMPI for use with SSA, configure as follows before building:
 ./configure --enable-openib-rdmacm-ibaddr --enable-mpirun-prefix-by-default --with-verbs=/usr/local --disable-openib-connectx-xrc
 
