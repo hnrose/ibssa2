@@ -58,17 +58,7 @@ If running PerfMgr, OpenSM 3.3.19 is needed.
 
 1.1.4 libibverbs 1.1.8
 
-1.1.5 librdmacm (AF_IB and keepalive support)
-
-Even the latest 1.0.19-1 librdmacm release is missing several
-critical patches needed for SSA.
-
-There was 1.0.19-SSA1 release back in January but that's
-also missing some critical patches too.
-
-A proper SSA capable librdmacm is currently available in either:
-git://git.openfabrics.org:~shefty/librdmacm.git (master), or
-git@github.com:hnrose/librdmacm.git (master).
+1.1.5 librdmacm 1.0.20 (AF_IB and keepalive support)
 
 Note that librdmacm contains 2 AF_IB capable examples: rstream
 and ucmatose.
