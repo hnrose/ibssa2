@@ -60,8 +60,8 @@ If running PerfMgr, OpenSM 3.3.19 is needed.
 
 1.1.5 librdmacm 1.0.20 (AF_IB and keepalive support)
 
-Note that librdmacm contains 2 AF_IB capable examples: rstream
-and ucmatose.
+Note that librdmacm contains 4 AF_IB capable examples: rstream,
+ucmatose, riostream, and udaddy.
 
 1.1.6 User space library for HCAs
 
