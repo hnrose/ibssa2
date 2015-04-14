@@ -52,8 +52,6 @@ extern "C" {
 #define INFO_TAG "INFO"
 #define DEBUG_TAG "DEBUG"
 
-extern const char *get_time();
-
 extern int rates_cmp_table[19][19];
 /*
  * According to profiling results, ib_path_compare_rates takes about

@@ -159,18 +159,3 @@ int rates_cmp_table[19][19] = {
 	{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, 1, 0, -1, -1 },
 	{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, -1 },
 	{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 } };
-
-
-const char *get_time()
-{
-	static char buffer[64] = {};
-	time_t rawtime;
-	struct tm *timeinfo;
-
-	time(&rawtime);
-	timeinfo = localtime(&rawtime);
-
-	strftime(buffer, 64, "%Y-%m-%d %H:%M:%S", timeinfo);
-
-	return buffer;
-}
