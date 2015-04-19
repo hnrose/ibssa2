@@ -588,7 +588,7 @@ static int run_pr_calculation(struct input_prm* p_prm)
 	}
 
 	if(!dump_to_prdb) {
-		printf("%u path records found\n",path_arr->count);
+		printf("%lu path records found\n",path_arr->count);
 		dump_pr(path_arr,p_db_diff,fd_dump);
 	} else {
 		ssa_db_save(p_prm->prdb_path,p_prdb,SSA_DB_HELPER_DEBUG);
