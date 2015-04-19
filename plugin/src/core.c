@@ -2165,7 +2165,7 @@ static void core_set_options(void)
 		if (s[0] == '#')
 			continue;
 
-		if (sscanf(s, "%32s%128s", opt, value) != 2)
+		if (sscanf(s, "%31s%127s", opt, value) != 2)
 			continue;
 
 		if (!strcasecmp("log_file", opt))
