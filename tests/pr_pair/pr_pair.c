@@ -438,7 +438,7 @@ static size_t read_ids_from_file(const char *path,ptrvector_t *arr)
 	}
 
 Exit:
-	if(!fd) {
+	if(fd) {
 		fclose(fd);
 		fd = NULL;
 	}
