@@ -3735,8 +3735,11 @@ static void g_al_callback(gpointer task, gpointer user_data)
 		"GID %s LID %u rsock %d PRDB %p calculation complete\n",
 		log_data, consumer->lid, consumer->rsock, prdb);
 #ifdef SIM_SUPPORT_FAKE_ACM
-	if (ACM_FAKE_RSOCKET_ID == consumer->rsock)
+	if (ACM_FAKE_RSOCKET_ID == consumer->rsock) {
+		if (prdb)
+			ssa_db_destroy(prdb);
 		goto out;
+	}
 #endif
 	if (prdb) {
 		if (consumer->rsock >= 0) {
@@ -3744,7 +3747,8 @@ static void g_al_callback(gpointer task, gpointer user_data)
 					   &consumer->gid, consumer->rsock,
 					   0, 0, &db_upd);
 			ssa_push_db_update(&update_queue, &db_upd);
-		}
+		} else
+			ssa_db_destroy(prdb);
 	} else
 		ssa_log(SSA_LOG_DEFAULT, "No new PRDB calculated\n");
 #ifdef SIM_SUPPORT_FAKE_ACM
