@@ -230,9 +230,8 @@ static void print_memory_usage(const char* prefix)
 		unsigned dt;//         dirty pages (unused in Linux 2.6)
 		fscanf(pf, "%u" /* %u %u %u %u %u"*/, &size/*, &resident, &share, &text, &lib, &data*/);
 		printf("%s %u MB mem used\n",prefix, size / (1024.0));
+		fclose(pf);
 	}
-	fclose(pf);
-	pf = NULL;
 }
 
 static size_t get_dataset_count(const struct ssa_db *p_ssa_db_smdb,
