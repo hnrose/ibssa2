@@ -223,7 +223,6 @@ static void ssa_db_rec_tbl_dump(FILE *fd, enum ssa_db_helper_mode mode,
 	struct db_field_def *p_field_rec;
 	uint8_t *p_data_rec, *p_data_field;
 	uint64_t i, k, j;
-	char buffer[64];
 
 	for (i = 0; i < ntohll(p_dataset->set_count); i++) {
 		p_data_rec = (uint8_t *)((uint8_t *)p_data_tbl + i * ntohl(p_data_tbl_def->record_size));
@@ -235,11 +234,8 @@ static void ssa_db_rec_tbl_dump(FILE *fd, enum ssa_db_helper_mode mode,
 				p_field_rec = &p_field_tbl[k];
 				p_data_field = p_data_rec + ntohl(p_field_rec->field_offset) / 8;
 
-				sprintf(buffer, "%s",
-					(mode == SSA_DB_HELPER_HUMAN) ? p_field_rec->name : "\0");
 				if (mode == SSA_DB_HELPER_HUMAN)
-					sprintf(buffer, "%s ", buffer);
-				fprintf(fd, "%s", buffer);
+					fprintf(fd, "%s ", p_field_rec->name);
 
 				switch (p_field_rec->type) {
 				case DBF_TYPE_U8:
