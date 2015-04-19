@@ -430,7 +430,6 @@ int main(int argc, char **argv)
 {
 	char cmd[1024] = {};
 	char output[1024] = {};
-	int rt;
 	int x = 0, y =0;
 	pthread_t inc_x_thread, inc_y_thread;
 
