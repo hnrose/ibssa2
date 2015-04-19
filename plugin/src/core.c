@@ -1524,10 +1524,11 @@ static int ssa_extract_process_smdb(struct ssa_db **pp_smdb)
 		return -1;
 	}
 
-	if (pp_smdb && *pp_smdb)
-		ssa_db_destroy(*pp_smdb);
-
-	*pp_smdb = p_smdb;
+	if (pp_smdb) {
+		if (*pp_smdb)
+			ssa_db_destroy(*pp_smdb);
+		*pp_smdb = p_smdb;
+	}
 
 	return 0;
 }
