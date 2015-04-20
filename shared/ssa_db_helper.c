@@ -79,6 +79,15 @@
 #define DB_FIELD_DEF_FORMAT_WRITE	"version %"SCNu8" type %"SCNu8" db_id %"SCNu8" table_id %"SCNu8" field_id %"SCNu8" field_size %u field_offset %u name %s\n"
 #define DB_FIELD_DEF_FORMAT_READ	"version %"SCNu8" type %"SCNu8" db_id %"SCNu8" table_id %"SCNu8" field_id %"SCNu8" field_size %u field_offset %u name %[^\n]s"
 
+#define FSCANF_SINGLE(fd, format, str, index, tbl) \
+			{ \
+				if (fscanf(fd, format, str) != 1) { \
+					ssa_log_err(SSA_LOG_DEFAULT, "unable to read record %d from %s table\n", \
+						    index, tbl); \
+					return; \
+				} \
+			}
+
 static void ssa_db_db_def_dump(FILE *fd, const struct db_def *p_db_def)
 {
 	fprintf(fd, DB_DEF_FORMAT_WRITE, p_db_def->version, p_db_def->size,
@@ -337,7 +346,7 @@ static void ssa_db_rec_tbl_load(FILE *fd, enum ssa_db_helper_mode mode,
 		p_data_rec = (uint8_t *)((uint8_t *)p_data_tbl + i * ntohl(p_data_tbl_def->record_size));
 		if (mode == SSA_DB_HELPER_STANDARD) {
 			for (k = 0; k < ntohl(p_data_tbl_def->record_size); k++) {
-				fscanf(fd, "%c", &c);
+				FSCANF_SINGLE(fd, "%c", &c, i, p_data_tbl_def->name);
 				memcpy(p_data_rec + k, &c, sizeof(c));
 			}
 		} else {
@@ -348,76 +357,97 @@ static void ssa_db_rec_tbl_load(FILE *fd, enum ssa_db_helper_mode mode,
 				switch (p_field_rec->type) {
 				case DBF_TYPE_U8:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 8; j++) {
-						if (j == (ntohl(p_field_rec->field_size) / 8) - 1)
-							fscanf(fd, "%" SCNu8 SSA_DB_HELPER_DELIMITER,
-							       ((uint8_t *)p_data_field + j));
-						else
-							fscanf(fd, "%" SCNu8 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint8_t *)p_data_field + j));
+						if (j == (ntohl(p_field_rec->field_size) / 8) - 1) {
+							FSCANF_SINGLE(fd, "%" SCNu8 SSA_DB_HELPER_DELIMITER,
+								      ((uint8_t *)p_data_field + j), i,
+								      p_data_tbl_def->name);
+						} else {
+							FSCANF_SINGLE(fd, "%" SCNu8 SSA_DB_HELPER_ARRAY_DELIMITER,
+								      ((uint8_t *)p_data_field + j), i,
+								      p_data_tbl_def->name);
+						}
 					}
 					break;
 				case DBF_TYPE_U16:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 16; j++) {
-						if (j == (ntohl(p_field_rec->field_size) / 16) - 1)
-							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_DELIMITER,
-							       ((uint16_t *)p_data_field + (j * 2)));
-						else
-							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint16_t *)p_data_field + (j * 2)));
+						if (j == (ntohl(p_field_rec->field_size) / 16) - 1) {
+							FSCANF_SINGLE(fd, "%" SCNu16 SSA_DB_HELPER_DELIMITER,
+								      ((uint16_t *)p_data_field + (j * 2)), i,
+								      p_data_tbl_def->name);
+						} else {
+							FSCANF_SINGLE(fd, "%" SCNu16 SSA_DB_HELPER_ARRAY_DELIMITER,
+								      ((uint16_t *)p_data_field + (j * 2)), i,
+								      p_data_tbl_def->name);
+						}
 					}
 					break;
 				case DBF_TYPE_U32:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 32; j++) {
-						if (j == (ntohl(p_field_rec->field_size) / 32) - 1)
-							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_DELIMITER,
-							       ((uint32_t *)p_data_field + (j * 4)));
-						else
-							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint32_t *)p_data_field + (j * 4)));
+						if (j == (ntohl(p_field_rec->field_size) / 32) - 1) {
+							FSCANF_SINGLE(fd, "%" PRIx32 SSA_DB_HELPER_DELIMITER,
+								      ((uint32_t *)p_data_field + (j * 4)), i,
+								      p_data_tbl_def->name);
+						} else {
+							FSCANF_SINGLE(fd, "%" PRIx32 SSA_DB_HELPER_ARRAY_DELIMITER,
+								      ((uint32_t *)p_data_field + (j * 4)), i,
+								      p_data_tbl_def->name);
+						}
 					}
 					break;
 				case DBF_TYPE_U64:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 64; j++) {
-						if (j == (ntohl(p_field_rec->field_size) / 64) - 1)
-							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_DELIMITER,
-							       ((uint64_t *)p_data_field + (j * 8)));
-						else
-							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint64_t *)p_data_field + (j * 8)));
+						if (j == (ntohl(p_field_rec->field_size) / 64) - 1) {
+							FSCANF_SINGLE(fd, "0x%" PRIx64 SSA_DB_HELPER_DELIMITER,
+								      ((uint64_t *)p_data_field + (j * 8)), i,
+								      p_data_tbl_def->name);
+						} else {
+							FSCANF_SINGLE(fd, "0x%" PRIx64 SSA_DB_HELPER_ARRAY_DELIMITER,
+								      ((uint64_t *)p_data_field + (j * 8)), i,
+								      p_data_tbl_def->name);
+						}
 					}
 					break;
 				case DBF_TYPE_NET16:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 16; j++) {
-						if (j == (ntohl(p_field_rec->field_size) / 16) - 1)
-							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_DELIMITER,
-							       ((uint16_t *)p_data_field + (j * 2)));
-						else
-							fscanf(fd, "%" SCNu16 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint16_t *)p_data_field + (j * 2)));
+						if (j == (ntohl(p_field_rec->field_size) / 16) - 1) {
+							FSCANF_SINGLE(fd, "%" SCNu16 SSA_DB_HELPER_DELIMITER,
+								      ((uint16_t *)p_data_field + (j * 2)), i,
+								      p_data_tbl_def->name);
+						} else {
+							FSCANF_SINGLE(fd, "%" SCNu16 SSA_DB_HELPER_ARRAY_DELIMITER,
+								      ((uint16_t *)p_data_field + (j * 2)), i,
+								      p_data_tbl_def->name);
+						}
 						*((uint16_t *)p_data_field + (j * 2)) =
 								htons(*((uint16_t *)p_data_field + (j * 2)));
 					}
 					break;
 				case DBF_TYPE_NET32:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 32; j++) {
-						if (j == (ntohl(p_field_rec->field_size) / 32) - 1)
-							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_DELIMITER,
-							       ((uint32_t *)p_data_field + (j * 4)));
-						else
-							fscanf(fd, "%" PRIx32 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint32_t *)p_data_field + (j * 4)));
+						if (j == (ntohl(p_field_rec->field_size) / 32) - 1) {
+							FSCANF_SINGLE(fd, "%" PRIx32 SSA_DB_HELPER_DELIMITER,
+								      ((uint32_t *)p_data_field + (j * 4)), i,
+								      p_data_tbl_def->name);
+						} else {
+							FSCANF_SINGLE(fd, "%" PRIx32 SSA_DB_HELPER_ARRAY_DELIMITER,
+								      ((uint32_t *)p_data_field + (j * 4)), i,
+								      p_data_tbl_def->name);
+						}
 						*((uint32_t *)p_data_field + (j * 4)) =
 								htonl(*((uint32_t *)p_data_field + (j * 4)));
 					}
 					break;
 				case DBF_TYPE_NET64:
 					for (j = 0; j < ntohl(p_field_rec->field_size) / 64; j++) {
-						if (j == (ntohl(p_field_rec->field_size) / 64) - 1)
-							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_DELIMITER,
-							       ((uint64_t *)p_data_field + (j * 8)));
-						else
-							fscanf(fd, "0x%" PRIx64 SSA_DB_HELPER_ARRAY_DELIMITER,
-							       ((uint64_t *)p_data_field + (j * 8)));
+						if (j == (ntohl(p_field_rec->field_size) / 64) - 1) {
+							FSCANF_SINGLE(fd, "0x%" PRIx64 SSA_DB_HELPER_DELIMITER,
+								      ((uint64_t *)p_data_field + (j * 8)), i,
+								      p_data_tbl_def->name);
+						} else {
+							FSCANF_SINGLE(fd, "0x%" PRIx64 SSA_DB_HELPER_ARRAY_DELIMITER,
+								      ((uint64_t *)p_data_field + (j * 8)), i,
+								      p_data_tbl_def->name);
+						}
 						*((uint64_t *)p_data_field + (j * 8)) =
 								htonll(*((uint64_t *)p_data_field + (j * 8)));
 					}
@@ -426,7 +456,7 @@ static void ssa_db_rec_tbl_load(FILE *fd, enum ssa_db_helper_mode mode,
 					/* TODO: add 128 bit handling */
 					break;
 				case DBF_TYPE_STRING:
-					fscanf(fd, "%s" SSA_DB_HELPER_DELIMITER, ((char *) p_data_field));
+					FSCANF_SINGLE(fd, "%s" SSA_DB_HELPER_DELIMITER, ((char *) p_data_field), i, p_data_tbl_def->name);
 					break;
 				default:
 					ssa_log_err(SSA_LOG_DEFAULT, "Unknown field type\n");
@@ -475,11 +505,11 @@ static void ssa_db_rec_tbl_load_var_size(FILE *fd, enum ssa_db_helper_mode mode,
 	for (i = 0; i < ntohll(p_dataset->set_size); i++) {
 		p_data_rec = (uint8_t *)((uint8_t *)p_data_tbl + i);
 		if (mode == SSA_DB_HELPER_STANDARD) {
-			fscanf(fd, "%c", &c);
+			FSCANF_SINGLE(fd, "%c", &c, i, p_data_tbl_def->name);
 			memcpy((char *)p_data_rec, &c, sizeof(c));
 		} else {
-			fscanf(fd, "%" SCNu8 SSA_DB_HELPER_DELIMITER,
-			       ((uint8_t *)(p_data_rec)));
+			FSCANF_SINGLE(fd, "%" SCNu8 SSA_DB_HELPER_DELIMITER,
+				      (uint8_t *)(p_data_rec), i, p_data_tbl_def->name);
 		}
 
 		/* moving file descriptor 1 byte forward due to '\n' char at the end of line */
@@ -842,7 +872,11 @@ void ssa_db_save(const char *path_dir, const struct ssa_db *p_ssa_db,
 			/* creating a directory for each dataset */
 			sprintf(buffer, "mkdir \"%s/%s\"",
 				path_dir, p_ssa_db->p_def_tbl[i].name);
-			system(buffer);
+			if (system(buffer) != 0) {
+				ssa_log_err(SSA_LOG_DEFAULT, "unable to create %s/%s directory - %s (%d)\n",
+					    path_dir, p_ssa_db->p_def_tbl[i].name, strerror(errno), errno);
+				break;
+			}
 
 			/* dump dataset and its field dataset */
 			sprintf(buffer, "%s/%s",
