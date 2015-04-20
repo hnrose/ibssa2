@@ -1690,7 +1690,6 @@ static int core_has_orphans(struct ssa_extract_data *data)
 	}
 	return ret;
 }
-#endif
 
 static void core_start_timer(struct pollfd **fds, int fd_slot,
 			     time_t time_sec, time_t interval_sec)
@@ -1717,6 +1716,7 @@ static void core_start_timer(struct pollfd **fds, int fd_slot,
 	pfd->events = POLLIN;
 	pfd->revents = 0;
 }
+#endif
 
 static void *core_extract_handler(void *context)
 {
@@ -1892,6 +1892,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "%" PRId64 " bytes read\n", s);
 			} else {
+#ifndef SIM_SUPPORT
 				for (i = 0; i < p_extract_data->num_svcs; i++) {
 					struct ssa_svc *svc = p_extract_data->svcs[i];
 					struct ssa_core *core;
@@ -1906,6 +1907,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 						dtree_epoch_prev = dtree_epoch_cur;
 					}
 				}
+#endif
 			}
 
 			pfd->revents = 0;
@@ -1921,6 +1923,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "%" PRId64 " bytes read\n", s);
 			} else {
+#ifndef SIM_SUPPORT
 				for (i = 0; i < p_extract_data->num_svcs; i++) {
 					struct ssa_svc *svc = p_extract_data->svcs[i];
 					struct ssa_core *core;
@@ -1930,6 +1933,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 						core_rebalance_tree(core);
 					}
 				}
+#endif
 			}
 
 			pfd->revents = 0;
