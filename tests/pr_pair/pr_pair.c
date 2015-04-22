@@ -228,8 +228,10 @@ static void print_memory_usage(const char* prefix)
 		unsigned lib;//        library
 		unsigned data;//       data/stack
 		unsigned dt;//         dirty pages (unused in Linux 2.6)
-		fscanf(pf, "%u" /* %u %u %u %u %u"*/, &size/*, &resident, &share, &text, &lib, &data*/);
-		printf("%s %u MB mem used\n",prefix, size / (1024.0));
+		if (fscanf(pf, "%u" /* %u %u %u %u %u"*/, &size/*, &resident, &share, &text, &lib, &data*/) != 1)
+			fprintf(stderr, "ERROR - unable to read memory size\n");
+		else
+			printf("%s %u MB mem used\n",prefix, size / (1024.0));
 		fclose(pf);
 	}
 }
