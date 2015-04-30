@@ -4340,6 +4340,12 @@ static void *acm_ctrl_handler(void *context)
 	if (acm_mode == ACM_MODE_SSA)
 		pthread_create(&query_thread, NULL, acm_issue_query, svc);
 
+	ret = ssa_start_admin(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR starting admin thread\n");
+		goto close;
+	}
+
 	ret = ssa_ctrl_run(&ssa);
 	if (ret) {
 		ssa_log_err(0, "processing control\n");
@@ -4347,8 +4353,10 @@ static void *acm_ctrl_handler(void *context)
 	}
 close:
 	ssa_log(SSA_LOG_VERBOSE, "closing SSA framework\n");
-	if (acm_mode == ACM_MODE_SSA)
+	if (acm_mode == ACM_MODE_SSA) {
 		pthread_join(query_thread, NULL);
+		ssa_stop_admin(&ssa);
+	}
 	ssa_close_devices(&ssa);
 	return context;
 }

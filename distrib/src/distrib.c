@@ -194,6 +194,12 @@ static void *distrib_ctrl_handler(void *context)
 		goto close;
 	}
 
+	ret = ssa_start_admin(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR starting admin thread\n");
+		goto close;
+	}
+
 	ret = ssa_ctrl_run(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR processing control\n");
@@ -202,6 +208,7 @@ static void *distrib_ctrl_handler(void *context)
 	}
 close:
 	ssa_log(SSA_LOG_VERBOSE, "closing SSA framework\n");
+	ssa_stop_admin(&ssa);
 	ssa_close_devices(&ssa);
 	return context;
 }

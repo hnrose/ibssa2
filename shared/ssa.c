@@ -141,6 +141,8 @@ __thread int update_pending;
 __thread int update_waiting;
 //static atomic_t counter[SSA_MAX_COUNTER];
 
+static int sock_adminctrl[2];
+static pthread_t *admin_thread;
 static struct ssa_access_context access_context;
 static int sock_accessctrl[2];
 int sock_accessextract[2];
@@ -6165,4 +6167,139 @@ void ssa_cleanup(struct ssa_class *ssa)
 		ssa_log(SSA_LOG_DEFAULT, "all rsockets are now closed\n");
 	}
 #endif /* RCLOSE_THREAD_POOL_WORKERS_NUM > 0 */
+}
+
+static void *ssa_admin_handler(void *context)
+{
+	struct ssa_class *ssa = context;
+	struct ssa_ctrl_msg_buf msg;
+	struct pollfd fds[1];
+	int ret;
+
+	(void) ssa;
+
+	SET_THREAD_NAME(*admin_thread, "ADMIN");
+
+	fds[0].fd = sock_adminctrl[1];
+	fds[0].events = POLLIN;
+	fds[0].revents = 0;
+
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
+	msg.hdr.len = sizeof msg.hdr;
+	msg.hdr.type = SSA_CTRL_ACK;
+	ret = write(sock_adminctrl[1], (char *) &msg, sizeof msg.hdr);
+	if (ret != sizeof msg.hdr)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg.hdr);
+
+	for (;;) {
+		ret = rpoll(&fds[0], 1, 0);
+		if (ret < 0) {
+			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
+				    errno, strerror(errno));
+			continue;
+		}
+
+		if (fds[0].revents) {
+			fds[0].revents = 0;
+			ret = read(sock_adminctrl[1], (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from ctrl\n",
+					    ret, sizeof msg.hdr);
+			if (msg.hdr.len > sizeof msg.hdr) {
+				ret = read(sock_adminctrl[1],
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from ctrl\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
+			}
+
+			switch (msg.hdr.type) {
+			case SSA_CTRL_EXIT:
+				goto out;
+			default:
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "ignoring unexpected msg type %d "
+					     "from ctrl\n",
+					     msg.hdr.type);
+				break;
+			}
+		}
+	}
+out:
+	return NULL;
+}
+
+int ssa_start_admin(struct ssa_class *ssa)
+{
+	struct ssa_ctrl_msg msg;
+	int ret;
+
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
+
+	sock_adminctrl[0] = -1;
+	sock_adminctrl[1] = -1;
+
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, sock_adminctrl);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL, "creating admin socketpair\n");
+		goto err1;
+	}
+
+	admin_thread = calloc(1, sizeof(*admin_thread));
+	if (admin_thread  == NULL) {
+		ssa_log_err(SSA_LOG_CTRL, "allocating admin thread memory\n");
+		goto err2;
+	}
+
+	ret = pthread_create(admin_thread, NULL, ssa_admin_handler, ssa);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL, "creating admin thread\n");
+		errno = ret;
+		goto err3;
+	}
+
+	ret = read(sock_adminctrl[0], (char *) &msg, sizeof msg);
+	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
+		ssa_log_err(SSA_LOG_CTRL, "with admin thread\n");
+		goto err4;
+	}
+
+	return 0;
+err4:
+	pthread_join(*admin_thread, NULL);
+err3:
+	free(admin_thread);
+err2:
+	close(sock_adminctrl[0]);
+	close(sock_adminctrl[1]);
+err1:
+	return 1;
+}
+
+void ssa_stop_admin(struct ssa_class *ssa)
+{
+	int ret;
+	struct ssa_ctrl_msg msg;
+
+	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
+
+	msg.len = sizeof msg;
+	msg.type = SSA_CTRL_EXIT;
+	ret = write(sock_adminctrl[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
+	if (admin_thread) {
+		pthread_join(*admin_thread, NULL);
+		free(admin_thread);
+	}
+
+	close(sock_adminctrl[0]);
+	close(sock_adminctrl[1]);
 }

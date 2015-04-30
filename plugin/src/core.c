@@ -2390,13 +2390,19 @@ static void *core_construct(osm_opensm_t *opensm)
 	}
 #endif
 
+	ret = ssa_start_admin(&ssa);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT, "ERROR starting admin thread\n");
+		goto err6;
+	}
+
 	ret = pthread_create(&extract_thread, NULL, core_extract_handler,
 			     (void *) &extract_data);
 	if (ret) {
 		ssa_log(SSA_LOG_ALL,
 			"ERROR %d (%s): error creating smdb extract thread\n",
 			ret, strerror(ret));
-		goto err6;
+		goto err7;
 	}
 
 #ifndef SIM_SUPPORT
@@ -2405,7 +2411,7 @@ static void *core_construct(osm_opensm_t *opensm)
 		ssa_log(SSA_LOG_ALL,
 			"ERROR %d (%s): error creating core ctrl thread\n",
 			ret, strerror(ret));
-		goto err7;
+		goto err8;
 	}
 #endif
 
@@ -2413,10 +2419,12 @@ static void *core_construct(osm_opensm_t *opensm)
 	return &ssa;
 
 #ifndef SIM_SUPPORT
-err7:
+err8:
 	core_send_msg(SSA_DB_EXIT);
 	pthread_join(extract_thread, NULL);
 #endif
+err7:
+	ssa_stop_admin(&ssa);
 err6:
 #ifndef SIM_SUPPORT
 	ssa_stop_access(&ssa);
