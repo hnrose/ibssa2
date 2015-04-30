@@ -165,6 +165,7 @@ char prdb_dump_dir[128] = PRDB_DUMP_PATH;
 //static short server_port = 6125;
 short smdb_port = 7472;
 short prdb_port = 7473;
+short admin_port = 7474;
 int keepalive = 60;		/* seconds */
 int reconnect_timeout = 10;	/* seconds */
 int reconnect_max_count = 10;
@@ -6169,16 +6170,106 @@ void ssa_cleanup(struct ssa_class *ssa)
 #endif /* RCLOSE_THREAD_POOL_WORKERS_NUM > 0 */
 }
 
+static int ssa_admin_listen(struct ssa_class *ssa, short port)
+{
+	struct sockaddr_ib src_addr;
+	struct ssa_svc *svc = NULL;
+	struct ssa_device *ssa_device;
+	struct ssa_port *ssa_port;
+	int rsock = -1;
+	int ret, val, d, p, s;
+
+	for (d = 0; d < ssa->dev_cnt && !svc; d++) {
+		ssa_device = ssa_dev(ssa, d);
+		for (p = 1; p <= ssa_device->port_cnt && !svc; p++) {
+			ssa_port = ssa_dev_port(ssa_device, p);
+			if (ssa_port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			for (s = 0; s < ssa_port->svc_cnt && !svc; s++) {
+				svc = ssa_port->svc[s];
+			}
+		}
+	}
+
+	if (!svc) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"admin can't find acceptable service\n");
+		goto err;
+	}
+
+	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
+	if (rsock < 0) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rsocket ERROR %d (%s)\n",
+			errno, strerror(errno));
+		goto err;
+	}
+
+	val = 1;
+	ret = rsetsockopt(rsock, SOL_SOCKET, SO_REUSEADDR,
+			  &val, sizeof val);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rsetsockopt SO_REUSEADDR ERROR %d (%s) on rsock %d\n",
+			errno, strerror(errno), rsock);
+		goto err;
+	}
+
+	ret = rsetsockopt(rsock, IPPROTO_TCP, TCP_NODELAY,
+			  (void *) &val, sizeof(val));
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rsetsockopt TCP_NODELAY ERROR %d (%s) on rsock %d\n",
+			errno, strerror(errno), rsock);
+		goto err;
+	}
+
+	src_addr.sib_family = AF_IB;
+	src_addr.sib_pkey = 0xFFFF;
+	src_addr.sib_flowinfo = 0;
+	src_addr.sib_sid = htonll(((uint64_t) RDMA_PS_TCP << 16) + port);
+	src_addr.sib_sid_mask = htonll(RDMA_IB_IP_PS_MASK | RDMA_IB_IP_PORT_MASK);
+	src_addr.sib_scope_id = 0;
+	memcpy(&src_addr.sib_addr, &svc->port->gid, 16);
+
+	ret = rbind(rsock, (const struct sockaddr *) &src_addr,
+		    sizeof(src_addr));
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rbind ERROR %d (%s) on rsock %d\n",
+			errno, strerror(errno), rsock);
+		goto err;
+	}
+	ret = rlisten(rsock, 1);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rlisten ERROR %d (%s) on rsock %d\n",
+			errno, strerror(errno), rsock);
+		goto err;
+	}
+
+	return rsock;
+
+err:
+	if (rsock >= 0)
+		rclose(rsock);
+	return -1;
+}
+
 static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
 	struct ssa_ctrl_msg_buf msg;
 	struct pollfd fds[1];
+	int rsock = -1;
 	int ret;
 
 	(void) ssa;
 
 	SET_THREAD_NAME(*admin_thread, "ADMIN");
+
+	rsock = ssa_admin_listen(ssa, admin_port);
 
 	fds[0].fd = sock_adminctrl[1];
 	fds[0].events = POLLIN;
@@ -6186,11 +6277,14 @@ static void *ssa_admin_handler(void *context)
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
-	msg.hdr.type = SSA_CTRL_ACK;
+	msg.hdr.type = rsock >= 0 ? SSA_CTRL_ACK : SSA_CTRL_NACK;
 	ret = write(sock_adminctrl[1], (char *) &msg, sizeof msg.hdr);
 	if (ret != sizeof msg.hdr)
 		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
 			    ret, sizeof msg.hdr);
+
+	if (rsock < 0)
+		goto out;
 
 	for (;;) {
 		ret = rpoll(&fds[0], 1, 0);
@@ -6232,6 +6326,9 @@ static void *ssa_admin_handler(void *context)
 		}
 	}
 out:
+	if (rsock >= 0)
+		rclose(rsock);
+
 	return NULL;
 }
 
