@@ -208,9 +208,9 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "\n");
 	fprintf(f, "# prdb_port:\n");
 	fprintf(f, "# Indicates port used for rsocket connection for PRDB\n");
-	fprintf(f, "# default is 7473\n");
+	fprintf(f, "# default is 7476\n");
 	fprintf(f, "\n");
-	fprintf(f, "prdb_port 7473\n");
+	fprintf(f, "prdb_port 7476\n");
 	fprintf(f, "\n");
 	fprintf(f, "# prdb_dump:\n");
 	fprintf(f, "# Indicates whether to dump PRDB. Should be\n");
