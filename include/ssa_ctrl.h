@@ -46,6 +46,7 @@ extern "C" {
 enum ssa_ctrl_msg_type {
 	SSA_CTRL_EXIT,
 	SSA_CTRL_ACK,
+	SSA_CTRL_NACK,
 	SSA_CTRL_DEV_EVENT,
 	SSA_CTRL_MAD,		/* struct ssa_umad */
 	SSA_SA_MAD,		/* struct sa_umad */
