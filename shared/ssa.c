@@ -6287,7 +6287,7 @@ static void *ssa_admin_handler(void *context)
 		goto out;
 
 	for (;;) {
-		ret = rpoll(&fds[0], 1, 0);
+		ret = rpoll(&fds[0], 1, -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
