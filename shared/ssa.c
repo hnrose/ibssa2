@@ -6261,7 +6261,7 @@ static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
 	struct ssa_ctrl_msg_buf msg;
-	struct pollfd fds[1];
+	struct pollfd fds[2];
 	int rsock = -1;
 	int ret;
 
@@ -6275,6 +6275,10 @@ static void *ssa_admin_handler(void *context)
 	fds[0].events = POLLIN;
 	fds[0].revents = 0;
 
+	fds[1].fd = rsock;
+	fds[1].events = POLLIN;
+	fds[1].revents = 0;
+
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
 	msg.hdr.type = rsock >= 0 ? SSA_CTRL_ACK : SSA_CTRL_NACK;
@@ -6287,7 +6291,7 @@ static void *ssa_admin_handler(void *context)
 		goto out;
 
 	for (;;) {
-		ret = rpoll(&fds[0], 1, -1);
+		ret = rpoll(&fds[0], 2, -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
@@ -6323,6 +6327,43 @@ static void *ssa_admin_handler(void *context)
 					     msg.hdr.type);
 				break;
 			}
+		}
+
+		if (fds[1].revents) {
+			int rsock_data;
+			char buf[1024];
+
+			fds[0].revents = 0;
+			if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "revent 0x%x on rsock %d\n",
+					    fds[1].revents, rsock);
+				continue;
+			}
+			rsock_data = raccept(rsock, NULL, 0);
+			if (rsock_data < 0) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "raccept rsock %d ERROR %d (%s)\n",
+					    rsock, errno, strerror(errno));
+				continue;
+			}
+			ret = rrecv(rsock_data, buf, sizeof(buf), 0);
+			if (ret < 0) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "rrecv failed: %d (%s) on rsock %d\n",
+					    errno, strerror(errno), rsock_data);
+				rclose(rsock_data);
+				continue;
+			}
+			ret = rsend(rsock_data, buf, sizeof(buf), 0);
+			if (ret < 0) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "rsend failed: %d (%s) on rsock %d\n",
+					    errno, strerror(errno), rsock_data);
+				rclose(rsock_data);
+				continue;
+			}
+			rclose(rsock_data);
 		}
 	}
 out:
