@@ -60,6 +60,7 @@
 #include <infiniband/ssa_db_helper.h>
 #include <dlist.h>
 #include <search.h>
+#include <ssa_admin.h>
 #include <common.h>
 #include <ssa_ctrl.h>
 #include <inttypes.h>
@@ -6261,6 +6262,7 @@ static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
 	struct ssa_ctrl_msg_buf msg;
+	struct ssa_admin_msg_buf admin_msg;
 	struct pollfd fds[2];
 	int rsock = -1;
 	int ret;
@@ -6331,7 +6333,6 @@ static void *ssa_admin_handler(void *context)
 
 		if (fds[1].revents) {
 			int rsock_data;
-			char buf[1024];
 
 			fds[0].revents = 0;
 			if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
@@ -6347,15 +6348,27 @@ static void *ssa_admin_handler(void *context)
 					    rsock, errno, strerror(errno));
 				continue;
 			}
-			ret = rrecv(rsock_data, buf, sizeof(buf), 0);
-			if (ret < 0) {
+			ret = rrecv(rsock_data, (char *) &admin_msg,
+				    sizeof(admin_msg.hdr), 0);
+			if (ret != sizeof(admin_msg.hdr)) {
 				ssa_log_err(SSA_LOG_CTRL,
 					    "rrecv failed: %d (%s) on rsock %d\n",
 					    errno, strerror(errno), rsock_data);
 				rclose(rsock_data);
 				continue;
 			}
-			ret = rsend(rsock_data, buf, sizeof(buf), 0);
+
+			if (admin_msg.hdr.len > sizeof(admin_msg.hdr)) {
+				ret += rrecv(rsock_data, (char *) &admin_msg.data,
+					     admin_msg.hdr.len - sizeof(admin_msg.hdr), 0);
+				if (ret != admin_msg.hdr.len) {
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d bytes read from admin application\n",
+						    ret, msg.hdr.len);
+				}
+			}
+
+			ret = rsend(rsock_data, (char *) &admin_msg, admin_msg.hdr.len, 0);
 			if (ret < 0) {
 				ssa_log_err(SSA_LOG_CTRL,
 					    "rsend failed: %d (%s) on rsock %d\n",
