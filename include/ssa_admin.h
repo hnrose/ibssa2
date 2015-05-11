@@ -75,6 +75,7 @@ struct ssa_admin_msg_hdr {
 	be16_t		opcode;
 	be16_t		flags;
 	be16_t		len;
+	uint8_t		reserved2[6];
 };
 
 struct ssa_admin_msg {
