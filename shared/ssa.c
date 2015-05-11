@@ -6368,6 +6368,14 @@ static void *ssa_admin_handler(void *context)
 				}
 			}
 
+			if (admin_msg.hdr.method == SSA_ADMIN_METHOD_GET)
+				admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
+			else
+				ssa_log_warn(SSA_LOG_DEFAULT,
+					     "received SSA admin MAD with %d "
+					     "method specified instead of %d\n",
+					     admin_msg.hdr.method, SSA_ADMIN_METHOD_GET);
+
 			ret = rsend(rsock_data, (char *) &admin_msg, admin_msg.hdr.len, 0);
 			if (ret < 0) {
 				ssa_log_err(SSA_LOG_CTRL,
