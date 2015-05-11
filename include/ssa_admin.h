@@ -64,23 +64,23 @@ enum ssa_admin_counter_id {
 
 struct ssa_admin_counter {
 	uint8_t		id;
-	uint64_t	val;
+	be64_t		val;
 };
 
-struct ssa_admin_msg {
+struct ssa_admin_msg_hdr {
 	uint8_t		version;
 	uint8_t		status;
 	uint8_t		method;
-	uint16_t	opcode;
-	uint16_t	flags;
-	uint16_t	len;
+	uint8_t		reserved;
+	be16_t		opcode;
+	be16_t		flags;
+	be16_t		len;
 	uint8_t		sgid[16];
 	uint8_t		dgid[16];
-	uint8_t		pad[7];
 };
 
-struct ssa_admin_msg_buf {
-	struct ssa_admin_msg	hdr;
+struct ssa_admin_msg {
+	struct ssa_admin_msg_hdr	hdr;
 	union {
 		struct ssa_admin_counter	counter;
 	} data;

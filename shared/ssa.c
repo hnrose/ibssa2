@@ -6262,7 +6262,7 @@ static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
 	struct ssa_ctrl_msg_buf msg;
-	struct ssa_admin_msg_buf admin_msg;
+	struct ssa_admin_msg admin_msg;
 	struct pollfd fds[2];
 	int rsock = -1;
 	int ret;
