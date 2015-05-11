@@ -67,6 +67,20 @@ struct ssa_admin_counter {
 	be64_t		val;
 };
 
+/*
+ * ssa_admin_msg_hdr:
+ * @version   - version of this structure
+ * @status    - query result
+ * @method    - query method (get, set or response)
+ * @reserved  - set to 0
+ * @opcode    - requested operation to perform
+ * @flags     - bitmask of flags to control operation
+ * @len       - size of message, including header, in bytes
+ * @reserved2 - set to 0
+ *
+ * All SSA admin messages are preceded by the ssa_admin_msg_hdr structure.
+ * The len field indicates the size of the message (header + data).
+ */
 struct ssa_admin_msg_hdr {
 	uint8_t		version;
 	uint8_t		status;
