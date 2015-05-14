@@ -6261,7 +6261,7 @@ err:
 static int ssa_admin_rrecv(int rsock)
 {
 	struct ssa_admin_msg admin_msg;
-	int ret;
+	int ret, len;
 
 	ret = rrecv(rsock, (char *) &admin_msg, sizeof(admin_msg.hdr), 0);
 	if (ret != sizeof(admin_msg.hdr)) {
@@ -6271,21 +6271,22 @@ static int ssa_admin_rrecv(int rsock)
 		goto out;
 	}
 
-	if (admin_msg.hdr.len > sizeof(admin_msg.hdr)) {
+	len = ntohs(admin_msg.hdr.len);
+
+	if (len > sizeof(admin_msg.hdr)) {
 		ret += rrecv(rsock, (char *) &admin_msg.data,
-			     admin_msg.hdr.len - sizeof(admin_msg.hdr), 0);
-		if (ret != admin_msg.hdr.len) {
+			     len - sizeof(admin_msg.hdr), 0);
+		if (ret != len) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "%d out of %d bytes read from admin application\n",
-				    ret, admin_msg.hdr.len);
+				    ret, len);
 		}
 	}
 
 	if (admin_msg.hdr.method == SSA_ADMIN_METHOD_GET) {
 		admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
 
-		ret = rsend(rsock, (char *) &admin_msg,
-			    admin_msg.hdr.len, 0);
+		ret = rsend(rsock, (char *) &admin_msg, len, 0);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsend failed: %d (%s) on rsock %d\n",
