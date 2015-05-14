@@ -1,2 +1,2 @@
 AUTOMAKE_OPTIONS = subdir-objects
-SUBDIRS = plugin distrib acm
+SUBDIRS = acm admin distrib plugin

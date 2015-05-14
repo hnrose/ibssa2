@@ -1,0 +1,15 @@
+This README is for userspace SSA administration utility.
+
+The administration utility is a client application
+used for local and remote monitoring and management
+of SSA services.
+
+Building
+========
+To make this directory, run:
+./autogen.sh && ./configure && make && make install
+
+Typically the autogen and configure steps only need be done the first
+time unless configure.ac or Makefile.am changes.
+
+Libraries are installed by default at /usr/local/lib.

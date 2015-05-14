@@ -1,0 +1,41 @@
+
+Name: ssadmin
+Version: @VERSION@
+Release: 1%{?dist}
+Summary: Scalable SA Administration
+Group: System Environment/Libraries
+License: GPLv2 or BSD
+Url: http://www.openfabrics.org/
+Source0: http://www.openfabrics.org/downloads/rdmacm/%{name}-%{version}.tar.gz
+
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildRequires: libibverbs-devel >= 1.1-1, autoconf, libtool, libibumad-devel
+Requires(post): /sbin/chkconfig logrotate
+Requires(preun): /sbin/chkconfig
+ExcludeArch: s390, s390x
+
+%description
+The %{name} utility should be used for monitoring and management
+of the Scalable SA, which is comprised of OpenSM plugin and core,
+distribution / access, and ACM (consumer) services.
+
+%prep
+%setup -q -n %{name}-%{version}
+
+%build
+%configure CFLAGS="$CXXFLAGS -fno-strict-aliasing" LDFLAGS=-lpthread
+make %{?_smp_mflags}
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
+%makeinstall
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-,root,root,-)
+%doc AUTHORS COPYING README
+%{_sbindir}/ssadmin
+
