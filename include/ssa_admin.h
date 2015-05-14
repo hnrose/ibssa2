@@ -46,7 +46,8 @@ enum {
 };
 
 enum {
-	SSA_ADMIN_CMD_COUNTER	= (1 << 0)
+	SSA_ADMIN_CMD_COUNTER	= (1 << 0),
+	SSA_ADMIN_CMD_PING	= (1 << 1)
 };
 
 enum ssa_admin_counter_id {
