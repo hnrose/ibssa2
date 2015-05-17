@@ -31,6 +31,7 @@
 #define _SSA_ADMIN_H
 
 #include <stdio.h>
+#include <infiniband/umad.h>
 
 #define SSA_ADMIN_VERSION	"0.1"
 
@@ -46,8 +47,10 @@ enum {
 };
 
 enum {
-	SSA_ADMIN_CMD_COUNTER	= (1 << 0),
-	SSA_ADMIN_CMD_PING	= (1 << 1)
+	SSA_ADMIN_CMD_NONE,
+	SSA_ADMIN_CMD_COUNTER,
+	SSA_ADMIN_CMD_PING,
+	SSA_ADMIN_CMD_MAX
 };
 
 enum ssa_admin_counter_id {
