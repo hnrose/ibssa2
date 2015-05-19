@@ -40,11 +40,9 @@
 #include <infiniband/umad_sm.h>
 
 #include "libadmin.h"
+#include <osd.h>
 #include <ssa_admin.h>
 #include <infiniband/ssa_mad.h>
-
-#define MAX(a, b) ((a) > (b) ? a : b)
-#define MIN(a, b) ((a) < (b) ? a : b)
 
 static int rsock = -1;
 static int loopback;
@@ -261,7 +259,7 @@ int admin_connect(void *dest, int type)
 			snprintf(dest_addr, 10, "localhost");
 			loopback = 1;
 		} else {
-			snprintf(dest_addr, MAX(64, strlen(dgid_str)),
+			snprintf(dest_addr, max(64, strlen(dgid_str)),
 				 "%s", dgid_str);
 		}
 
