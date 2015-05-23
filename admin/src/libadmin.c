@@ -50,7 +50,7 @@ static short admin_port = 7477;
 static char dest_addr[64];
 static const char *local_gid = "::1";
 
-static int open_port()
+static int open_port(const char *dev, int port)
 {
 	int port_id;
 
@@ -59,7 +59,7 @@ static int open_port()
 		return -1;
 	}
 
-	if ((port_id = umad_open_port(NULL, 0)) < 0) {
+	if ((port_id = umad_open_port(dev, port)) < 0) {
 		printf("ERROR - can't open UMAD port\n");
 		return -1;
 	}
@@ -217,7 +217,7 @@ err:
 	return status;
 }
 
-int admin_connect(void *dest, int type)
+int admin_connect(const char *dev, int src_port, void *dest, int type)
 {
 	char *dgid_str = NULL;
 	struct sockaddr_ib dst_addr;
@@ -274,7 +274,7 @@ int admin_connect(void *dest, int type)
 		if (ret <= 0)
 			goto err;
 	} else if (type == ADMIN_ADDR_TYPE_LID) {
-		port_id = open_port();
+		port_id = open_port(dev, src_port);
 		if (port_id < 0)
 			goto err;
 

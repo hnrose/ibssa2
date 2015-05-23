@@ -43,6 +43,8 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
+static int src_port;
+static const char *ca_name;
 static char *dest_gid;
 static uint16_t dest_lid;
 
@@ -75,8 +77,8 @@ static void show_usage(char *program)
 	struct cmd_struct *cmd;
 	int i;
 
-	printf("usage: %s [-v|--version] [--help] <command> "
-	       "[-l|--lid=<dlid>] [-g|--gid=<dgid>] [<args>]\n\n", program);
+	printf("usage: %s [-v|--version] [--help] <command> [-l|--lid=<dlid>] "
+	       "[-g|--gid=<dgid>] [-P|--Port=<CA port>] [<args>]\n\n", program);
 
 	printf("Monitoring commands:\n");
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
@@ -114,11 +116,12 @@ static void show_usage(char *program)
 static int parse_opts(int argc, char **argv, int *status)
 {
 	int option;
-	const char *const short_option = "l:g:vh?";
+	const char *const short_option = "l:g:P:vh?";
 
 	const struct option long_option[] = {
 		{"lid",     required_argument, 0, 'l'},
 		{"gid",     required_argument, 0, 'g'},
+		{"Port",    required_argument, 0, 'P'},
 		{"version", no_argument,       0, 'v'},
 		{"help",    no_argument,       0, 'h'},
 		{0, 0, 0, 0}	/* Required at the end of the array */
@@ -144,6 +147,9 @@ static int parse_opts(int argc, char **argv, int *status)
 			show_version();
 			*status = 0;
 			return 1;
+		case 'P':
+			src_port = atoi(optarg);
+			break;
 		case 'h':
 			show_usage(argv[0]);
 			*status = 0;
@@ -233,7 +239,7 @@ int main(int argc, char **argv)
 		addr_type = ADMIN_ADDR_TYPE_GID;
 	}
 
-	if (admin_connect(dest_addr, addr_type) != 0) {
+	if (admin_connect(ca_name, src_port, dest_addr, addr_type) != 0) {
 		printf("ERROR - unable to connect\n");
 		exit(-1);
 	}
