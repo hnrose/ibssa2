@@ -46,7 +46,7 @@
 
 static int rsock = -1;
 static int loopback;
-static short server_port = 7477;
+static short admin_port = 7477;
 static char dest_addr[64];
 static const char *local_gid = "::1";
 
@@ -250,7 +250,7 @@ int admin_connect(void *dest, int type)
 	dst_addr.sib_pkey	= 0xFFFF;
 	dst_addr.sib_flowinfo	= 0;
 	dst_addr.sib_sid	=
-		htonll(((uint64_t) RDMA_PS_TCP << 16) + server_port);
+		htonll(((uint64_t) RDMA_PS_TCP << 16) + admin_port);
 	dst_addr.sib_sid_mask	= htonll(RDMA_IB_IP_PS_MASK);
 	dst_addr.sib_scope_id	= 0;
 
