@@ -60,7 +60,7 @@ static int open_port()
 	}
 
 	if ((port_id = umad_open_port(NULL, 0)) < 0) {
-		printf("ERROR - can't open UMAD port");
+		printf("ERROR - can't open UMAD port\n");
 		return -1;
 	}
 
