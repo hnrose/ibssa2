@@ -225,7 +225,6 @@ err:
 
 int admin_connect(void *dest, int type, struct admin_opts *opts)
 {
-	char *dgid_str = NULL;
 	struct sockaddr_ib dst_addr;
 	union ibv_gid dgid;
 	int ret, val, port_id;
@@ -266,13 +265,11 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 			snprintf(dest_addr, 10, "localhost");
 			loopback = 1;
 		} else {
-			snprintf(dest_addr, max(64, strlen(dgid_str)),
-				 "%s", dgid_str);
+			snprintf(dest_addr, max(64, strlen((char *) dest)),
+				 "%s", (char *) dest);
 		}
 
-		dgid_str = (char *) dest_addr;
-
-		ret = inet_pton(AF_INET6, dgid_str, &dgid);
+		ret = inet_pton(AF_INET6, dest ? (char *) dest : local_gid, &dgid);
 		if (!ret)
 			printf("ERROR - wrong server GID specified\n");
 		else if (ret < 0)
