@@ -217,12 +217,14 @@ err:
 	return status;
 }
 
-int admin_connect(const char *dev, int src_port, void *dest, int type)
+int admin_connect(int server_port, const char *dev, int src_port,
+		  void *dest, int type)
 {
 	char *dgid_str = NULL;
 	struct sockaddr_ib dst_addr;
 	union ibv_gid dgid;
 	int ret, val, port_id;
+	int port = server_port ? server_port : admin_port;
 
 	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (rsock < 0) {
@@ -250,7 +252,7 @@ int admin_connect(const char *dev, int src_port, void *dest, int type)
 	dst_addr.sib_pkey	= 0xFFFF;
 	dst_addr.sib_flowinfo	= 0;
 	dst_addr.sib_sid	=
-		htonll(((uint64_t) RDMA_PS_TCP << 16) + admin_port);
+		htonll(((uint64_t) RDMA_PS_TCP << 16) + port);
 	dst_addr.sib_sid_mask	= htonll(RDMA_IB_IP_PS_MASK);
 	dst_addr.sib_scope_id	= 0;
 
