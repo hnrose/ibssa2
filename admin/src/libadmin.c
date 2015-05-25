@@ -46,9 +46,25 @@
 
 static int rsock = -1;
 static int loopback;
+static atomic_t tid;
 static short admin_port = 7477;
 static char dest_addr[64];
 static const char *local_gid = "::1";
+
+int admin_init()
+{
+	srand(time(NULL));
+
+	atomic_init(&tid);
+	atomic_set(&tid, rand());
+
+	return 0;
+}
+
+void admin_cleanup()
+{
+	return;
+}
 
 static int open_port(const char *dev, int port)
 {
@@ -152,12 +168,6 @@ static int get_gid(int port_id, uint16_t dlid, union ibv_gid *dgid)
 	int sm_sl = 0;
 	int agent_id = -1;
 	int ret, len, status = 0;
-	static int tid;
-
-	while (!tid) {
-		srand(time(NULL));
-		tid = rand();
-	}
 
 	agent_id = umad_register(port_id, UMAD_CLASS_SUBN_ADM,
 				 UMAD_SA_CLASS_VERSION, 0, NULL);
@@ -180,7 +190,7 @@ static int get_gid(int port_id, uint16_t dlid, union ibv_gid *dgid)
 	mad->mad_hdr.mgmt_class		= UMAD_CLASS_SUBN_ADM;
 	mad->mad_hdr.class_version	= UMAD_SA_CLASS_VERSION;
 	mad->mad_hdr.method		= UMAD_METHOD_GET;
-	mad->mad_hdr.tid		= htonll(tid++);
+	mad->mad_hdr.tid		= htonll((uint64_t) atomic_inc(&tid));
 	mad->mad_hdr.attr_id		= htons(UMAD_SA_ATTR_PATH_REC);
 
 	mad->comp_mask = htonll(((uint64_t)1) << 4 |    /* DLID */

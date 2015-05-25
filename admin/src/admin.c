@@ -246,6 +246,11 @@ int main(int argc, char **argv)
 		addr_type = ADMIN_ADDR_TYPE_GID;
 	}
 
+	if (admin_init() < 0) {
+		printf("ERROR - unable to init admin client\n");
+		exit(-1);
+	}
+
 	opts.dev = ca_name;
 	opts.src_port = src_port;
 	opts.admin_port = admin_port;
@@ -258,6 +263,7 @@ int main(int argc, char **argv)
 	/* TODO: execute specified command */
 
 	admin_disconnect();
+	admin_cleanup();
 
 	return 0;
 }

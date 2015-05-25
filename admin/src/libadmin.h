@@ -43,6 +43,9 @@ struct admin_opts {
 	int		admin_port;
 };
 
+int admin_init();
+void admin_cleanup();
+
 int admin_connect(void *dest_addr, int type, struct admin_opts *opts);
 void admin_disconnect();
 
