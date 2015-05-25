@@ -44,7 +44,7 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 static int src_port;
-static int server_port;
+static int admin_port;
 static const char *ca_name;
 static char *dest_gid;
 static uint16_t dest_lid;
@@ -80,7 +80,7 @@ static void show_usage(char *program)
 
 	printf("usage: %s  [-v|--version] [--help] <command> [-l|--lid=<dlid>] "
 	       "[-g|--gid=<dgid>] \n\t\t[-P|--Port=<CA port>] "
-	       "[-s|--server_port=<server port>] [<args>]\n\n", program);
+	       "[-a|--admin_port=<admin server port>] [<args>]\n\n", program);
 
 	printf("Monitoring commands:\n");
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
@@ -118,13 +118,13 @@ static void show_usage(char *program)
 static int parse_opts(int argc, char **argv, int *status)
 {
 	int option;
-	const char *const short_option = "l:g:P:s:vh?";
+	const char *const short_option = "l:g:P:a:vh?";
 
 	const struct option long_option[] = {
 		{"lid",          required_argument, 0, 'l'},
 		{"gid",          required_argument, 0, 'g'},
 		{"Port",         required_argument, 0, 'P'},
-		{"server_port",  required_argument, 0, 's'},
+		{"admin_port",   required_argument, 0, 'a'},
 		{"version",      no_argument,       0, 'v'},
 		{"help",         no_argument,       0, 'h'},
 		{0, 0, 0, 0}	/* Required at the end of the array */
@@ -153,8 +153,8 @@ static int parse_opts(int argc, char **argv, int *status)
 		case 'P':
 			src_port = atoi(optarg);
 			break;
-		case 's':
-			server_port = atoi(optarg);
+		case 'a':
+			admin_port = atoi(optarg);
 			break;
 		case 'h':
 			show_usage(argv[0]);
@@ -248,7 +248,7 @@ int main(int argc, char **argv)
 
 	opts.dev = ca_name;
 	opts.src_port = src_port;
-	opts.server_port = server_port;
+	opts.admin_port = admin_port;
 
 	if (admin_connect(dest_addr, addr_type, &opts) != 0) {
 		printf("ERROR - unable to connect\n");

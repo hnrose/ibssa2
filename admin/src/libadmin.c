@@ -228,7 +228,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	struct sockaddr_ib dst_addr;
 	union ibv_gid dgid;
 	int ret, val, port_id;
-	int port = opts->server_port ? opts->server_port : admin_port;
+	int port = opts->admin_port ? opts->admin_port : admin_port;
 
 	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (rsock < 0) {

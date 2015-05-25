@@ -40,7 +40,7 @@ enum {
 struct admin_opts {
 	const char	*dev;
 	int		src_port;
-	int		server_port;
+	int		admin_port;
 };
 
 int admin_connect(void *dest_addr, int type, struct admin_opts *opts);
