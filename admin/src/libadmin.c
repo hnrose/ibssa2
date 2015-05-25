@@ -217,14 +217,13 @@ err:
 	return status;
 }
 
-int admin_connect(int server_port, const char *dev, int src_port,
-		  void *dest, int type)
+int admin_connect(void *dest, int type, struct admin_opts *opts)
 {
 	char *dgid_str = NULL;
 	struct sockaddr_ib dst_addr;
 	union ibv_gid dgid;
 	int ret, val, port_id;
-	int port = server_port ? server_port : admin_port;
+	int port = opts->server_port ? opts->server_port : admin_port;
 
 	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (rsock < 0) {
@@ -276,7 +275,7 @@ int admin_connect(int server_port, const char *dev, int src_port,
 		if (ret <= 0)
 			goto err;
 	} else if (type == ADMIN_ADDR_TYPE_LID) {
-		port_id = open_port(dev, src_port);
+		port_id = open_port(opts->dev, opts->src_port);
 		if (port_id < 0)
 			goto err;
 

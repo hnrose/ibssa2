@@ -37,8 +37,13 @@ enum {
 	ADMIN_ADDR_TYPE_LID
 };
 
-int admin_connect(int server_port, const char *dev, int src_port,
-		  void *dest_addr, int type);
+struct admin_opts {
+	const char	*dev;
+	int		src_port;
+	int		server_port;
+};
+
+int admin_connect(void *dest_addr, int type, struct admin_opts *opts);
 void admin_disconnect();
 
 #endif /* _LIB_ADMIN_H */

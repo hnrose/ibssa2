@@ -187,6 +187,7 @@ int main(int argc, char **argv)
 {
 	void *dest_addr;
 	struct cmd_struct *cmd;
+	struct admin_opts opts;
 	int i, ret, addr_type, status = 0;
 	int cmd_num = ARRAY_SIZE(commands);
 
@@ -245,7 +246,11 @@ int main(int argc, char **argv)
 		addr_type = ADMIN_ADDR_TYPE_GID;
 	}
 
-	if (admin_connect(server_port, ca_name, src_port, dest_addr, addr_type) != 0) {
+	opts.dev = ca_name;
+	opts.src_port = src_port;
+	opts.server_port = server_port;
+
+	if (admin_connect(dest_addr, addr_type, &opts) != 0) {
 		printf("ERROR - unable to connect\n");
 		exit(-1);
 	}
