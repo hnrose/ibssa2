@@ -89,8 +89,12 @@ static void close_port(int port_id)
 	umad_done();
 }
 
-/* first physical port in active state is queried for sm lid and sm sl */
-static int get_sm_info(uint16_t *sm_lid, int *sm_sl)
+/*
+ * If no port specified (port is 0), first physical port in active
+ * state is queried for sm lid and sm sl.
+ */
+static int get_sm_info(const char *ca_name, int port,
+		       uint16_t *sm_lid, int *sm_sl)
 {
 	struct ibv_device **dev_arr, *dev;
 	struct ibv_context *verbs;
@@ -107,9 +111,20 @@ static int get_sm_info(uint16_t *sm_lid, int *sm_sl)
 
 	for (d = 0; d < dev_cnt; d++) {
 		dev = dev_arr[d];
-		if (dev->transport_type != IBV_TRANSPORT_IB ||
-		    dev->node_type != IBV_NODE_CA)
+
+		if (ca_name && strncmp(ca_name, dev->name, IBV_SYSFS_NAME_MAX))
 			continue;
+
+		if (dev->transport_type != IBV_TRANSPORT_IB ||
+		    dev->node_type != IBV_NODE_CA) {
+			if (ca_name) {
+				printf("ERROR - invalid device (%s)\n",
+				       dev->name);
+				goto out;
+			} else {
+				continue;
+			}
+		}
 
 		verbs = ibv_open_device(dev);
 		if (!verbs) {
@@ -121,6 +136,20 @@ static int get_sm_info(uint16_t *sm_lid, int *sm_sl)
 		if (ret) {
 			printf("ERROR - ibv_query_device (%s) %d\n",
 			       dev->name, ret);
+			goto out;
+		}
+
+		if (port) {
+			if (!ibv_query_port(verbs, port, &port_attr) &&
+			    port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND &&
+			    port_attr.state == IBV_PORT_ACTIVE) {
+				*sm_lid = port_attr.sm_lid;
+				*sm_sl = port_attr.sm_sl;
+				status = 0;
+			} else {
+				printf("ERROR - invalid port %s:%d\n",
+				       dev->name, port);
+			}
 			goto out;
 		}
 
@@ -146,6 +175,12 @@ static int get_sm_info(uint16_t *sm_lid, int *sm_sl)
 
 		if (p <= port_cnt)
 			break;
+
+		if (ca_name) {
+			printf("ERROR - no active port found for %s device\n",
+			       dev->name);
+			goto out;
+		}
 	}
 
 	if (d == dev_cnt)
@@ -159,7 +194,8 @@ out:
 	return status;
 }
 
-static int get_gid(int port_id, uint16_t dlid, union ibv_gid *dgid)
+static int get_gid(const char *dev, int port, int port_id,
+		   uint16_t dlid, union ibv_gid *dgid)
 {
 	struct sa_path_record *mad;
 	struct ibv_path_record *path;
@@ -177,7 +213,7 @@ static int get_gid(int port_id, uint16_t dlid, union ibv_gid *dgid)
 		goto err;
 	}
 
-	if (get_sm_info(&sm_lid, &sm_sl)) {
+	if (get_sm_info(dev, port, &sm_lid, &sm_sl)) {
 		status = -1;
 		goto err;
 	}
@@ -292,7 +328,8 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 		if (port_id < 0)
 			goto err;
 
-		ret = get_gid(port_id, *(uint16_t *) dest, &dgid);
+		ret = get_gid(opts->dev, opts->src_port,
+			      port_id, *(uint16_t *) dest, &dgid);
 		if (ret) {
 			printf("ERROR - unable to get GID for LID %u\n",
 			       *(uint16_t *) dest);
