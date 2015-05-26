@@ -2962,7 +2962,7 @@ static int acm_parse_osm_fullv1_paths(FILE *f, uint64_t *lid2guid, struct acm_ep
 	        dgid.global.interface_id = lid2guid[dlid];
 
 	        for (i = 0; i < 2; i++) {
-			memset(addr, 0, ACM_MAX_ADDRESS);
+			memset(addr, 0, sizeof(addr));
 			if (i == 0) {
 				addr_type = ACM_ADDRESS_LID;
 				memcpy(addr, &net_dlid, sizeof net_dlid);
@@ -3135,7 +3135,7 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db,
 	        dgid.global.interface_id = lid2guid[dlid];
 
 	        for (i = 0; i < 2; i++) {
-			memset(addr, 0, ACM_MAX_ADDRESS);
+			memset(addr, 0, sizeof(addr));
 			if (i == 0) {
 				addr_type = ACM_ADDRESS_LID;
 				*lid_addr = htons(dlid);
@@ -3212,7 +3212,7 @@ acm_parse_access_v1_paths_update(uint64_t *lid2guid, uint64_t *lid2guid_cached,
 
 		/* removing old dest records from ep cache */
 		for (k = 0; k < 2; k++) {
-			memset(addr, 0, ACM_MAX_ADDRESS);
+			memset(addr, 0, sizeof(addr));
 			if (k == 0) {
 				addr_type = ACM_ADDRESS_LID;
 				*lid_addr = htons(dlid);
@@ -3331,7 +3331,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 			continue;
 		}
 
-		memset(name, 0, ACM_MAX_ADDRESS);
+		memset(name, 0, sizeof(name));
 		memcpy(name, &ib_addr, sizeof(ib_addr));
 		gid_dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
 		if (gid_dest) {
