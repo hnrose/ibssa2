@@ -78,9 +78,11 @@ static void show_usage(char *program)
 	struct cmd_struct *cmd;
 	int i;
 
-	printf("usage: %s  [-v|--version] [--help] <command> [-l|--lid=<dlid>] "
-	       "[-g|--gid=<dgid>] \n\t\t[-P|--Port=<CA port>] "
-	       "[-a|--admin_port=<admin server port>] [<args>]\n\n", program);
+	printf("usage: %s  [-v|--version] [--help] <command> \n"
+		      "\t\t[-l|--lid=<dlid>] [-g|--gid=<dgid>] \n"
+		      "\t\t[-d|--device=<device name>] [-P|--Port=<CA port>] \n"
+		      "\t\t[-a|--admin_port=<admin server port>] [<args>]\n\n",
+	       program);
 
 	printf("Monitoring commands:\n");
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
@@ -118,11 +120,12 @@ static void show_usage(char *program)
 static int parse_opts(int argc, char **argv, int *status)
 {
 	int option;
-	const char *const short_option = "l:g:P:a:vh?";
+	const char *const short_option = "l:g:d:P:a:vh?";
 
 	const struct option long_option[] = {
 		{"lid",          required_argument, 0, 'l'},
 		{"gid",          required_argument, 0, 'g'},
+		{"device",       required_argument, 0, 'd'},
 		{"Port",         required_argument, 0, 'P'},
 		{"admin_port",   required_argument, 0, 'a'},
 		{"version",      no_argument,       0, 'v'},
@@ -150,6 +153,9 @@ static int parse_opts(int argc, char **argv, int *status)
 			show_version();
 			*status = 0;
 			return 1;
+		case 'd':
+			ca_name = optarg;
+			break;
 		case 'P':
 			src_port = atoi(optarg);
 			break;
