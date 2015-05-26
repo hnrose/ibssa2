@@ -3287,7 +3287,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 {
 	FILE *f;
 	char s[120];
-	char addr[INET6_ADDRSTRLEN], gid[INET6_ADDRSTRLEN];
+	char addr[INET6_ADDRSTRLEN + 1], gid[INET6_ADDRSTRLEN + 1];
 	uint8_t name[ACM_MAX_ADDRESS + 1];
 	struct in6_addr ip_addr, ib_addr;
 	struct acm_dest *dest, *gid_dest;
@@ -3374,7 +3374,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 	char *dev_name;
 	uint8_t *port_num;
 	char s[120];
-	char dev[32], addr[INET6_ADDRSTRLEN], pkey_str[8];
+	char dev[32], addr[INET6_ADDRSTRLEN + 1], pkey_str[8];
 	uint16_t pkey;
 	uint8_t type;
 	int port, index = 0;
