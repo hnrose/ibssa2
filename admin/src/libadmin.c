@@ -128,7 +128,8 @@ static int get_sm_info(const char *ca_name, int port,
 
 		verbs = ibv_open_device(dev);
 		if (!verbs) {
-			printf("ERROR - unable to open a device\n");
+			printf("ERROR - unable to open device (%s)\n",
+			       dev->name);
 			goto out;
 		}
 
