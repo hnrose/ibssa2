@@ -3288,7 +3288,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	FILE *f;
 	char s[120];
 	char addr[INET6_ADDRSTRLEN], gid[INET6_ADDRSTRLEN];
-	uint8_t name[ACM_MAX_ADDRESS];
+	uint8_t name[ACM_MAX_ADDRESS + 1];
 	struct in6_addr ip_addr, ib_addr;
 	struct acm_dest *dest, *gid_dest;
 	uint8_t addr_type;
@@ -3312,7 +3312,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 				"ERROR - %s is not IB GID\n", gid);
 			continue;
 		}
-		memset(name, 0, ACM_MAX_ADDRESS);
+		memset(name, 0, sizeof(name));
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
 			addr_type = ACM_ADDRESS_IP;
 			memcpy(name, &ip_addr, 4);
