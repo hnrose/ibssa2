@@ -94,7 +94,7 @@ static void close_port(int port_id)
  * state is queried for sm lid and sm sl.
  */
 static int get_sm_info(const char *ca_name, int port,
-		       uint16_t *sm_lid, int *sm_sl)
+		       uint16_t *sm_lid, uint8_t *sm_sl)
 {
 	struct ibv_device **dev_arr, *dev;
 	struct ibv_context *verbs;
@@ -200,11 +200,11 @@ static int get_gid(const char *dev, int port, int port_id,
 {
 	struct sa_path_record *mad;
 	struct ibv_path_record *path;
+	int ret, len, status = 0;
+	int agent_id = -1;
 	struct sa_umad umad;
 	uint16_t sm_lid = 0;
-	int sm_sl = 0;
-	int agent_id = -1;
-	int ret, len, status = 0;
+	uint8_t sm_sl = 0;
 
 	agent_id = umad_register(port_id, UMAD_CLASS_SUBN_ADM,
 				 UMAD_SA_CLASS_VERSION, 0, NULL);
