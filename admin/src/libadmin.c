@@ -140,23 +140,12 @@ static int get_sm_info(const char *ca_name, int port,
 			goto out;
 		}
 
-		if (port) {
-			if (!ibv_query_port(verbs, port, &port_attr) &&
-			    port_attr.link_layer == IBV_LINK_LAYER_INFINIBAND &&
-			    port_attr.state == IBV_PORT_ACTIVE) {
-				*sm_lid = port_attr.sm_lid;
-				*sm_sl = port_attr.sm_sl;
-				status = 0;
-			} else {
-				printf("ERROR - invalid port %s:%d\n",
-				       dev->name, port);
-			}
-			goto out;
-		}
-
 		port_cnt = attr.phys_port_cnt;
 
 		for (p = 1; p <= port_cnt; p++) {
+			if (port && port != p)
+				continue;
+
 			ret = ibv_query_port(verbs, p, &port_attr);
 			if (ret) {
 				printf("ERROR - ibv_query_port (%s) %d\n",
@@ -164,14 +153,20 @@ static int get_sm_info(const char *ca_name, int port,
 				goto out;
 			}
 
-			if (port_attr.link_layer != IBV_LINK_LAYER_INFINIBAND)
-				continue;
-
-			if (port_attr.state == IBV_PORT_ACTIVE) {
-				*sm_lid = port_attr.sm_lid;
-				*sm_sl = port_attr.sm_sl;
-				break;
+			if (port_attr.link_layer != IBV_LINK_LAYER_INFINIBAND ||
+			    port_attr.state != IBV_PORT_ACTIVE) {
+				if (port) {
+					printf("ERROR - invalid port %s:%d\n",
+					       dev->name, port);
+					goto out;
+				} else {
+					continue;
+				}
 			}
+
+			*sm_lid = port_attr.sm_lid;
+			*sm_sl = port_attr.sm_sl;
+			break;
 		}
 
 		if (p <= port_cnt)
