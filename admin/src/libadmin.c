@@ -75,7 +75,7 @@ static int open_port(const char *dev, int port)
 		return -1;
 	}
 
-	if ((port_id = umad_open_port(dev, port)) < 0) {
+	if ((port_id = umad_open_port(dev, (port < 0) ? 0 : port)) < 0) {
 		printf("ERROR - can't open UMAD port\n");
 		return -1;
 	}
@@ -90,7 +90,7 @@ static void close_port(int port_id)
 }
 
 /*
- * If no port specified (port is 0), first physical port in active
+ * If no port specified (port is -1), first physical port in active
  * state is queried for sm lid and sm sl.
  */
 static int get_sm_info(const char *ca_name, int port,
@@ -143,7 +143,7 @@ static int get_sm_info(const char *ca_name, int port,
 		port_cnt = attr.phys_port_cnt;
 
 		for (p = 1; p <= port_cnt; p++) {
-			if (port && port != p)
+			if (port > 0 && port != p)
 				continue;
 
 			ret = ibv_query_port(verbs, p, &port_attr);
@@ -155,7 +155,7 @@ static int get_sm_info(const char *ca_name, int port,
 
 			if (port_attr.link_layer != IBV_LINK_LAYER_INFINIBAND ||
 			    port_attr.state != IBV_PORT_ACTIVE) {
-				if (port) {
+				if (port > 0) {
 					printf("ERROR - invalid port %s:%d\n",
 					       dev->name, port);
 					goto out;

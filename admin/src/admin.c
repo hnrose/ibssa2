@@ -43,7 +43,7 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
-static int src_port;
+static int src_port = -1;
 static int admin_port;
 static const char *ca_name;
 static char *dest_gid;
