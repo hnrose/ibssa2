@@ -48,6 +48,7 @@ static int admin_port;
 static const char *ca_name;
 static char *dest_gid;
 static uint16_t dest_lid;
+static uint16_t pkey;
 
 enum cmd_type {
 	CMD_TYPE_NONE = 1,
@@ -81,6 +82,7 @@ static void show_usage(char *program)
 	printf("usage: %s  [-v|--version] [--help] <command> \n"
 		      "\t\t[-l|--lid=<dlid>] [-g|--gid=<dgid>] \n"
 		      "\t\t[-d|--device=<device name>] [-P|--Port=<CA port>] \n"
+		      "\t\t[-p|--pkey=<partition key>] \n"
 		      "\t\t[-a|--admin_port=<admin server port>] [<args>]\n\n",
 	       program);
 
@@ -120,13 +122,14 @@ static void show_usage(char *program)
 static int parse_opts(int argc, char **argv, int *status)
 {
 	int option;
-	const char *const short_option = "l:g:d:P:a:vh?";
+	const char *const short_option = "l:g:d:P:p:a:vh?";
 
 	const struct option long_option[] = {
 		{"lid",          required_argument, 0, 'l'},
 		{"gid",          required_argument, 0, 'g'},
 		{"device",       required_argument, 0, 'd'},
 		{"Port",         required_argument, 0, 'P'},
+		{"pkey",         required_argument, 0, 'p'},
 		{"admin_port",   required_argument, 0, 'a'},
 		{"version",      no_argument,       0, 'v'},
 		{"help",         no_argument,       0, 'h'},
@@ -158,6 +161,9 @@ static int parse_opts(int argc, char **argv, int *status)
 			break;
 		case 'P':
 			src_port = atoi(optarg);
+			break;
+		case 'p':
+			pkey = (uint16_t) strtoul(optarg, NULL, 0);
 			break;
 		case 'a':
 			admin_port = atoi(optarg);
@@ -260,6 +266,7 @@ int main(int argc, char **argv)
 	opts.dev = ca_name;
 	opts.src_port = src_port;
 	opts.admin_port = admin_port;
+	opts.pkey = pkey;
 
 	if (admin_connect(dest_addr, addr_type, &opts) != 0) {
 		printf("ERROR - unable to connect\n");

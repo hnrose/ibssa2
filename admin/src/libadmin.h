@@ -41,6 +41,7 @@ struct admin_opts {
 	const char	*dev;
 	int		src_port;
 	int		admin_port;
+	uint16_t	pkey;
 };
 
 int admin_init();
