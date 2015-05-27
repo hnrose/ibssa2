@@ -144,7 +144,7 @@ static int get_sm_info(const char *ca_name, int port,
 		port_cnt = attr.phys_port_cnt;
 
 		for (p = 1; p <= port_cnt; p++) {
-			if (port > 0 && port != p)
+			if (port >= 0 && port != p)
 				continue;
 
 			ret = ibv_query_port(verbs, p, &port_attr);
@@ -156,7 +156,7 @@ static int get_sm_info(const char *ca_name, int port,
 
 			if (port_attr.link_layer != IBV_LINK_LAYER_INFINIBAND ||
 			    port_attr.state != IBV_PORT_ACTIVE) {
-				if (port > 0) {
+				if (port >= 0) {
 					printf("ERROR - invalid port %s:%d\n",
 					       dev->name, port);
 					goto out;
