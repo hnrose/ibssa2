@@ -297,7 +297,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	}
 
 	dst_addr.sib_family	= AF_IB;
-	dst_addr.sib_pkey	= pkey;
+	dst_addr.sib_pkey	= htons(pkey);
 	dst_addr.sib_flowinfo	= 0;
 	dst_addr.sib_sid	=
 		htonll(((uint64_t) RDMA_PS_TCP << 16) + port);
