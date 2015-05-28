@@ -131,6 +131,11 @@ struct ssa_access_task {
 	struct ssa_svc *svc;
 };
 
+struct ssa_runtime_statistics {
+	atomic_t counters[SSA_RUNTIME_COUNTERS_NUM];
+};
+
+static struct ssa_runtime_statistics ssa_runtime_stat;
 static struct ssa_db *smdb;
 static struct ssa_db *db_previous;
 static int smdb_refcnt;
@@ -262,6 +267,29 @@ static void ssa_get_sysinfo()
 static void ssa_log_sysinfo()
 {
 	ssa_log(SSA_LOG_DEFAULT, "Number of cores %d\n", ssa_sysinfo.nprocs);
+}
+
+void ssa_init_runtime_statistics()
+{
+	int i;
+
+	for (i = 0; i < SSA_RUNTIME_COUNTERS_NUM; ++i)
+	       atomic_init(&ssa_runtime_stat.counters[i]);
+}
+
+void ssa_set_runtime_counter(int id, int val)
+{
+	atomic_set(&ssa_runtime_stat.counters[id], val);
+}
+
+int  ssa_get_runtime_counter(int id)
+{
+	return atomic_get(&ssa_runtime_stat.counters[id]);
+}
+
+int  ssa_inc_runtime_counter(int id)
+{
+	return atomic_inc(&ssa_runtime_stat.counters[id]);
 }
 
 const char *ssa_method_str(uint8_t method)
@@ -6116,6 +6144,7 @@ int ssa_init(struct ssa_class *ssa, uint8_t node_type, size_t dev_size,
 	if (ret)
 		return ret;
 
+	ssa_init_runtime_statistics();
 	/*
 	 * g_thread_init is not needed to be called starting with Glib 2.32
 	 */
