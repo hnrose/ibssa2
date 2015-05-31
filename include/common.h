@@ -320,7 +320,6 @@ void ssa_twalk(const struct node_t *root,
 
 void ssa_init_runtime_statistics();
 void ssa_set_runtime_counter(int id, int val);
-void ssa_set_runtime_counter(int id, int val);
 int  ssa_get_runtime_counter(int id);
 int  ssa_inc_runtime_counter(int id);
 
