@@ -6262,56 +6262,11 @@ err:
 	return -1;
 }
 
-static int ssa_admin_rrecv(int rsock)
-{
-	struct ssa_admin_msg admin_msg;
-	int ret, len;
-
-	ret = rrecv(rsock, (char *) &admin_msg, sizeof(admin_msg.hdr), 0);
-	if (ret != sizeof(admin_msg.hdr)) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "rrecv failed: %d (%s) on rsock %d\n",
-			    errno, strerror(errno), rsock);
-		goto out;
-	}
-
-	len = ntohs(admin_msg.hdr.len);
-
-	if (len > sizeof(admin_msg.hdr)) {
-		ret += rrecv(rsock, (char *) &admin_msg.data,
-			     len - sizeof(admin_msg.hdr), 0);
-		if (ret != len) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "%d out of %d bytes read from admin application\n",
-				    ret, len);
-		}
-	}
-
-	if (admin_msg.hdr.method == SSA_ADMIN_METHOD_GET) {
-		admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
-
-		ret = rsend(rsock, (char *) &admin_msg, len, 0);
-		if (ret < 0) {
-			ssa_log_err(SSA_LOG_CTRL,
-				    "rsend failed: %d (%s) on rsock %d\n",
-				    errno, strerror(errno), rsock);
-			goto out;
-		}
-	} else {
-		ssa_log_warn(SSA_LOG_DEFAULT,
-			     "received SSA admin MAD with %d "
-			     "method specified instead of %d\n",
-			     admin_msg.hdr.method, SSA_ADMIN_METHOD_GET);
-	}
-
-out:
-	return 0;
-}
-
 static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
 	struct ssa_ctrl_msg_buf msg;
+	struct ssa_admin_msg admin_msg;
 	struct pollfd fds[2];
 	int rsock = -1;
 	int ret;
@@ -6397,8 +6352,44 @@ static void *ssa_admin_handler(void *context)
 					    rsock, errno, strerror(errno));
 				continue;
 			}
+			ret = rrecv(rsock_data, (char *) &admin_msg,
+				    sizeof(admin_msg.hdr), 0);
+			if (ret != sizeof(admin_msg.hdr)) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "rrecv failed: %d (%s) on rsock %d\n",
+					    errno, strerror(errno), rsock_data);
+				rclose(rsock_data);
+				continue;
+			}
 
-			ssa_admin_rrecv(rsock_data);
+			if (admin_msg.hdr.len > sizeof(admin_msg.hdr)) {
+				ret += rrecv(rsock_data, (char *) &admin_msg.data,
+					     admin_msg.hdr.len - sizeof(admin_msg.hdr), 0);
+				if (ret != admin_msg.hdr.len) {
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d bytes read from admin application\n",
+						    ret, msg.hdr.len);
+				}
+			}
+
+			if (admin_msg.hdr.method == SSA_ADMIN_METHOD_GET) {
+				admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
+
+				ret = rsend(rsock_data, (char *) &admin_msg,
+					    admin_msg.hdr.len, 0);
+				if (ret < 0) {
+					ssa_log_err(SSA_LOG_CTRL,
+						    "rsend failed: %d (%s) on rsock %d\n",
+						    errno, strerror(errno), rsock_data);
+					rclose(rsock_data);
+					continue;
+				}
+			} else {
+				ssa_log_warn(SSA_LOG_DEFAULT,
+					     "received SSA admin MAD with %d "
+					     "method specified instead of %d\n",
+					     admin_msg.hdr.method, SSA_ADMIN_METHOD_GET);
+			}
 
 			rclose(rsock_data);
 		}
