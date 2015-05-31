@@ -6269,7 +6269,7 @@ static void *ssa_admin_handler(void *context)
 	struct ssa_admin_msg admin_msg;
 	struct pollfd fds[2];
 	int rsock = -1;
-	int ret;
+	int ret, len;
 
 	(void) ssa;
 
@@ -6362,13 +6362,15 @@ static void *ssa_admin_handler(void *context)
 				continue;
 			}
 
-			if (admin_msg.hdr.len > sizeof(admin_msg.hdr)) {
+			len = ntohs(admin_msg.hdr.len);
+
+			if (len > sizeof(admin_msg.hdr)) {
 				ret += rrecv(rsock_data, (char *) &admin_msg.data,
-					     admin_msg.hdr.len - sizeof(admin_msg.hdr), 0);
-				if (ret != admin_msg.hdr.len) {
+					     len - sizeof(admin_msg.hdr), 0);
+				if (ret != len) {
 					ssa_log_err(SSA_LOG_CTRL,
 						    "%d out of %d bytes read from admin application\n",
-						    ret, msg.hdr.len);
+						    ret, len);
 				}
 			}
 
@@ -6376,7 +6378,7 @@ static void *ssa_admin_handler(void *context)
 				admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
 
 				ret = rsend(rsock_data, (char *) &admin_msg,
-					    admin_msg.hdr.len, 0);
+					    len, 0);
 				if (ret < 0) {
 					ssa_log_err(SSA_LOG_CTRL,
 						    "rsend failed: %d (%s) on rsock %d\n",
