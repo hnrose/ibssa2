@@ -3823,6 +3823,7 @@ out:
 #endif
 	pthread_mutex_lock(&access_context.th_pool_mtx);
 	atomic_dec(&access_context.num_tasks);
+	ssa_set_runtime_counter(COUNTER_ID_NUM_ACCESS_TASKS, atomic_get(&access_context.num_tasks));
 	pthread_cond_signal(&access_context.th_pool_cond);
 	pthread_mutex_unlock(&access_context.th_pool_mtx);
 	free(task);
