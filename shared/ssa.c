@@ -277,17 +277,17 @@ void ssa_init_runtime_statistics()
 	       atomic_init(&ssa_runtime_stat.counters[i]);
 }
 
-void ssa_set_runtime_counter(int id, int val)
+void ssa_set_runtime_counter(int id, long val)
 {
 	atomic_set(&ssa_runtime_stat.counters[id], val);
 }
 
-int  ssa_get_runtime_counter(int id)
+long  ssa_get_runtime_counter(int id)
 {
 	return atomic_get(&ssa_runtime_stat.counters[id]);
 }
 
-int  ssa_inc_runtime_counter(int id)
+long  ssa_inc_runtime_counter(int id)
 {
 	return atomic_inc(&ssa_runtime_stat.counters[id]);
 }
