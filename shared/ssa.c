@@ -2891,6 +2891,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 				  conn_dbtype);
 		fd = ssa_downstream_svc_server(svc, conn_data);
 		if (fd >= 0) {
+			ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_DOWNSTR_CONN);
 			if (!svc->fd_to_conn[fd]) {
 				svc->fd_to_conn[fd] = conn_data;
 				pfd = (struct  pollfd *)fds;
