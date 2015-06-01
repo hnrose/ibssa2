@@ -66,6 +66,13 @@ enum ssa_admin_counter_id {
 	COUNTER_ID_TIME_LAST_ERR
 };
 
+const static int ssa_admin_time_counter_ids[] = {
+	COUNTER_ID_TIME_LAST_UPSTR_CONN,
+	COUNTER_ID_TIME_LAST_DOWNSTR_CONN,
+	COUNTER_ID_TIME_LAST_SSA_MAD_RCV,
+	COUNTER_ID_TIME_LAST_ERR
+};
+
 struct ssa_admin_counter {
 	uint8_t		id;
 	be64_t		val;

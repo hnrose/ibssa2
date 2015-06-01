@@ -44,6 +44,7 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <sys/timerfd.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <rdma/rsocket.h>
 #include <netinet/tcp.h>
@@ -133,6 +134,7 @@ struct ssa_access_task {
 
 struct ssa_runtime_statistics {
 	atomic_t counters[SSA_RUNTIME_COUNTERS_NUM];
+	struct timeval start_time;
 };
 
 static struct ssa_runtime_statistics ssa_runtime_stat;
@@ -269,12 +271,24 @@ static void ssa_log_sysinfo()
 	ssa_log(SSA_LOG_DEFAULT, "Number of cores %d\n", ssa_sysinfo.nprocs);
 }
 
+inline static long ssa_runtime_shift(const struct timeval tm)
+{
+	struct timeval now;
+
+	gettimeofday(&now, NULL);
+	return  (now.tv_sec - tm.tv_sec) * 1000 + (now.tv_usec - tm.tv_usec) / 1000;
+}
+
 void ssa_init_runtime_statistics()
 {
 	int i;
 
 	for (i = 0; i < SSA_RUNTIME_COUNTERS_NUM; ++i)
 	       atomic_init(&ssa_runtime_stat.counters[i]);
+	for (i = 0; i < sizeof(ssa_admin_time_counter_ids) / sizeof(ssa_admin_time_counter_ids[0]); ++i)
+		ssa_set_runtime_counter(ssa_admin_time_counter_ids[i], -1);
+
+	gettimeofday(&ssa_runtime_stat.start_time, NULL);
 }
 
 void ssa_set_runtime_counter(int id, long val)
@@ -290,6 +304,25 @@ long  ssa_get_runtime_counter(int id)
 long  ssa_inc_runtime_counter(int id)
 {
 	return atomic_inc(&ssa_runtime_stat.counters[id]);
+}
+
+void ssa_set_runtime_counter_time(int id)
+{
+	ssa_set_runtime_counter(id, ssa_runtime_shift(ssa_runtime_stat.start_time));
+}
+
+int ssa_get_runtime_counter_time(int id, struct timeval *time_stamp)
+{
+	long milliseconds;
+
+	milliseconds = ssa_get_runtime_counter(id);
+	if (milliseconds < 0)
+		return -1;
+
+	time_stamp->tv_sec = ssa_runtime_stat.start_time.tv_sec + milliseconds / 1000;;
+	time_stamp->tv_usec = ssa_runtime_stat.start_time.tv_usec + (milliseconds % 1000) * 1000;
+	return 0;
+
 }
 
 const char *ssa_method_str(uint8_t method)

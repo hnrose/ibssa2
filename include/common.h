@@ -322,6 +322,8 @@ void ssa_init_runtime_statistics();
 void ssa_set_runtime_counter(int id, long val);
 long  ssa_get_runtime_counter(int id);
 long  ssa_inc_runtime_counter(int id);
+void ssa_set_runtime_counter_time(int id);
+int ssa_get_runtime_counter_time(int id, struct timeval *time_stamp);
 
 #ifdef __cplusplus
 }
