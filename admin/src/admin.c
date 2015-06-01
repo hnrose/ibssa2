@@ -68,22 +68,27 @@ static struct cmd_struct commands[] = {
 	{ "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
 };
 
+static const char admin_usage_string[] =
+	"ssadmin  [-v|--version] [--help] [-l|--lid=<dlid>] [-g|--gid=<dgid>]\n"
+	"\t\t[-d|--device=<device name>] [-P|--Port=<CA port>] \n"
+	"\t\t[-p|--pkey=<partition key>] [-a|--admin_port=<admin server port>]";
+
+static const char admin_more_info_string[] =
+	"'ssadmin help <command>' shows specific subcommand "
+	"concept and usage.";
+
 static void show_version()
 {
 	printf("SSA Admin version "SSA_ADMIN_VERSION"\n");
 }
 
-static void show_usage(char *program)
+static void show_usage()
 {
 	struct cmd_struct *cmd;
 	int i;
 
-	printf("usage: %s  [-v|--version] [--help] <command> \n"
-		      "\t\t[-l|--lid=<dlid>] [-g|--gid=<dgid>] \n"
-		      "\t\t[-d|--device=<device name>] [-P|--Port=<CA port>] \n"
-		      "\t\t[-p|--pkey=<partition key>] \n"
-		      "\t\t[-a|--admin_port=<admin server port>] [<args>]\n\n",
-	       program);
+	printf("usage: %s\n\t\t<command> [<command args>]\n\n",
+	       admin_usage_string);
 
 	printf("Monitoring commands:\n");
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
@@ -112,8 +117,7 @@ static void show_usage(char *program)
 	}
 	printf("\n");
 
-	printf("'%s help <command>' shows specific subcommand "
-	       "concept and usage.\n\n", program);
+	printf("%s\n", admin_more_info_string);
 	printf("--version, -v\n\tDisplay version.\n");
 	printf("--help, -h, -?\n\tDisplay this usage info then exit.\n");
 }
@@ -136,7 +140,7 @@ static int parse_opts(int argc, char **argv, int *status)
 	};
 
 	if (argc <= 1) {
-		show_usage(argv[0]);
+		show_usage();
 		*status = -1;
 		return 1;
 	}
@@ -168,7 +172,7 @@ static int parse_opts(int argc, char **argv, int *status)
 			admin_port = atoi(optarg);
 			break;
 		case 'h':
-			show_usage(argv[0]);
+			show_usage();
 			*status = 0;
 			return 1;
 		case '?':
@@ -186,7 +190,7 @@ static int parse_opts(int argc, char **argv, int *status)
 
 	if (optind == argc) {
 		printf("No command specified\n");
-		show_usage(argv[0]);
+		show_usage();
 		*status = -1;
 		return 1;
 	}
@@ -214,7 +218,7 @@ int main(int argc, char **argv)
 
 	if (i == cmd_num) {
 		printf("Non-existing command specified\n");
-		show_usage(argv[0]);
+		show_usage();
 		exit(-1);
 	}
 
@@ -233,7 +237,7 @@ int main(int argc, char **argv)
 
 		if (i == cmd_num) {
 			printf("Non-existing command specified\n");
-			show_usage(argv[0]);
+			show_usage();
 			exit(-1);
 		}
 
