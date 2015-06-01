@@ -693,6 +693,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "method %s attr %s\n",
 		ssa_method_str(umad->packet.mad_hdr.method),
 		ssa_attribute_str(umad->packet.mad_hdr.attr_id));
+	ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_SSA_MAD_RCV);
 	/* TODO: do we need to check umad->packet.mad_hdr.status too? */
 	if (umad->umad.status) {
 		ssa_log(SSA_LOG_DEFAULT, "send failed - status 0x%x (%s)\n",
