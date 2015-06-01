@@ -86,17 +86,17 @@ static inline int seterr(int err)
 #define max(a, b) (a > b ? a : b)
 
 #if DEFINE_ATOMICS
-typedef struct { pthread_mutex_t mut; int val; } atomic_t;
-static inline int atomic_inc(atomic_t *atomic)
+typedef struct { pthread_mutex_t mut; long val; } atomic_t;
+static inline long atomic_inc(atomic_t *atomic)
 {
-	int v;
+	long v;
 
 	pthread_mutex_lock(&atomic->mut);
 	v = ++(atomic->val);
 	pthread_mutex_unlock(&atomic->mut);
 	return v;
 }
-static inline int atomic_dec(atomic_t *atomic)
+static inline long atomic_dec(atomic_t *atomic)
 {
 	int v;
 
@@ -111,7 +111,7 @@ static inline void atomic_init(atomic_t *atomic)
 	atomic->val = 0;
 }
 #else
-typedef struct { volatile int val; } atomic_t;
+typedef struct { volatile long val; } atomic_t;
 #define atomic_inc(v) (__sync_add_and_fetch(&(v)->val, 1))
 #define atomic_dec(v) (__sync_sub_and_fetch(&(v)->val, 1))
 #define atomic_init(v) ((v)->val = 0)

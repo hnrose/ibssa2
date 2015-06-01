@@ -535,11 +535,11 @@ ssa_sprint_member(char *buf, size_t buf_size, struct ssa_member *member, int lev
 	    ((level & SSA_DTREE_DISTRIB) &&
 	     (member_rec->node_type & SSA_NODE_DISTRIBUTION)))
 		snprintf(children, sizeof children,
-			 " [ children %d ]", atomic_get(&member->child_num));
+			 " [ children %ld ]", atomic_get(&member->child_num));
 	else if ((level & SSA_DTREE_ACCESS) &&
 		 (member_rec->node_type & SSA_NODE_ACCESS))
 		snprintf(children, sizeof children,
-			 " [ children %d ]", atomic_get(&member->access_child_num));
+			 " [ children %ld ]", atomic_get(&member->access_child_num));
 	else if ((level & SSA_DTREE_CONSUMER) &&
 		 (member_rec->node_type & SSA_NODE_CONSUMER))
 		snprintf(children, sizeof children, "[ no children ]");
