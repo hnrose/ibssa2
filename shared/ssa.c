@@ -147,7 +147,6 @@ __thread char log_data[128];
 __thread char log_data1[128];
 __thread int update_pending;
 __thread int update_waiting;
-//static atomic_t counter[SSA_MAX_COUNTER];
 
 static int sock_adminctrl[2];
 static pthread_t *admin_thread;
