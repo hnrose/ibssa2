@@ -1957,6 +1957,7 @@ static void *ssa_upstream_handler(void *context)
 						timeout = 1;
 						fds[UPSTREAM_DATA_FD_SLOT].events = POLLOUT;
 					} else {
+						ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_UPSTR_CONN);
 						if (port == prdb_port)
 							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						else {
