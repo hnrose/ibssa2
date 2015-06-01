@@ -39,9 +39,8 @@
 #include <getopt.h>
 
 #include "libadmin.h"
+#include <osd.h>
 #include <ssa_admin.h>
-
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 static int src_port = -1;
 static int admin_port;
