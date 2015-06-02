@@ -15,8 +15,10 @@
 
 .deps/
 .libs/
+svc/
 libtool
 config.h
+*.init
 
 ###################
 # Autoconfigure   #
