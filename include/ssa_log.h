@@ -35,6 +35,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,11 +65,12 @@ int ssa_get_log_level(void);
 int  ssa_open_log(char *log_file);
 void ssa_close_log(void);
 void ssa_write_log(int level, const char *format, ...);
+void ssa_report_error(int level, int error, const char *format, ...);
 #define ssa_log(level, format, ...) \
 	ssa_write_log(level, "%s: "format, __func__, ## __VA_ARGS__)
 #define ssa_log_func(level) ssa_log(level, "\n");
 #define ssa_log_err(level, format, ...) \
-	ssa_write_log(level | SSA_LOG_DEFAULT, "%s: ERROR - "format, __func__, ## __VA_ARGS__)
+	ssa_report_error(level | SSA_LOG_DEFAULT, errno, "%s: ERROR - "format, __func__, ## __VA_ARGS__)
 #define ssa_log_warn(level, format, ...) \
 	ssa_write_log(level | SSA_LOG_DEFAULT, "%s: WARNING - "format, __func__, ## __VA_ARGS__)
 void ssa_sprint_addr(int level, char *str, size_t str_size,

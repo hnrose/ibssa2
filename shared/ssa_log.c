@@ -48,6 +48,8 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
+#include <common.h>
+#include <ssa_admin.h>
 
 void get_thread_id(char *buff, int size)
 {
@@ -128,6 +130,19 @@ void ssa_close_log()
 	if (flog != stdout && flog != stderr)
 		fclose(flog);
 	flog = NULL;
+}
+
+void ssa_report_error(int level, int error, const char *format, ...)
+{
+	char msg[1024] = {};
+	va_list args;
+
+	va_start(args, format);
+	vsnprintf(msg, sizeof(msg), format, args);
+	va_end(args);
+
+	ssa_set_runtime_counter(COUNTER_ID_TIME_LAST_ERR, error);
+	ssa_inc_runtime_counter(COUNTER_ID_NUM_ERR);
 }
 
 void ssa_write_log(int level, const char *format, ...)
