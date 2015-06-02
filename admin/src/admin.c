@@ -63,7 +63,8 @@ struct cmd_struct {
 };
 
 static struct cmd_struct commands[] = {
-	{ "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR },
+	/* Not implemented yet:
+	{ "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR }, */
 	{ "ping",        SSA_ADMIN_CMD_PING,        CMD_TYPE_DEBUG   },
 	{ "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
 };
@@ -135,9 +136,103 @@ static void show_usage()
 	printf("--help, -h, -?\n\tDisplay this usage info then exit.\n");
 }
 
+static void show_cmd_usage(const char *cmd_name, const char *usage,
+			   struct cmd_opts *opts)
+{
+	char buf[256];
+	int i = 0, n = 0;
+
+	if (!opts)
+		return;
+
+	memset(buf, 0, sizeof(buf));
+
+	while (opts[i].op.name && n < 256) {
+		if (opts[i].op.has_arg) {
+			n += sprintf(buf + n, " [-%c|--%s=<%s>]",
+				     opts[i].op.val,
+				     opts[i].op.name,
+				     opts[i].desc);
+		} else {
+			n += sprintf(buf + n, " [-%c|--%s]",
+				     opts[i].op.val,
+				     opts[i].op.name);
+		}
+
+		i++;
+	}
+
+	printf("usage: %s\n"
+	       "\t\t%s %s\n\n", admin_usage_string, cmd_name, buf);
+	printf("%s", usage);
+}
+
+static int get_opt_num()
+{
+	struct cmd_opts *opts;
+	int i, j = 0, opt_num = 0;
+
+	for (i = 0; i < ARRAY_SIZE(commands); j = 0, i++) {
+		if (commands[i].id <= SSA_ADMIN_CMD_NONE ||
+		    commands[i].id >= SSA_ADMIN_CMD_MAX)
+			continue;
+
+		opts = admin_get_cmd_opts(commands[i].id);
+		while (opts[j++].op.name)
+			opt_num++;
+	}
+
+	return opt_num;
+}
+
+static int get_long_opts(struct option *opts_arr, int len)
+{
+	struct cmd_opts *opts;
+	int i, j = 0, n = 0;
+
+	for (i = 0; i < ARRAY_SIZE(commands); j = 0, i++) {
+		if (commands[i].id <= SSA_ADMIN_CMD_NONE ||
+		    commands[i].id >= SSA_ADMIN_CMD_MAX)
+			continue;
+
+		opts = admin_get_cmd_opts(commands[i].id);
+		while (opts[j].op.name && n < len)
+			opts_arr[n++] = opts[j++].op;
+	}
+
+	return n;
+}
+
+static int get_short_opts(char *buf, int len)
+{
+	struct cmd_opts *opts;
+	int i, j = 0, n = 0;
+
+	for (i = 0; i < ARRAY_SIZE(commands); j = 0, i++) {
+		if (commands[i].id <= SSA_ADMIN_CMD_NONE ||
+		    commands[i].id >= SSA_ADMIN_CMD_MAX)
+			continue;
+
+		opts = admin_get_cmd_opts(commands[i].id);
+		while (opts[j].op.name && n < len) {
+			n += sprintf(buf + n, "%c",
+				     opts[j].op.val);
+
+			if (opts[j].op.has_arg && n < len)
+				n += sprintf(buf + n, ":");
+
+			j++;
+		}
+	}
+
+	return 0;
+}
+
 static int parse_opts(int argc, char **argv, int *status)
 {
-	int option;
+	struct option *long_option_arr;
+	int option, opt_num, n, i = 0;
+	char buf[256] = { 0 };
 
 	if (argc <= 1) {
 		show_usage();
@@ -145,9 +240,26 @@ static int parse_opts(int argc, char **argv, int *status)
 		return 1;
 	}
 
+	get_short_opts(buf, 256 - strlen(short_option));
+	sprintf(buf + strlen(buf), "%s", short_option);
+
+	opt_num = get_opt_num() + ARRAY_SIZE(long_option);
+	long_option_arr = calloc(1, opt_num * sizeof(*long_option_arr));
+	if (!long_option_arr) {
+		printf("ERROR - unable to allocate memory for parser\n");
+		*status = -1;
+		return 1;
+	}
+
+	n = get_long_opts(long_option_arr, opt_num);
+	while (long_option[i].name && n + i < opt_num) {
+		long_option_arr[n + i] = long_option[i];
+		i++;
+	}
+
 	do {
-		option = getopt_long(argc, argv, short_option,
-				     long_option, NULL);
+		option = getopt_long(argc, argv, buf,
+				     long_option_arr, NULL);
 		switch (option) {
 		case 'l':
 			dest_lid = atoi(optarg);
@@ -156,6 +268,7 @@ static int parse_opts(int argc, char **argv, int *status)
 			dest_gid = optarg;
 			break;
 		case 'v':
+			free(long_option_arr);
 			show_version();
 			*status = 0;
 			return 1;
@@ -171,15 +284,18 @@ static int parse_opts(int argc, char **argv, int *status)
 		case 'a':
 			admin_port = atoi(optarg);
 			break;
+		case '?':
 		case 'h':
+			free(long_option_arr);
 			show_usage();
 			*status = 0;
 			return 1;
-		case '?':
 		default:
 			break;
 		}
 	} while (option != -1);
+
+	free(long_option_arr);
 
 	if (dest_lid && dest_gid) {
 		printf("Destination address ambiguity: "
@@ -241,7 +357,9 @@ int main(int argc, char **argv)
 			exit(-1);
 		}
 
-		/* TODO: display command specific usage */
+		if (cmd)
+			show_cmd_usage(cmd->cmd, admin_cmd_usage(cmd->id),
+				       admin_get_cmd_opts(cmd->id));
 
 		exit(0);
 	}
@@ -276,7 +394,12 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	/* TODO: execute specified command */
+	optind = 1;
+	if (admin_exec(cmd->id, argc, argv)) {
+		printf("Failed executing '%s' command (%s)\n",
+		       cmd->cmd, admin_cmd_desc(cmd->id));
+		exit(-1);
+	}
 
 	admin_disconnect();
 	admin_cleanup();

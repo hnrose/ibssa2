@@ -56,6 +56,19 @@ static const char *short_opts_to_skip;
 static struct option *long_opts_to_skip;
 static int long_opts_num;
 
+static uint64_t get_timestamp()
+{
+	uint64_t tstamp;
+	struct timeval tv;
+
+	gettimeofday(&tv ,0);
+
+	/* Convert the time of day into a microsecond timestamp. */
+	tstamp = ((uint64_t) tv.tv_sec * 1000000) + (uint64_t) tv.tv_usec;
+
+	return tstamp;
+}
+
 int admin_init(const char *short_opts, struct option *long_opts)
 {
 	int i = 0;
@@ -322,7 +335,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 			loopback = 1;
 		} else {
 			snprintf(dest_addr, max(64, strlen((char *) dest)),
-				 "%s", (char *) dest);
+				 "GID %s", (char *) dest);
 		}
 
 		ret = inet_pton(AF_INET6, dest ? (char *) dest : local_gid, &dgid);
@@ -348,7 +361,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 		}
 		close_port(port_id);
 
-		sprintf(dest_addr, "%u", *(uint16_t *) dest);
+		sprintf(dest_addr, "LID %u", *(uint16_t *) dest);
 	}
 
 	memcpy(&dst_addr.sib_addr, &dgid, sizeof(dgid));
@@ -377,11 +390,154 @@ void admin_disconnect()
 	rclose(rsock);
 }
 
+static int get_cmd_opts(struct cmd_opts *cmd_opts, struct option *long_opts,
+			char *short_opts)
+{
+	int i = 0, j = 0, n = 0;
+
+	while (cmd_opts[j].op.name) {
+		long_opts[i] = cmd_opts[j].op;
+		n += sprintf(short_opts + n, "%c",
+			     cmd_opts[j].op.val);
+
+		if (cmd_opts[j].op.has_arg)
+			n += sprintf(short_opts + n, ":");
+		i++;
+		j++;
+	}
+
+	sprintf(short_opts + n, "%s", short_opts_to_skip);
+
+	j = 0;
+	while(long_opts_to_skip[j].name)
+		long_opts[i++] = long_opts_to_skip[j++];
+
+	/* copy last terminating record: { 0, 0, 0, 0} */
+	long_opts[i] = long_opts_to_skip[j];
+
+	return 0;
+}
+
+#if 0
+static void do_poll(int rsock)
+{
+	struct pollfd fds[1];
+	int ret;
+	static int status = 0;
+	fds[0].fd	= rsock;
+	fds[0].events	= POLLIN;
+	fds[0].revents	= 0;
+	for (;;) {
+		ret = rpoll(fds, 1, -1);
+		if (ret < 0) {
+			printf("polling fds %d (%s)\n",
+			       errno, strerror(errno));
+			continue;
+		}
+		if (fds[0].revents) {
+			fds[0].events = 0;
+			return;
+		}
+	}
+}
+#endif
+
+static const char *ping_usage()
+{
+	static const char *const str = "";
+
+	return str;
+}
+
+struct cmd_opts ping_opts[] = {
+	{ { 0 }, 0 }	/* Required at the end of the array */
+};
+
+static int cmd_ping(int argc, char **argv)
+{
+	struct option *long_opts;
+	char short_opts[256];
+	struct ssa_admin_msg_hdr msg;
+	uint64_t stime, etime;
+	int option, ret, n;
+
+	n = ARRAY_SIZE(ping_opts) + long_opts_num;
+	long_opts = calloc(1, n * sizeof(*long_opts));
+	if (!long_opts) {
+		printf("ERROR - unable to allocate memory for ping command\n");
+		return -1;
+	}
+
+	get_cmd_opts(ping_opts, long_opts, short_opts);
+
+	do {
+		option = getopt_long(argc, argv, short_opts,
+				     long_opts, NULL);
+		switch (option) {
+		case '?':
+			free(long_opts);
+			return -1;
+		default:
+			break;
+		}
+	} while (option != -1);
+
+	free(long_opts);
+
+	if (rsock < 0) {
+		printf("WARNING - no connection was established\n");
+		return -1;
+	}
+
+	memset(&msg, 0, sizeof(msg));
+	msg.version	= atoi(SSA_ADMIN_VERSION);
+	msg.opcode	= htons(SSA_ADMIN_CMD_PING);
+	msg.method	= SSA_ADMIN_METHOD_GET;
+	msg.len		= htons(sizeof(msg));
+
+	stime = get_timestamp();
+
+	ret = rsend(rsock, &msg, sizeof(msg), 0);
+	if (ret < 0 || ret != sizeof(msg)) {
+		printf("rsend rsock %d ERROR %d (%s)\n",
+		       rsock, errno, strerror(errno));
+		return -1;
+	}
+
+#if 0
+recv:
+#endif
+	ret = rrecv(rsock, &msg, sizeof(msg), 0);
+	if (ret < 0) {
+#if 0
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			do_poll(rsock);
+			goto recv;
+		}
+#endif
+		printf("rrecv rsock %d ERROR %d (%s)\n",
+		       rsock, errno, strerror(errno));
+		return -1;
+	} else if (ret != sizeof(msg)) {
+		printf("rrecv %d out of %lu bytes on rsock %d\n",
+		       ret, sizeof(msg), rsock);
+		return -1;
+	}
+
+	etime = get_timestamp();
+
+	if (msg.method == SSA_ADMIN_METHOD_RESP)
+		printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
+		       sizeof(msg), dest_addr, 1e-3 * (etime - stime));
+
+	return 0;
+}
+
 struct cmd_opts *admin_get_cmd_opts(int cmd)
 {
 	static struct cmd_opts *opts[] = {
 		[SSA_ADMIN_CMD_COUNTER]		= NULL,
-		[SSA_ADMIN_CMD_PING]		= NULL,
+		[SSA_ADMIN_CMD_PING]		= ping_opts,
 	};
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
@@ -400,7 +556,7 @@ static struct cmd_str cmd_strings[] = {
 		{ NULL,
 		  "Retrieve specific counter" },
 	[SSA_ADMIN_CMD_PING] =
-		{ NULL,
+		{ ping_usage,
 		  "Test rsocket connection with specified node" },
 };
 
@@ -424,7 +580,7 @@ int admin_exec(int cmd, int argc, char **argv)
 {
 	static int (*pfn_arr[])(int, char **) = {
 		[SSA_ADMIN_CMD_COUNTER]		= NULL,
-		[SSA_ADMIN_CMD_PING]		= NULL,
+		[SSA_ADMIN_CMD_PING]		= cmd_ping,
 	};
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
