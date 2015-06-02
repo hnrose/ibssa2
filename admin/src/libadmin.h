@@ -31,6 +31,7 @@
 #define _LIB_ADMIN_H
 
 #include <stdio.h>
+#include <getopt.h>
 
 enum {
 	ADMIN_ADDR_TYPE_GID,
@@ -44,10 +45,20 @@ struct admin_opts {
 	uint16_t	pkey;
 };
 
-int admin_init();
+struct cmd_opts {
+	struct option	op;
+	char		*desc;
+};
+
+int admin_init(const char *short_opts, struct option *long_opts);
 void admin_cleanup();
 
 int admin_connect(void *dest_addr, int type, struct admin_opts *opts);
 void admin_disconnect();
+
+struct cmd_opts *admin_get_cmd_opts(int cmd);
+const char *admin_cmd_desc(int cmd);
+const char *admin_cmd_usage(int cmd);
+int admin_exec(int cmd, int argc, char **argv);
 
 #endif /* _LIB_ADMIN_H */

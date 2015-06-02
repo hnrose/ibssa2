@@ -52,12 +52,24 @@ static uint16_t pkey_default = 0xffff;
 static char dest_addr[64];
 static const char *local_gid = "::1";
 
-int admin_init()
+static const char *short_opts_to_skip;
+static struct option *long_opts_to_skip;
+static int long_opts_num;
+
+int admin_init(const char *short_opts, struct option *long_opts)
 {
+	int i = 0;
+
 	srand(time(NULL));
 
 	atomic_init(&tid);
 	atomic_set(&tid, rand());
+
+	short_opts_to_skip = short_opts;
+	long_opts_to_skip = long_opts;
+
+	while (long_opts_to_skip[i++].name)
+		long_opts_num++;
 
 	return 0;
 }
@@ -363,4 +375,63 @@ void admin_disconnect()
 		return;
 
 	rclose(rsock);
+}
+
+struct cmd_opts *admin_get_cmd_opts(int cmd)
+{
+	static struct cmd_opts *opts[] = {
+		[SSA_ADMIN_CMD_COUNTER]		= NULL,
+		[SSA_ADMIN_CMD_PING]		= NULL,
+	};
+
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+		return NULL;
+
+	return opts[cmd];
+}
+
+struct cmd_str {
+	const char *(*get_usage)();
+	const char *const desc;
+};
+
+static struct cmd_str cmd_strings[] = {
+	[SSA_ADMIN_CMD_COUNTER] =
+		{ NULL,
+		  "Retrieve specific counter" },
+	[SSA_ADMIN_CMD_PING] =
+		{ NULL,
+		  "Test rsocket connection with specified node" },
+};
+
+const char *admin_cmd_desc(int cmd)
+{
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+		return "Unknown";
+
+	return cmd_strings[cmd].desc;
+}
+
+const char *admin_cmd_usage(int cmd)
+{
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+		return "Unknown";
+
+	return cmd_strings[cmd].get_usage();
+}
+
+int admin_exec(int cmd, int argc, char **argv)
+{
+	static int (*pfn_arr[])(int, char **) = {
+		[SSA_ADMIN_CMD_COUNTER]		= NULL,
+		[SSA_ADMIN_CMD_PING]		= NULL,
+	};
+
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+		return -1;
+
+	if (pfn_arr[cmd] == NULL)
+		return -1;
+
+	return (*pfn_arr[cmd])(argc, argv);
 }

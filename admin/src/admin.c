@@ -68,6 +68,19 @@ static struct cmd_struct commands[] = {
 	{ "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
 };
 
+static const char *const short_option = "l:g:d:P:p:a:vh?";
+static struct option long_option[] = {
+	{"lid",          required_argument, 0, 'l'},
+	{"gid",          required_argument, 0, 'g'},
+	{"device",       required_argument, 0, 'd'},
+	{"Port",         required_argument, 0, 'P'},
+	{"pkey",         required_argument, 0, 'p'},
+	{"admin_port",   required_argument, 0, 'a'},
+	{"version",      no_argument,       0, 'v'},
+	{"help",         no_argument,       0, 'h'},
+	{0, 0, 0, 0}	/* Required at the end of the array */
+};
+
 static const char admin_usage_string[] =
 	"ssadmin  [-v|--version] [--help] [-l|--lid=<dlid>] [-g|--gid=<dgid>]\n"
 	"\t\t[-d|--device=<device name>] [-P|--Port=<CA port>] \n"
@@ -125,19 +138,6 @@ static void show_usage()
 static int parse_opts(int argc, char **argv, int *status)
 {
 	int option;
-	const char *const short_option = "l:g:d:P:p:a:vh?";
-
-	const struct option long_option[] = {
-		{"lid",          required_argument, 0, 'l'},
-		{"gid",          required_argument, 0, 'g'},
-		{"device",       required_argument, 0, 'd'},
-		{"Port",         required_argument, 0, 'P'},
-		{"pkey",         required_argument, 0, 'p'},
-		{"admin_port",   required_argument, 0, 'a'},
-		{"version",      no_argument,       0, 'v'},
-		{"help",         no_argument,       0, 'h'},
-		{0, 0, 0, 0}	/* Required at the end of the array */
-	};
 
 	if (argc <= 1) {
 		show_usage();
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 		addr_type = ADMIN_ADDR_TYPE_GID;
 	}
 
-	if (admin_init() < 0) {
+	if (admin_init(short_option, long_option) < 0) {
 		printf("ERROR - unable to init admin client\n");
 		exit(-1);
 	}
