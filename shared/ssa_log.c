@@ -143,6 +143,7 @@ void ssa_report_error(int level, int error, const char *format, ...)
 
 	ssa_set_runtime_counter(COUNTER_ID_TIME_LAST_ERR, error);
 	ssa_inc_runtime_counter(COUNTER_ID_NUM_ERR);
+	ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_ERR);
 }
 
 void ssa_write_log(int level, const char *format, ...)
