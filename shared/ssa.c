@@ -3720,6 +3720,7 @@ static void g_al_callback(gpointer task, gpointer user_data)
 	struct ssa_access_member *consumer;
 	struct ssa_db *prdb;
 	struct ssa_db_update db_upd;
+	long num_tasks;
 
 	(void) user_data;
 
@@ -3761,8 +3762,8 @@ static void g_al_callback(gpointer task, gpointer user_data)
 out:
 #endif
 	pthread_mutex_lock(&access_context.th_pool_mtx);
-	atomic_dec(&access_context.num_tasks);
-	ssa_set_runtime_counter(COUNTER_ID_NUM_ACCESS_TASKS, atomic_get(&access_context.num_tasks));
+	num_tasks = atomic_dec(&access_context.num_tasks);
+	ssa_set_runtime_counter(COUNTER_ID_NUM_ACCESS_TASKS, num_tasks);
 	pthread_cond_signal(&access_context.th_pool_cond);
 	pthread_mutex_unlock(&access_context.th_pool_mtx);
 	free(task);
