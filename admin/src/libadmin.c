@@ -280,7 +280,7 @@ static int get_gid(const char *dev, int port, int port_id,
 		path = &umad.sa_mad.path_rec.path;
 		memcpy(dgid->raw, path->dgid.raw, 16);
 	} else {
-		printf("ERROR - specified LID (%u) doesn't exists\n", dlid);
+		printf("ERROR - specified LID (%u) doesn't exist\n", dlid);
 		status = -1;
 	}
 
