@@ -38,4 +38,4 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc AUTHORS COPYING README
 %{_sbindir}/ssadmin
-
+%{_mandir}/man1/*

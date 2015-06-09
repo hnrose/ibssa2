@@ -1,0 +1,88 @@
+.TH "ssadmin" 1 "2015-06-09" "ssadmin" "ssadmin" ssadmin
+.SH NAME
+ssadmin \- test and configuration utility for SSA services
+.SH SYNOPSIS
+.sp
+.nf
+\fIssadmin\fR [-h | --help] [-v | --version]
+        [-d | --device <device name>] [-P | --Port <CA port>]
+        [-p | --pkey <partition key>] [-l | --lid <dlid>] [-g | --gid <dgid>]
+        [-a | --admin_port <server port>]
+        <command> [<args>]
+.fi
+.SH "DESCRIPTION"
+ssadmin utility is used to monitor, debug and configure different SSA layers:
+core, distribution, access and acm.
+
+It can be run on any fabric node (not necessary node that
+has SSA service running on it) and by specifying target node LID or GID,
+any SSA node can be reached. If no target node specified, it will be
+assumed that some SSA service is running on a local node and a connection
+attemp to a local node will be done.
+
+The <command> is a name of ssadmin specific command (see below).
+.SH "OPTIONS"
+.TP
+\-d, \-\-device <device name>
+Local IB device to be used. If no device was specified,
+the first one with an active IB port
+is chosen.
+.TP
+\-P, \-\-Port <CA port>
+Local IB device port to be used. If no port was specified,
+the first one in active state is chosen.
+.TP
+\-p, \-\-pkey <partition key>
+Partition key value to be used (0xffff if not specified).
+.TP
+\-l, \-\-lid <lid>
+Destination node LID. If not specified and also no destination GID is specified,
+local host will be considered as a destination node.
+.TP
+\-g, \-\-gid <gid>
+Destination node GID. If not specified and also no destination GID is specified,
+local host will be considered as a destination node.
+.TP
+\-a, \-\-admin_port <server port>
+Destination node port for communication (default: 7477).
+.TP
+\-v, \-\-version
+Prints ssadmin version and exit.
+.TP
+\-h, \-\-help
+Display usage info and exit.
+.SH SSADMIN COMMANDS
+.sp
+We divide ssadmin into MONITOR, MANAGEMENT and DEBUG commands.
+.SS MONITOR COMMANDS
+.PP
+\fBssadmin counter\fR
+.RS 4
+Query SSA service running on a target node for a specific counter\&.
+.RE
+.SS MANAGEMENT COMMANDS
+
+.SS DEBUG COMMANDS
+.PP
+\fBssadmin ping\fR
+.RS 4
+Test ping between local node and SSA service on a specified target node\&.
+.RE
+
+.SH "NOTES"
+In order to get specific command description and its optional arguments, the following
+should be executed:
+
+    > ssadmin help <command>
+
+.SH "USAGE EXAMPLE"
+Sending ping to a fabric node with GID xxxx, the following should be executed:
+
+    > ssadmin -g xxxx ping
+
+If target node LID is known, and for instance it is 18, it can be done by executing:
+
+    > ssadmin -l 18 ping
+
+.SH "SEE ALSO"
+ibacm(7), ibacm(1), ibssa(7), ibssa(1), opensmssa(7)

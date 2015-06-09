@@ -11,6 +11,9 @@ svc_ssadmin_LDADD = -lrdmacm -lpthread -L$(libdir) $(GLIB_LIBS)
 
 ssadmin_includedir = $(includedir)/infiniband
 
+man_MANS = \
+	man/ssadmin.1
+
 EXTRA_DIST = \
 	     ssadmin.spec.in $(man_MANS) autogen.sh \
 	     ssa_release_notes.txt
