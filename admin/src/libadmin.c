@@ -540,8 +540,10 @@ static struct admin_command *default_init(int cmd_id, struct admin_context *ctx,
 	struct cmd_struct_impl *impl;
 	struct admin_command *admin_cmd;
 
-	if (cmd_id <= SSA_ADMIN_CMD_NONE || cmd_id >= SSA_ADMIN_CMD_MAX)
+	if (cmd_id <= SSA_ADMIN_CMD_NONE || cmd_id >= SSA_ADMIN_CMD_MAX) {
+		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd_id);
 		return NULL;
+	}
 
 	cmd = &admin_cmds[cmd_id];
 	impl = &admin_cmd_command_impls[cmd_id];
@@ -643,8 +645,10 @@ struct cmd_opts *admin_get_cmd_opts(int cmd)
 {
 	struct cmd_struct_impl *impl;
 
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
+		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
 		return NULL;
+	}
 
 	impl = &admin_cmd_command_impls[cmd];
 
@@ -655,8 +659,10 @@ const struct cmd_help *admin_cmd_help(int cmd)
 {
 	struct cmd_struct_impl *impl;
 
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
+		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
 		return NULL;
+	}
 
 	impl = &admin_cmd_command_impls[cmd];
 
@@ -671,8 +677,10 @@ int admin_exec(int cmd, int argc, char **argv)
 	struct admin_context context;
 	int ret;
 
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
+		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
 		return -1;
+	}
 
 	if (rsock < 0) {
 		fprintf(stderr, "WARNING - no connection was established\n");
