@@ -237,7 +237,7 @@ static int parse_opts(int argc, char **argv, int *status)
 	opt_num = get_opt_num() + ARRAY_SIZE(long_option);
 	long_option_arr = calloc(1, opt_num * sizeof(*long_option_arr));
 	if (!long_option_arr) {
-		printf("ERROR - unable to allocate memory for parser\n");
+		fprintf(stderr, "ERROR - unable to allocate memory for parser\n");
 		*status = -1;
 		return 1;
 	}
@@ -289,14 +289,14 @@ static int parse_opts(int argc, char **argv, int *status)
 	free(long_option_arr);
 
 	if (dest_lid && dest_gid) {
-		printf("Destination address ambiguity: "
-		       "both GID and LID are specified\n");
+		fprintf(stderr, "Destination address ambiguity: "
+			"both GID and LID are specified\n");
 		*status = -1;
 		return 1;
 	}
 
 	if (optind == argc) {
-		printf("No command specified\n");
+		fprintf(stderr, "No command specified\n");
 		show_usage();
 		*status = -1;
 		return 1;
@@ -324,14 +324,14 @@ int main(int argc, char **argv)
 	}
 
 	if (i == cmd_num) {
-		printf("Non-existing command specified\n");
+		fprintf(stderr, "Non-existing command specified\n");
 		show_usage();
 		exit(-1);
 	}
 
 	if (!strncmp(cmd->cmd, "help", 4)) {
 		if (argc - optind <= 1) {
-			printf("No command was specified\n");
+			fprintf(stderr, "No command was specified\n");
 			exit(-1);
 		}
 
@@ -343,7 +343,7 @@ int main(int argc, char **argv)
 		}
 
 		if (i == cmd_num) {
-			printf("Non-existing command specified\n");
+			fprintf(stderr, "Non-existing command specified\n");
 			show_usage();
 			exit(-1);
 		}
@@ -356,7 +356,7 @@ int main(int argc, char **argv)
 	}
 
 	if (argc - optind >= 2) {
-		printf("Wrong number of arguments specified\n");
+		fprintf(stderr, "Wrong number of arguments specified\n");
 		exit(-1);
 	}
 
@@ -371,7 +371,7 @@ int main(int argc, char **argv)
 	}
 
 	if (admin_init(short_option, long_option) < 0) {
-		printf("ERROR - unable to init admin client\n");
+		fprintf(stderr, "ERROR - unable to init admin client\n");
 		exit(-1);
 	}
 
@@ -381,13 +381,13 @@ int main(int argc, char **argv)
 	opts.pkey = pkey;
 
 	if (admin_connect(dest_addr, addr_type, &opts) != 0) {
-		printf("ERROR - unable to connect\n");
+		fprintf(stderr, "ERROR - unable to connect\n");
 		exit(-1);
 	}
 
 	optind = 1;
 	if (admin_exec(cmd->id, argc, argv)) {
-		printf("Failed executing '%s' command (%s)\n",
+		fprintf(stderr, "Failed executing '%s' command (%s)\n",
 		       cmd->cmd, admin_cmd_help(cmd->id)->desc);
 		exit(-1);
 	}

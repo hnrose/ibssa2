@@ -170,12 +170,12 @@ static int open_port(const char *dev, int port)
 	int port_id;
 
 	if (umad_init() < 0) {
-		printf("ERROR - unable to init UMAD library\n");
+		fprintf(stderr, "ERROR - unable to init UMAD library\n");
 		return -1;
 	}
 
 	if ((port_id = umad_open_port(dev, (port < 0) ? 0 : port)) < 0) {
-		printf("ERROR - can't open UMAD port\n");
+		fprintf(stderr, "ERROR - can't open UMAD port\n");
 		return -1;
 	}
 
@@ -204,7 +204,7 @@ static int get_sm_info(const char *ca_name, int port,
 
 	dev_arr = ibv_get_device_list(&dev_cnt);
 	if (!dev_arr) {
-		printf("ERROR - unable to get device list\n");
+		fprintf(stderr, "ERROR - unable to get device list\n");
 		return -1;
 	}
 
@@ -217,8 +217,8 @@ static int get_sm_info(const char *ca_name, int port,
 		if (dev->transport_type != IBV_TRANSPORT_IB ||
 		    dev->node_type != IBV_NODE_CA) {
 			if (ca_name) {
-				printf("ERROR - invalid device (%s)\n",
-				       dev->name);
+				fprintf(stderr, "ERROR - invalid device (%s)\n",
+					dev->name);
 				goto out;
 			} else {
 				continue;
@@ -227,15 +227,15 @@ static int get_sm_info(const char *ca_name, int port,
 
 		verbs = ibv_open_device(dev);
 		if (!verbs) {
-			printf("ERROR - unable to open device (%s)\n",
-			       dev->name);
+			fprintf(stderr, "ERROR - unable to open device (%s)\n",
+				dev->name);
 			goto out;
 		}
 
 		ret = ibv_query_device(verbs, &attr);
 		if (ret) {
-			printf("ERROR - ibv_query_device (%s) %d\n",
-			       dev->name, ret);
+			fprintf(stderr, "ERROR - ibv_query_device (%s) %d\n",
+				dev->name, ret);
 			goto out;
 		}
 
@@ -247,16 +247,16 @@ static int get_sm_info(const char *ca_name, int port,
 
 			ret = ibv_query_port(verbs, p, &port_attr);
 			if (ret) {
-				printf("ERROR - ibv_query_port (%s) %d\n",
-				       dev->name, ret);
+				fprintf(stderr, "ERROR - ibv_query_port (%s) %d\n",
+					dev->name, ret);
 				goto out;
 			}
 
 			if (port_attr.link_layer != IBV_LINK_LAYER_INFINIBAND ||
 			    port_attr.state != IBV_PORT_ACTIVE) {
 				if (port >= 0) {
-					printf("ERROR - invalid port %s:%d\n",
-					       dev->name, port);
+					fprintf(stderr, "ERROR - invalid port %s:%d\n",
+						dev->name, port);
 					goto out;
 				} else {
 					continue;
@@ -272,14 +272,14 @@ static int get_sm_info(const char *ca_name, int port,
 			break;
 
 		if (ca_name) {
-			printf("ERROR - no active port found for %s device\n",
-			       dev->name);
+			fprintf(stderr, "ERROR - no active port found for %s device\n",
+				dev->name);
 			goto out;
 		}
 	}
 
 	if (d == dev_cnt)
-		printf("ERROR - no proper device with active port found\n");
+		fprintf(stderr, "ERROR - no proper device with active port found\n");
 	else
 		status = 0;
 
@@ -303,7 +303,7 @@ static int get_gid(const char *dev, int port, int port_id,
 	agent_id = umad_register(port_id, UMAD_CLASS_SUBN_ADM,
 				 UMAD_SA_CLASS_VERSION, 0, NULL);
 	if (agent_id < 0) {
-		printf("ERROR - unable to register SSA class on local port\n");
+		fprintf(stderr, "ERROR - unable to register SSA class on local port\n");
 		status = -1;
 		goto err;
 	}
@@ -336,7 +336,7 @@ static int get_gid(const char *dev, int port, int port_id,
 	ret = umad_send(port_id, agent_id, (void *) &umad,
 			sizeof umad.sa_mad.packet, -1 /* timeout */, 0);
 	if (ret) {
-		printf("ERROR - failed to send path query to SA\n");
+		fprintf(stderr, "ERROR - failed to send path query to SA\n");
 		status = -1;
 		goto err;
 	}
@@ -344,7 +344,7 @@ static int get_gid(const char *dev, int port, int port_id,
 	len = sizeof umad.sa_mad.packet;
 	ret = umad_recv(port_id, (void *) &umad, &len, -1 /* timeout */);
 	if (ret < 0 || ret != agent_id) {
-		printf("ERROR - failed to receive path record from SA\n");
+		fprintf(stderr, "ERROR - failed to receive path record from SA\n");
 		status = -1;
 		goto err;
 	}
@@ -353,7 +353,7 @@ static int get_gid(const char *dev, int port, int port_id,
 		path = &umad.sa_mad.path_rec.path;
 		memcpy(dgid->raw, path->dgid.raw, 16);
 	} else {
-		printf("ERROR - specified LID (%u) doesn't exist\n", dlid);
+		fprintf(stderr, "ERROR - specified LID (%u) doesn't exist\n", dlid);
 		status = -1;
 	}
 
@@ -374,23 +374,23 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 
 	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (rsock < 0) {
-		printf("rsocket ERROR %d (%s)\n", errno, strerror(errno));
+		fprintf(stderr, "rsocket ERROR %d (%s)\n", errno, strerror(errno));
 		return -1;
 	}
 
 	val = 1;
 	ret = rsetsockopt(rsock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val);
 	if (ret) {
-		printf("rsetsockopt rsock %d SO_REUSEADDR ERROR %d (%s)\n",
-		       rsock, errno, strerror(errno));
+		fprintf(stderr, "rsetsockopt rsock %d SO_REUSEADDR ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
 		goto err;
 	}
 
 	ret = rsetsockopt(rsock, IPPROTO_TCP, TCP_NODELAY,
 			  (void *) &val, sizeof(val));
 	if (ret) {
-		printf("rsetsockopt rsock %d TCP_NODELAY ERROR %d (%s)\n",
-		       rsock, errno, strerror(errno));
+		fprintf(stderr, "rsetsockopt rsock %d TCP_NODELAY ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
 		goto err;
 	}
 
@@ -413,9 +413,9 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 
 		ret = inet_pton(AF_INET6, dest ? (char *) dest : local_gid, &dgid);
 		if (!ret)
-			printf("ERROR - wrong server GID specified\n");
+			fprintf(stderr, "ERROR - wrong server GID specified\n");
 		else if (ret < 0)
-			printf("ERROR - not supported address family\n");
+			fprintf(stderr, "ERROR - not supported address family\n");
 
 		if (ret <= 0)
 			goto err;
@@ -427,8 +427,8 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 		ret = get_gid(opts->dev, opts->src_port,
 			      port_id, *(uint16_t *) dest, &dgid);
 		if (ret) {
-			printf("ERROR - unable to get GID for LID %u\n",
-			       *(uint16_t *) dest);
+			fprintf(stderr, "ERROR - unable to get GID for LID %u\n",
+				*(uint16_t *) dest);
 			close_port(port_id);
 			goto err;
 		}
@@ -442,8 +442,8 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	ret = rconnect(rsock, (const struct sockaddr *) &dst_addr,
 		       sizeof(dst_addr));
 	if (ret && (errno != EINPROGRESS)) {
-		printf("rconnect rsock %d ERROR %d (%s)\n",
-		       rsock, errno, strerror(errno));
+		fprintf(stderr, "rconnect rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
 		goto err;
 	}
 
@@ -675,7 +675,7 @@ int admin_exec(int cmd, int argc, char **argv)
 		return -1;
 
 	if (rsock < 0) {
-		printf("WARNING - no connection was established\n");
+		fprintf(stderr, "WARNING - no connection was established\n");
 		return -1;
 	}
 
@@ -697,7 +697,7 @@ int admin_exec(int cmd, int argc, char **argv)
 
 	ret = admin_cmd->impl->create_request(admin_cmd, &context, &msg);
 	if (ret < 0) {
-		printf("message creation error\n");
+		fprintf(stderr, "message creation error\n");
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
@@ -706,8 +706,8 @@ int admin_exec(int cmd, int argc, char **argv)
 
 	ret = rsend(rsock, &msg, sizeof(msg), 0);
 	if (ret < 0 || ret != sizeof(msg)) {
-		printf("rsend rsock %d ERROR %d (%s)\n",
-		       rsock, errno, strerror(errno));
+		fprintf(stderr, "rsend rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
@@ -723,13 +723,13 @@ recv:
 			goto recv;
 		}
 #endif
-		printf("rrecv rsock %d ERROR %d (%s)\n",
-		       rsock, errno, strerror(errno));
+		fprintf(stderr, "rrecv rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	} else if (ret != sizeof(msg)) {
-		printf("rrecv %d out of %lu bytes on rsock %d\n",
-		       ret, sizeof(msg), rsock);
+		fprintf(stderr, "rrecv %d out of %lu bytes on rsock %d\n",
+			ret, sizeof(msg), rsock);
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
