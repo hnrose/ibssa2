@@ -49,24 +49,10 @@ static char *dest_gid;
 static uint16_t dest_lid;
 static uint16_t pkey;
 
-enum cmd_type {
-	CMD_TYPE_NONE = 1,
-	CMD_TYPE_MONITOR,
-	CMD_TYPE_MANAGEMENT,
-	CMD_TYPE_DEBUG
-};
-
-struct cmd_struct {
-	const char	*cmd;
-	int		id;
-	int		type;
-};
-
-static struct cmd_struct commands[] = {
-	/* Not implemented yet:
-	{ "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR }, */
-	{ "ping",        SSA_ADMIN_CMD_PING,        CMD_TYPE_DEBUG   },
-	{ "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
+struct cmd_struct admin_cmds[] = {
+	[SSA_ADMIN_CMD_COUNTER]= { "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR },
+	[SSA_ADMIN_CMD_PING] = { "ping",        SSA_ADMIN_CMD_PING,        CMD_TYPE_DEBUG   },
+	[SSA_ADMIN_CMD_NONE] = { "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
 };
 
 static const char *const short_option = "l:g:d:P:p:a:vh?";
@@ -105,8 +91,8 @@ static void show_usage()
 	       admin_usage_string);
 
 	printf("Monitoring commands:\n");
-	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		cmd = commands + i;
+	for (i = 0; i < ARRAY_SIZE(admin_cmds); i++) {
+		cmd = admin_cmds + i;
 		if (cmd->type != CMD_TYPE_MONITOR)
 			continue;
 		printf("\t%-15s\n", cmd->cmd);
@@ -114,8 +100,8 @@ static void show_usage()
 	printf("\n");
 
 	printf("Management commands:\n");
-	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		cmd = commands + i;
+	for (i = 0; i < ARRAY_SIZE(admin_cmds); i++) {
+		cmd = admin_cmds + i;
 		if (cmd->type != CMD_TYPE_MANAGEMENT)
 			continue;
 		printf("\t%-15s\n", cmd->cmd);
@@ -123,8 +109,8 @@ static void show_usage()
 	printf("\n");
 
 	printf("Debug and verification commands:\n");
-	for (i = 0; i < ARRAY_SIZE(commands); i++) {
-		cmd = commands + i;
+	for (i = 0; i < ARRAY_SIZE(admin_cmds); i++) {
+		cmd = admin_cmds + i;
 		if (cmd->type != CMD_TYPE_DEBUG)
 			continue;
 		printf("\t%-15s\n", cmd->cmd);
@@ -136,7 +122,7 @@ static void show_usage()
 	printf("--help, -h, -?\n\tDisplay this usage info then exit.\n");
 }
 
-static void show_cmd_usage(const char *cmd_name, const char *usage,
+static void show_cmd_usage(const char *cmd_name, const struct cmd_help *help_funcs,
 			   struct cmd_opts *opts)
 {
 	char buf[256];
@@ -146,6 +132,9 @@ static void show_cmd_usage(const char *cmd_name, const char *usage,
 		return;
 
 	memset(buf, 0, sizeof(buf));
+
+	if (help_funcs->print_help)
+		help_funcs->print_help(stdout);
 
 	while (opts[i].op.name && n < 256) {
 		if (opts[i].op.has_arg) {
@@ -162,9 +151,11 @@ static void show_cmd_usage(const char *cmd_name, const char *usage,
 		i++;
 	}
 
-	printf("usage: %s\n"
-	       "\t\t%s %s\n\n", admin_usage_string, cmd_name, buf);
-	printf("%s", usage);
+	if (help_funcs->print_usage) {
+		printf("usage: %s\n"
+				"\t\t%s %s\n\n", admin_usage_string, cmd_name, buf);
+		help_funcs->print_usage(stdout);
+	}
 }
 
 static int get_opt_num()
@@ -172,12 +163,12 @@ static int get_opt_num()
 	struct cmd_opts *opts;
 	int i, j = 0, opt_num = 0;
 
-	for (i = 0; i < ARRAY_SIZE(commands); j = 0, i++) {
-		if (commands[i].id <= SSA_ADMIN_CMD_NONE ||
-		    commands[i].id >= SSA_ADMIN_CMD_MAX)
+	for (i = 0; i < ARRAY_SIZE(admin_cmds); j = 0, i++) {
+		if (admin_cmds[i].id <= SSA_ADMIN_CMD_NONE ||
+		    admin_cmds[i].id >= SSA_ADMIN_CMD_MAX)
 			continue;
 
-		opts = admin_get_cmd_opts(commands[i].id);
+		opts = admin_get_cmd_opts(admin_cmds[i].id);
 		while (opts[j++].op.name)
 			opt_num++;
 	}
@@ -190,12 +181,12 @@ static int get_long_opts(struct option *opts_arr, int len)
 	struct cmd_opts *opts;
 	int i, j = 0, n = 0;
 
-	for (i = 0; i < ARRAY_SIZE(commands); j = 0, i++) {
-		if (commands[i].id <= SSA_ADMIN_CMD_NONE ||
-		    commands[i].id >= SSA_ADMIN_CMD_MAX)
+	for (i = 0; i < ARRAY_SIZE(admin_cmds); j = 0, i++) {
+		if (admin_cmds[i].id <= SSA_ADMIN_CMD_NONE ||
+		    admin_cmds[i].id >= SSA_ADMIN_CMD_MAX)
 			continue;
 
-		opts = admin_get_cmd_opts(commands[i].id);
+		opts = admin_get_cmd_opts(admin_cmds[i].id);
 		while (opts[j].op.name && n < len)
 			opts_arr[n++] = opts[j++].op;
 	}
@@ -208,12 +199,12 @@ static int get_short_opts(char *buf, int len)
 	struct cmd_opts *opts;
 	int i, j = 0, n = 0;
 
-	for (i = 0; i < ARRAY_SIZE(commands); j = 0, i++) {
-		if (commands[i].id <= SSA_ADMIN_CMD_NONE ||
-		    commands[i].id >= SSA_ADMIN_CMD_MAX)
+	for (i = 0; i < ARRAY_SIZE(admin_cmds); j = 0, i++) {
+		if (admin_cmds[i].id <= SSA_ADMIN_CMD_NONE ||
+		    admin_cmds[i].id >= SSA_ADMIN_CMD_MAX)
 			continue;
 
-		opts = admin_get_cmd_opts(commands[i].id);
+		opts = admin_get_cmd_opts(admin_cmds[i].id);
 		while (opts[j].op.name && n < len) {
 			n += sprintf(buf + n, "%c",
 				     opts[j].op.val);
@@ -320,14 +311,14 @@ int main(int argc, char **argv)
 	struct cmd_struct *cmd;
 	struct admin_opts opts;
 	int i, ret, addr_type, status = 0;
-	int cmd_num = ARRAY_SIZE(commands);
+	int cmd_num = ARRAY_SIZE(admin_cmds);
 
 	ret = parse_opts(argc, argv, &status);
 	if (ret)
 		exit(status);
 
 	for (i = 0; i < cmd_num; i++) {
-		cmd = commands + i;
+		cmd = admin_cmds + i;
 		if (!strncmp(argv[optind], cmd->cmd, strlen(cmd->cmd)))
 			break;
 	}
@@ -345,7 +336,7 @@ int main(int argc, char **argv)
 		}
 
 		for (i = 0; i < cmd_num; i++) {
-			cmd = commands + i;
+			cmd = admin_cmds + i;
 			if (!strncmp(argv[optind + 1], cmd->cmd,
 				     strlen(cmd->cmd)))
 				break;
@@ -358,7 +349,7 @@ int main(int argc, char **argv)
 		}
 
 		if (cmd)
-			show_cmd_usage(cmd->cmd, admin_cmd_usage(cmd->id),
+			show_cmd_usage(cmd->cmd, admin_cmd_help(cmd->id),
 				       admin_get_cmd_opts(cmd->id));
 
 		exit(0);
@@ -397,7 +388,7 @@ int main(int argc, char **argv)
 	optind = 1;
 	if (admin_exec(cmd->id, argc, argv)) {
 		printf("Failed executing '%s' command (%s)\n",
-		       cmd->cmd, admin_cmd_desc(cmd->id));
+		       cmd->cmd, admin_cmd_help(cmd->id)->desc);
 		exit(-1);
 	}
 

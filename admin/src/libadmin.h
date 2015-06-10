@@ -38,6 +38,21 @@ enum {
 	ADMIN_ADDR_TYPE_LID
 };
 
+enum cmd_type {
+	CMD_TYPE_NONE = 1,
+	CMD_TYPE_MONITOR,
+	CMD_TYPE_MANAGEMENT,
+	CMD_TYPE_DEBUG
+};
+
+struct cmd_struct {
+	const char	*cmd;
+	int		id;
+	int		type;
+};
+
+extern struct cmd_struct admin_cmds[];
+
 struct admin_opts {
 	const char	*dev;
 	int		src_port;
@@ -50,6 +65,12 @@ struct cmd_opts {
 	char		*desc;
 };
 
+struct cmd_help {
+	void (*print_help)(FILE *stream);
+	void (*print_usage)(FILE *stream);
+	const char *const desc;
+};
+
 int admin_init(const char *short_opts, struct option *long_opts);
 void admin_cleanup();
 
@@ -57,8 +78,7 @@ int admin_connect(void *dest_addr, int type, struct admin_opts *opts);
 void admin_disconnect();
 
 struct cmd_opts *admin_get_cmd_opts(int cmd);
-const char *admin_cmd_desc(int cmd);
-const char *admin_cmd_usage(int cmd);
+const struct cmd_help *admin_cmd_help(int cmd);
 int admin_exec(int cmd, int argc, char **argv);
 
 #endif /* _LIB_ADMIN_H */

@@ -44,6 +44,79 @@
 #include <ssa_admin.h>
 #include <infiniband/ssa_mad.h>
 
+
+#define MAX_COMMAND_OPTS 20
+
+struct admin_context {
+	uint64_t stime, etime;
+};
+
+struct cmd_struct_impl;
+struct admin_count_command {
+};
+
+struct admin_command {
+	const struct cmd_struct_impl *impl;
+	const struct cmd_struct *cmd;
+	union {
+		struct admin_count_command count_cmd;
+	} data;
+};
+
+struct cmd_struct_impl {
+	struct admin_command *(*init)(int cmd_id, struct admin_context *ctx,
+				      int argc, char **argv);
+	void (*destroy)(struct admin_command *admin_cmd);
+	int (*create_request)(struct admin_command *admin_cmd,
+			      struct admin_context *ctx,
+			      struct ssa_admin_msg *msg);
+	void (*handle_response)(struct admin_command *cmd,
+				struct admin_context *ctx,
+				const struct ssa_admin_msg *msg);
+	struct cmd_opts opts[MAX_COMMAND_OPTS];
+	struct cmd_help help;
+};
+
+
+static void default_destroy(struct admin_command *cmd);
+static void default_print_usage(FILE *stream);
+static void default_print_help(FILE *stream);
+static struct admin_command *default_init(int cmd_id, struct admin_context *ctx,
+					  int argc, char **argv);
+static int default_create_msg(struct admin_command *cmd,
+			      struct admin_context *ctx,
+			      struct ssa_admin_msg *msg);
+static void ping_command_output(struct admin_command *cmd,
+				struct admin_context *ctx,
+				const struct ssa_admin_msg *msg);
+static int counter_command_create_msg(struct admin_command *cmd,
+				      struct admin_context *ctx,
+				      struct ssa_admin_msg *msg);
+static void counter_command_output(struct admin_command *cmd,
+				   struct admin_context *ctx,
+				   const struct ssa_admin_msg *msg);
+
+static struct cmd_struct_impl admin_cmd_command_impls[] = {
+	[SSA_ADMIN_CMD_COUNTER] = {
+		default_init,
+		default_destroy,
+		counter_command_create_msg,
+		counter_command_output,
+		{},
+		{ default_print_help, default_print_usage,
+		  "Retrieve specific counter" },
+	},
+	[SSA_ADMIN_CMD_PING]	= {
+		default_init,
+		default_destroy,
+		default_create_msg,
+		ping_command_output,
+		{},
+		{ default_print_help, default_print_usage,
+		  "Test rsocket connection with specified node" }
+	}
+};
+
 static int rsock = -1;
 static int loopback;
 static atomic_t tid;
@@ -442,33 +515,58 @@ static void do_poll(int rsock)
 }
 #endif
 
-static const char *ping_usage()
+static void default_destroy(struct admin_command *cmd)
 {
-	static const char *const str = "";
-
-	return str;
 }
 
-struct cmd_opts ping_opts[] = {
-	{ { 0 }, 0 }	/* Required at the end of the array */
-};
+static void default_print_usage(FILE *stream)
+{
+	(void)(stream);
+}
 
-static int cmd_ping(int argc, char **argv)
+static void default_print_help(FILE *stream)
+{
+	(void)(stream);
+}
+
+static struct admin_command *default_init(int cmd_id, struct admin_context *ctx,
+					  int argc, char **argv)
 {
 	struct option *long_opts;
 	char short_opts[256];
-	struct ssa_admin_msg_hdr msg;
-	uint64_t stime, etime;
-	int option, ret, n;
+	int option, n;
+	struct cmd_opts *opts;
+	struct cmd_struct *cmd;
+	struct cmd_struct_impl *impl;
+	struct admin_command *admin_cmd;
 
-	n = ARRAY_SIZE(ping_opts) + long_opts_num;
+	if (cmd_id <= SSA_ADMIN_CMD_NONE || cmd_id >= SSA_ADMIN_CMD_MAX)
+		return NULL;
+
+	cmd = &admin_cmds[cmd_id];
+	impl = &admin_cmd_command_impls[cmd_id];
+	opts = impl->opts;
+	if (!opts)
+		return NULL;
+
+	admin_cmd = (struct admin_command *) malloc(sizeof(*admin_cmd));
+	if (!admin_cmd)
+		return NULL;
+
+	admin_cmd->impl = impl;
+	admin_cmd->cmd = cmd;
+
+	n = ARRAY_SIZE(impl->opts) + long_opts_num;
 	long_opts = calloc(1, n * sizeof(*long_opts));
 	if (!long_opts) {
-		printf("ERROR - unable to allocate memory for ping command\n");
-		return -1;
+		fprintf(stderr,
+			"ERROR - unable to allocate memory for %s command\n",
+			cmd->cmd);
+		free(admin_cmd);
+		return NULL;
 	}
 
-	get_cmd_opts(ping_opts, long_opts, short_opts);
+	get_cmd_opts(opts, long_opts, short_opts);
 
 	do {
 		option = getopt_long(argc, argv, short_opts,
@@ -476,7 +574,7 @@ static int cmd_ping(int argc, char **argv)
 		switch (option) {
 		case '?':
 			free(long_opts);
-			return -1;
+			return NULL;
 		default:
 			break;
 		}
@@ -484,23 +582,133 @@ static int cmd_ping(int argc, char **argv)
 
 	free(long_opts);
 
+	return admin_cmd;
+}
+
+static int default_create_msg(struct admin_command *cmd,
+			      struct admin_context *ctx,
+			      struct ssa_admin_msg *msg)
+{
+	return 0;
+}
+
+enum ssa_counter_type {
+	ssa_counter_obsolete = 0,
+	ssa_counter_numeric,
+	ssa_counter_timestamp
+};
+
+struct ssa_admin_counter_descr {
+	uint8_t type;
+	const char *name;
+	const char *description;
+};
+
+static void ping_command_output(struct admin_command *cmd,
+				struct admin_context *ctx,
+				const struct ssa_admin_msg *msg)
+{
+	printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
+	       sizeof(msg), dest_addr, 1e-3 * (ctx->etime - ctx->stime));
+}
+
+int counter_command_create_msg(struct admin_command *cmd,
+			       struct admin_context *ctx,
+			       struct ssa_admin_msg *msg)
+{
+	struct ssa_admin_counter *counter_msg = &msg->data.counter;
+	int ret;
+	uint16_t n;
+
+	ret = default_create_msg(cmd, ctx, msg);
+	if (ret)
+		return ret;
+
+	msg->hdr.opcode	= htons(SSA_ADMIN_CMD_COUNTER);
+	n = ntohs(msg->hdr.len) + sizeof(*counter_msg);
+	msg->hdr.len = htons(n);
+
+	return 0;
+}
+
+static void counter_command_output(struct admin_command *cmd,
+				   struct admin_context *ctx,
+				   const struct ssa_admin_msg *msg)
+{
+	struct ssa_admin_counter *counter_msg = (struct ssa_admin_counter *)&msg->data.counter;
+	(void)(counter_msg);
+}
+
+struct cmd_opts *admin_get_cmd_opts(int cmd)
+{
+	struct cmd_struct_impl *impl;
+
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+		return NULL;
+
+	impl = &admin_cmd_command_impls[cmd];
+
+	return impl->opts;
+}
+
+const struct cmd_help *admin_cmd_help(int cmd)
+{
+	struct cmd_struct_impl *impl;
+
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+		return NULL;
+
+	impl = &admin_cmd_command_impls[cmd];
+
+	return &impl->help;
+}
+
+int admin_exec(int cmd, int argc, char **argv)
+{
+	struct ssa_admin_msg msg;
+	struct admin_command *admin_cmd;
+	struct cmd_struct_impl *cmd_impl;
+	struct admin_context context;
+	int ret;
+
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
+		return -1;
+
 	if (rsock < 0) {
 		printf("WARNING - no connection was established\n");
 		return -1;
 	}
 
-	memset(&msg, 0, sizeof(msg));
-	msg.version	= atoi(SSA_ADMIN_VERSION);
-	msg.opcode	= htons(SSA_ADMIN_CMD_PING);
-	msg.method	= SSA_ADMIN_METHOD_GET;
-	msg.len		= htons(sizeof(msg));
+	cmd_impl = &admin_cmd_command_impls[cmd];
 
-	stime = get_timestamp();
+	if (!cmd_impl->init || !cmd_impl->destroy ||
+	    !cmd_impl->create_request || !cmd_impl->handle_response)
+		return -1;
+
+	admin_cmd = cmd_impl->init(cmd, &context, argc, argv);
+	if (!admin_cmd)
+		return -1;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.version	= atoi(SSA_ADMIN_VERSION);
+	msg.hdr.method	= SSA_ADMIN_METHOD_GET;
+	msg.hdr.opcode	= htons(admin_cmd->cmd->id);
+	msg.hdr.len	= htons(sizeof(msg.hdr));
+
+	ret = admin_cmd->impl->create_request(admin_cmd, &context, &msg);
+	if (ret < 0) {
+		printf("message creation error\n");
+		cmd_impl->destroy(admin_cmd);
+		return -1;
+	}
+
+	context.stime = get_timestamp();
 
 	ret = rsend(rsock, &msg, sizeof(msg), 0);
 	if (ret < 0 || ret != sizeof(msg)) {
 		printf("rsend rsock %d ERROR %d (%s)\n",
 		       rsock, errno, strerror(errno));
+		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
 
@@ -517,77 +725,22 @@ recv:
 #endif
 		printf("rrecv rsock %d ERROR %d (%s)\n",
 		       rsock, errno, strerror(errno));
+		cmd_impl->destroy(admin_cmd);
 		return -1;
 	} else if (ret != sizeof(msg)) {
 		printf("rrecv %d out of %lu bytes on rsock %d\n",
 		       ret, sizeof(msg), rsock);
+		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
 
-	etime = get_timestamp();
+	context.etime = get_timestamp();
 
-	if (msg.method == SSA_ADMIN_METHOD_RESP)
-		printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
-		       sizeof(msg), dest_addr, 1e-3 * (etime - stime));
+	if (msg.hdr.method == SSA_ADMIN_METHOD_RESP) {
+		cmd_impl->handle_response(admin_cmd, &context, &msg);
+	}
+
+	cmd_impl->destroy(admin_cmd);
 
 	return 0;
-}
-
-struct cmd_opts *admin_get_cmd_opts(int cmd)
-{
-	static struct cmd_opts *opts[] = {
-		[SSA_ADMIN_CMD_COUNTER]		= NULL,
-		[SSA_ADMIN_CMD_PING]		= ping_opts,
-	};
-
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
-		return NULL;
-
-	return opts[cmd];
-}
-
-struct cmd_str {
-	const char *(*get_usage)();
-	const char *const desc;
-};
-
-static struct cmd_str cmd_strings[] = {
-	[SSA_ADMIN_CMD_COUNTER] =
-		{ NULL,
-		  "Retrieve specific counter" },
-	[SSA_ADMIN_CMD_PING] =
-		{ ping_usage,
-		  "Test rsocket connection with specified node" },
-};
-
-const char *admin_cmd_desc(int cmd)
-{
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
-		return "Unknown";
-
-	return cmd_strings[cmd].desc;
-}
-
-const char *admin_cmd_usage(int cmd)
-{
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
-		return "Unknown";
-
-	return cmd_strings[cmd].get_usage();
-}
-
-int admin_exec(int cmd, int argc, char **argv)
-{
-	static int (*pfn_arr[])(int, char **) = {
-		[SSA_ADMIN_CMD_COUNTER]		= NULL,
-		[SSA_ADMIN_CMD_PING]		= cmd_ping,
-	};
-
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX)
-		return -1;
-
-	if (pfn_arr[cmd] == NULL)
-		return -1;
-
-	return (*pfn_arr[cmd])(argc, argv);
 }
