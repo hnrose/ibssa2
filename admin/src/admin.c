@@ -128,7 +128,7 @@ static void show_cmd_usage(const char *cmd_name, const struct cmd_help *help_fun
 	char buf[256];
 	int i = 0, n = 0;
 
-	if (!opts)
+	if (!opts || !help_funcs)
 		return;
 
 	memset(buf, 0, sizeof(buf));
