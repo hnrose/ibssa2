@@ -38,10 +38,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <getopt.h>
+#include <limits.h>
 
 #include "libadmin.h"
 #include <osd.h>
 #include <ssa_admin.h>
+
+#define IB_LID_MCAST_START 0xC000
 
 static int src_port = -1;
 static int admin_port;
@@ -225,6 +228,8 @@ static int parse_opts(int argc, char **argv, int *status)
 	struct option *long_option_arr;
 	int option, opt_num, n, i = 0;
 	char buf[256] = { 0 };
+	char *endptr;
+	long int tmp;
 
 	if (argc <= 1) {
 		show_usage();
@@ -254,7 +259,22 @@ static int parse_opts(int argc, char **argv, int *status)
 				     long_option_arr, NULL);
 		switch (option) {
 		case 'l':
-			dest_lid = atoi(optarg);
+			tmp = strtol(optarg, &endptr, 10);
+			if (endptr == optarg) {
+				fprintf(stderr, "ERROR - no digits were found in option -%c\n", option);
+				return 1;
+			}
+			if (errno == ERANGE && (tmp == LONG_MAX || tmp == LONG_MIN) ) {
+				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
+				return 1;
+			}
+			if (tmp <0 || tmp >= IB_LID_MCAST_START) {
+				fprintf(stderr, "ERROR - invalid lid %ld in option -l\n", tmp);
+				return 1;
+			}
+
+			dest_lid = tmp;
+
 			break;
 		case 'g':
 			dest_gid = optarg;
