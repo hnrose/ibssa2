@@ -288,7 +288,20 @@ static int parse_opts(int argc, char **argv, int *status)
 			ca_name = optarg;
 			break;
 		case 'P':
-			src_port = atoi(optarg);
+			tmp = strtol(optarg, &endptr, 10);
+			if (endptr == optarg) {
+				fprintf(stderr, "ERROR - no digits were found in option -%c\n", option);
+				return 1;
+			}
+			if (errno == ERANGE && (src_port == LONG_MAX || src_port == LONG_MIN) ) {
+				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
+				return 1;
+			}
+			if (src_port < 0) {
+				fprintf(stderr, "ERROR - invalid value %ld in option -%c\n", tmp, option);
+				return 1;
+			}
+			src_port = tmp;
 			break;
 		case 'p':
 			pkey = (uint16_t) strtoul(optarg, NULL, 0);
