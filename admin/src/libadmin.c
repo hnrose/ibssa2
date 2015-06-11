@@ -771,11 +771,18 @@ recv:
 
 	context.etime = get_timestamp();
 
-	if (msg.hdr.method == SSA_ADMIN_METHOD_RESP) {
+	if (msg.hdr.status != SSA_ADMIN_STATUS_SUCCESS) {
+		fprintf(stderr, "ERROR - target SSA node failed to process request\n");
+		ret = -1;
+	} else if (msg.hdr.method != SSA_ADMIN_METHOD_RESP) {
+		fprintf(stderr, "ERROR - response has wrong method\n");
+		ret = -1;
+	} else {
 		cmd_impl->handle_response(admin_cmd, &context, &msg);
+		ret = 0;
 	}
 
 	cmd_impl->destroy(admin_cmd);
 
-	return 0;
+	return ret;
 }
