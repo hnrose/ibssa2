@@ -652,14 +652,8 @@ int counter_command_create_msg(struct admin_command *cmd,
 			       struct ssa_admin_msg *msg)
 {
 	struct ssa_admin_counter *counter_msg = &msg->data.counter;
-	int ret;
 	uint16_t n;
 
-	ret = default_create_msg(cmd, ctx, msg);
-	if (ret)
-		return ret;
-
-	msg->hdr.opcode	= htons(SSA_ADMIN_CMD_COUNTER);
 	n = ntohs(msg->hdr.len) + sizeof(*counter_msg);
 	msg->hdr.len = htons(n);
 
