@@ -6263,6 +6263,27 @@ err:
 	return -1;
 }
 
+static int ssa_admin_verify_message(struct ssa_admin_msg *admin_msg)
+{
+	if (admin_msg->hdr.version != SSA_ADMIN_PROTOCOL_VERSION) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "received SSA admin message with %d "
+			    "version instead of %d \n",
+			    admin_msg->hdr.version, SSA_ADMIN_PROTOCOL_VERSION);
+		return 0;
+	}
+
+	if (admin_msg->hdr.method != SSA_ADMIN_METHOD_GET) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "received SSA admin message with %d "
+			    "method specified instead of %d\n",
+			    admin_msg->hdr.method, SSA_ADMIN_METHOD_GET);
+		return 0;
+	}
+
+	return 1;
+}
+
 static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
@@ -6375,23 +6396,17 @@ static void *ssa_admin_handler(void *context)
 				}
 			}
 
-			if (admin_msg.hdr.method == SSA_ADMIN_METHOD_GET) {
-				admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
+			if (!ssa_admin_verify_message(&admin_msg))
+				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
 
-				ret = rsend(rsock_data, (char *) &admin_msg,
-					    len, 0);
-				if (ret < 0) {
-					ssa_log_err(SSA_LOG_CTRL,
-						    "rsend failed: %d (%s) on rsock %d\n",
-						    errno, strerror(errno), rsock_data);
-					rclose(rsock_data);
-					continue;
-				}
-			} else {
-				ssa_log_warn(SSA_LOG_DEFAULT,
-					     "received SSA admin MAD with %d "
-					     "method specified instead of %d\n",
-					     admin_msg.hdr.method, SSA_ADMIN_METHOD_GET);
+			admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
+			ret = rsend(rsock_data, (char *) &admin_msg, len, 0);
+			if (ret < 0) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "rsend failed: %d (%s) on rsock %d\n",
+					    errno, strerror(errno), rsock_data);
+				rclose(rsock_data);
+				continue;
 			}
 
 			rclose(rsock_data);
