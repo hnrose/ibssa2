@@ -141,6 +141,8 @@ void ssa_report_error(int level, int error, const char *format, ...)
 	vsnprintf(msg, sizeof(msg), format, args);
 	va_end(args);
 
+	ssa_write_log(level, "%s", msg);
+
 	ssa_set_runtime_counter(COUNTER_ID_TIME_LAST_ERR, error);
 	ssa_inc_runtime_counter(COUNTER_ID_NUM_ERR);
 	ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_ERR);
