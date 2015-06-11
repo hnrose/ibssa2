@@ -89,6 +89,7 @@ static int default_create_msg(struct admin_command *cmd,
 static void ping_command_output(struct admin_command *cmd,
 				struct admin_context *ctx,
 				const struct ssa_admin_msg *msg);
+static void counter_print_help(FILE *stream);
 static int counter_command_create_msg(struct admin_command *cmd,
 				      struct admin_context *ctx,
 				      struct ssa_admin_msg *msg);
@@ -103,7 +104,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		counter_command_create_msg,
 		counter_command_output,
 		{},
-		{ default_print_help, default_print_usage,
+		{ counter_print_help, default_print_usage,
 		  "Retrieve specific counter" },
 	},
 	[SSA_ADMIN_CMD_PING]	= {
@@ -612,6 +613,44 @@ static void ping_command_output(struct admin_command *cmd,
 {
 	printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
 	       sizeof(msg), dest_addr, 1e-3 * (ctx->etime - ctx->stime));
+}
+
+static const char *ssa_counter_type_names[] = {
+	[ssa_counter_obsolete] = "Obsolete",
+	[ssa_counter_numeric] = "Numeric",
+	[ssa_counter_timestamp] = "Timestamp"
+};
+
+static struct ssa_admin_counter_descr counters_descr[] = {
+	[COUNTER_ID_DB_UPDATES_NUM] = { ssa_counter_numeric, "DB_UPDATES_NUM", "Number of databases updates passed the node" },
+	[COUNTER_ID_DB_LAST_UPDATE_TIME] = { ssa_counter_timestamp, "LAST_UPDATE_TIME", "Time of last database update" },
+	[COUNTER_ID_DB_FIRST_UPDATE_TIME] = { ssa_counter_timestamp, "FIRST_UPDATE_TIME", "Time of first database update" },
+	[COUNTER_ID_NUM_CHILDREN] = { ssa_counter_numeric, "NUM_CHILDREN", "Number of connected downstream nodes" },
+	[COUNTER_ID_NUM_ACCESS_TASKS] = { ssa_counter_numeric, "NUM_ACCESS_TASKS", "Number of unprocessed Access tasks" },
+	[COUNTER_ID_NUM_ERR] = { ssa_counter_numeric, "NUM_ERR", "Number of errors" },
+	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = { ssa_counter_timestamp, "TIME_LAST_UPSTR_CONN", "Time of last upstream connect" },
+	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = { ssa_counter_timestamp, "TIME_LAST_DOWNSTR_CONN", "Time of last downstream connect" },
+	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = { ssa_counter_timestamp, "TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
+	[COUNTER_ID_TIME_LAST_ERR] = { ssa_counter_timestamp, "TIME_LAST_ERR", "Time of last error" },
+};
+
+
+static void counter_print_help(FILE *stream)
+{
+	int i;
+
+	printf("counter is a command for gathering runtime information from a SSA node.\n");
+	printf("Supported counters:\n");
+
+	for (i = 0; i < ARRAY_SIZE(counters_descr); ++i) {
+		if (counters_descr[i].type != ssa_counter_obsolete)
+			printf("%-25s %-10s %s\n",
+			       counters_descr[i].name,
+			       ssa_counter_type_names[counters_descr[i].type],
+			       counters_descr[i].description);
+	}
+
+	printf("\n\n");
 }
 
 int counter_command_create_msg(struct admin_command *cmd,
