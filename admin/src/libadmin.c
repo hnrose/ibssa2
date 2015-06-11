@@ -80,7 +80,6 @@ struct cmd_struct_impl {
 
 static void default_destroy(struct admin_command *cmd);
 static void default_print_usage(FILE *stream);
-static void default_print_help(FILE *stream);
 static struct admin_command *default_init(int cmd_id, struct admin_context *ctx,
 					  int argc, char **argv);
 static int default_create_msg(struct admin_command *cmd,
@@ -113,7 +112,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		default_create_msg,
 		ping_command_output,
 		{},
-		{ default_print_help, default_print_usage,
+		{ NULL, default_print_usage,
 		  "Test rsocket connection with specified node" }
 	}
 };
@@ -521,11 +520,6 @@ static void default_destroy(struct admin_command *cmd)
 }
 
 static void default_print_usage(FILE *stream)
-{
-	(void)(stream);
-}
-
-static void default_print_help(FILE *stream)
 {
 	(void)(stream);
 }

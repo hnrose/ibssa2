@@ -139,6 +139,8 @@ static void show_cmd_usage(const char *cmd_name, const struct cmd_help *help_fun
 
 	if (help_funcs->print_help)
 		help_funcs->print_help(stdout);
+	else
+		printf("%s\n", help_funcs->desc);
 
 	while (opts[i].op.name && n < 256) {
 		if (opts[i].op.has_arg) {
