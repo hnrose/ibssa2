@@ -49,6 +49,9 @@
 #define ACM_DEFAULT_QUERY_TIMEOUT 11000L
 #define ACM_DEFAULT_QUERY_RETRIES 99
 
+#define ACM_DEFAULT_DEST_PKEY         0xFFFF
+#define ACM_DEFAULT_DEST_REMOTE_FLAGS 0x80
+
 enum acm_state {
 	ACM_INIT,
 	ACM_QUERY_ADDR,
@@ -76,6 +79,7 @@ struct acm_dest {
 	uint64_t	       addr_timeout;
 	uint64_t	       route_timeout;
 	uint8_t                addr_type;
+	uint8_t                remote_flags;
 };
 
 /* Maintain separate virtual send queues to avoid deadlock */

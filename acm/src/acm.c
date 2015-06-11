@@ -35,6 +35,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
+#include <limits.h>
 #include <osd.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -3286,12 +3288,18 @@ err:
 static void acm_parse_hosts_file(struct acm_ep *ep)
 {
 	FILE *f;
-	char s[120];
+	char s[160];
 	char addr[INET6_ADDRSTRLEN + 1], gid[INET6_ADDRSTRLEN + 1];
+	char buf1[8], buf2[16];
+	char *endptr;
 	uint8_t name[ACM_MAX_ADDRESS + 1];
 	struct in6_addr ip_addr, ib_addr;
 	struct acm_dest *dest, *gid_dest;
-	uint8_t addr_type;
+	long int tmp;
+	int ret, idx, invalid_input;
+	uint32_t qpn;
+	uint16_t pkey = ACM_DEFAULT_DEST_PKEY;
+	uint8_t addr_type, flags;
 
 	if (!(f = fopen(addr_data_file, "r"))) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't open %s\n",
@@ -3300,18 +3308,104 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
         }
 
 	while (fgets(s, sizeof s, f)) {
-		if (s[0] == '#')
+		idx = 0;
+
+		while (isspace(s[idx]))
+			idx++;
+
+		if (s[idx] == '#')
 			continue;
 
-		if (sscanf(s, "%46s%46s", addr, gid) != 2)
+		if (s[idx] == '[' && s[strlen(s) - 2] == ']') {
+			invalid_input = 0;
+			ret = sscanf(s + idx, "[%*[ \tp]key%*[ \t=]%7s]", buf1);
+			if (ret == 1) {
+				tmp = strtol(buf1, &endptr, 16);
+				if ((endptr == buf1) || (errno == EINVAL) ||
+				    (errno == ERANGE && (tmp == LONG_MIN ||
+				     tmp == LONG_MAX)) || (tmp <= 0) ||
+				    (tmp == 0x8000) || (tmp > ACM_DEFAULT_DEST_PKEY))
+					invalid_input = 1;
+				pkey = (uint16_t) tmp;
+			} else {
+				pkey = ACM_DEFAULT_DEST_PKEY;
+			}
+
+			if (invalid_input) {
+				ssa_log_warn(SSA_LOG_DEFAULT,
+					     "invalid pkey was specified (0x%x),"
+					     " assuming default (0x%x)\n",
+					     tmp, ACM_DEFAULT_DEST_PKEY);
+				pkey = ACM_DEFAULT_DEST_PKEY;
+			}
+			continue;
+		}
+
+		ret = sscanf(s + idx, "%46s%46s%15s%7s", addr, gid, buf2, buf1);
+		if (ret < 2 || ret > 4)
 			continue;
 
 		ssa_log(SSA_LOG_VERBOSE, "%s", s);
 		if (inet_pton(AF_INET6, gid, &ib_addr) <= 0) {
 			ssa_log(SSA_LOG_DEFAULT,
-				"ERROR - %s is not IB GID\n", gid);
+				"ERROR - %s is not an IB GID\n", gid);
 			continue;
 		}
+
+		switch (ret) {
+		case 2:
+			qpn = 1;
+			flags = 0;
+			break;
+		case 3:
+			tmp = strtol(buf2, &endptr, 0);
+			if ((endptr == buf2) || (errno == EINVAL) ||
+			    (errno == ERANGE && (tmp == LONG_MIN ||
+			     tmp == LONG_MAX)) || (tmp < 0) ||
+			    (tmp > 0xFFFFFF)) {
+				ssa_log_warn(SSA_LOG_DEFAULT,
+					     "invalid QPN was specified (0x%x),"
+					     " assuming default (1)\n", tmp);
+				qpn = 1;
+			} else {
+				qpn = (uint32_t) tmp;
+			}
+			flags = ACM_DEFAULT_DEST_REMOTE_FLAGS;
+			break;
+		case 4:
+			tmp = strtol(buf2, &endptr, 0);
+			if ((endptr == buf2) || (errno == EINVAL) ||
+			    (errno == ERANGE && (tmp == LONG_MIN ||
+			     tmp == LONG_MAX)) || (tmp < 0) ||
+			    (tmp > 0xFFFFFF)) {
+				ssa_log_warn(SSA_LOG_DEFAULT,
+					     "invalid QPN was specified (0x%x),"
+					     " assuming default (1)\n", tmp);
+				qpn = 1;
+			} else {
+				qpn = (uint32_t) tmp;
+			}
+			tmp = strtol(buf1, &endptr, 0);
+			if ((endptr == buf1) || (errno == EINVAL) ||
+			    (errno == ERANGE && (tmp == LONG_MIN ||
+			     tmp == LONG_MAX)) || (tmp > 0xC0) ||
+			    (tmp & 0x3F)) {
+				ssa_log_warn(SSA_LOG_DEFAULT,
+					     "invalid flags were specified (0x"
+					     "%x), assuming default (0x%x)\n",
+					     tmp, ACM_DEFAULT_DEST_REMOTE_FLAGS);
+				flags = ACM_DEFAULT_DEST_REMOTE_FLAGS;
+			} else {
+				flags = (uint8_t) tmp;
+			}
+			break;
+		default:
+			break;
+		}
+
+		if (pkey != ep->pkey)
+			continue;
+
 		memset(name, 0, sizeof(name));
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
 			addr_type = ACM_ADDRESS_IP;
@@ -3356,13 +3450,15 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 			dest->state = ACM_ADDR_RESOLVED;
 		}
 
-		dest->remote_qpn = 1;
+		dest->remote_qpn = qpn;
+		dest->remote_flags = flags;
 		dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
 		dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
 		acm_put_dest(dest);
 		ssa_log(SSA_LOG_VERBOSE,
-			"added host %s address type %d IB GID %s\n",
-			addr, addr_type, gid);
+			"added host %s address type %d IB GID %s "
+			"QPN 0x%x flags 0x%x pkey 0x%x\n",
+			addr, addr_type, gid, qpn, flags, pkey);
 	}
 
 	fclose(f);
@@ -3414,7 +3510,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 				continue;
 			}
 		} else {
-			pkey = 0xFFFF;
+			pkey = ACM_DEFAULT_DEST_PKEY;
 		}
 
 		if (!strcasecmp(dev_name, dev) && (*port_num == (uint8_t) port) &&

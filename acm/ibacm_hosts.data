@@ -1,7 +1,7 @@
 # InfiniBand Communication Management Assistant for clusters hosts file
 #
 # Entry format is:
-# address IB GID
+# address IB GID [<QPN> [<flags>]]
 #
 # The address may be one of the following:
 # host_name - ascii character string, up to 31 characters
@@ -9,7 +9,34 @@
 #
 # There can be multiple entries for a single IB GID
 #
+# QPN    - remote QP number (optional)
+#
+# flags  - 8 bits that indicate the connected modes supported
+#          by the remote interface:
+#              bit 7 specifies "reliable connected" (RC) mode
+#              bit 6 specifies "unreliable connected" (UC) mode
+#              bits 5-0 are reserved and MUST be set to 0
+#
+#          * if no QPN was specified, flags should not be specified as well
+#          * in case of only QPN specified, flags will get default 0x80 value
+#
+# All entries are divided into pkey sections. Before each section '[pkey=xxxx]'
+# will specify the pkey value (should be in hex) for section entries.
+# If empty '[]' appears then subsequent entries (till the next pkey section)
+# will have the default pkey value: 0xffff. The same goes for entries without
+# section specified (before any pkey section has started).
+#
 # Samples:
-# luna3 fe80::8:f104:39a:169
-# 192.168.1.3 fe80::8:f104:39a:169
-# fe80::208:f104:39a:169 fe80::8:f104:39a:169
+#
+# luna3                   fe80::8:f104:39a:169
+# fe80::208:f104:39a:169  fe80::8:f104:39a:169
+# 192.168.1.3             fe80::8:f104:39a:169  0xaabbcc
+#
+# [pkey = 6FFF]
+# 192.168.1.4             fe80::8:f104:39a:169  0xaabbcc 0x80
+#
+# []
+# 192.168.1.5             fe80::8:f104:39a:169  0xaabbcc
+#
+# [pkey = 0x7FFF]
+# 192.168.1.6             fe80::8:f104:39a:169  0xaabbcc 0x80
