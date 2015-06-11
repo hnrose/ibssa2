@@ -113,7 +113,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		ping_command_output,
 		{},
 		{ NULL, default_print_usage,
-		  "Test rsocket connection with specified node" }
+		  "Test ping between local node and SSA service on a specified target node" }
 	}
 };
 
