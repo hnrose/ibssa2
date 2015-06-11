@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include <infiniband/umad.h>
 
-#define SSA_ADMIN_VERSION	"0.1"
+#define SSA_ADMIN_PROTOCOL_VERSION	1
 
 enum {
 	SSA_ADMIN_STATUS_SUCCESS = 1,

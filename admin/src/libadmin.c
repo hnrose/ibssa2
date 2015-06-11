@@ -698,7 +698,7 @@ int admin_exec(int cmd, int argc, char **argv)
 		return -1;
 
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.version	= atoi(SSA_ADMIN_VERSION);
+	msg.hdr.version	= SSA_ADMIN_PROTOCOL_VERSION;
 	msg.hdr.method	= SSA_ADMIN_METHOD_GET;
 	msg.hdr.opcode	= htons(admin_cmd->cmd->id);
 	msg.hdr.len	= htons(sizeof(msg.hdr));

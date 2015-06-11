@@ -31,6 +31,7 @@
  *
  */
 
+#include <config.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -79,7 +80,7 @@ static const char admin_more_info_string[] =
 
 static void show_version()
 {
-	printf("SSA Admin version "SSA_ADMIN_VERSION"\n");
+	printf("SSA Admin version "IB_SSA_VERSION"\n");
 }
 
 static void show_usage()
