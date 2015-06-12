@@ -6385,7 +6385,6 @@ static void *ssa_admin_handler(void *context)
 			}
 
 			len = ntohs(admin_msg.hdr.len);
-
 			if (len > sizeof(admin_msg.hdr)) {
 				ret += rrecv(rsock_data, (char *) &admin_msg.data,
 					     len - sizeof(admin_msg.hdr), 0);
@@ -6398,8 +6397,8 @@ static void *ssa_admin_handler(void *context)
 
 			if (!ssa_admin_verify_message(&admin_msg))
 				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
-
 			admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
+
 			ret = rsend(rsock_data, (char *) &admin_msg, len, 0);
 			if (ret < 0) {
 				ssa_log_err(SSA_LOG_CTRL,
