@@ -6,7 +6,7 @@ bin_PROGRAMS = util/ib_acme
 sbin_PROGRAMS = svc/ibacm
 svc_ibacm_SOURCES = src/acm.c src/ssa.c src/ssa_db.c src/ssa_db_helper.c \
 		    src/ssa_log.c src/ssa_signal_handler.c \
-		    src/ssa_runtime_counters.c
+		    src/ssa_runtime_counters.c src/acm_neigh.c
 util_ib_acme_SOURCES = src/acme.c src/libacm.c src/parse.c
 svc_ibacm_CFLAGS = $(AM_CFLAGS)
 util_ib_acme_CFLAGS = $(AM_CFLAGS)
@@ -24,7 +24,7 @@ man_MANS = \
 EXTRA_DIST = src/acm_mad.h src/libacm.h ibacm.init.in \
 	     include/osd.h include/dlist.h \
 	     include/ssa_log.h include/common.h include/acm_shared.h \
-	     include/ssa_ctrl.h include/infiniband/ssa.h \
+	     include/ssa_ctrl.h include/acm_neigh.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_mad.h include/infiniband/ssa_db.h \
 	     include/infiniband/ssa_db_helper.h include/infiniband/ssa_prdb.h \
 	     include/infiniband/ssa_path_record.h \
