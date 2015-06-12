@@ -73,9 +73,9 @@ static struct option long_option[] = {
 };
 
 static const char admin_usage_string[] =
-	"ssadmin  [-v | --version] [-h | --help] [-l | --lid <dlid>] [-g | --gid <dgid>]\n"
-	"\t\t[-d | --device <device name>] [-P | --Port <CA port>] \n"
-	"\t\t[-p | --pkey <partition key>] [-a | --admin_port <admin server port>]";
+	"ssadmin  [-v | --version] [-h | --help] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]\n"
+	"\t\t[[-d | --device] <device name>] [[-P | --Port] <CA port>] \n"
+	"\t\t[[-p | --pkey] <partition key>] [[-a | --admin_port] <admin server port>]";
 
 static const char admin_more_info_string[] =
 	"'ssadmin help <command>' shows specific subcommand "
