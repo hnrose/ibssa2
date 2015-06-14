@@ -3296,7 +3296,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	struct in6_addr ip_addr, ib_addr;
 	struct acm_dest *dest, *gid_dest;
 	long int tmp;
-	int ret, idx, invalid_input;
+	int ret, idx, invalid_input, line = 0;
 	uint32_t qpn;
 	uint16_t pkey = ACM_DEFAULT_DEST_PKEY;
 	uint8_t addr_type, flags;
@@ -3308,6 +3308,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
         }
 
 	while (fgets(s, sizeof s, f)) {
+		line++;
 		idx = 0;
 
 		while (isspace(s[idx]))
@@ -3333,9 +3334,10 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 
 			if (invalid_input) {
 				ssa_log_warn(SSA_LOG_DEFAULT,
-					     "invalid pkey was specified (0x%x),"
-					     " assuming default (0x%x)\n",
-					     tmp, ACM_DEFAULT_DEST_PKEY);
+					     "invalid pkey was specified (0x%x)"
+					     " assuming default (0x%x) %s:%d\n",
+					     tmp, ACM_DEFAULT_DEST_PKEY,
+					     addr_data_file, line);
 				pkey = ACM_DEFAULT_DEST_PKEY;
 			}
 			continue;
@@ -3363,13 +3365,13 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 			    (errno == ERANGE && (tmp == LONG_MIN ||
 			     tmp == LONG_MAX)) || (tmp < 0) ||
 			    (tmp > 0xFFFFFF)) {
-				ssa_log_warn(SSA_LOG_DEFAULT,
-					     "invalid QPN was specified (0x%x),"
-					     " assuming default (1)\n", tmp);
-				qpn = 1;
-			} else {
-				qpn = (uint32_t) tmp;
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "invalid QPN was specified (0x%x)"
+					    " for gid %s %s:%d\n",
+					    tmp, gid, addr_data_file, line);
 			}
+
+			qpn = (uint32_t) tmp;
 			flags = ACM_DEFAULT_DEST_REMOTE_FLAGS;
 			break;
 		case 4:
@@ -3378,26 +3380,28 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 			    (errno == ERANGE && (tmp == LONG_MIN ||
 			     tmp == LONG_MAX)) || (tmp < 0) ||
 			    (tmp > 0xFFFFFF)) {
-				ssa_log_warn(SSA_LOG_DEFAULT,
-					     "invalid QPN was specified (0x%x),"
-					     " assuming default (1)\n", tmp);
-				qpn = 1;
-			} else {
-				qpn = (uint32_t) tmp;
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "invalid QPN was specified (0x%x)"
+					    " for gid %s %s:%d\n",
+					    tmp, gid, addr_data_file, line);
+				continue;
 			}
+
+			qpn = (uint32_t) tmp;
+
 			tmp = strtol(buf1, &endptr, 0);
 			if ((endptr == buf1) || (errno == EINVAL) ||
 			    (errno == ERANGE && (tmp == LONG_MIN ||
 			     tmp == LONG_MAX)) || (tmp > 0xC0) ||
 			    (tmp & 0x3F)) {
-				ssa_log_warn(SSA_LOG_DEFAULT,
-					     "invalid flags were specified (0x"
-					     "%x), assuming default (0x%x)\n",
-					     tmp, ACM_DEFAULT_DEST_REMOTE_FLAGS);
-				flags = ACM_DEFAULT_DEST_REMOTE_FLAGS;
-			} else {
-				flags = (uint8_t) tmp;
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "invalid flags were specified (0x"
+					    "%x) for gid %s %s:%d\n",
+					    tmp, gid, addr_data_file, line);
+				continue;
 			}
+
+			flags = (uint8_t) tmp;
 			break;
 		default:
 			break;
