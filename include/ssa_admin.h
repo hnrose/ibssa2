@@ -68,13 +68,26 @@ enum ssa_admin_counter_id {
 	COUNTER_ID_LAST
 };
 
-const static int ssa_admin_time_counter_ids[] = {
-	COUNTER_ID_NODE_START_TIME,
-	COUNTER_ID_TIME_LAST_UPSTR_CONN,
-	COUNTER_ID_TIME_LAST_DOWNSTR_CONN,
-	COUNTER_ID_TIME_LAST_SSA_MAD_RCV,
-	COUNTER_ID_TIME_LAST_ERR
+enum ssa_counter_type {
+	ssa_counter_obsolete = 0,
+	ssa_counter_numeric,
+	ssa_counter_timestamp
 };
+
+const static enum ssa_counter_type ssa_admin_counters_type[] = {
+	[COUNTER_ID_NODE_START_TIME] = ssa_counter_timestamp,
+	[COUNTER_ID_DB_UPDATES_NUM] = ssa_counter_numeric,
+	[COUNTER_ID_DB_LAST_UPDATE_TIME] = ssa_counter_timestamp,
+	[COUNTER_ID_DB_FIRST_UPDATE_TIME] = ssa_counter_timestamp,
+	[COUNTER_ID_NUM_CHILDREN] = ssa_counter_numeric,
+	[COUNTER_ID_NUM_ACCESS_TASKS] = ssa_counter_numeric,
+	[COUNTER_ID_NUM_ERR] = ssa_counter_numeric,
+	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = ssa_counter_timestamp,
+	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = ssa_counter_timestamp,
+	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = ssa_counter_timestamp,
+	[COUNTER_ID_TIME_LAST_ERR] = ssa_counter_timestamp
+};
+
 
 struct ssa_admin_counter {
 	be16_t		n;

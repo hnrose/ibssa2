@@ -589,14 +589,8 @@ static int default_create_msg(struct admin_command *cmd,
 	return 0;
 }
 
-enum ssa_counter_type {
-	ssa_counter_obsolete = 0,
-	ssa_counter_numeric,
-	ssa_counter_timestamp
-};
 
 struct ssa_admin_counter_descr {
-	uint8_t type;
 	const char *name;
 	const char *description;
 };
@@ -616,17 +610,17 @@ static const char *ssa_counter_type_names[] = {
 };
 
 static struct ssa_admin_counter_descr counters_descr[] = {
-	[COUNTER_ID_NODE_START_TIME] = { ssa_counter_timestamp, "NODE_START_TIME", "Starting time of the node" },
-	[COUNTER_ID_DB_UPDATES_NUM] = { ssa_counter_numeric, "DB_UPDATES_NUM", "Number of databases updates passed the node" },
-	[COUNTER_ID_DB_LAST_UPDATE_TIME] = { ssa_counter_timestamp, "LAST_UPDATE_TIME", "Time of last database update" },
-	[COUNTER_ID_DB_FIRST_UPDATE_TIME] = { ssa_counter_timestamp, "FIRST_UPDATE_TIME", "Time of first database update" },
-	[COUNTER_ID_NUM_CHILDREN] = { ssa_counter_numeric, "NUM_CHILDREN", "Number of connected downstream nodes" },
-	[COUNTER_ID_NUM_ACCESS_TASKS] = { ssa_counter_numeric, "NUM_ACCESS_TASKS", "Number of unprocessed Access tasks" },
-	[COUNTER_ID_NUM_ERR] = { ssa_counter_numeric, "NUM_ERR", "Number of errors" },
-	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = { ssa_counter_timestamp, "TIME_LAST_UPSTR_CONN", "Time of last upstream connect" },
-	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = { ssa_counter_timestamp, "TIME_LAST_DOWNSTR_CONN", "Time of last downstream connect" },
-	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = { ssa_counter_timestamp, "TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
-	[COUNTER_ID_TIME_LAST_ERR] = { ssa_counter_timestamp, "TIME_LAST_ERR", "Time of last error" },
+	[COUNTER_ID_NODE_START_TIME] = {"NODE_START_TIME", "Starting time of the node" },
+	[COUNTER_ID_DB_UPDATES_NUM] = {"DB_UPDATES_NUM", "Number of databases updates passed the node" },
+	[COUNTER_ID_DB_LAST_UPDATE_TIME] = {"LAST_UPDATE_TIME", "Time of last database update" },
+	[COUNTER_ID_DB_FIRST_UPDATE_TIME] = {"FIRST_UPDATE_TIME", "Time of first database update" },
+	[COUNTER_ID_NUM_CHILDREN] = {"NUM_CHILDREN", "Number of connected downstream nodes" },
+	[COUNTER_ID_NUM_ACCESS_TASKS] = {"NUM_ACCESS_TASKS", "Number of unprocessed Access tasks" },
+	[COUNTER_ID_NUM_ERR] = {"NUM_ERR", "Number of errors" },
+	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = {"TIME_LAST_UPSTR_CONN", "Time of last upstream connect" },
+	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = {"TIME_LAST_DOWNSTR_CONN", "Time of last downstream connect" },
+	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = {"TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
+	[COUNTER_ID_TIME_LAST_ERR] = {"TIME_LAST_ERR", "Time of last error" },
 };
 
 
@@ -638,10 +632,10 @@ static void counter_print_help(FILE *stream)
 	printf("Supported counters:\n");
 
 	for (i = 0; i < ARRAY_SIZE(counters_descr); ++i) {
-		if (counters_descr[i].type != ssa_counter_obsolete)
+		if (ssa_admin_counters_type[i] != ssa_counter_obsolete)
 			printf("%-25s %-10s %s\n",
 			       counters_descr[i].name,
-			       ssa_counter_type_names[counters_descr[i].type],
+			       ssa_counter_type_names[ssa_admin_counters_type[i]],
 			       counters_descr[i].description);
 	}
 
@@ -683,7 +677,7 @@ static void counter_command_output(struct admin_command *cmd,
 		val = ntohll(counter_msg->vals[i]);
 
 		if (val >= 0) {
-			switch (counters_descr[i].type) {
+			switch (ssa_admin_counters_type[i]) {
 				case ssa_counter_obsolete:
 					continue;
 					break;

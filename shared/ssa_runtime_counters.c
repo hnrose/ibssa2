@@ -61,8 +61,10 @@ void ssa_init_runtime_statistics()
 
 	for (i = 0; i < SSA_RUNTIME_COUNTERS_NUM; ++i)
 	       atomic_init(&ssa_runtime_stat.counters[i]);
-	for (i = 0; i < ARRAY_SIZE(ssa_admin_time_counter_ids); ++i)
-		ssa_set_runtime_counter(ssa_admin_time_counter_ids[i], -1);
+	for (i = 0; i < COUNTER_ID_LAST; ++i) {
+		if (ssa_admin_counters_type[i] == ssa_counter_timestamp)
+			ssa_set_runtime_counter(i, -1);
+	}
 
 	gettimeofday(&ssa_runtime_stat.start_time, NULL);
 	ssa_set_runtime_counter_time(COUNTER_ID_NODE_START_TIME);
