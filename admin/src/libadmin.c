@@ -740,7 +740,7 @@ int admin_exec(int cmd, int argc, char **argv)
 	struct admin_command *admin_cmd;
 	struct cmd_struct_impl *cmd_impl;
 	struct admin_context context;
-	int ret;
+	int ret, len;
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
 		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
@@ -788,8 +788,8 @@ int admin_exec(int cmd, int argc, char **argv)
 #if 0
 recv:
 #endif
-	ret = rrecv(rsock, &msg, sizeof(msg), 0);
-	if (ret < 0) {
+	ret = rrecv(rsock, &msg, sizeof(msg.hdr), 0);
+	if (ret != sizeof(msg.hdr)) {
 #if 0
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			do_poll(rsock);
@@ -800,11 +800,17 @@ recv:
 			rsock, errno, strerror(errno));
 		cmd_impl->destroy(admin_cmd);
 		return -1;
-	} else if (ret != sizeof(msg)) {
-		fprintf(stderr, "rrecv %d out of %lu bytes on rsock %d\n",
-			ret, sizeof(msg), rsock);
-		cmd_impl->destroy(admin_cmd);
-		return -1;
+	}
+
+	len = ntohs(msg.hdr.len);
+	if (len > sizeof(msg.hdr)) {
+		ret += rrecv(rsock, (char *) &msg.data, len - sizeof(msg.hdr), 0);
+		if (ret != len) {
+			fprintf(stderr, "%d out of %d bytes read from SSA node\n",
+				ret, len);
+			cmd_impl->destroy(admin_cmd);
+			return -1;
+		}
 	}
 
 	context.etime = get_timestamp();
