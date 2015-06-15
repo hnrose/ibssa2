@@ -655,6 +655,7 @@ int counter_command_create_msg(struct admin_command *cmd,
 	struct ssa_admin_counter *counter_msg = &msg->data.counter;
 	uint16_t n;
 
+	counter_msg->n = htons(COUNTER_ID_LAST);
 	n = ntohs(msg->hdr.len) + sizeof(*counter_msg);
 	msg->hdr.len = htons(n);
 
@@ -665,8 +666,44 @@ static void counter_command_output(struct admin_command *cmd,
 				   struct admin_context *ctx,
 				   const struct ssa_admin_msg *msg)
 {
+	int i, n;
 	struct ssa_admin_counter *counter_msg = (struct ssa_admin_counter *)&msg->data.counter;
-	(void)(counter_msg);
+	struct timeval epoch, timestamp;
+	time_t timestamp_time;
+	struct tm *timestamp_tm;
+	char tm_buf[64], buf[64];
+	long val;
+
+	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
+
+	epoch.tv_sec = ntohll(counter_msg->epoch_tv_sec);
+	epoch.tv_usec = ntohll(counter_msg->epoch_tv_usec);
+
+	for (i = 0; i < n; ++i) {
+		val = ntohll(counter_msg->vals[i]);
+
+		if (val >= 0) {
+			switch (counters_descr[i].type) {
+				case ssa_counter_obsolete:
+					continue;
+					break;
+				case ssa_counter_numeric:
+					printf("%s %ld\n", counters_descr[i].name, val);
+					break;
+				case ssa_counter_timestamp:
+					timestamp.tv_sec = epoch.tv_sec + val / 1000;
+					timestamp.tv_usec = epoch.tv_usec + (val % 1000) * 1000;
+					timestamp_time =  timestamp.tv_sec;
+					timestamp_tm = localtime(&timestamp_time);
+					strftime(tm_buf, sizeof tm_buf, "%Y-%m-%d %H:%M:%S", timestamp_tm);
+					snprintf(buf, sizeof buf, "%s.%06d", tm_buf, (int) timestamp.tv_usec);
+					printf("%s %s\n", counters_descr[i].name, buf);
+					break;
+				default:
+					continue;
+			};
+		}
+	}
 }
 
 struct cmd_opts *admin_get_cmd_opts(int cmd)

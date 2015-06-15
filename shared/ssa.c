@@ -6284,6 +6284,43 @@ static int ssa_admin_verify_message(struct ssa_admin_msg *admin_msg)
 	return 1;
 }
 
+static int ssa_admin_handle_counter_message(struct ssa_admin_msg *admin_msg)
+{
+	int i, n;
+	struct timeval epoch;
+	struct ssa_admin_counter *counter_msg = (struct ssa_admin_counter *)&admin_msg->data.counter;
+
+	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
+
+	for (i = 0; i < n; ++i) {
+		counter_msg->vals[i] = htonll((uint64_t) ssa_get_runtime_counter(i));
+	}
+
+	ssa_get_runtime_counter_time(COUNTER_ID_NODE_START_TIME, &epoch);
+
+	counter_msg->n = htons(COUNTER_ID_LAST);
+	counter_msg->epoch_tv_sec = htonll((uint64_t) epoch.tv_sec);
+	counter_msg->epoch_tv_usec = htonll((uint64_t) epoch.tv_usec);
+
+	return 0;
+};
+
+static int ssa_admin_handle_message(struct ssa_admin_msg *admin_msg)
+{
+	switch (ntohs(admin_msg->hdr.opcode)) {
+		case SSA_ADMIN_CMD_PING:
+			return 0;
+			break;
+		case SSA_ADMIN_CMD_COUNTER:
+			return ssa_admin_handle_counter_message(admin_msg);
+			break;
+		default:
+			return -1;
+	};
+
+	return -1;
+}
+
 static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
@@ -6397,6 +6434,9 @@ static void *ssa_admin_handler(void *context)
 
 			if (!ssa_admin_verify_message(&admin_msg))
 				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
+			if (!ssa_admin_handle_message(&admin_msg))
+				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
+
 			admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
 
 			ret = rsend(rsock_data, (char *) &admin_msg, len, 0);
