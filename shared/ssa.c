@@ -6302,6 +6302,7 @@ static int ssa_admin_handle_message(struct ssa_admin_msg *admin_msg,
 	switch (ntohs(admin_msg->hdr.opcode)) {
 		case SSA_ADMIN_CMD_PING:
 			return 0;
+			break;
 		case SSA_ADMIN_CMD_COUNTER:
 			return ssa_admin_handle_counter_message(admin_msg);
 			break;
