@@ -6426,11 +6426,11 @@ static void *ssa_admin_handler(void *context)
 				}
 			}
 
-			if (!ssa_admin_verify_message(&admin_msg))
+			if (!ssa_admin_verify_message(&admin_msg) ||
+			    !ssa_admin_handle_message(&admin_msg, ssa))
 				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
-			if (!ssa_admin_handle_message(&admin_msg, ssa))
-				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
-
+			else
+				admin_msg.hdr.status = SSA_ADMIN_STATUS_SUCCESS;
 			admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
 
 			ret = rsend(rsock_data, (char *) &admin_msg, len, 0);
