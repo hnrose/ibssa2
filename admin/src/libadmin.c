@@ -741,6 +741,7 @@ int admin_exec(int cmd, int argc, char **argv)
 	struct cmd_struct_impl *cmd_impl;
 	struct admin_context context;
 	int ret, len;
+	struct pollfd fds[1];
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
 		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
@@ -785,9 +786,32 @@ int admin_exec(int cmd, int argc, char **argv)
 		return -1;
 	}
 
+	fds[0].fd = rsock;
+	fds[0].events = POLLIN;
+	fds[0].revents = 0;
 #if 0
 recv:
 #endif
+	ret = rpoll(&fds[0], 1, 1000);
+	if (ret < 0) {
+		fprintf(stderr, "rpoll rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
+		cmd_impl->destroy(admin_cmd);
+		return -1;
+
+	} else if (ret == 0) {
+		fprintf(stderr, "timeout expired\n");
+		cmd_impl->destroy(admin_cmd);
+		return -1;
+	}
+
+	if (fds[0].revents & (POLLERR | /*POLLHUP |*/ POLLNVAL)) {
+		fprintf(stderr, "error event 0x%x on rsock %d\n",
+			fds[0].revents, fds[0].fd);
+		cmd_impl->destroy(admin_cmd);
+		return -1;
+	}
+
 	ret = rrecv(rsock, &msg, sizeof(msg.hdr), 0);
 	if (ret != sizeof(msg.hdr)) {
 #if 0
