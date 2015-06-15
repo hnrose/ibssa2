@@ -616,6 +616,7 @@ static const char *ssa_counter_type_names[] = {
 };
 
 static struct ssa_admin_counter_descr counters_descr[] = {
+	[COUNTER_ID_NODE_START_TIME] = { ssa_counter_timestamp, "NODE_START_TIME", "Starting time of the node" },
 	[COUNTER_ID_DB_UPDATES_NUM] = { ssa_counter_numeric, "DB_UPDATES_NUM", "Number of databases updates passed the node" },
 	[COUNTER_ID_DB_LAST_UPDATE_TIME] = { ssa_counter_timestamp, "LAST_UPDATE_TIME", "Time of last database update" },
 	[COUNTER_ID_DB_FIRST_UPDATE_TIME] = { ssa_counter_timestamp, "FIRST_UPDATE_TIME", "Time of first database update" },

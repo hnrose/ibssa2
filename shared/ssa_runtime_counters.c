@@ -65,6 +65,7 @@ void ssa_init_runtime_statistics()
 		ssa_set_runtime_counter(ssa_admin_time_counter_ids[i], -1);
 
 	gettimeofday(&ssa_runtime_stat.start_time, NULL);
+	ssa_set_runtime_counter_time(COUNTER_ID_NODE_START_TIME);
 }
 
 void ssa_set_runtime_counter(int id, long val)
