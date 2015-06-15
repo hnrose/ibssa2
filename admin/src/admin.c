@@ -52,6 +52,7 @@ static const char *ca_name;
 static char *dest_gid;
 static uint16_t dest_lid;
 static uint16_t pkey;
+static int timeout = 1000;
 
 struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_COUNTER]= { "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR },
@@ -59,7 +60,7 @@ struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_NONE] = { "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
 };
 
-static const char *const short_option = "l:g:d:P:p:a:vh?";
+static const char *const short_option = "l:g:d:P:p:a:t:vh?";
 static struct option long_option[] = {
 	{"lid",          required_argument, 0, 'l'},
 	{"gid",          required_argument, 0, 'g'},
@@ -69,13 +70,15 @@ static struct option long_option[] = {
 	{"admin_port",   required_argument, 0, 'a'},
 	{"version",      no_argument,       0, 'v'},
 	{"help",         no_argument,       0, 'h'},
+	{"timeout",      required_argument, 0, 't'},
 	{0, 0, 0, 0}	/* Required at the end of the array */
 };
 
 static const char admin_usage_string[] =
 	"ssadmin  [-v | --version] [-h | --help] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]\n"
 	"\t\t[[-d | --device] <device name>] [[-P | --Port] <CA port>] \n"
-	"\t\t[[-p | --pkey] <partition key>] [[-a | --admin_port] <admin server port>]";
+	"\t\t[[-p | --pkey] <partition key>] [[-a | --admin_port] <admin server port>]\n"
+	"\t\t[[-t | --timeout] <operation timeout>]";
 
 static const char admin_more_info_string[] =
 	"'ssadmin help <command>' shows specific subcommand "
@@ -305,6 +308,23 @@ static int parse_opts(int argc, char **argv, int *status)
 			}
 			src_port = tmp;
 			break;
+		case 't':
+			tmp = strtol(optarg, &endptr, 10);
+			if (endptr == optarg) {
+				fprintf(stderr, "ERROR - no digits were found in option -%c\n", option);
+				return 1;
+			}
+			if (errno == ERANGE && (tmp = LONG_MAX || tmp == LONG_MIN) ) {
+				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
+				return 1;
+			}
+			if (tmp < 0)
+				fprintf(stderr, "WARNING - infinite timeout is used\n");
+			else if (tmp == 0)
+				fprintf(stderr, "WARNING - operation timeout is 0\n");
+
+			timeout = tmp;
+			break;
 		case 'p':
 			pkey = (uint16_t) strtoul(optarg, NULL, 0);
 			break;
@@ -415,6 +435,7 @@ int main(int argc, char **argv)
 	opts.src_port = src_port;
 	opts.admin_port = admin_port;
 	opts.pkey = pkey;
+	opts.timeout = timeout;
 
 	if (admin_connect(dest_addr, addr_type, &opts) != 0) {
 		fprintf(stderr, "ERROR - unable to connect\n");

@@ -124,6 +124,7 @@ static short admin_port = 7477;
 static uint16_t pkey_default = 0xffff;
 static char dest_addr[64];
 static const char *local_gid = "::1";
+static int timeout = 1000;
 
 static const char *short_opts_to_skip;
 static struct option *long_opts_to_skip;
@@ -371,6 +372,8 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	int ret, val, port_id;
 	int port = opts->admin_port ? opts->admin_port : admin_port;
 	uint16_t pkey = opts->pkey ? opts->pkey : pkey_default;
+
+	timeout = opts->timeout;
 
 	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (rsock < 0) {
@@ -786,7 +789,7 @@ int admin_exec(int cmd, int argc, char **argv)
 #if 0
 recv:
 #endif
-	ret = rpoll(&fds[0], 1, 1000);
+	ret = rpoll(&fds[0], 1, timeout);
 	if (ret < 0) {
 		fprintf(stderr, "rpoll rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));

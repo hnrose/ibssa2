@@ -8,6 +8,7 @@ ssadmin \- test and configuration utility for SSA services
         [[-d | --device] <device name>] [[-P | --Port] <CA port>]
         [[-p | --pkey] <partition key>] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]
         [[-a | --admin_port] <server port>]
+        [[-t | --timeout] <timeout>]
         <command> [<args>]
 .fi
 .SH "DESCRIPTION"
@@ -45,6 +46,9 @@ local host will be considered as a destination node.
 .TP
 \-a, \-\-admin_port <server port>
 Destination node port for communication (default: 7477).
+.TP
+\-t, \-\-timeout <timeout>
+Timeout for command processing in milliseconds (default: 1000).
 .TP
 \-v, \-\-version
 Prints ssadmin version and exit.

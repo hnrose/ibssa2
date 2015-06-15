@@ -58,6 +58,7 @@ struct admin_opts {
 	int		src_port;
 	int		admin_port;
 	uint16_t	pkey;
+	int		timeout;
 };
 
 struct cmd_opts {
