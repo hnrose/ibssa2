@@ -6,7 +6,8 @@ bin_PROGRAMS = util/ib_acme
 sbin_PROGRAMS = svc/ibacm
 svc_ibacm_SOURCES = src/acm.c src/ssa.c src/ssa_db.c src/ssa_db_helper.c \
 		    src/ssa_log.c src/ssa_signal_handler.c \
-		    src/ssa_runtime_counters.c src/acm_neigh.c
+		    src/ssa_runtime_counters.c src/acm_neigh.c \
+		    src/common.c
 util_ib_acme_SOURCES = src/acme.c src/libacm.c src/parse.c
 svc_ibacm_CFLAGS = $(AM_CFLAGS)
 util_ib_acme_CFLAGS = $(AM_CFLAGS)

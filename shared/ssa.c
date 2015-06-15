@@ -285,26 +285,6 @@ const char *ssa_mad_status_str(be16_t status)
 	return umad_sa_mad_status_str(status);
 }
 
-const char *ssa_node_type_str(int node_type)
-{
-	switch (node_type) {
-	case SSA_NODE_CORE:
-		return "Core";
-	case (SSA_NODE_CORE | SSA_NODE_ACCESS):
-		return "Core + Access";
-	case (SSA_NODE_DISTRIBUTION | SSA_NODE_ACCESS):
-		return "Distribution + Access";
-	case SSA_NODE_DISTRIBUTION:
-		return "Distribution";
-	case SSA_NODE_ACCESS:
-		return "Access";
-	case SSA_NODE_CONSUMER:
-		return "Consumer";
-	default:
-		return "Other";
-	}
-}
-
 int ssa_compare_gid(const void *gid1, const void *gid2)
 {
 	return memcmp(gid1, gid2, 16);
@@ -6305,7 +6285,19 @@ static int ssa_admin_handle_counter_message(struct ssa_admin_msg *admin_msg)
 	return 0;
 };
 
-static int ssa_admin_handle_message(struct ssa_admin_msg *admin_msg)
+static int ssa_admin_handle_node_info(struct ssa_admin_msg *admin_msg,
+				      const struct ssa_class *ssa)
+{
+
+	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *)&admin_msg->data.counter;
+
+	nodeinfo_msg->type = ssa->node_type;
+	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION, SSA_ADMIN_VERSION_LEN - 1);
+	return 0;
+}
+
+static int ssa_admin_handle_message(struct ssa_admin_msg *admin_msg,
+				    const struct ssa_class *ssa)
 {
 	switch (ntohs(admin_msg->hdr.opcode)) {
 		case SSA_ADMIN_CMD_PING:
@@ -6314,6 +6306,8 @@ static int ssa_admin_handle_message(struct ssa_admin_msg *admin_msg)
 		case SSA_ADMIN_CMD_COUNTER:
 			return ssa_admin_handle_counter_message(admin_msg);
 			break;
+		case SSA_ADMIN_CMD_NODE_INFO:
+			return ssa_admin_handle_node_info(admin_msg, ssa);
 		default:
 			return -1;
 	};
@@ -6434,7 +6428,7 @@ static void *ssa_admin_handler(void *context)
 
 			if (!ssa_admin_verify_message(&admin_msg))
 				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
-			if (!ssa_admin_handle_message(&admin_msg))
+			if (!ssa_admin_handle_message(&admin_msg, ssa))
 				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
 
 			admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;

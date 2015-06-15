@@ -95,6 +95,12 @@ static int counter_command_create_msg(struct admin_command *cmd,
 static void counter_command_output(struct admin_command *cmd,
 				   struct admin_context *ctx,
 				   const struct ssa_admin_msg *msg);
+static int node_info_command_create_msg(struct admin_command *cmd,
+					struct admin_context *ctx,
+					struct ssa_admin_msg *msg);
+static void node_info_command_output(struct admin_command *cmd,
+				     struct admin_context *ctx,
+				     const struct ssa_admin_msg *msg);
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	[SSA_ADMIN_CMD_COUNTER] = {
@@ -114,6 +120,15 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		{},
 		{ NULL, default_print_usage,
 		  "Test ping between local node and SSA service on a specified target node" }
+	},
+	[SSA_ADMIN_CMD_NODE_INFO] = {
+		default_init,
+		default_destroy,
+		node_info_command_create_msg,
+		node_info_command_output,
+		{},
+		{ NULL, default_print_usage,
+		  "Retrieve basic node info" }
 	}
 };
 
@@ -701,6 +716,28 @@ static void counter_command_output(struct admin_command *cmd,
 			};
 		}
 	}
+}
+
+static int node_info_command_create_msg(struct admin_command *cmd,
+					struct admin_context *ctx,
+					struct ssa_admin_msg *msg)
+{
+	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *)&msg->data.counter;
+	uint16_t n;
+
+	n = ntohs(msg->hdr.len) + sizeof(*node_info_msg);
+	msg->hdr.len = htons(n);
+
+	return 0;
+}
+
+static void node_info_command_output(struct admin_command *cmd,
+				     struct admin_context *ctx,
+				     const struct ssa_admin_msg *msg)
+{
+	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *)&msg->data.counter;
+
+	printf("%s %s\n", ssa_node_type_str(node_info_msg->type), node_info_msg->version);
 }
 
 struct cmd_opts *admin_get_cmd_opts(int cmd)

@@ -5,7 +5,7 @@ AM_CFLAGS = -g -Wall -D_GNU_SOURCE -DBINDIR=\"$(bindir)\" -DRDMADIR=\"@rdmadir@\
 	     $(GLIB_CFLAGS)
 
 sbin_PROGRAMS = svc/ssadmin
-svc_ssadmin_SOURCES = src/admin.c src/libadmin.c
+svc_ssadmin_SOURCES = src/admin.c src/libadmin.c src/common.c
 svc_ssadmin_CFLAGS = $(AM_CFLAGS)
 svc_ssadmin_LDADD = -lrdmacm -lpthread -L$(libdir) $(GLIB_LIBS)
 

@@ -58,6 +58,7 @@ struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_COUNTER]= { "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR },
 	[SSA_ADMIN_CMD_PING] = { "ping",        SSA_ADMIN_CMD_PING,        CMD_TYPE_DEBUG   },
 	[SSA_ADMIN_CMD_NONE] = { "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
+	[SSA_ADMIN_CMD_NODE_INFO] = { "nodeinfo",        SSA_ADMIN_CMD_NODE_INFO, CMD_TYPE_MONITOR },
 };
 
 static const char *const short_option = "l:g:d:P:p:a:t:vh?";

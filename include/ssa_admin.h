@@ -34,6 +34,7 @@
 #include <infiniband/umad.h>
 
 #define SSA_ADMIN_PROTOCOL_VERSION	1
+#define SSA_ADMIN_VERSION_LEN		50
 
 enum {
 	SSA_ADMIN_STATUS_SUCCESS = 0,
@@ -50,6 +51,7 @@ enum {
 	SSA_ADMIN_CMD_NONE,
 	SSA_ADMIN_CMD_COUNTER,
 	SSA_ADMIN_CMD_PING,
+	SSA_ADMIN_CMD_NODE_INFO,
 	SSA_ADMIN_CMD_MAX
 };
 
@@ -97,6 +99,11 @@ struct ssa_admin_counter {
 	be64_t		vals[COUNTER_ID_LAST];
 };
 
+struct ssa_admin_node_info {
+	uint8_t		type;
+	uint8_t		version[SSA_ADMIN_VERSION_LEN];
+};
+
 /*
  * ssa_admin_msg_hdr:
  * @version   - version of this structure
@@ -126,6 +133,7 @@ struct ssa_admin_msg {
 	struct ssa_admin_msg_hdr	hdr;
 	union {
 		struct ssa_admin_counter	counter;
+		struct ssa_admin_node_info	node_info;
 	} data;
 };
 
