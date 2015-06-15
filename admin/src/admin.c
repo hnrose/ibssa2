@@ -298,11 +298,11 @@ static int parse_opts(int argc, char **argv, int *status)
 				fprintf(stderr, "ERROR - no digits were found in option -%c\n", option);
 				return 1;
 			}
-			if (errno == ERANGE && (src_port == LONG_MAX || src_port == LONG_MIN) ) {
+			if (errno == ERANGE && (tmp == LONG_MAX || tmp == LONG_MIN) ) {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
 				return 1;
 			}
-			if (src_port < 0) {
+			if (tmp < 0) {
 				fprintf(stderr, "ERROR - invalid value %ld in option -%c\n", tmp, option);
 				return 1;
 			}
