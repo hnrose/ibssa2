@@ -188,7 +188,7 @@ static char addr_data_file[128] = RDMA_CONF_DIR "/ibacm_hosts.data";
 static char log_file[128] = "/var/log/ibacm.log";
 static char lock_file[128] = "/var/run/ibacm.pid";
 static enum acm_addr_prot addr_prot = ACM_ADDR_PROT_ACM;
-static int addr_timeout = 1440;
+static int addr_timeout;
 static enum acm_route_prot route_prot = ACM_ROUTE_PROT_SA;
 static int route_timeout = -1;
 static enum acm_loopback_prot loopback_prot = ACM_LOOPBACK_PROT_LOCAL;
@@ -4359,6 +4359,9 @@ static void acm_set_options(void)
 	}
 
 	fclose(f);
+
+	if (!addr_timeout)
+		addr_timeout = (acm_mode == ACM_MODE_SSA) ? -1 : 1440;
 }
 
 static void acm_log_options(void)

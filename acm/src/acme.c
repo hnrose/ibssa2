@@ -173,7 +173,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# mapping will not time out.\n");
 	fprintf(f, "# 1 hour = 60, 1 day = 1440, 1 week = 10080, 1 month ~ 43200\n");
 	fprintf(f, "\n");
-	fprintf(f, "addr_timeout 1440\n");
+	fprintf(f, "addr_timeout %d\n", acm_mode_ssa ? -1 : 1440);
 	fprintf(f, "\n");
 	fprintf(f, "# route_prot:\n");
 	fprintf(f, "# Default resolution protocol to resolve IB routing information.\n");
