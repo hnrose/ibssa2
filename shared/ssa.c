@@ -6427,7 +6427,7 @@ static void *ssa_admin_handler(void *context)
 			}
 
 			if (!ssa_admin_verify_message(&admin_msg) ||
-			    !ssa_admin_handle_message(&admin_msg, ssa))
+			    ssa_admin_handle_message(&admin_msg, ssa))
 				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
 			else
 				admin_msg.hdr.status = SSA_ADMIN_STATUS_SUCCESS;
