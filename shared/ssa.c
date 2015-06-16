@@ -3044,7 +3044,7 @@ static void *ssa_downstream_handler(void *context)
 	struct pollfd **fds;
 	struct pollfd *pfd, *pfd2;
 	struct ssa_conn *conn;
-	int ret, i;
+	int ret, i, count;
 	struct ssa_ctrl_msg_buf msg;
 
 	SET_THREAD_NAME(svc->downstream, "DN_%s", svc->name);
@@ -3428,8 +3428,11 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			ssa_check_listen_events(svc, fds, SSA_CONN_PRDB_TYPE);
 		}
 
+		count = 0;
 		for (i = FIRST_DATA_FD_SLOT; i < FD_SETSIZE; i++) {
 			pfd = (struct pollfd *)(fds + i);
+			if (pfd->fd >= 0)
+				count++;
 			if (pfd->revents) {
 				if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
 					ssa_log(SSA_LOG_DEFAULT,
@@ -3455,6 +3458,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			}
 			pfd->revents = 0;
 		}
+		ssa_set_runtime_counter(COUNTER_ID_NUM_CHILDREN, count);
 
 	}
 
