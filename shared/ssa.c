@@ -2165,10 +2165,10 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 		/* Only 1 upstream data connection currently */
 		if (fds[UPSTREAM_DATA_FD_SLOT].revents) {
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-				ssa_log(SSA_LOG_DEFAULT,
-					"error event 0x%x on rsock %d\n",
-					fds[UPSTREAM_DATA_FD_SLOT].revents,
-					fds[UPSTREAM_DATA_FD_SLOT].fd);
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "error event 0x%x on rsock %d\n",
+					    fds[UPSTREAM_DATA_FD_SLOT].revents,
+					    fds[UPSTREAM_DATA_FD_SLOT].fd);
 				ssa_upstream_reconnect(svc, fds);
 			}
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & POLLOUT) {
@@ -3394,9 +3394,9 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 
 		pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
-			ssa_log(SSA_LOG_DEFAULT,
-				"error event 0x%x on SMDB listen rsock %d\n",
-				pfd->revents, pfd->fd);
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "error event 0x%x on SMDB listen rsock %d\n",
+				    pfd->revents, pfd->fd);
 #if 0
 			/* TODO: uncomment when RDMA CM library limitations will be understood better */
 			if (svc->conn_listen_smdb.rsock >= 0)
@@ -3412,9 +3412,9 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 
 		pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
-			ssa_log(SSA_LOG_DEFAULT,
-				"error event 0x%x on PRDB listen rsock %d\n",
-				pfd->revents, pfd->fd);
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "error event 0x%x on PRDB listen rsock %d\n",
+				    pfd->revents, pfd->fd);
 #if 0
 			/* TODO: uncomment when RDMA CM library limitations will be understood better */
 			if (svc->conn_listen_prdb.rsock >= 0)
@@ -3435,9 +3435,9 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				count++;
 			if (pfd->revents) {
 				if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
-					ssa_log(SSA_LOG_DEFAULT,
-						"error event 0x%x on rsock %d\n",
-						pfd->revents, pfd->fd);
+					ssa_log_err(SSA_LOG_DEFAULT,
+						    "error event 0x%x on rsock %d\n",
+						    pfd->revents, pfd->fd);
 					/* Update distribution tree (at least when core) ? */
 					/* Also, when not core, need to notify core via SSA MAD */
 					if (svc->fd_to_conn[pfd->fd])
