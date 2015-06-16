@@ -324,7 +324,7 @@ long  ssa_get_runtime_counter(int id);
 long  ssa_inc_runtime_counter(int id);
 void ssa_set_runtime_counter_time(int id);
 int ssa_get_runtime_counter_time(int id, struct timeval *time_stamp);
-
+void ssa_db_update_change_counters();
 #ifdef __cplusplus
 }
 #endif

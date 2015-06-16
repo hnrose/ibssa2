@@ -1218,6 +1218,19 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 	return count;
 }
 
+void ssa_db_update_change_counters()
+{
+	static short first = 1;
+
+	if (first) {
+		ssa_set_runtime_counter_time(COUNTER_ID_DB_FIRST_UPDATE_TIME);
+		first = 0;
+	}
+
+	ssa_set_runtime_counter_time(COUNTER_ID_DB_LAST_UPDATE_TIME);
+	ssa_inc_runtime_counter(COUNTER_ID_DB_UPDATES_NUM);
+}
+
 static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 					int flags, union ibv_gid *gid,
 					uint64_t epoch)
@@ -1252,6 +1265,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	}
 	if (svc->process_msg)
 		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg);
+	ssa_db_update_change_counters();
 }
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)

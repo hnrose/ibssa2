@@ -45,6 +45,7 @@
 #include <ssa_ctrl.h>
 #include <ssa_log.h>
 #include <infiniband/ssa_db_helper.h>
+#include <ssa_admin.h>
 
 #define SSA_CORE_OPTS_FILE SSA_FILE_PREFIX "_core" SSA_OPTS_FILE_SUFFIX
 #define EXTRACT_TIMER_FD_SLOT		2
@@ -1467,6 +1468,8 @@ static void ssa_extract_db_update(struct ssa_db *db, int db_changed)
 
 	if (ssa.node_type & SSA_NODE_ACCESS)
 		ssa_extract_send_db_update(db, sock_accessextract[0], flags);
+
+	ssa_db_update_change_counters();
 }
 #endif
 
