@@ -3369,6 +3369,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 					    "invalid QPN was specified (0x%x)"
 					    " for gid %s %s:%d\n",
 					    tmp, gid, addr_data_file, line);
+				continue;
 			}
 
 			qpn = (uint32_t) tmp;
