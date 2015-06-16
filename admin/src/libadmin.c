@@ -636,6 +636,7 @@ static struct ssa_admin_counter_descr counters_descr[] = {
 	[COUNTER_ID_NUM_CHILDREN] = {"NUM_CHILDREN", "Number of connected downstream nodes" },
 	[COUNTER_ID_NUM_ACCESS_TASKS] = {"NUM_ACCESS_TASKS", "Number of unprocessed Access tasks" },
 	[COUNTER_ID_NUM_ERR] = {"NUM_ERR", "Number of errors" },
+	[COUNTER_ID_LAST_ERR] = {"LAST_ERR", "Last error ID" },
 	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = {"TIME_LAST_UPSTR_CONN", "Time of last upstream connect" },
 	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = {"TIME_LAST_DOWNSTR_CONN", "Time of last downstream connect" },
 	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = {"TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
@@ -694,27 +695,29 @@ static void counter_command_output(struct admin_command *cmd,
 	for (i = 0; i < n; ++i) {
 		val = ntohll(counter_msg->vals[i]);
 
-		if (val >= 0) {
-			switch (ssa_admin_counters_type[i]) {
-				case ssa_counter_obsolete:
-					continue;
-					break;
-				case ssa_counter_numeric:
-					printf("%s %ld\n", counters_descr[i].name, val);
-					break;
-				case ssa_counter_timestamp:
-					timestamp.tv_sec = epoch.tv_sec + val / 1000;
-					timestamp.tv_usec = epoch.tv_usec + (val % 1000) * 1000;
-					timestamp_time =  timestamp.tv_sec;
-					timestamp_tm = localtime(&timestamp_time);
-					printf("%s ", counters_descr[i].name);
-					ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
-					printf("\n");
-					break;
-				default:
-					continue;
-			};
-		}
+		if (val < 0 && ssa_admin_counters_type[i] != ssa_counter_signed_numeric)
+			continue;
+
+		switch (ssa_admin_counters_type[i]) {
+			case ssa_counter_obsolete:
+				continue;
+				break;
+			case ssa_counter_numeric:
+			case ssa_counter_signed_numeric:
+				printf("%s %ld\n", counters_descr[i].name, val);
+				break;
+			case ssa_counter_timestamp:
+				timestamp.tv_sec = epoch.tv_sec + val / 1000;
+				timestamp.tv_usec = epoch.tv_usec + (val % 1000) * 1000;
+				timestamp_time =  timestamp.tv_sec;
+				timestamp_tm = localtime(&timestamp_time);
+				printf("%s ", counters_descr[i].name);
+				ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
+				printf("\n");
+				break;
+			default:
+				continue;
+		};
 	}
 }
 

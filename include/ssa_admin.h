@@ -63,6 +63,7 @@ enum ssa_admin_counter_id {
 	COUNTER_ID_NUM_CHILDREN,
 	COUNTER_ID_NUM_ACCESS_TASKS,
 	COUNTER_ID_NUM_ERR,
+	COUNTER_ID_LAST_ERR,
 	COUNTER_ID_TIME_LAST_UPSTR_CONN,
 	COUNTER_ID_TIME_LAST_DOWNSTR_CONN,
 	COUNTER_ID_TIME_LAST_SSA_MAD_RCV,
@@ -73,6 +74,7 @@ enum ssa_admin_counter_id {
 enum ssa_counter_type {
 	ssa_counter_obsolete = 0,
 	ssa_counter_numeric,
+	ssa_counter_signed_numeric,
 	ssa_counter_timestamp
 };
 
@@ -84,6 +86,7 @@ const static enum ssa_counter_type ssa_admin_counters_type[] = {
 	[COUNTER_ID_NUM_CHILDREN] = ssa_counter_numeric,
 	[COUNTER_ID_NUM_ACCESS_TASKS] = ssa_counter_numeric,
 	[COUNTER_ID_NUM_ERR] = ssa_counter_numeric,
+	[COUNTER_ID_LAST_ERR] = ssa_counter_signed_numeric,
 	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = ssa_counter_timestamp,
 	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = ssa_counter_timestamp,
 	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = ssa_counter_timestamp,
