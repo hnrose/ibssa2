@@ -65,6 +65,7 @@ static char addr_type = 'u';
 static int verify;
 static int nodelay;
 static int repetitions = 1;
+static int acm_mode_ssa = 1;
 
 enum perf_query_output {
 	PERF_QUERY_NONE,
@@ -327,7 +328,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# acm (default)\n");
 	fprintf(f, "# ssa\n");
 	fprintf(f, "\n");
-	fprintf(f, "acm_mode ssa\n");
+	fprintf(f, "acm_mode %s\n", acm_mode_ssa ? "ssa" : "acm");
 	fprintf(f, "\n");
 	fprintf(f, "# acm_query_timeout:\n");
 	fprintf(f, "# Specifies acm query timeout in microseconds.\n");
@@ -1123,7 +1124,7 @@ int main(int argc, char **argv)
 	int make_addr = 0;
 	int make_opts = 0;
 
-	while ((op = getopt(argc, argv, "f:s:d:vcA::O::D:P::S:C:V")) != -1) {
+	while ((op = getopt(argc, argv, "f:s:d:vcA::O::M:D:P::S:C:V")) != -1) {
 		switch (op) {
 		case 'f':
 			addr_type = optarg[0];
@@ -1152,6 +1153,10 @@ int main(int argc, char **argv)
 			make_opts = 1;
 			if (opt_arg(argc, argv))
 				opts_file = opt_arg(argc, argv);
+			break;
+		case 'M':
+			if (!strncasecmp("acm", optarg, 3))
+				acm_mode_ssa = 0;
 			break;
 		case 'D':
 			dest_dir = optarg;
