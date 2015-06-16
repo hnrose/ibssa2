@@ -54,6 +54,7 @@ struct admin_context {
 
 struct cmd_struct_impl;
 struct admin_count_command {
+	short include_list[COUNTER_ID_LAST];
 };
 
 struct admin_command {
@@ -89,6 +90,8 @@ static int default_create_msg(struct admin_command *cmd,
 static void ping_command_output(struct admin_command *cmd,
 				struct admin_context *ctx,
 				const struct ssa_admin_msg *msg);
+static struct admin_command *counter_init(int cmd_id, struct admin_context *ctx,
+					  int argc, char **argv);
 static void counter_print_help(FILE *stream);
 static int counter_command_create_msg(struct admin_command *cmd,
 				      struct admin_context *ctx,
@@ -105,7 +108,7 @@ static void node_info_command_output(struct admin_command *cmd,
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	[SSA_ADMIN_CMD_COUNTER] = {
-		default_init,
+		counter_init,
 		default_destroy,
 		counter_command_create_msg,
 		counter_command_output,
@@ -644,6 +647,39 @@ static struct ssa_admin_counter_descr counters_descr[] = {
 };
 
 
+static struct admin_command *counter_init(int cmd_id, struct admin_context *ctx,
+					  int argc, char **argv)
+{
+	struct admin_command *cmd = default_init(cmd_id, ctx, argc, argv);
+	struct admin_count_command *count_cmd;
+	int i, j;
+
+	if (!cmd)
+		return NULL;
+
+	count_cmd = (struct admin_count_command *) &cmd->data.count_cmd;
+
+	optind++;
+
+	for(j = 0; j < COUNTER_ID_LAST; ++j)
+		count_cmd->include_list[j] = optind == argc;
+
+	for (i = optind; i < argc; ++i) {
+		for (j = 0; j < COUNTER_ID_LAST; ++j) {
+			if (!strcmp(argv[i], counters_descr[j].name)) {
+				count_cmd->include_list[j] = 1;
+				break;
+			}
+		}
+		if (j == COUNTER_ID_LAST) {
+			fprintf(stderr, "Name %s isn't found in the counters list\n", argv[i]);
+			cmd->impl->destroy(cmd);
+			return NULL;
+		}
+	}
+
+	return cmd;
+}
 static void counter_print_help(FILE *stream)
 {
 	int i;
@@ -681,7 +717,8 @@ static void counter_command_output(struct admin_command *cmd,
 				   const struct ssa_admin_msg *msg)
 {
 	int i, n;
-	struct ssa_admin_counter *counter_msg = (struct ssa_admin_counter *)&msg->data.counter;
+	struct ssa_admin_counter *counter_msg = (struct ssa_admin_counter *) &msg->data.counter;
+	struct admin_count_command *count_cmd = (struct admin_count_command *) &cmd->data.count_cmd;
 	struct timeval epoch, timestamp;
 	time_t timestamp_time;
 	struct tm *timestamp_tm;
@@ -693,6 +730,9 @@ static void counter_command_output(struct admin_command *cmd,
 	epoch.tv_usec = ntohll(counter_msg->epoch_tv_usec);
 
 	for (i = 0; i < n; ++i) {
+		if (!count_cmd->include_list[i])
+			continue;
+
 		val = ntohll(counter_msg->vals[i]);
 
 		if (val < 0 && ssa_admin_counters_type[i] != ssa_counter_signed_numeric)

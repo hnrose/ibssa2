@@ -412,11 +412,6 @@ int main(int argc, char **argv)
 		exit(0);
 	}
 
-	if (argc - optind >= 2) {
-		fprintf(stderr, "Wrong number of arguments specified\n");
-		exit(-1);
-	}
-
 	if (dest_lid) {
 		dest_addr = &dest_lid;
 		addr_type = ADMIN_ADDR_TYPE_LID;
