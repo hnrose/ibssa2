@@ -4641,9 +4641,9 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 	socklen_t len;
 
 	if (svc->conn_dataup.state != SSA_CONN_CONNECTING) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"Unexpected consumer event in state %d on rsock %d\n",
-			svc->conn_dataup.state, svc->conn_dataup.rsock);
+		ssa_log_err(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			    "Unexpected consumer event in state %d on rsock %d\n",
+			    svc->conn_dataup.state, svc->conn_dataup.rsock);
 		return 1;
 	}
 
@@ -4651,16 +4651,16 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 	ret = rgetsockopt(svc->conn_dataup.rsock, SOL_SOCKET, SO_ERROR,
 			  &err, &len);
 	if (ret) {
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"rgetsockopt rsock %d ERROR %d (%s)\n",
-			svc->conn_dataup.rsock, errno, strerror(errno));
+		ssa_log_err(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			    "rgetsockopt rsock %d ERROR %d (%s)\n",
+			    svc->conn_dataup.rsock, errno, strerror(errno));
 		return ret;
 	}
 	if (err) {
 		errno = err;
-		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-			"async rconnect rsock %d ERROR %d (%s)\n",
-			svc->conn_dataup.rsock, errno, strerror(errno));
+		ssa_log_err(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			    "async rconnect rsock %d ERROR %d (%s)\n",
+			    svc->conn_dataup.rsock, errno, strerror(errno));
 		return err;
 	}
 
@@ -4678,9 +4678,9 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 			     sizeof svc->conn_dataup.prdb_epoch,
 			     PROT_WRITE, 0, 0); 
 		if (ret) {
-			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-				"riomap epoch rsock %d ret %d ERROR %d (%s)\n",
-				svc->conn_dataup.rsock, ret, errno, strerror(errno));
+			ssa_log_err(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				    "riomap epoch rsock %d ret %d ERROR %d (%s)\n",
+				    svc->conn_dataup.rsock, ret, errno, strerror(errno));
 		} else
 			svc->conn_dataup.epoch_len = sizeof svc->conn_dataup.prdb_epoch;
 
