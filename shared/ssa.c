@@ -4693,6 +4693,7 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 
 	svc->conn_dataup.reconnect_count = 0;
 	ssa_upstream_conn_done(svc, &svc->conn_dataup);
+	ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_UPSTR_CONN);
 
 	return 0;
 }
