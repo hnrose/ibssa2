@@ -36,8 +36,36 @@
 #endif
 
 #include <string.h>
+#include <time.h>
+#include <stdio.h>
 #include <inttypes.h>
 #include <infiniband/ssa_mad.h>
+
+const char *month_str[12] = {
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
+};
+
+void ssa_write_date(FILE *stream, time_t tim, unsigned int usec)
+{
+	struct tm result;
+
+	localtime_r(&tim, &result);
+	fprintf(stream, "%s %02d %02d:%02d:%02d %06d",
+		(result.tm_mon < 12 ? month_str[result.tm_mon] : "???"),
+		result.tm_mday, result.tm_hour, result.tm_min,
+		result.tm_sec, usec);
+}
 
 const char *ssa_node_type_str(int node_type)
 {

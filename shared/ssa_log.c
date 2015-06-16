@@ -74,21 +74,6 @@ int log_flush = 1;
 static int log_level = SSA_LOG_DEFAULT;
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 
-const char * month_str[] = {
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec"
-};
-
 void ssa_set_log_level(int level)
 {
 	log_level = level;
@@ -154,7 +139,6 @@ void ssa_write_log(int level, const char *format, ...)
 	char tid[16] = {};
 	struct timeval tv;
 	time_t tim;
-	struct tm result;
 
 	if (!flog)
 		return;
@@ -164,14 +148,11 @@ void ssa_write_log(int level, const char *format, ...)
 
 	gettimeofday(&tv, NULL);
 	tim = tv.tv_sec;
-	localtime_r(&tim, &result);
 	get_thread_id(tid, sizeof tid);
 	va_start(args, format);
 	pthread_mutex_lock(&log_lock);
-	fprintf(flog, "%s %02d %02d:%02d:%02d %06d [%.16s]: ",
-		(result.tm_mon < 12 ? month_str[result.tm_mon] : "???"),
-		result.tm_mday, result.tm_hour, result.tm_min,
-		result.tm_sec, (unsigned int)tv.tv_usec, tid);
+	ssa_write_date(flog, tim, (unsigned int) tv.tv_usec);
+	fprintf(flog, " [%.16s]: ",tid);
 	vfprintf(flog, format, args);
 	if (log_flush)
 		fflush(flog);

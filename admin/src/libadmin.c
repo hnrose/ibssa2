@@ -42,6 +42,7 @@
 #include "libadmin.h"
 #include <osd.h>
 #include <ssa_admin.h>
+#include <common.h>
 #include <infiniband/ssa_mad.h>
 
 
@@ -683,7 +684,6 @@ static void counter_command_output(struct admin_command *cmd,
 	struct timeval epoch, timestamp;
 	time_t timestamp_time;
 	struct tm *timestamp_tm;
-	char tm_buf[64], buf[64];
 	long val;
 
 	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
@@ -707,9 +707,9 @@ static void counter_command_output(struct admin_command *cmd,
 					timestamp.tv_usec = epoch.tv_usec + (val % 1000) * 1000;
 					timestamp_time =  timestamp.tv_sec;
 					timestamp_tm = localtime(&timestamp_time);
-					strftime(tm_buf, sizeof tm_buf, "%Y-%m-%d %H:%M:%S", timestamp_tm);
-					snprintf(buf, sizeof buf, "%s.%06d", tm_buf, (int) timestamp.tv_usec);
-					printf("%s %s\n", counters_descr[i].name, buf);
+					printf("%s ", counters_descr[i].name);
+					ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
+					printf("\n");
 					break;
 				default:
 					continue;

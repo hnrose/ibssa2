@@ -325,6 +325,9 @@ long  ssa_inc_runtime_counter(int id);
 void ssa_set_runtime_counter_time(int id);
 int ssa_get_runtime_counter_time(int id, struct timeval *time_stamp);
 void ssa_db_update_change_counters();
+
+const char *month_str[12];
+void ssa_write_date(FILE *stream, time_t tim, unsigned int usec);
 #ifdef __cplusplus
 }
 #endif
