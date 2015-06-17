@@ -273,7 +273,7 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 					 void *p_ctnx, be64_t port_guid,
 					 struct ssa_db **pp_prdb)
 {
-	uint64_t record_num = 0;
+	uint64_t records_num[SSA_PR_TABLE_ID_MAX] = { 0 };
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
 	struct prdb_prm prm;
 	struct ssa_pr_context *p_context = (struct ssa_pr_context *)p_ctnx;
@@ -292,18 +292,19 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 		return SSA_PR_PORT_ABSENT;
 	}
 
-	record_num = ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
+	records_num[SSA_PR_TABLE_ID] =
+		ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
 
 	/* TODO: use previous PRDB version epoch */
-	*pp_prdb = ssa_prdb_create(DB_EPOCH_INVALID /* epoch */, record_num);
+	*pp_prdb = ssa_prdb_create(DB_EPOCH_INVALID /* epoch */, records_num);
 	if (!*pp_prdb) {
 		SSA_PR_LOG_ERROR("Path record database creation failed."
-				 " Number of records: %"PRIu64, record_num);
+				 " Number of records: %"PRIu64, records_num[SSA_PR_TABLE_ID]);
 		return SSA_PR_PRDB_ERROR;
 	}
 
 	prm.prdb = *pp_prdb;
-	prm.max_count = record_num;
+	prm.max_count = records_num[SSA_PR_TABLE_ID];
 
 	res = ssa_pr_half_world(p_ssa_db_smdb, p_ctnx, port_guid,
 				insert_pr_to_prdb,&prm);
