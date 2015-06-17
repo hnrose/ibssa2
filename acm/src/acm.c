@@ -2257,7 +2257,7 @@ static int
 acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 {
 	struct acm_ep *ep;
-	struct acm_dest *dest;
+	struct acm_dest *dest, *gid_dest;
 	struct acm_ep_addr_data *saddr, *daddr;
 	uint8_t status;
 	int ret;
@@ -2309,11 +2309,27 @@ test:
 	case ACM_ADDR_RESOLVED:
 		ssa_log(SSA_LOG_VERBOSE, "have address, resolving route\n");
 		atomic_inc(&counter[ACM_CNTR_ADDR_CACHE]);
-		status = acm_resolve_path(ep, dest, acm_dest_sa_resp);
-		if (status) {
-			break;
+		if (acm_mode == ACM_MODE_ACM) {
+			status = acm_resolve_path(ep, dest, acm_dest_sa_resp);
+			if (status) {
+				break;
+			}
+			goto queue;
+		} else {	/* ACM_MODE_SSA */
+			gid_dest = acm_get_dest(ep, ACM_ADDRESS_GID,
+						dest->path.dgid.raw);
+			pthread_mutex_unlock(&dest->lock);
+			if (!gid_dest)
+				status = ACM_STATUS_ENODATA;
+			else
+				status = ACM_STATUS_SUCCESS;
+
+			ret = acm_client_resolve_resp(client, msg,
+						      gid_dest, status);
+			if (gid_dest)
+				acm_put_dest(gid_dest);
+			goto put;
 		}
-		goto queue;
 	case ACM_INIT:
 		if (acm_mode == ACM_MODE_ACM) {
 			ssa_log(SSA_LOG_VERBOSE, "sending resolve msg to dest\n");
