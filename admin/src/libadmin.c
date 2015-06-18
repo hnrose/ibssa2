@@ -388,9 +388,11 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 {
 	struct sockaddr_ib dst_addr;
 	union ibv_gid dgid;
-	int ret, val, port_id;
+	int ret, val, port_id, err;
+	unsigned int len;
 	int port = opts->admin_port ? opts->admin_port : admin_port;
 	uint16_t pkey = opts->pkey ? opts->pkey : pkey_default;
+	struct pollfd fds;
 
 	timeout = opts->timeout;
 
@@ -412,6 +414,13 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 			  (void *) &val, sizeof(val));
 	if (ret) {
 		fprintf(stderr, "rsetsockopt rsock %d TCP_NODELAY ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
+		goto err;
+	}
+
+	ret = rfcntl(rsock, F_SETFL, O_NONBLOCK);
+	if (ret) {
+		fprintf(stderr, "rfcntl F_SETFL rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		goto err;
 	}
@@ -465,6 +474,52 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 		       sizeof(dst_addr));
 	if (ret && (errno != EINPROGRESS)) {
 		fprintf(stderr, "rconnect rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
+		goto err;
+	}
+
+	if (ret && (errno == EINPROGRESS)) {
+		fds.fd = rsock;
+		fds.events = POLLOUT;
+		fds.revents = 0;
+		ret = rpoll(&fds, 1, timeout);
+		if (ret < 0) {
+			fprintf(stderr, "rpoll rsock %d ERROR %d (%s)\n",
+				rsock, errno, strerror(errno));
+			goto err;
+		} else if (ret == 0) {
+			fprintf(stderr, "rconnect rsock %d timeout expired\n",
+				rsock);
+			goto err;
+		}
+
+		len = sizeof(err);
+		ret = rgetsockopt(rsock, SOL_SOCKET, SO_ERROR, &err, &len);
+		if (ret) {
+			fprintf(stderr, "rgetsockopt rsock %d ERROR %d (%s)\n",
+				rsock, errno, strerror(errno));
+			goto err;
+		}
+		if (err) {
+			ret = -1;
+			errno = err;
+			fprintf(stderr, "ERROR - async rconnect rsock %d ERROR %d (%s)\n",
+				rsock, errno, strerror(errno));
+			goto err;
+		}
+	}
+
+	val = rfcntl(rsock, F_GETFL, O_NONBLOCK);
+	if (val < 0) {
+		fprintf(stderr, "rfcntl F_GETFL rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
+		goto err;
+	}
+
+	val = val & (~O_NONBLOCK);
+	ret = rfcntl(rsock, F_SETFL, val);
+	if (ret) {
+		fprintf(stderr, "rfcntl second F_SETFL rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		goto err;
 	}
