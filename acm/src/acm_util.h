@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2015 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the OpenFabrics.org BSD license
  * below:
@@ -32,6 +33,7 @@
 
 #include <infiniband/verbs.h>
 
+#if 0
 #ifdef ACME_PRINTS
 
 #define acm_log(level, format, ...) \
@@ -43,6 +45,7 @@
 
 void acm_write(int level, const char *format, ...);
 #endif /* ACME_PRINTS */
+#endif
 
 int acm_if_is_ib(char *ifname);
 int acm_if_get_pkey(char *ifname, uint16_t *pkey);
