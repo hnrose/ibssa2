@@ -4442,8 +4442,7 @@ static void *acm_ctrl_handler(void *context)
 
 	/* TODO: check for existing IB port in ssa device */
 	if (ssa_dev_port(ssa_dev(&ssa, 0), 1)->link_layer != IBV_LINK_LAYER_INFINIBAND) {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "%s:%d link layer %d is not IB\n",
+		ssa_log_err(0, "%s:%d link layer %d is not IB\n",
 			    ssa_dev(&ssa, 0)->name, 1,
 			    ssa_dev_port(ssa_dev(&ssa, 0), 1)->link_layer);
 		goto close;
