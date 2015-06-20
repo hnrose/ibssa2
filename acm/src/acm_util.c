@@ -65,7 +65,7 @@ int acm_if_is_ib(char *ifname)
 		type = strtol(buf, NULL, 0);
 		ret = (type == ARPHRD_INFINIBAND);
 	} else {
-		ssa_log_err(0, "failed to read interface type\n");
+		ssa_log_err(0, "failed to read type for interface %s\n", ifname);
 		ret = 0;
 	}
 
@@ -90,7 +90,7 @@ int acm_if_get_pkey(char *ifname, uint16_t *pkey)
 		*pkey = strtol(buf, &end, 16);
 		ret = 0;
 	} else {
-		ssa_log_err(0, "failed to read pkey\n");
+		ssa_log_err(0, "failed to read pkey for interface %s\n", ifname);
 		ret = -1;
 	}
 
@@ -118,7 +118,7 @@ int acm_if_get_sgid(char *ifname, union ibv_gid *sgid)
 		}
 		ret = 0;
 	} else {
-		ssa_log_err(0, "failed to read sgid\n");
+		ssa_log_err(0, "failed to read sgid for interface %s\n", ifname);
 		ret = -1;
 	}
 
@@ -156,7 +156,8 @@ int acm_if_iter_sys(acm_if_iter_cb cb, void *ctx)
 
 	ret = ioctl(s, SIOCGIFCONF, ifc);
 	if (ret < 0) {
-		ssa_log_err(0, "ioctl ifconf error %d\n", ret);
+		ssa_log_err(0, "ioctl ifconf error %d (%s)\n",
+			    errno, strerror(errno));
 		goto out2;
 	}
 
@@ -185,7 +186,7 @@ int acm_if_iter_sys(acm_if_iter_cb cb, void *ctx)
 			continue;
 		}
 
-		ssa_log_err(2, "%s\n", ifr[i].ifr_name);
+		ssa_log_err(2, "interface %s\n", ifr[i].ifr_name);
 
 		alias_sep = strchr(ifr[i].ifr_name, ':');
 		if (alias_sep)
