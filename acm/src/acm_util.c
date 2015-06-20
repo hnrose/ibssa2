@@ -208,5 +208,4 @@ out2:
 out1:
 	close(s);
 	return ret;
-
 }
