@@ -186,7 +186,7 @@ int acm_if_iter_sys(acm_if_iter_cb cb, void *ctx)
 			continue;
 		}
 
-		ssa_log_err(2, "interface %s\n", ifr[i].ifr_name);
+		ssa_log(SSA_LOG_CTRL, "interface %s\n", ifr[i].ifr_name);
 
 		alias_sep = strchr(ifr[i].ifr_name, ':');
 		if (alias_sep)
