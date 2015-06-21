@@ -390,6 +390,15 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# Default is ACM_CONF_DIR/ibacm_hosts.data\n");
 	fprintf(f, "# addr_data_file /etc/rdma/ibacm_hosts.data\n");
 	fprintf(f, "\n");
+	fprintf(f, "# neigh_mode\n");
+	fprintf(f, "# Specifies whether IPv4 and/or IPv6 user space cache\n");
+	fprintf(f, "# is synchronized with kernel neighbor cache\n");
+	fprintf(f, "# 0 - no sync with kernel (default)\n");
+	fprintf(f, "# 1 - sync IPv4 neighbor (ARP) cache\n");
+	fprintf(f, "# 2 - sync IPv6 neighbor cache\n");
+	fprintf(f, "\n");
+	fprintf(f, "neigh_mode 0\n");
+	fprintf(f, "\n");
 }
 
 static int open_dir(void)

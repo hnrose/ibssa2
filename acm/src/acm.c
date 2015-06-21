@@ -61,6 +61,11 @@
 
 #define IB_LID_MCAST_START 0xc000
 
+/* neigh_mode bit mask */
+#define NEIGH_MODE_NONE 0x0000
+#define NEIGH_MODE_IPV4 0x0001
+#define NEIGH_MODE_IPV6 0x0002
+
 #define GET_PORT_FIELD_PTR(ptr, type, field) \
 	((type *)((acm_mode == ACM_MODE_ACM) ? \
 		  ((void *) ptr + offsetof(struct acm_port, field)) : \
@@ -207,6 +212,7 @@ static enum acm_mode acm_mode = ACM_MODE_SSA;
 static uint64_t *lid2guid_cached = NULL;
 static useconds_t acm_query_timeout = ACM_DEFAULT_QUERY_TIMEOUT;
 static int acm_query_retries = ACM_DEFAULT_QUERY_RETRIES;
+static int neigh_mode = NEIGH_MODE_NONE;
 
 extern int log_flush;
 extern int accum_log_file;
@@ -4372,6 +4378,8 @@ static void acm_set_options(void)
 			 reconnect_timeout = atoi(value);
 		else if (!strcasecmp("rejoin_timeout", opt))
 			 rejoin_timeout = atoi(value);
+		else if (!strcasecmp("neigh_mode", opt))
+			neigh_mode = atoi(value);
 	}
 
 	fclose(f);
@@ -4422,6 +4430,9 @@ static void acm_log_options(void)
 		ssa_log(SSA_LOG_DEFAULT, "rejoin to distribution tree after previous request failure disabled\n");
 	else
 		ssa_log(SSA_LOG_DEFAULT, "timeout before next join request (in sec.) %d\n", rejoin_timeout );
+	ssa_log(SSA_LOG_DEFAULT, "neigh_mode %d\n", neigh_mode);
+	if (neigh_mode & NEIGH_MODE_IPV6)
+		ssa_log(SSA_LOG_DEFAULT, "NEIGH_MODE_IPV6 currently not supported\n");
 }
 
 static int acm_init_svc(struct ssa_svc *svc)
