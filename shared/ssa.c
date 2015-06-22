@@ -6410,13 +6410,14 @@ static void *ssa_admin_handler(void *context)
 		if (fds[1].revents) {
 			int rsock_data;
 
-			fds[0].revents = 0;
 			if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log_err(SSA_LOG_CTRL,
 					    "revent 0x%x on rsock %d\n",
 					    fds[1].revents, rsock);
+				fds[0].revents = 0;
 				continue;
 			}
+			fds[0].revents = 0;
 			rsock_data = raccept(rsock, NULL, 0);
 			if (rsock_data < 0) {
 				ssa_log_err(SSA_LOG_CTRL,
