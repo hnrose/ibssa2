@@ -400,7 +400,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "neigh_mode 0\n");
 	fprintf(f, "\n");
 	fprintf(f, "# support_ips_in_addr_cfg:\n");
-	fprintf(f, "# If 1 continue to read IP addresses from ibacm_addr.cfg\n");
+	fprintf(f, "# If 1 continue to read IP addresses from ibacm_hosts.data\n");
 	fprintf(f, "# Default is 0 \"no\"\n");
 	fprintf(f, "# support_ips_in_addr_cfg 0\n");
 }
@@ -435,7 +435,7 @@ static void gen_addr_temp(FILE *f)
 	fprintf(f, "# InfiniBand Communication Management Assistant for clusters address file\n");
 	fprintf(f, "#\n");
 	fprintf(f, "# Use ib_acme utility with -A option to automatically generate a sample\n");
-	fprintf(f, "# ibacm_addr.data file for the current system.\n");
+	fprintf(f, "# ibacm_hosts.data file for the current system.\n");
 	fprintf(f, "#\n");
 	fprintf(f, "# Entry format is:\n");
 	fprintf(f, "# address device port pkey\n");

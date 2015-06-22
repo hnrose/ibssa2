@@ -4597,7 +4597,7 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "neigh_mode %d\n", neigh_mode);
 	if (neigh_mode & NEIGH_MODE_IPV6)
 		ssa_log(SSA_LOG_DEFAULT, "NEIGH_MODE_IPV6 currently not supported\n");
-	ssa_log(SSA_LOG_DEFAULT, "support IPs in ibacm_addr.cfg %d\n",
+	ssa_log(SSA_LOG_DEFAULT, "support IPs in ibacm_hosts.data %d\n",
 		support_ips_in_addr_cfg);
 }
 
