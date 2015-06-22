@@ -396,6 +396,7 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "# 0 - no sync with kernel (default)\n");
 	fprintf(f, "# 1 - sync IPv4 neighbor (ARP) cache\n");
 	fprintf(f, "# 2 - sync IPv6 neighbor cache\n");
+	fprintf(f, "# 3 - sync both IPv4 and IPv6 neighbor caches\n");
 	fprintf(f, "\n");
 	fprintf(f, "neigh_mode 0\n");
 	fprintf(f, "\n");
