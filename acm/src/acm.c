@@ -3685,7 +3685,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
 			if (!support_ips_in_addr_cfg) {
 				ssa_log(SSA_LOG_DEFAULT,
-					"ERROR - IPs are not configured to be read from ibacm_hosts.data\n");
+					"ERROR - IPs are not configured to be read from ibacm_addr.data\n");
 				continue;
 			}
 			type = ACM_ADDRESS_IP;
@@ -3693,7 +3693,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		} else if (inet_pton(AF_INET6, addr, &ip_addr) > 0) {
 			if (!support_ips_in_addr_cfg) {
 				ssa_log(SSA_LOG_DEFAULT,
-					"ERROR - IPs are not configured to be read from ibacm_hosts.data\n");
+					"ERROR - IPs are not configured to be read from ibacm_addr.data\n");
 				continue;
 			}
 			type = ACM_ADDRESS_IP6;
@@ -4597,7 +4597,7 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "neigh_mode %d\n", neigh_mode);
 	if (neigh_mode & NEIGH_MODE_IPV6)
 		ssa_log(SSA_LOG_DEFAULT, "NEIGH_MODE_IPV6 currently not supported\n");
-	ssa_log(SSA_LOG_DEFAULT, "support IPs in ibacm_hosts.data %d\n",
+	ssa_log(SSA_LOG_DEFAULT, "support IPs in ibacm_addr.data %d\n",
 		support_ips_in_addr_cfg);
 }
 
