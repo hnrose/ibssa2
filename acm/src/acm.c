@@ -52,6 +52,7 @@
 #include <ssa_log.h>
 #include <inttypes.h>
 #include "acm_mad.h"
+#include "acm_util.h"
 #include <acm_shared.h>
 #include <infiniband/ssa_db.h>
 #include <infiniband/ssa_db_helper.h>
@@ -3538,6 +3539,111 @@ acm_ep_insert_addr(struct acm_ep *ep, uint8_t *addr, size_t addr_len, uint8_t ad
 	return ret;
 }
 
+static void *acm_get_device_from_gid(union ibv_gid *sgid, uint8_t *port)
+{
+	DLIST_ENTRY *dev_entry;
+	struct acm_device *dev;
+	struct ssa_device *ssa_dev1;
+	struct ibv_device_attr dev_attr;
+	struct ibv_port_attr port_attr;
+	union ibv_gid gid;
+	int ret, i, d;
+
+	if (acm_mode == ACM_MODE_ACM) {
+		for (dev_entry = device_list.Next; dev_entry != &device_list;
+		     dev_entry = dev_entry->Next) {
+
+			dev = container_of(dev_entry, struct acm_device, entry);
+			ret = ibv_query_device(dev->verbs, &dev_attr);
+			if (ret)
+				continue;
+
+			for (*port = 1; *port <= dev_attr.phys_port_cnt; (*port)++) {
+				ret = ibv_query_port(dev->verbs, *port, &port_attr);
+				if (ret)
+					continue;
+
+				for (i = 0; i < port_attr.gid_tbl_len; i++) {
+					ret = ibv_query_gid(dev->verbs, *port,
+							    i, &gid);
+					if (ret || !gid.global.interface_id)
+						break;
+
+					if (!memcmp(sgid->raw, gid.raw, sizeof gid))
+						return dev;
+				}
+			}
+		}
+	} else {	/* ACM_MODE_SSA */
+		for (d = 0; d < ssa.dev_cnt; d++) {
+			ssa_dev1 = ssa_dev(&ssa, d);
+			for (*port = 1; *port <= ssa_dev1->port_cnt; (*port)++) {
+				ret = ibv_query_port(ssa_dev1->verbs, *port, &port_attr);
+				if (ret)
+					continue;
+
+				for (i = 0; i < port_attr.gid_tbl_len; i++) {
+					ret = ibv_query_gid(ssa_dev1->verbs,
+							    *port, i, &gid);
+					if (ret || !gid.global.interface_id)
+						break;
+
+					if (!memcmp(sgid->raw, gid.raw, sizeof gid))
+						return ssa_dev1;
+				}
+			}
+		}
+	}
+	return NULL;
+}
+
+static void acm_ep_ip_iter_cb(char *ifname, union ibv_gid *gid, uint16_t pkey,
+			      uint8_t addr_type, uint8_t *addr, size_t addr_len,
+			      char *addr_name, void *ctx)
+{
+	uint8_t port_num;
+	struct acm_device *dev;
+	struct ssa_device *ssa_dev;
+	struct acm_ep *ep = (struct acm_ep *)ctx;
+
+	if (acm_mode == ACM_MODE_ACM) {
+		dev = acm_get_device_from_gid(gid, &port_num);
+		if (!dev)
+			return;
+
+		if (((struct acm_port *)ep->port)->dev == dev &&
+		    ((struct acm_port *)ep->port)->port_num == port_num &&
+		    ep->pkey == pkey) {
+			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type)) {
+				ssa_log(SSA_LOG_DEFAULT,
+					"Added %s %s %d 0x%x from %s\n",
+					addr_name, dev->verbs->device->name,
+					port_num, pkey, ifname);
+			}
+		}
+	} else {	/* ACM_MODE_SSA */
+		ssa_dev = acm_get_device_from_gid(gid, &port_num);
+		if (!ssa_dev)
+			return;
+
+		if (((struct ssa_port *)ep->port)->dev == ssa_dev &&
+		    ((struct ssa_port *)ep->port)->port_num == port_num &&
+		    ep->pkey == pkey) {
+			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type)) {
+				ssa_log(SSA_LOG_DEFAULT,
+					"Added %s %s %d 0x%x from %s\n",
+					addr_name, ssa_dev->verbs->device->name,
+					port_num, pkey, ifname);
+			}
+		}
+	}
+}
+
+static int acm_get_system_ips(struct acm_ep *ep)
+{
+	return acm_if_iter_sys(acm_ep_ip_iter_cb, (void *)ep);
+}
+
 static int acm_assign_ep_names(struct acm_ep *ep)
 {
 	FILE *faddr;
@@ -3559,6 +3665,9 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
 	ssa_log(SSA_LOG_VERBOSE, "device %s, port %d, pkey 0x%x\n",
 		dev_name, *port_num, ep->pkey);
+
+	acm_get_system_ips(ep);
+
 	if (!(faddr = acm_open_addr_file())) {
 		ssa_log_err(0, "address file not found\n");
 		return -1;
