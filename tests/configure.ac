@@ -158,4 +158,4 @@ fi
 AC_CONFIG_FILES([ssa_tests.spec])
 
 dnl Create the following Makefiles
-AC_OUTPUT(Makefile loadsave/Makefile pr_pair/Makefile)
+AC_OUTPUT(Makefile loadsave/Makefile pr_pair/Makefile utils/Makefile)

@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2013-2014 Mellanox Technologies LTD. All rights reserved.
+# Copyright (c) 2013-2015 Mellanox Technologies LTD. All rights reserved.
 # #
 # # This software is available to you under the OpenIB.org BSD license below:
 # #
@@ -30,9 +30,9 @@
 #
 # # Makefile.am -- Process this file with automake to produce Makefile.in
 
-SUBDIRS = loadsave pr_pair
+SUBDIRS = loadsave pr_pair utils
 EXTRA_DIST = include/ssa_log.h include/common.h include/osd.h \
-	     include/dlist.h include/ssa_ctrl.h \
+	     include/dlist.h include/ssa_ctrl.h include/acm_shared.h \
 	     include/ssa_path_record_data.h include/ssa_path_record_helper.h \
 	     include/infiniband/ssa_db.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_mad.h include/infiniband/ssa_db_helper.h \

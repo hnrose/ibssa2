@@ -46,6 +46,7 @@ Vendor: OpenFabrics
 SSA Testing Utilities:
  - loadsave: used for loading and saving ssa_db data structure using ssadbhelper
  - pr_pair: used for path records computation
+ - hosts2prdb: used for generating prdb from ibacm hosts file
 
 %prep
 %setup -n %{name}-%{version}
@@ -69,10 +70,13 @@ rm -rf ${RPM_BUILD_ROOT}
 %defattr(-,root,root)
 %{_bindir}/loadsave
 %{_bindir}/pr_pair
+%{_bindir}/hosts2prdb
 # END Files
 
 
 %changelog
+* Wed Jun 17 2015 - Ilya Nelkenbaum <ilyan@mellanox.com>
+- Add hosts2prdb utility
 * Wed Jan 22 2014 - Sasha Kotchubievsky <sashakot@mellanox.com>
 - Adding pr_pair
 * Sun Nov 17 2013 - Ilya Nelkenbaum <ilyan@mellanox.com>
