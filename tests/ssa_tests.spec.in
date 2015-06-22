@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
+# Copyright (c) 2015 Mellanox Technologies LTD. All rights reserved.
 #
 # This software is available to you under the OpenIB.org BSD license below:
 #
@@ -47,6 +47,7 @@ SSA Testing Utilities:
  - loadsave: used for loading and saving ssa_db data structure using ssadbhelper
  - pr_pair: used for path records computation
  - hosts2prdb: used for generating prdb from ibacm hosts file
+ - prdb2hosts: used for generating ibacm hosts file from prdb
 
 %prep
 %setup -n %{name}-%{version}
@@ -71,10 +72,13 @@ rm -rf ${RPM_BUILD_ROOT}
 %{_bindir}/loadsave
 %{_bindir}/pr_pair
 %{_bindir}/hosts2prdb
+%{_bindir}/prdb2hosts
 # END Files
 
 
 %changelog
+* Mon Jun 22 2015 - Ilya Nelkenbaum <ilyan@mellanox.com>
+- Add prdb2hosts utility
 * Wed Jun 17 2015 - Ilya Nelkenbaum <ilyan@mellanox.com>
 - Add hosts2prdb utility
 * Wed Jan 22 2014 - Sasha Kotchubievsky <sashakot@mellanox.com>
