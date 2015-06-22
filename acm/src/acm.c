@@ -3685,16 +3685,16 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		ssa_log(SSA_LOG_VERBOSE, "%s", s);
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
 			if (!support_ips_in_addr_cfg) {
-				ssa_log(SSA_LOG_DEFAULT,
-					"ERROR - IPs are not configured to be read from ibacm_addr.data\n");
+				ssa_log_warn(0,
+					     "IPs are not configured to be read from ibacm_addr.data\n");
 				continue;
 			}
 			type = ACM_ADDRESS_IP;
 			addr_len = 4;
 		} else if (inet_pton(AF_INET6, addr, &ip_addr) > 0) {
 			if (!support_ips_in_addr_cfg) {
-				ssa_log(SSA_LOG_DEFAULT,
-					"ERROR - IPs are not configured to be read from ibacm_addr.data\n");
+				ssa_log_warn(0,
+					     "IPs are not configured to be read from ibacm_addr.data\n");
 				continue;
 			}
 			type = ACM_ADDRESS_IP6;
