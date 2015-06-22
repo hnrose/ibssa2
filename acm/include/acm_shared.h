@@ -101,6 +101,7 @@ struct acm_ep {
 	void                  *dest_map[ACM_ADDRESS_RESERVED - 1];
 	struct acm_dest       mc_dest[MAX_EP_MC];
 	int                   mc_cnt;
+	unsigned int          ifindex;
 	uint16_t              pkey_index;
 	uint16_t              pkey;
 	pthread_mutex_t       lock;

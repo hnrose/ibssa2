@@ -3494,7 +3494,8 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 }
 
 static int acm_ep_insert_addr(struct acm_ep *ep, uint8_t *addr,
-			      size_t addr_len, uint8_t addr_type)
+			      size_t addr_len, uint8_t addr_type,
+			      unsigned int ifindex)
 {
 	int i;
 	int ret = ENOMEM;
@@ -3514,6 +3515,12 @@ static int acm_ep_insert_addr(struct acm_ep *ep, uint8_t *addr,
 
 				ep->addr_type[i] = addr_type;
 				memcpy(ep->addr[i].addr, tmp, ACM_MAX_ADDRESS);
+				if (!ep->ifindex)
+					ep->ifindex = ifindex;
+				else if (ep->ifindex != ifindex)
+					ssa_log(SSA_LOG_DEFAULT,
+						"ifindex discrepancy: %u %u\n",
+						ep->ifindex, ifindex);
 
 				switch (addr_type) {
 				case ACM_ADDRESS_IP:
@@ -3616,7 +3623,7 @@ static void acm_ep_ip_iter_cb(char *ifname, unsigned int ifindex,
 		if (((struct acm_port *)ep->port)->dev == dev &&
 		    ((struct acm_port *)ep->port)->port_num == port_num &&
 		    ep->pkey == pkey) {
-			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type)) {
+			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type, ifindex)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"Added %s %s %d 0x%x from %s index %u\n",
 					addr_name, dev->verbs->device->name,
@@ -3631,7 +3638,7 @@ static void acm_ep_ip_iter_cb(char *ifname, unsigned int ifindex,
 		if (((struct ssa_port *)ep->port)->dev == ssa_dev &&
 		    ((struct ssa_port *)ep->port)->port_num == port_num &&
 		    ep->pkey == pkey) {
-			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type)) {
+			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type, ifindex)) {
 				ssa_log(SSA_LOG_DEFAULT,
 					"Added %s %s %d 0x%x from %s index %u\n",
 					addr_name, ssa_dev->verbs->device->name,
@@ -3665,10 +3672,11 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		dev_name = ((struct ssa_port *)ep->port)->dev->name;
 
 	port_num = GET_PORT_FIELD_PTR(ep->port, uint8_t, port_num);
-	ssa_log(SSA_LOG_VERBOSE, "device %s, port %d, pkey 0x%x\n",
-		dev_name, *port_num, ep->pkey);
 
 	acm_get_system_ips(ep);
+
+	ssa_log(SSA_LOG_VERBOSE, "device %s, port %d, pkey 0x%x, ifindex %u\n",
+		dev_name, *port_num, ep->pkey, ep->ifindex);
 
 	if (!(faddr = acm_open_addr_file())) {
 		ssa_log_err(0, "address file not found\n");
@@ -3716,7 +3724,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		if (!strcasecmp(dev_name, dev) && (*port_num == (uint8_t) port) &&
 			(ep->pkey == pkey)) {
 
-			if ((ret = acm_ep_insert_addr(ep, (uint8_t *)&ip_addr, addr_len, type)) != 0) {
+			if ((ret = acm_ep_insert_addr(ep, (uint8_t *)&ip_addr, addr_len, type, ep->ifindex)) != 0) {
 				ssa_log(SSA_LOG_VERBOSE,
 					"maximum number of names assigned to EP\n");
 				break;
