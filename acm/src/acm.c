@@ -214,6 +214,7 @@ static uint64_t *lid2guid_cached = NULL;
 static useconds_t acm_query_timeout = ACM_DEFAULT_QUERY_TIMEOUT;
 static int acm_query_retries = ACM_DEFAULT_QUERY_RETRIES;
 static int neigh_mode = NEIGH_MODE_NONE;
+static int support_ips_in_addr_cfg = 0;
 
 extern int log_flush;
 extern int accum_log_file;
@@ -3682,9 +3683,19 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 
 		ssa_log(SSA_LOG_VERBOSE, "%s", s);
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
+			if (!support_ips_in_addr_cfg) {
+				ssa_log(SSA_LOG_DEFAULT,
+					"ERROR - IPs are not configured to be read from ibacm_addr.cfg\n");
+				continue;
+			}
 			type = ACM_ADDRESS_IP;
 			addr_len = 4;
 		} else if (inet_pton(AF_INET6, addr, &ip_addr) > 0) {
+			if (!support_ips_in_addr_cfg) {
+				ssa_log(SSA_LOG_DEFAULT,
+					"ERROR - IPs are not configured to be read from ibacm_addr.cfg\n");
+				continue;
+			}
 			type = ACM_ADDRESS_IP6;
 			addr_len = ACM_MAX_ADDRESS;
 		} else {
@@ -4531,6 +4542,8 @@ static void acm_set_options(void)
 			 rejoin_timeout = atoi(value);
 		else if (!strcasecmp("neigh_mode", opt))
 			neigh_mode = atoi(value);
+		else if (!strcasecmp("support_ips_in_addr_cfg", opt))
+			support_ips_in_addr_cfg = atoi(value);
 	}
 
 	fclose(f);
@@ -4584,6 +4597,8 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "neigh_mode %d\n", neigh_mode);
 	if (neigh_mode & NEIGH_MODE_IPV6)
 		ssa_log(SSA_LOG_DEFAULT, "NEIGH_MODE_IPV6 currently not supported\n");
+	ssa_log(SSA_LOG_DEFAULT, "support IPs in ibacm_addr.cfg %d\n",
+		support_ips_in_addr_cfg);
 }
 
 static int acm_init_svc(struct ssa_svc *svc)
