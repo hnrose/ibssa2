@@ -203,7 +203,8 @@ int acm_if_iter_sys(acm_if_iter_cb cb, void *ctx)
 		if (ret)
 			continue;
 
-		cb(ifr[i].ifr_name, &sgid, pkey, addr_type, addr, addr_len, ip_str, ctx);
+		cb(ifr[i].ifr_name, &sgid, pkey, addr_type, addr, addr_len,
+		   ip_str, ctx);
 	}
 	ret = 0;
 

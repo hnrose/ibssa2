@@ -3493,8 +3493,8 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	fclose(f);
 }
 
-static int
-acm_ep_insert_addr(struct acm_ep *ep, uint8_t *addr, size_t addr_len, uint8_t addr_type)
+static int acm_ep_insert_addr(struct acm_ep *ep, uint8_t *addr,
+			      size_t addr_len, uint8_t addr_type)
 {
 	int i;
 	int ret = ENOMEM;
