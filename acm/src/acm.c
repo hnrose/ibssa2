@@ -3598,7 +3598,8 @@ static void *acm_get_device_from_gid(union ibv_gid *sgid, uint8_t *port)
 	return NULL;
 }
 
-static void acm_ep_ip_iter_cb(char *ifname, union ibv_gid *gid, uint16_t pkey,
+static void acm_ep_ip_iter_cb(char *ifname, unsigned int ifindex,
+			      union ibv_gid *gid, uint16_t pkey,
 			      uint8_t addr_type, uint8_t *addr, size_t addr_len,
 			      char *addr_name, void *ctx)
 {
@@ -3617,9 +3618,9 @@ static void acm_ep_ip_iter_cb(char *ifname, union ibv_gid *gid, uint16_t pkey,
 		    ep->pkey == pkey) {
 			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type)) {
 				ssa_log(SSA_LOG_DEFAULT,
-					"Added %s %s %d 0x%x from %s\n",
+					"Added %s %s %d 0x%x from %s index %u\n",
 					addr_name, dev->verbs->device->name,
-					port_num, pkey, ifname);
+					port_num, pkey, ifname, ifindex);
 			}
 		}
 	} else {	/* ACM_MODE_SSA */
@@ -3632,9 +3633,9 @@ static void acm_ep_ip_iter_cb(char *ifname, union ibv_gid *gid, uint16_t pkey,
 		    ep->pkey == pkey) {
 			if (!acm_ep_insert_addr(ep, addr, addr_len, addr_type)) {
 				ssa_log(SSA_LOG_DEFAULT,
-					"Added %s %s %d 0x%x from %s\n",
+					"Added %s %s %d 0x%x from %s index %u\n",
 					addr_name, ssa_dev->verbs->device->name,
-					port_num, pkey, ifname);
+					port_num, pkey, ifname, ifindex);
 			}
 		}
 	}

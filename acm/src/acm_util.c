@@ -138,6 +138,7 @@ int acm_if_iter_sys(acm_if_iter_cb cb, void *ctx)
 	uint8_t addr[ACM_MAX_ADDRESS];
 	size_t addr_len;
 	char *alias_sep;
+	unsigned int ifindex;
 
 	s = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (!s)
@@ -186,8 +187,9 @@ int acm_if_iter_sys(acm_if_iter_cb cb, void *ctx)
 			continue;
 		}
 
+		ifindex = if_nametoindex(ifr[i].ifr_name);
 		ssa_log(SSA_LOG_CTRL, "interface %s index %u\n",
-			ifr[i].ifr_name, if_nametoindex(ifr[i].ifr_name));
+			ifr[i].ifr_name, ifindex);
 
 		alias_sep = strchr(ifr[i].ifr_name, ':');
 		if (alias_sep)
@@ -204,8 +206,8 @@ int acm_if_iter_sys(acm_if_iter_cb cb, void *ctx)
 		if (ret)
 			continue;
 
-		cb(ifr[i].ifr_name, &sgid, pkey, addr_type, addr, addr_len,
-		   ip_str, ctx);
+		cb(ifr[i].ifr_name, ifindex, &sgid, pkey, addr_type, addr,
+		   addr_len, ip_str, ctx);
 	}
 	ret = 0;
 
