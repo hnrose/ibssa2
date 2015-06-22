@@ -4580,7 +4580,7 @@ static void acm_log_options(void)
 	if (rejoin_timeout < 0)
 		ssa_log(SSA_LOG_DEFAULT, "rejoin to distribution tree after previous request failure disabled\n");
 	else
-		ssa_log(SSA_LOG_DEFAULT, "timeout before next join request (in sec.) %d\n", rejoin_timeout );
+		ssa_log(SSA_LOG_DEFAULT, "timeout before next join request (in sec.) %d\n", rejoin_timeout);
 	ssa_log(SSA_LOG_DEFAULT, "neigh_mode %d\n", neigh_mode);
 	if (neigh_mode & NEIGH_MODE_IPV6)
 		ssa_log(SSA_LOG_DEFAULT, "NEIGH_MODE_IPV6 currently not supported\n");
