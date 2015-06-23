@@ -3505,6 +3505,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 					if (ep->addr_type[i] == ACM_ADDRESS_IP) {
 						memcpy(&local_ipv4_addr,
 						       ep->addr[i].addr, 4);
+						break;
 					}
 				}
 
