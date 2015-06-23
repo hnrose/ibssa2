@@ -3321,10 +3321,10 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	uint8_t name[ACM_MAX_ADDRESS + 1];
 	char lladdr[20];
 	struct in6_addr ip_addr, ib_addr;
-	in_addr_t ipv4_addr;
+	in_addr_t ipv4_addr, local_ipv4_addr;
 	struct acm_dest *dest, *gid_dest;
 	long int tmp;
-	int ret, idx, invalid_input, line = 0, neigh;
+	int ret, idx, invalid_input, line = 0, neigh, i;
 	uint32_t qpn;
 	uint16_t pkey = ACM_DEFAULT_DEST_PKEY;
 	uint8_t addr_type, flags;
@@ -3500,7 +3500,17 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 
 		if (neigh_mode & NEIGH_MODE_IPV4 && neigh & NEIGH_MODE_IPV4) {
 			if (qpn && qpn != 1) {
+				local_ipv4_addr = 0;
+				for (i = 0; i < MAX_EP_ADDR; i++) {
+					if (ep->addr_type[i] == ACM_ADDRESS_IP) {
+						memcpy(&local_ipv4_addr,
+						       ep->addr[i].addr, 4);
+					}
+				}
+
 				memcpy(&ipv4_addr, &ip_addr, 4);
+				if (ipv4_addr == local_ipv4_addr)
+					continue;
 				ssa_log(SSA_LOG_VERBOSE,
 					"IPv4 neighbor 0x%x to be added to ifindex %u\n",
 					htonl(ipv4_addr), ep->ifindex);
