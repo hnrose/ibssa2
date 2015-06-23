@@ -428,7 +428,7 @@ static void acm_update_sa_dest(struct ssa_port *port)
 					 &port->sa_dest.av);
 	if (!port->sa_dest.ah) {
 		pthread_mutex_unlock(&port->lock);
-		ssa_log_err(SSA_LOG_DEFAULT,
+		ssa_log_err(0,
 			    "unable to create %s port SA dest address handle\n",
 			    port->name);
 		return;
