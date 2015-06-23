@@ -382,9 +382,9 @@ void poll_neighsock(int neighsock, int poll_timeout)
 
 	pset[0].fd = neighsock;
 	pset[0].events = EVENTS;
-	pset[0].revents = 0;
 
 	for (;;) {
+		pset[0].revents = 0;
 		if (poll(pset, 1, poll_timeout) > 0) {
 			if (pset[0].revents & EVENTS)
 				neigh_get_message(neighsock);
