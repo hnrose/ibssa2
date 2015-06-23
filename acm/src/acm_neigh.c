@@ -245,7 +245,8 @@ static int parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int le
 	return parse_rtattr_flags(tb, max, rta, len, 0);
 }
 
-static int handle_intf(uint32_t ifindex)
+#if 0
+static int neigh_handle_intf(uint32_t ifindex)
 {
 	/* Handle IB interfaces only */
 
@@ -256,8 +257,9 @@ static int handle_intf(uint32_t ifindex)
 	return 1;
 #endif
 }
+#endif
 
-static int handle_request(int neighsock, struct nlmsghdr *n)
+static int neigh_handle_request(int neighsock, struct nlmsghdr *n)
 {
 	struct ndmsg *ndm = NLMSG_DATA(n);
 	int len = n->nlmsg_len;
@@ -301,7 +303,9 @@ static int handle_request(int neighsock, struct nlmsghdr *n)
 
 	if ((ndm->ndm_family != AF_INET &&
 	     ndm->ndm_family != AF_INET6) ||
-	    !handle_intf(ifindex) ||
+#if 0
+	    !neigh_handle_intf(ifindex) ||
+#endif
 	    ndm->ndm_flags ||
 	    ndm->ndm_type != RTN_UNICAST ||
 	    !(ndm->ndm_state & ~NUD_NOARP))
@@ -330,7 +334,7 @@ static int handle_request(int neighsock, struct nlmsghdr *n)
 	return 0;
 }
 
-static void get_message(int neighsock)
+static void neigh_get_message(int neighsock)
 {
 	int status;
 	struct nlmsghdr *h;
@@ -364,7 +368,7 @@ static void get_message(int neighsock)
 		if (l < 0 || len > status)
 			return;
 
-		if (handle_request(neighsock, h) < 0)
+		if (neigh_handle_request(neighsock, h) < 0)
 			return;
 
 		status -= NLMSG_ALIGN(len);
@@ -383,7 +387,7 @@ void poll_neighsock(int neighsock, int poll_timeout)
 	for (;;) {
 		if (poll(pset, 1, poll_timeout) > 0) {
 			if (pset[0].revents & EVENTS)
-				get_message(neighsock);
+				neigh_get_message(neighsock);
 		}
 	}
 }
