@@ -54,6 +54,7 @@
 #include "acm_mad.h"
 #include "acm_util.h"
 #include <acm_shared.h>
+#include <acm_neigh.h>
 #include <infiniband/ssa_db.h>
 #include <infiniband/ssa_db_helper.h>
 #include <infiniband/ssa_prdb.h>
@@ -161,7 +162,7 @@ union socket_addr {
 };
 
 static struct ssa_class ssa;
-static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread;
+static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread, neigh_thread;
 
 static DLIST_ENTRY device_list;
 
@@ -171,6 +172,7 @@ static event_t timeout_event;
 static atomic_t wait_cnt;
 
 static int listen_socket;
+static int neigh_socket;
 static struct acm_client client_array[FD_SETSIZE - 1];
 
 static atomic_t counter[ACM_MAX_COUNTER];
@@ -3317,10 +3319,12 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	char buf1[8], buf2[16];
 	char *endptr;
 	uint8_t name[ACM_MAX_ADDRESS + 1];
+	char lladdr[20];
 	struct in6_addr ip_addr, ib_addr;
+	in_addr_t ipv4_addr;
 	struct acm_dest *dest, *gid_dest;
 	long int tmp;
-	int ret, idx, invalid_input, line = 0;
+	int ret, idx, invalid_input, line = 0, neigh;
 	uint32_t qpn;
 	uint16_t pkey = ACM_DEFAULT_DEST_PKEY;
 	uint8_t addr_type, flags;
@@ -3377,6 +3381,8 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 				"ERROR - %s is not an IB GID\n", gid);
 			continue;
 		}
+
+		qpn = 0;
 
 		switch (ret) {
 		case 2:
@@ -3435,13 +3441,16 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 		if (pkey != ep->pkey)
 			continue;
 
+		neigh = 0;
 		memset(name, 0, sizeof(name));
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
 			addr_type = ACM_ADDRESS_IP;
 			memcpy(name, &ip_addr, 4);
+			neigh = NEIGH_MODE_IPV4;
 		} else if (inet_pton(AF_INET6, addr, &ip_addr) > 0) {
 			addr_type = ACM_ADDRESS_IP6;
 			memcpy(name, &ip_addr, sizeof(ip_addr));
+			neigh = NEIGH_MODE_IPV6;
 		} else {
 			addr_type = ACM_ADDRESS_NAME;
 			strncpy((char *)name, addr, ACM_MAX_ADDRESS);
@@ -3488,6 +3497,23 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 			"added host %s address type %d IB GID %s "
 			"QPN 0x%x flags 0x%x pkey 0x%x\n",
 			addr, addr_type, gid, qpn, flags, pkey);
+
+		if (neigh_mode & NEIGH_MODE_IPV4 && neigh & NEIGH_MODE_IPV4) {
+			if (qpn && qpn != 1) {
+				memcpy(&ipv4_addr, &ip_addr, 4);
+				ssa_log(SSA_LOG_VERBOSE,
+					"IPv4 neighbor 0x%x to be added to ifindex %u\n",
+					htonl(ipv4_addr), ep->ifindex);
+				qpn = htonl(qpn | flags << 24);
+				memcpy(&lladdr[0], &qpn, 4);
+				memcpy(&lladdr[4], &ib_addr, 16);
+				if (ipv4_neighbor_add(neigh_socket, ep->ifindex,
+						      ipv4_addr, lladdr, sizeof(lladdr)))
+					ssa_log(SSA_LOG_DEFAULT,
+						"ipv4_neighbor_add IP 0x%x send failed\n",
+						ntohl(ipv4_addr));
+			}
+		}
 	}
 
 	fclose(f);
@@ -4666,6 +4692,20 @@ close:
 	return context;
 }
 
+static void *ssa_poll_neigh(void *context)
+{
+	int *p_neighsock = context;
+	int poll_timeout = 30000;	/* ??? */
+
+	SET_THREAD_NAME(neigh_thread, "NEIGH");
+
+	ssa_log(SSA_LOG_VERBOSE, "started\n");
+
+	poll_neighsock(*p_neighsock, poll_timeout);
+
+	return NULL;
+}
+
 static void show_usage(char *program)
 {
 	printf("usage: %s\n", program);
@@ -4760,6 +4800,15 @@ int main(int argc, char **argv)
 			return -1;
 		}
 		pthread_create(&ctrl_thread, NULL, acm_ctrl_handler, NULL);
+		if (neigh_mode) {
+			ssa_log(SSA_LOG_VERBOSE,
+				"opening netlink socket for neighbor support\n");
+			neigh_socket = open_neighsock();
+			if (neigh_socket)
+				/* Spawn thread for netlink receives */
+				pthread_create(&neigh_thread, NULL,
+					       ssa_poll_neigh, &neigh_socket);
+		}
 	}
 
 	acm_activate_devices();
@@ -4771,6 +4820,10 @@ int main(int argc, char **argv)
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	pthread_join(ctrl_thread, NULL);
+	if (neigh_socket) {
+		pthread_join(neigh_thread, NULL);
+		close_neighsock(neigh_socket);
+	}
 	ssa_cleanup(&ssa);
 	ssa_close_log();
 	ssa_close_lock_file();
