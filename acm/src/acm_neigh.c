@@ -27,7 +27,6 @@
  * SOFTWARE.
  */
 
-#include <poll.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -45,8 +44,6 @@
 
 #define NLMSG_TAIL(nmsg) \
 	((struct rtattr *) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
-
-#define EVENTS (POLLIN | POLLPRI | POLLERR | POLLHUP)
 
 static uint32_t sequence_number;
 
@@ -375,20 +372,4 @@ int neigh_get_message(int neighsock)
 		h = (struct nlmsghdr *)((char *) h + NLMSG_ALIGN(len));
 	}
 	return 1;
-}
-
-void poll_neighsock(int neighsock, int poll_timeout)
-{
-	struct pollfd pset[1];
-
-	pset[0].fd = neighsock;
-	pset[0].events = EVENTS;
-
-	for (;;) {
-		pset[0].revents = 0;
-		if (poll(pset, 1, poll_timeout) > 0) {
-			if (pset[0].revents & EVENTS)
-				neigh_get_message(neighsock);
-		}
-	}
 }
