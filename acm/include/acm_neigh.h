@@ -44,6 +44,7 @@ int ipv6_neighbor_delete(int neighsock, int ifindex, struct in6_addr *ipaddr);
 
 int open_neighsock();
 void close_neighsock(int neighsock);
+int neigh_get_message(int neighsock);
 void poll_neighsock(int neighsock, int poll_timeout);
 
 #endif /* ACM_NEIGH_H */

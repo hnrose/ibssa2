@@ -162,7 +162,7 @@ union socket_addr {
 };
 
 static struct ssa_class ssa;
-static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread, neigh_thread;
+static pthread_t event_thread, retry_thread, comp_thread, ctrl_thread, query_thread;
 
 static DLIST_ENTRY device_list;
 
@@ -178,6 +178,8 @@ static struct acm_client client_array[FD_SETSIZE - 1];
 static atomic_t counter[ACM_MAX_COUNTER];
 
 static int acm_issue_query_done;
+
+static void acm_neigh_handler(void);
 
 enum acm_addr_preload {
 	ACM_ADDR_PRELOAD_NONE,
@@ -2582,6 +2584,11 @@ static void acm_server(void)
 		FD_ZERO(&readfds);
 		FD_SET(listen_socket, &readfds);
 
+		if (neigh_socket) {
+			n = max(n, neigh_socket);
+			FD_SET(neigh_socket, &readfds);
+		}
+
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
 			if (client_array[i].sock != -1) {
 				FD_SET(client_array[i].sock, &readfds);
@@ -2597,6 +2604,11 @@ static void acm_server(void)
 
 		if (FD_ISSET(listen_socket, &readfds))
 			acm_svr_accept();
+
+		if (neigh_socket) {
+			if (FD_ISSET(neigh_socket, &readfds))
+				acm_neigh_handler();
+		}
 
 		for (i = 0; i < FD_SETSIZE - 1; i++) {
 			if (client_array[i].sock != -1 &&
@@ -3690,6 +3702,12 @@ static int acm_get_system_ips(struct acm_ep *ep)
 	return acm_if_iter_sys(acm_ep_ip_iter_cb, (void *)ep);
 }
 
+static void acm_neigh_handler(void)
+{
+	while (neigh_get_message(neigh_socket) > 0)
+		;
+}
+
 static int acm_assign_ep_names(struct acm_ep *ep)
 {
 	FILE *faddr;
@@ -4703,20 +4721,6 @@ close:
 	return context;
 }
 
-static void *ssa_poll_neigh(void *context)
-{
-	int *p_neighsock = context;
-	int poll_timeout = 30000;	/* ??? */
-
-	SET_THREAD_NAME(neigh_thread, "NEIGH");
-
-	ssa_log(SSA_LOG_VERBOSE, "started\n");
-
-	poll_neighsock(*p_neighsock, poll_timeout);
-
-	return NULL;
-}
-
 static void show_usage(char *program)
 {
 	printf("usage: %s\n", program);
@@ -4815,10 +4819,6 @@ int main(int argc, char **argv)
 			ssa_log(SSA_LOG_VERBOSE,
 				"opening netlink socket for neighbor support\n");
 			neigh_socket = open_neighsock();
-			if (neigh_socket)
-				/* Spawn thread for netlink receives */
-				pthread_create(&neigh_thread, NULL,
-					       ssa_poll_neigh, &neigh_socket);
 		}
 	}
 
@@ -4831,10 +4831,8 @@ int main(int argc, char **argv)
 
 	ssa_log(SSA_LOG_DEFAULT, "shutting down\n");
 	pthread_join(ctrl_thread, NULL);
-	if (neigh_socket) {
-		pthread_join(neigh_thread, NULL);
+	if (neigh_socket)
 		close_neighsock(neigh_socket);
-	}
 	ssa_cleanup(&ssa);
 	ssa_close_log();
 	ssa_close_lock_file();

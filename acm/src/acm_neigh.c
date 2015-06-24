@@ -196,7 +196,7 @@ int open_neighsock()
 	int neighsock;
 	struct sockaddr_nl local;
 
-	neighsock = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
+	neighsock = socket(AF_NETLINK, SOCK_RAW | SOCK_NONBLOCK, NETLINK_ROUTE);
 	if (neighsock < 0) {
 		ssa_log(SSA_LOG_DEFAULT,
 			"Cannot open netlink socket for RTMGRP_NEIGH");
@@ -334,7 +334,7 @@ static int neigh_handle_request(int neighsock, struct nlmsghdr *n)
 	return 0;
 }
 
-static void neigh_get_message(int neighsock)
+int neigh_get_message(int neighsock)
 {
 	int status;
 	struct nlmsghdr *h;
@@ -356,24 +356,25 @@ static void neigh_get_message(int neighsock)
 	status = recvmsg(neighsock, &msg, MSG_DONTWAIT);
 
 	if (status <= 0)
-		return;
+		return 0;
 
 	if (nladdr.nl_pid)
-		return;
+		return 0;
 
 	for (h = (struct nlmsghdr *) buf; status >= sizeof(*h); ) {
 		int len = h->nlmsg_len;
 		int l = len - sizeof(*h);
 
 		if (l < 0 || len > status)
-			return;
+			return 0;
 
 		if (neigh_handle_request(neighsock, h) < 0)
-			return;
+			return 0;
 
 		status -= NLMSG_ALIGN(len);
 		h = (struct nlmsghdr *)((char *) h + NLMSG_ALIGN(len));
 	}
+	return 1;
 }
 
 void poll_neighsock(int neighsock, int poll_timeout)
