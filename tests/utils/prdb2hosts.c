@@ -46,6 +46,8 @@
 
 static char log_file[128]	= "/var/log/prdb2hosts.log";
 static uint64_t	subnet_prefix	= 0xfe80000000000000;
+static uint32_t qpn		= 0x02;
+static uint8_t flags		= 0x80;
 
 union gid {
         uint8_t                 raw[16];
@@ -57,8 +59,8 @@ union gid {
 
 static void print_usage(FILE* file,const char* name)
 {
-	fprintf(file, "Usage: %s [-m prdb mode] [-s subnet prefix] "
-		      "[-o hosts output file] prdb directory\n", name);
+	fprintf(file, "Usage: %s [-m prdb mode] [-s subnet prefix] [-q QPN] "
+		      "[-f flags] [-o hosts output file] prdb directory\n", name);
 	fprintf(file, "PRDB input mode:\n");
 	fprintf(file, "\tb - Binary (default)\n");
 	fprintf(file, "\td - Debug\n");
@@ -113,10 +115,10 @@ static int gen_hosts(struct ssa_db *prdb, const char *hosts_file)
 		gid.global.interface_id = rec->guid;
 		inet_ntop(AF_INET6, gid.raw, buf, sizeof(buf));
 
-		fprintf(fd, "%u.%u.%u.%u %s\n",
-			ipv4[0], ipv4[1], ipv4[2], ipv4[3], buf);
-		fprintf(fd, "%s %s\n", buf, buf);
-		fprintf(fd, "host%u %s\n", lid, buf);
+		fprintf(fd, "%u.%u.%u.%u %s 0x%x 0x%x\n",
+			ipv4[0], ipv4[1], ipv4[2], ipv4[3], buf, qpn, flags);
+		fprintf(fd, "%s %s 0x%x 0x%x\n", buf, buf, qpn, flags);
+		fprintf(fd, "host%u %s 0x%x 0x%x\n", lid, buf, qpn, flags);
 
 		for (j = sizeof(ipv4) - 1; j >= 0; j--) {
 			if (++ipv4[j])
@@ -138,7 +140,7 @@ int main(int argc,char *argv[])
 	unsigned long int tmp;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "m:o:s:h?")) != -1) {
+	while ((opt = getopt(argc, argv, "m:o:s:f:q:h?")) != -1) {
 		switch (opt) {
 		case 'm':
 			if (optarg[0] == 'b') {
@@ -163,6 +165,32 @@ int main(int argc,char *argv[])
 					optarg, subnet_prefix);
 			} else {
 				subnet_prefix = (uint64_t) tmp;
+			}
+			break;
+		case 'f':
+			tmp = strtoull(optarg, &endptr, 0);
+			if (endptr == optarg ||
+			    (errno == ERANGE && tmp == ULONG_MAX) ||
+			    (tmp > 0xC0) || (tmp & 0x3F)) {
+				fprintf(stderr,
+					"invalid flags specifed (%s), "
+					"using default ones 0x%x\n",
+					optarg, flags);
+			} else {
+				flags = (uint8_t) tmp;
+			}
+			break;
+		case 'q':
+			tmp = strtoull(optarg, &endptr, 0);
+			if (endptr == optarg ||
+			    (errno == ERANGE && tmp == ULONG_MAX) ||
+			    tmp > 0xFFFFFF) {
+				fprintf(stderr,
+					"invalid QPN specifed (%s), "
+					"using default one 0x%" PRIx32 "\n",
+					optarg, qpn);
+			} else {
+				qpn = (uint32_t) tmp;
 			}
 			break;
 		case '?':
