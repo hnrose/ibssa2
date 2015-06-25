@@ -46,7 +46,7 @@
 
 static char log_file[128]	= "/var/log/prdb2hosts.log";
 static uint64_t	subnet_prefix	= 0xfe80000000000000;
-static uint32_t qpn		= 0x02;
+static uint32_t qpn		= 0x48;
 static uint8_t flags		= 0x80;
 
 union gid {
