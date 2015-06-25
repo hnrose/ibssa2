@@ -82,7 +82,7 @@ static int gen_hosts(struct ssa_db *prdb, const char *hosts_file)
 {
 	FILE *fd;
 	struct ep_pr_tbl_rec *tbl, *rec;
-	char buf[120];
+	char buf[120], ip[INET6_ADDRSTRLEN];
 	uint8_t ipv4[4] = { 1, 1, 1, 1 };
 	union gid gid;
 	int j;
@@ -114,9 +114,9 @@ static int gen_hosts(struct ssa_db *prdb, const char *hosts_file)
 		lid = ntohs(rec->lid);
 		gid.global.interface_id = rec->guid;
 		inet_ntop(AF_INET6, gid.raw, buf, sizeof(buf));
+		inet_ntop(AF_INET, ipv4, ip, sizeof(ip));
 
-		fprintf(fd, "%u.%u.%u.%u %s 0x%x 0x%x\n",
-			ipv4[0], ipv4[1], ipv4[2], ipv4[3], buf, qpn, flags);
+		fprintf(fd, "%s %s 0x%x 0x%x\n", ip, buf, qpn, flags);
 		fprintf(fd, "%s %s 0x%x 0x%x\n", buf, buf, qpn, flags);
 		fprintf(fd, "host%u %s 0x%x 0x%x\n", lid, buf, qpn, flags);
 
