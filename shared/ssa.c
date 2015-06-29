@@ -2247,10 +2247,12 @@ static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 		msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
 	msg.conn = conn;
-	ret = write(svc->sock_accessdown[0], (char *) &msg, sizeof msg);
-	if (ret != sizeof msg)
-		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
-			    ret, sizeof msg);
+	if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
+		ret = write(svc->sock_accessdown[0], (char *) &msg, sizeof msg);
+		if (ret != sizeof msg)
+			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+				    ret, sizeof msg);
+	}
 }
 
 static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
@@ -2800,14 +2802,14 @@ ssa_log(SSA_LOG_DEFAULT, "conn %p phase %d dbtype %d\n", conn, conn->phase, conn
 			smdb_refcnt--;
 ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just decremented to %u\n", ssa_downstream_db(conn), smdb_refcnt);
 			ssa_close_ssa_conn(conn);
+			ssa_downstream_conn(svc, conn, 1);
 ssa_log(SSA_LOG_DEFAULT, "SMDB transfer in progress %d update pending %d\n", ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds, FD_SETSIZE), update_pending);
 			if (update_pending)
 				ssa_downstream_smdb_update_ready(conn, svc, fds);
 		}
 	} else {
 		ssa_close_ssa_conn(conn);
-		if (conn->dbtype == SSA_CONN_PRDB_TYPE)
-			ssa_downstream_conn(svc, conn, 1);
+		ssa_downstream_conn(svc, conn, 1);
 	}
 }
 
@@ -2837,11 +2839,12 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 					if (conn_dbtype == SSA_CONN_PRDB_TYPE)
 						ssa_log(SSA_LOG_DEFAULT,
 							"PRDB connection accepted, but access notification is deferred until RDMA epoch buffer is published\n");
-					else if (conn_dbtype == SSA_CONN_SMDB_TYPE)
+					else if (conn_dbtype == SSA_CONN_SMDB_TYPE) {
+						ssa_downstream_conn(svc, conn_data, 0);
 						if (!update_pending && !update_waiting && smdb)
 							pfd->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
 else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update deferred since update is pending %d or waiting %d or no SMDB\n", update_pending, update_waiting);
-					else {
+					} else {
 						ssa_close_ssa_conn(conn_data);
 						free(conn_data);
 						conn_data = NULL;
