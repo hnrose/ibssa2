@@ -6311,32 +6311,46 @@ err:
 	return -1;
 }
 
-static int ssa_admin_verify_message(struct ssa_admin_msg *admin_msg)
+static int ssa_admin_verify_message(struct ssa_admin_msg *admin_request)
 {
-	if (admin_msg->hdr.version != SSA_ADMIN_PROTOCOL_VERSION) {
+	if (admin_request->hdr.version != SSA_ADMIN_PROTOCOL_VERSION) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "received SSA admin message with %d "
 			    "version instead of %d \n",
-			    admin_msg->hdr.version, SSA_ADMIN_PROTOCOL_VERSION);
+			    admin_request->hdr.version, SSA_ADMIN_PROTOCOL_VERSION);
 		return 0;
 	}
 
-	if (admin_msg->hdr.method != SSA_ADMIN_METHOD_GET) {
+	if (admin_request->hdr.method != SSA_ADMIN_METHOD_GET) {
 		ssa_log_err(SSA_LOG_CTRL,
 			    "received SSA admin message with %d "
 			    "method specified instead of %d\n",
-			    admin_msg->hdr.method, SSA_ADMIN_METHOD_GET);
+			    admin_request->hdr.method, SSA_ADMIN_METHOD_GET);
 		return 0;
 	}
 
 	return 1;
 }
 
-static int ssa_admin_handle_counter_message(struct ssa_admin_msg *admin_msg)
+static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_msg *admin_request)
 {
 	int i, n;
 	struct timeval epoch;
-	struct ssa_admin_counter *counter_msg = (struct ssa_admin_counter *)&admin_msg->data.counter;
+	struct ssa_admin_msg *response;
+	struct ssa_admin_counter *counter_msg;
+
+	response = (struct ssa_admin_msg *) malloc(sizeof(*response));
+	if (!response) {
+		ssa_log_err(SSA_LOG_CTRL, "admin response allocation failed\n");
+		return NULL;
+	}
+
+	response->hdr = admin_request->hdr;
+	response->hdr.status = SSA_ADMIN_STATUS_SUCCESS;
+	response->hdr.method = SSA_ADMIN_METHOD_RESP;
+	response->hdr.len = htons(sizeof(*response));
+
+	counter_msg = (struct ssa_admin_counter *) &response->data.counter;
 
 	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
 
@@ -6350,37 +6364,65 @@ static int ssa_admin_handle_counter_message(struct ssa_admin_msg *admin_msg)
 	counter_msg->epoch_tv_sec = htonll((uint64_t) epoch.tv_sec);
 	counter_msg->epoch_tv_usec = htonll((uint64_t) epoch.tv_usec);
 
-	return 0;
+	return response;
 };
 
-static int ssa_admin_handle_node_info(struct ssa_admin_msg *admin_msg,
-				      const struct ssa_class *ssa)
+static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *admin_request,
+				      			const struct ssa_class *ssa)
 {
 
-	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *)&admin_msg->data.counter;
+	struct ssa_admin_msg *response;
+	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.counter;
+
+	response = (struct ssa_admin_msg *) malloc(sizeof(*response));
+	if (!response) {
+		ssa_log_err(SSA_LOG_CTRL, "admin response allocation failed\n");
+		return NULL;
+	}
+
+	response->hdr = admin_request->hdr;
+	response->hdr.status = SSA_ADMIN_STATUS_SUCCESS;
+	response->hdr.method = SSA_ADMIN_METHOD_RESP;
+	response->hdr.len = htons(sizeof(*response));
 
 	nodeinfo_msg->type = ssa->node_type;
-	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION, SSA_ADMIN_VERSION_LEN - 1);
-	return 0;
+	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION,
+		SSA_ADMIN_VERSION_LEN - 1);
+	return response;
 }
 
-static int ssa_admin_handle_message(struct ssa_admin_msg *admin_msg,
-				    const struct ssa_class *ssa)
+static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admin_request,
+				    		      const struct ssa_class *ssa)
 {
-	switch (ntohs(admin_msg->hdr.opcode)) {
-		case SSA_ADMIN_CMD_PING:
-			return 0;
-			break;
-		case SSA_ADMIN_CMD_COUNTER:
-			return ssa_admin_handle_counter_message(admin_msg);
-			break;
-		case SSA_ADMIN_CMD_NODE_INFO:
-			return ssa_admin_handle_node_info(admin_msg, ssa);
-		default:
-			return -1;
+	struct ssa_admin_msg *default_response;
+	int error = 0;
+
+	switch (ntohs(admin_request->hdr.opcode)) {
+	case SSA_ADMIN_CMD_PING:
+		break;
+	case SSA_ADMIN_CMD_COUNTER:
+		return ssa_admin_handle_counter_message(admin_request);
+		break;
+	case SSA_ADMIN_CMD_NODE_INFO:
+		return ssa_admin_handle_node_info(admin_request, ssa);
+		break;
+	default:
+		error = 1;
 	};
 
-	return -1;
+	default_response = (struct ssa_admin_msg *) malloc(sizeof(*default_response));
+	if (!default_response) {
+		ssa_log_err(SSA_LOG_CTRL, "admin response allocation failed\n");
+		return NULL;
+	}
+
+	default_response->hdr = admin_request->hdr;
+	default_response->hdr.status = error ? SSA_ADMIN_STATUS_FAILURE:
+				       SSA_ADMIN_STATUS_SUCCESS;
+	default_response->hdr.method = SSA_ADMIN_METHOD_RESP;
+	default_response->hdr.len = htons(sizeof(*default_response));
+
+	return default_response;
 }
 
 static void *ssa_admin_handler(void *context)
@@ -6389,7 +6431,7 @@ static void *ssa_admin_handler(void *context)
 	struct ssa_device *dev;
 	struct ssa_port *port;
 	struct ssa_ctrl_msg_buf msg;
-	struct ssa_admin_msg admin_msg;
+	struct ssa_admin_msg admin_request, *admin_response;
 	struct pollfd *fds = NULL;
 	int rsock = -1;
 	int ret, len, svc_cnt = 0;
@@ -6543,12 +6585,13 @@ static void *ssa_admin_handler(void *context)
 			}
 			if (fds[2].revents & POLLIN) {
 				fds[2].revents = 0;
-				ret = rrecv(fds[2].fd, (char *) &admin_msg,
-					    sizeof(admin_msg.hdr), 0);
-				if (ret != sizeof(admin_msg.hdr)) {
+				ret = rrecv(fds[2].fd, (char *) &admin_request,
+					    sizeof(admin_request.hdr), 0);
+				if (ret != sizeof(admin_request.hdr)) {
 					ssa_log_err(SSA_LOG_CTRL,
 						    "rrecv failed: %d (%s) on rsock %d\n",
-						    errno, strerror(errno), fds[2].fd);
+						    errno, strerror(errno),
+						    fds[2].fd);
 					rclose(fds[2].fd);
 					fds[2].fd = -1;
 					fds[2].events = 0;
@@ -6556,10 +6599,10 @@ static void *ssa_admin_handler(void *context)
 					continue;
 				}
 
-				len = ntohs(admin_msg.hdr.len);
-				if (len > sizeof(admin_msg.hdr)) {
-					ret += rrecv(fds[2].fd, (char *) &admin_msg.data,
-						     len - sizeof(admin_msg.hdr), 0);
+				len = ntohs(admin_request.hdr.len);
+				if (len > sizeof(admin_request.hdr)) {
+					ret += rrecv(fds[2].fd, (char *) &admin_request.data,
+						     len - sizeof(admin_request.hdr), 0);
 					if (ret != len) {
 						ssa_log_err(SSA_LOG_CTRL,
 							    "%d out of %d bytes read from admin application\n",
@@ -6567,23 +6610,51 @@ static void *ssa_admin_handler(void *context)
 					}
 				}
 
-				if (!ssa_admin_verify_message(&admin_msg) ||
-						ssa_admin_handle_message(&admin_msg, ssa))
-					admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
-				else
-					admin_msg.hdr.status = SSA_ADMIN_STATUS_SUCCESS;
-				admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
+				if (!ssa_admin_verify_message(&admin_request)) {
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "admin request verification failed\n");
+					admin_response = (struct ssa_admin_msg *) malloc(sizeof(*admin_response));
+					if (!admin_response ) {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "admin response allocation failed\n");
+						rclose(fds[2].fd);
+						fds[2].fd = -1;
+						fds[2].events = 0;
+						fds[2].revents = 0;
+						continue;
+					}
 
-				ret = rsend(fds[2].fd, (char *) &admin_msg, len, 0);
-				if (ret < 0) {
+					admin_response->hdr = admin_request.hdr;
+					admin_response->hdr.status = SSA_ADMIN_STATUS_FAILURE;
+					admin_response->hdr.method = SSA_ADMIN_METHOD_RESP;
+					admin_response->hdr.len = htons(sizeof(*admin_response));
+				} else {
+					admin_response = ssa_admin_handle_message(&admin_request, ssa);
+				}
+
+				if (admin_response) {
+					ret = rsend(fds[2].fd,
+						    (char *) admin_response,
+						    ntohs(admin_response->hdr.len),
+						    0);
+
+					free(admin_response);
+					admin_response = NULL;
+
+					if (ret < 0) {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "rsend failed: %d (%s) on rsock %d\n",
+							    errno, strerror(errno),
+							    fds[2].fd);
+						rclose(fds[2].fd);
+						fds[2].fd = -1;
+						fds[2].events = 0;
+						fds[2].revents = 0;
+						continue;
+					}
+				} else {
 					ssa_log_err(SSA_LOG_CTRL,
-						    "rsend failed: %d (%s) on rsock %d\n",
-						    errno, strerror(errno), fds[2].fd);
-					rclose(fds[2].fd);
-					fds[2].fd = -1;
-					fds[2].events = 0;
-					fds[2].revents = 0;
-					continue;
+						    "admin failed to create a response\n");
 				}
 
 				rclose(fds[2].fd);
