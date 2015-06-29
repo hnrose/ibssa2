@@ -6370,7 +6370,6 @@ static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_m
 static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *admin_request,
 				      			const struct ssa_class *ssa)
 {
-
 	struct ssa_admin_msg *response;
 	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.counter;
 
