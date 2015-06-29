@@ -829,13 +829,50 @@ static int node_info_command_create_msg(struct admin_command *cmd,
 	return 0;
 }
 
+static const char *ssa_connection_type_names[] = {
+	[SSA_CONN_TYPE_UPSTREAM] = "Upstream",
+	[SSA_CONN_TYPE_DOWNSTREAM] = "Downstream",
+	[SSA_CONN_TYPE_LISTEN] = "Listen"
+};
+
+static const char *ssa_database_type_names[] = {
+	[SSA_CONN_NODB_TYPE] = "NODB",
+	[SSA_CONN_SMDB_TYPE] = "SMDB",
+	[SSA_CONN_PRDB_TYPE] = "PRDB",
+};
+
 static void node_info_command_output(struct admin_command *cmd,
 				     struct admin_context *ctx,
 				     const struct ssa_admin_msg *msg)
 {
-	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *)&msg->data.counter;
+	int i, n;
+	char addr_buf[128];
+	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.counter;
+	struct ssa_admin_connection_info *connections =
+		(struct ssa_admin_connection_info *) node_info_msg->connections;
 
-	printf("%s %s\n", ssa_node_type_str(node_info_msg->type), node_info_msg->version);
+	printf("%s %s\n", ssa_node_type_str(node_info_msg->type),
+	       node_info_msg->version);
+	n = ntohs(node_info_msg->connections_num);
+
+	for (i = 0; i < n; ++i) {
+		ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+				connections[i].remote_gid,
+				sizeof connections[i].remote_gid);
+		if (connections[i].connection_type < 0 ||
+		    connections[i].connection_type >= ARRAY_SIZE(ssa_connection_type_names)) {
+			fprintf(stderr, "Unknown connection type \n");
+			continue;
+		}
+		if (connections[i].dbtype < 0 ||
+		    connections[i].dbtype >= ARRAY_SIZE(ssa_database_type_names)) {
+			fprintf(stderr, "Unknown database type \n");
+			continue;
+		}
+		printf("%s %u %s %s\n", addr_buf, ntohs(connections[i].remote_lid),
+		       ssa_connection_type_names[connections[i].connection_type],
+		       ssa_database_type_names[connections[i].dbtype]);
+	}
 }
 
 struct cmd_opts *admin_get_cmd_opts(int cmd)

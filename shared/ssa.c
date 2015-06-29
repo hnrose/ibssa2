@@ -6374,7 +6374,7 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	struct ssa_admin_msg *response;
 	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.counter;
 
-	response = (struct ssa_admin_msg *) malloc(sizeof(*response));
+	response = (struct ssa_admin_msg *) malloc(sizeof(*response) + 0 * sizeof(struct ssa_admin_connection_info));
 	if (!response) {
 		ssa_log_err(SSA_LOG_CTRL, "admin response allocation failed\n");
 		return NULL;
@@ -6385,9 +6385,14 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	response->hdr.method = SSA_ADMIN_METHOD_RESP;
 	response->hdr.len = htons(sizeof(*response));
 
+	nodeinfo_msg = (struct ssa_admin_node_info *) &response->data.counter;
+
 	nodeinfo_msg->type = ssa->node_type;
 	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION,
 		SSA_ADMIN_VERSION_LEN - 1);
+
+	nodeinfo_msg->connections_num = htons(0);
+
 	return response;
 }
 

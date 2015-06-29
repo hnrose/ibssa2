@@ -102,9 +102,19 @@ struct ssa_admin_counter {
 	be64_t		vals[COUNTER_ID_LAST];
 };
 
+struct ssa_admin_connection_info {
+	uint8_t		connection_type;
+	uint8_t		dbtype;
+	be16_t		remote_lid;
+	uint8_t		remote_gid[16];
+	uint8_t		reserved[12];
+};
+
 struct ssa_admin_node_info {
 	uint8_t		type;
 	uint8_t		version[SSA_ADMIN_VERSION_LEN];
+	be16_t		connections_num;
+	uint8_t		connections[0];
 };
 
 /*
