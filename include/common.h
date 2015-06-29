@@ -229,6 +229,8 @@ struct ssa_svc {
 	int			sock_accessdown[2];
 	int			sock_updown[2];
 	int			sock_extractdown[2];
+	int			sock_adminup[2];
+	int			sock_admindown[2];
 	struct ssa_conn		conn_listen_smdb;
 	struct ssa_conn		conn_listen_prdb;
 	struct ssa_conn		conn_dataup;

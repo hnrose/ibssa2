@@ -85,6 +85,9 @@ extern int ibv_read_sysfs_file(const char *dir, const char *file,
 #define UPSTREAM_JOIN_TIMER_SLOT	6
 #define UPSTREAM_FD_SLOTS		7
 
+#define ADMIN_FIRST_SERVICE_FD_SLOT 3
+#define ADMIN_FDS_PER_SERVICE  2
+
 #define SMDB_DUMP_PATH RDMA_CONF_DIR "/smdb_dump"
 #define PRDB_DUMP_PATH RDMA_CONF_DIR "/prdb_dump"
 
@@ -2253,6 +2256,10 @@ static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
 				    ret, sizeof msg);
 	}
+	ret = write(svc->sock_admindown[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
 }
 
 static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
@@ -4640,6 +4647,10 @@ static void ssa_upstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
 	if (ret != sizeof msg)
 		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
 			    ret, sizeof msg);
+	ret = write(svc->sock_adminup[0], (char *) &msg, sizeof msg);
+	if (ret != sizeof msg)
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof msg);
 }
 
 static int ssa_upstream_svc_client(struct ssa_svc *svc)
@@ -5252,6 +5263,20 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		svc->sock_extractdown[1] = -1;
 	}
 
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_adminup);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "creating admin/upstream socketpair\n");
+		goto err7;
+	}
+
+	ret = socketpair(AF_UNIX, SOCK_STREAM, 0, svc->sock_admindown);
+	if (ret) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "creating admin/downstream socketpair\n");
+		goto err8;
+	}
+
 	svc->index = port->svc_cnt;
 	svc->port = port;
 	snprintf(svc->name, sizeof svc->name, "%s:%llu", port->name,
@@ -5278,20 +5303,20 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		ssa_log_err(SSA_LOG_CTRL, "timerfd_create %d (%s)\n",
 			    errno, strerror(errno));
 		errno = ret;
-		goto err7;
+		goto err9;
 	}
 
 	ret = pthread_create(&svc->upstream, NULL, ssa_upstream_handler, svc);
 	if (ret) {
 		ssa_log_err(SSA_LOG_CTRL, "creating upstream thread\n");
 		errno = ret;
-		goto err8;
+		goto err10;
 	}
 
 	ret = read(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 		ssa_log_err(SSA_LOG_CTRL, "with upstream thread\n");
-		goto err9;
+		goto err11;
 	}
 
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
@@ -5300,25 +5325,32 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 		if (ret) {
 			ssa_log_err(SSA_LOG_CTRL, "creating downstream thread\n");
 			errno = ret;
-			goto err9;
+			goto err11;
 		}
 
 		ret = read(svc->sock_downctrl[0], (char *) &msg, sizeof msg);
 		if ((ret != sizeof msg) || (msg.type != SSA_CTRL_ACK)) {
 			ssa_log_err(SSA_LOG_CTRL, "with downstream thread\n");
-			goto err10;
+			goto err12;
 		}
 	}
 
+
 	port->svc[port->svc_cnt++] = svc;
 	return svc;
-err10:
+err12:
 	pthread_join(svc->downstream, NULL);
-err9:
+err11:
 	pthread_join(svc->upstream, NULL);
-err8:
+err10:
 	close(svc->join_timer_fd);
 	svc->join_timer_fd = -1;
+err9:
+	close(svc->sock_admindown[0]);
+	close(svc->sock_admindown[1]);
+err8:
+	close(svc->sock_adminup[0]);
+	close(svc->sock_adminup[1]);
 err7:
 	if (svc->port->dev->ssa->node_type & SSA_NODE_CORE) {
 		close(svc->sock_extractdown[0]);
@@ -5945,6 +5977,12 @@ static void ssa_stop_svc(struct ssa_svc *svc)
 		close(svc->sock_accessup[0]);
 		close(svc->sock_accessup[1]);
 	}
+
+	close(svc->sock_admindown[0]);
+	close(svc->sock_admindown[1]);
+	close(svc->sock_adminup[0]);
+	close(svc->sock_adminup[1]);
+
 	if (svc->conn_dataup.rsock >= 0)
 		ssa_close_ssa_conn(&svc->conn_dataup);
 	if (svc->port->dev->ssa->node_type != SSA_NODE_CONSUMER) {
@@ -6241,6 +6279,14 @@ static int ssa_admin_listen(struct ssa_class *ssa, short port)
 	src_addr.sib_scope_id = 0;
 	memcpy(&src_addr.sib_addr, &svc->port->gid, 16);
 
+	ret = rfcntl(rsock, F_SETFL, O_NONBLOCK);
+	if (ret) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"rfcntl ERROR %d (%s) on rsock %d\n",
+			errno, strerror(errno), rsock);
+		goto err;
+	}
+
 	ret = rbind(rsock, (const struct sockaddr *) &src_addr,
 		    sizeof(src_addr));
 	if (ret) {
@@ -6340,13 +6386,37 @@ static int ssa_admin_handle_message(struct ssa_admin_msg *admin_msg,
 static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
+	struct ssa_device *dev;
+	struct ssa_port *port;
 	struct ssa_ctrl_msg_buf msg;
 	struct ssa_admin_msg admin_msg;
-	struct pollfd fds[2];
+	struct pollfd *fds = NULL;
 	int rsock = -1;
-	int ret, len;
+	int ret, len, svc_cnt = 0;
+	int i, d, p, s;
 
 	SET_THREAD_NAME(*admin_thread, "ADMIN");
+
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			svc_cnt += port->svc_cnt;
+		}
+	}
+
+	fds = calloc(ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE,
+		     sizeof(*fds));
+	if (!fds) {
+		ssa_log_err(SSA_LOG_CTRL, "unable to allocate fds\n");
+		goto out;
+	}
+
+	for (i = 0; i < ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE; ++i)
+		fds[i].fd = -1;
 
 	rsock = ssa_admin_listen(ssa, admin_port);
 
@@ -6357,6 +6427,27 @@ static void *ssa_admin_handler(void *context)
 	fds[1].fd = rsock;
 	fds[1].events = POLLIN;
 	fds[1].revents = 0;
+
+	i = ADMIN_FIRST_SERVICE_FD_SLOT;
+	for (d = 0; d < ssa->dev_cnt; d++) {
+		dev = ssa_dev(ssa, d);
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			for (s = 0; s < port->svc_cnt; s++) {
+				fds[i].fd = port->svc[s]->sock_adminup[1];
+				fds[i].events = POLLIN;
+				fds[i].revents = 0;
+				i++;
+				fds[i].fd = port->svc[s]->sock_admindown[1];
+				fds[i].events = POLLIN;
+				fds[i].revents = 0;
+				i++;
+			}
+		}
+	}
 
 	ssa_log_func(SSA_LOG_VERBOSE | SSA_LOG_CTRL);
 	msg.hdr.len = sizeof msg.hdr;
@@ -6370,7 +6461,9 @@ static void *ssa_admin_handler(void *context)
 		goto out;
 
 	for (;;) {
-		ret = rpoll(&fds[0], 2, -1);
+		ret = poll(fds,
+			   ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE,
+			   -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
@@ -6409,64 +6502,152 @@ static void *ssa_admin_handler(void *context)
 		}
 
 		if (fds[1].revents) {
-			int rsock_data;
+			int revents = fds[1].revents;
 
-			if (fds[1].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-				ssa_log_err(SSA_LOG_CTRL,
-					    "revent 0x%x on rsock %d\n",
-					    fds[1].revents, rsock);
-				fds[1].revents = 0;
-				continue;
-			}
 			fds[1].revents = 0;
-			rsock_data = raccept(rsock, NULL, 0);
-			if (rsock_data < 0) {
+			if (revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log_err(SSA_LOG_CTRL,
-					    "raccept rsock %d ERROR %d (%s)\n",
-					    rsock, errno, strerror(errno));
+					    "error event 0x%x on rsock %d\n",
+					    revents, rsock);
 				continue;
 			}
-			ret = rrecv(rsock_data, (char *) &admin_msg,
-				    sizeof(admin_msg.hdr), 0);
-			if (ret != sizeof(admin_msg.hdr)) {
-				ssa_log_err(SSA_LOG_CTRL,
-					    "rrecv failed: %d (%s) on rsock %d\n",
-					    errno, strerror(errno), rsock_data);
-				rclose(rsock_data);
-				continue;
-			}
+			if (revents & POLLIN) {
+				int rsock_data;
 
-			len = ntohs(admin_msg.hdr.len);
-			if (len > sizeof(admin_msg.hdr)) {
-				ret += rrecv(rsock_data, (char *) &admin_msg.data,
-					     len - sizeof(admin_msg.hdr), 0);
-				if (ret != len) {
+				rsock_data = raccept(rsock, NULL, 0);
+				if (rsock_data < 0) {
 					ssa_log_err(SSA_LOG_CTRL,
-						    "%d out of %d bytes read from admin application\n",
-						    ret, len);
+						    "raccept rsock %d ERROR %d (%s)\n",
+						    rsock, errno, strerror(errno));
+					continue;
+				}
+				if (fds[2].fd >= 0) {
+					rclose(rsock_data);
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "busy with previous admin client \n");
+				} else {
+					fds[2].fd = rsock_data;
+					fds[2].events = POLLIN;
+					fds[2].revents = 0;
 				}
 			}
+		}
 
-			if (!ssa_admin_verify_message(&admin_msg) ||
-			    ssa_admin_handle_message(&admin_msg, ssa))
-				admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
-			else
-				admin_msg.hdr.status = SSA_ADMIN_STATUS_SUCCESS;
-			admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
-
-			ret = rsend(rsock_data, (char *) &admin_msg, len, 0);
-			if (ret < 0) {
+		if (fds[2].revents) {
+			if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log_err(SSA_LOG_CTRL,
-					    "rsend failed: %d (%s) on rsock %d\n",
-					    errno, strerror(errno), rsock_data);
-				rclose(rsock_data);
+					    "revent 0x%x on rsock %d\n",
+					    fds[2].revents, rsock);
+				fds[2].revents = 0;
 				continue;
 			}
+			if (fds[2].revents & POLLIN) {
+				fds[2].revents = 0;
+				ret = rrecv(fds[2].fd, (char *) &admin_msg,
+					    sizeof(admin_msg.hdr), 0);
+				if (ret != sizeof(admin_msg.hdr)) {
+					ssa_log_err(SSA_LOG_CTRL,
+						    "rrecv failed: %d (%s) on rsock %d\n",
+						    errno, strerror(errno), fds[2].fd);
+					rclose(fds[2].fd);
+					fds[2].fd = -1;
+					fds[2].events = 0;
+					fds[2].revents = 0;
+					continue;
+				}
 
-			rclose(rsock_data);
+				len = ntohs(admin_msg.hdr.len);
+				if (len > sizeof(admin_msg.hdr)) {
+					ret += rrecv(fds[2].fd, (char *) &admin_msg.data,
+						     len - sizeof(admin_msg.hdr), 0);
+					if (ret != len) {
+						ssa_log_err(SSA_LOG_CTRL,
+							    "%d out of %d bytes read from admin application\n",
+							    ret, len);
+					}
+				}
+
+				if (!ssa_admin_verify_message(&admin_msg) ||
+						ssa_admin_handle_message(&admin_msg, ssa))
+					admin_msg.hdr.status = SSA_ADMIN_STATUS_FAILURE;
+				else
+					admin_msg.hdr.status = SSA_ADMIN_STATUS_SUCCESS;
+				admin_msg.hdr.method = SSA_ADMIN_METHOD_RESP;
+
+				ret = rsend(fds[2].fd, (char *) &admin_msg, len, 0);
+				if (ret < 0) {
+					ssa_log_err(SSA_LOG_CTRL,
+						    "rsend failed: %d (%s) on rsock %d\n",
+						    errno, strerror(errno), fds[2].fd);
+					rclose(fds[2].fd);
+					fds[2].fd = -1;
+					fds[2].events = 0;
+					fds[2].revents = 0;
+					continue;
+				}
+
+				rclose(fds[2].fd);
+				fds[2].fd = -1;
+				fds[2].events = 0;
+			}
+			fds[2].revents = 0;
+		}
+
+
+		for (i = ADMIN_FIRST_SERVICE_FD_SLOT; i < ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE; i++) {
+			if (fds[i].revents) {
+				fds[i].revents = 0;
+
+				ret = read(fds[i].fd,
+					   (char *) &msg, sizeof msg.hdr);
+				if (ret != sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d header bytes read\n",
+						    ret, sizeof msg.hdr);
+				if (msg.hdr.len > sizeof msg.hdr) {
+					ret = read(fds[i].fd,
+						   (char *) &msg.hdr.data,
+						   msg.hdr.len - sizeof msg.hdr);
+					if (ret != msg.hdr.len - sizeof msg.hdr)
+						ssa_log_err(SSA_LOG_CTRL,
+							    "%d out of %d additional bytes read\n",
+							    ret,
+							    msg.hdr.len - sizeof msg.hdr);
+				}
+				switch (msg.hdr.type) {
+				case SSA_CONN_DONE:
+					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+							log_data, sizeof log_data,
+							SSA_ADDR_GID,
+							msg.data.conn->remote_gid.raw,
+							sizeof msg.data.conn->remote_gid.raw);
+					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+						"connection done on rsock %d from GID %s LID %u\n",
+						msg.data.conn->rsock, log_data,
+						msg.data.conn->remote_lid);
+					break;
+				case SSA_CONN_GONE:
+					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+							log_data, sizeof log_data,
+							SSA_ADDR_GID,
+							msg.data.conn->remote_gid.raw,
+							sizeof msg.data.conn->remote_gid.raw);
+					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+						"connection from GID %s LID %u gone\n",
+						log_data, msg.data.conn->remote_lid);
+					break;
+				default:
+					ssa_log_warn(SSA_LOG_CTRL,
+						     "ignoring unexpected msg "
+						     "type %d\n",
+						     msg.hdr.type);
+					break;
+				}
+			}
 		}
 	}
 out:
+	free(fds);
 	if (rsock >= 0)
 		rclose(rsock);
 
