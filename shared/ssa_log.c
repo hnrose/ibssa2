@@ -161,41 +161,12 @@ void ssa_write_log(int level, const char *format, ...)
 }
 
 void ssa_sprint_addr(int level, char *str, size_t str_size,
-		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size)
+		     int addr_type, uint8_t *addr, size_t addr_size)
 {
-	struct ibv_path_record *path;
-
 	if (!(level & log_level))
 		return;
 
-	switch (addr_type) {
-	case SSA_ADDR_NAME:
-		memcpy(str, addr, addr_size);
-		break;
-	case SSA_ADDR_IP:
-		inet_ntop(AF_INET, addr, str, str_size);
-		break;
-	case SSA_ADDR_IP6:
-	case SSA_ADDR_GID:
-		inet_ntop(AF_INET6, addr, str, str_size);
-		break;
-	case SSA_ADDR_PATH:
-		path = (struct ibv_path_record *) addr;
-		if (path->dlid) {
-			snprintf(str, str_size, "SLID(%u) DLID(%u)",
-				ntohs(path->slid), ntohs(path->dlid));
-		} else {
-			ssa_sprint_addr(level, str, str_size, SSA_ADDR_GID,
-					path->dgid.raw, sizeof path->dgid);
-		}
-		break;
-	case SSA_ADDR_LID:
-		snprintf(str, str_size, "LID(%u)", ntohs(*((uint16_t *) addr)));
-		break;
-	default:
-		strcpy(str, "Unknown");
-		break;
-	}
+	ssa_format_addr(str, str_size, addr_type, addr, addr_size);
 }
 
 void ssa_log_options()

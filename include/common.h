@@ -78,6 +78,15 @@ struct ssa_device;
 struct ssa_port;
 struct ssa_svc;
 
+enum ssa_addr_type {
+	SSA_ADDR_NAME,
+	SSA_ADDR_IP,
+	SSA_ADDR_IP6,
+	SSA_ADDR_PATH,
+	SSA_ADDR_GID,
+	SSA_ADDR_LID
+};
+
 enum ssa_obj_type {
 	SSA_OBJ_CLASS,
 	SSA_OBJ_DEVICE,
@@ -330,6 +339,8 @@ void ssa_db_update_change_counters();
 
 const char *month_str[12];
 void ssa_write_date(FILE *stream, time_t tim, unsigned int usec);
+void ssa_format_addr(char *str, size_t str_size,
+		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size);
 #ifdef __cplusplus
 }
 #endif

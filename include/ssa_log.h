@@ -41,15 +41,6 @@
 extern "C" {
 #endif
 
-enum ssa_addr_type {
-	SSA_ADDR_NAME,
-	SSA_ADDR_IP,
-	SSA_ADDR_IP6,
-	SSA_ADDR_PATH,
-	SSA_ADDR_GID,
-	SSA_ADDR_LID
-};
-
 enum {
 	SSA_LOG_DEFAULT		= 1 << 0,
 	SSA_LOG_VERBOSE		= 1 << 1,
@@ -74,7 +65,7 @@ void ssa_report_error(int level, int error, const char *format, ...);
 #define ssa_log_warn(level, format, ...) \
 	ssa_write_log(level | SSA_LOG_DEFAULT, "%s: WARNING - "format, __func__, ## __VA_ARGS__)
 void ssa_sprint_addr(int level, char *str, size_t str_size,
-		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size);
+		     int addr_type, uint8_t *addr, size_t addr_size);
 void ssa_log_options(void);
 
 #ifdef __cplusplus
