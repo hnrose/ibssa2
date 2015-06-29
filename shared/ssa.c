@@ -6343,8 +6343,6 @@ static void *ssa_admin_handler(void *context)
 	int rsock = -1;
 	int ret, len;
 
-	(void) ssa;
-
 	SET_THREAD_NAME(*admin_thread, "ADMIN");
 
 	rsock = ssa_admin_listen(ssa, admin_port);
