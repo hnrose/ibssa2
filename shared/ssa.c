@@ -1398,7 +1398,8 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %
 							    "SSA_DB_DATA pp_tables rindex %d %p not NULL as expected\n",
 							    svc->conn_dataup.rindex,
 							    svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex]);
-					svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
+					if (svc->conn_dataup.rbuf != svc->conn_dataup.rhdr)
+						svc->conn_dataup.ssa_db->pp_tables[svc->conn_dataup.rindex] = svc->conn_dataup.rbuf;
 				} else ssa_log_err(SSA_LOG_DEFAULT,
 						   "SSA_DB_DATA no pp_tables for rindex %d\n",
 						   svc->conn_dataup.rindex);
