@@ -6463,9 +6463,6 @@ static void *ssa_admin_handler(void *context)
 		goto out;
 	}
 
-	for (i = 0; i < ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE; ++i)
-		fds[i].fd = -1;
-
 	rsock = ssa_admin_listen(ssa, admin_port);
 
 	fds[0].fd = sock_adminctrl[1];
@@ -6475,6 +6472,10 @@ static void *ssa_admin_handler(void *context)
 	fds[1].fd = rsock;
 	fds[1].events = POLLIN;
 	fds[1].revents = 0;
+
+	fds[2].fd = -1;
+	fds[2].events = 0;
+	fds[2].revents = 0;
 
 	i = ADMIN_FIRST_SERVICE_FD_SLOT;
 	for (d = 0; d < ssa->dev_cnt; d++) {
