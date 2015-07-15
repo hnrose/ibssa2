@@ -6334,6 +6334,16 @@ static int ssa_admin_verify_message(struct ssa_admin_msg *admin_request)
 	return 1;
 }
 
+struct ssa_admin_handler_context {
+	struct ssa_class *ssa;;
+	GHashTable* connections_hash;
+};
+
+static void ssa_destroy_connection_info(gpointer data)
+{
+	free(data);
+}
+
 static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_msg *admin_request)
 {
 	int i, n;
@@ -6370,12 +6380,17 @@ static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_m
 };
 
 static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *admin_request,
-				      			const struct ssa_class *ssa)
+							struct ssa_admin_handler_context *context)
 {
+	int i, n;
 	struct ssa_admin_msg *response;
 	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.counter;
+	struct ssa_admin_connection_info *connections;
+	GHashTableIter iter;
+	gpointer key, value;
 
-	response = (struct ssa_admin_msg *) malloc(sizeof(*response) + 0 * sizeof(struct ssa_admin_connection_info));
+	n = g_hash_table_size(context->connections_hash);
+	response = (struct ssa_admin_msg *) malloc(sizeof(*response) + n * sizeof(struct ssa_admin_connection_info));
 	if (!response) {
 		ssa_log_err(SSA_LOG_CTRL, "admin response allocation failed\n");
 		return NULL;
@@ -6388,17 +6403,23 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 
 	nodeinfo_msg = (struct ssa_admin_node_info *) &response->data.counter;
 
-	nodeinfo_msg->type = ssa->node_type;
+	nodeinfo_msg->type = context->ssa->node_type;
 	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION,
 		SSA_ADMIN_VERSION_LEN - 1);
 
-	nodeinfo_msg->connections_num = htons(0);
+	nodeinfo_msg->connections_num = htons(n);
+
+	connections = (struct ssa_admin_connection_info *) nodeinfo_msg->connections;
+	g_hash_table_iter_init (&iter, context->connections_hash);
+	i = 0;
+	while (g_hash_table_iter_next (&iter, &key, &value))
+		connections[i++] = *(struct ssa_admin_connection_info *)value;
 
 	return response;
 }
 
 static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admin_request,
-				    		      const struct ssa_class *ssa)
+						      struct ssa_admin_handler_context *context)
 {
 	struct ssa_admin_msg *default_response;
 	int error = 0;
@@ -6410,7 +6431,7 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 		return ssa_admin_handle_counter_message(admin_request);
 		break;
 	case SSA_ADMIN_CMD_NODE_INFO:
-		return ssa_admin_handle_node_info(admin_request, ssa);
+		return ssa_admin_handle_node_info(admin_request, context);
 		break;
 	default:
 		error = 1;
@@ -6442,8 +6463,18 @@ static void *ssa_admin_handler(void *context)
 	int rsock = -1;
 	int ret, len, svc_cnt = 0;
 	int i, d, p, s;
+	GHashTable* connections_hash = NULL;
+	gboolean gres;
+	struct ssa_admin_handler_context handler_context;
 
 	SET_THREAD_NAME(*admin_thread, "ADMIN");
+
+	connections_hash = g_hash_table_new_full(NULL, NULL, NULL,
+						 ssa_destroy_connection_info);
+	if (!connections_hash) {
+		ssa_log_err(SSA_LOG_CTRL, "unable allocate connections hash\n");
+		goto out;
+	}
 
 	for (d = 0; d < ssa->dev_cnt; d++) {
 		dev = ssa_dev(ssa, d);
@@ -6455,6 +6486,9 @@ static void *ssa_admin_handler(void *context)
 			svc_cnt += port->svc_cnt;
 		}
 	}
+
+	handler_context.connections_hash = connections_hash;
+	handler_context.ssa = ssa;
 
 	fds = calloc(ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE,
 		     sizeof(*fds));
@@ -6636,7 +6670,7 @@ static void *ssa_admin_handler(void *context)
 					admin_response->hdr.method = SSA_ADMIN_METHOD_RESP;
 					admin_response->hdr.len = htons(sizeof(*admin_response));
 				} else {
-					admin_response = ssa_admin_handle_message(&admin_request, ssa);
+					admin_response = ssa_admin_handle_message(&admin_request, &handler_context);
 				}
 
 				if (admin_response) {
@@ -6694,6 +6728,9 @@ static void *ssa_admin_handler(void *context)
 				}
 				switch (msg.hdr.type) {
 				case SSA_CONN_DONE:
+				{
+					struct ssa_admin_connection_info *connection_info;
+
 					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID,
@@ -6703,6 +6740,17 @@ static void *ssa_admin_handler(void *context)
 						"connection done on rsock %d from GID %s LID %u\n",
 						msg.data.conn->rsock, log_data,
 						msg.data.conn->remote_lid);
+					connection_info = (struct ssa_admin_connection_info *) malloc(sizeof(*connection_info));
+					if (!connection_info) {
+						ssa_log_err(SSA_LOG_CTRL, "failed allocate connection info\n");
+					} else {
+						connection_info->connection_type = msg.data.conn->type;
+						connection_info->dbtype = msg.data.conn->dbtype;
+						connection_info->remote_lid = htons(msg.data.conn->remote_lid);
+						memcpy(&connection_info->remote_gid, &msg.data.conn->remote_gid.raw, sizeof(connection_info->remote_gid));
+						g_hash_table_replace(connections_hash, GINT_TO_POINTER(msg.data.conn->remote_lid), connection_info);
+					}
+				}
 					break;
 				case SSA_CONN_GONE:
 					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
@@ -6713,6 +6761,11 @@ static void *ssa_admin_handler(void *context)
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 						"connection from GID %s LID %u gone\n",
 						log_data, msg.data.conn->remote_lid);
+					gres = g_hash_table_remove(connections_hash, GINT_TO_POINTER(msg.data.conn->remote_lid));
+					if (!gres)
+						ssa_log_warn(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+								"connection from GID %s LID %u not found\n",
+								log_data, msg.data.conn->remote_lid);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
@@ -6728,6 +6781,9 @@ out:
 	free(fds);
 	if (rsock >= 0)
 		rclose(rsock);
+
+	if (connections_hash)
+		g_hash_table_destroy(connections_hash);
 
 	return NULL;
 }
