@@ -6509,9 +6509,9 @@ static void *ssa_admin_handler(void *context)
 		goto out;
 
 	for (;;) {
-		ret = poll(fds,
-			   ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE,
-			   -1);
+		ret = rpoll(fds,
+			    ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE,
+			    -1);
 		if (ret < 0) {
 			ssa_log_err(SSA_LOG_CTRL, "polling fds %d (%s)\n",
 				    errno, strerror(errno));
