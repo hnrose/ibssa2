@@ -194,7 +194,7 @@ static int open_port(const char *dev, int port)
 		return -1;
 	}
 
-	if ((port_id = umad_open_port(dev, (port < 0) ? 0 : port)) < 0) {
+	if ((port_id = umad_open_port((char *) dev, (port < 0) ? 0 : port)) < 0) {
 		fprintf(stderr, "ERROR - can't open UMAD port\n");
 		return -1;
 	}
