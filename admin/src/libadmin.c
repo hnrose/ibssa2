@@ -473,7 +473,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	ret = rconnect(rsock, (const struct sockaddr *) &dst_addr,
 		       sizeof(dst_addr));
 	if (ret && (errno != EINPROGRESS)) {
-		fprintf(stderr, "rconnect rsock %d ERROR %d (%s)\n",
+		fprintf(stderr, "ERROR - rconnect rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		goto err;
 	}
@@ -484,11 +484,11 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 		fds.revents = 0;
 		ret = rpoll(&fds, 1, timeout);
 		if (ret < 0) {
-			fprintf(stderr, "rpoll rsock %d ERROR %d (%s)\n",
+			fprintf(stderr, "ERROR - rpoll rsock %d ERROR %d (%s)\n",
 				rsock, errno, strerror(errno));
 			goto err;
 		} else if (ret == 0) {
-			fprintf(stderr, "rconnect rsock %d timeout expired\n",
+			fprintf(stderr, "ERROR - rconnect rsock %d timeout expired\n",
 				rsock);
 			goto err;
 		}
@@ -511,7 +511,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 
 	val = rfcntl(rsock, F_GETFL, O_NONBLOCK);
 	if (val < 0) {
-		fprintf(stderr, "rfcntl F_GETFL rsock %d ERROR %d (%s)\n",
+		fprintf(stderr, "ERROR - rfcntl F_GETFL rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		goto err;
 	}
@@ -519,7 +519,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	val = val & (~O_NONBLOCK);
 	ret = rfcntl(rsock, F_SETFL, val);
 	if (ret) {
-		fprintf(stderr, "rfcntl second F_SETFL rsock %d ERROR %d (%s)\n",
+		fprintf(stderr, "ERROR - rfcntl second F_SETFL rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		goto err;
 	}
@@ -727,7 +727,7 @@ static struct admin_command *counter_init(int cmd_id, struct admin_context *ctx,
 			}
 		}
 		if (j == COUNTER_ID_LAST) {
-			fprintf(stderr, "Name %s isn't found in the counters list\n", argv[i]);
+			fprintf(stderr, "ERROR - Name %s isn't found in the counters list\n", argv[i]);
 			cmd->impl->destroy(cmd);
 			return NULL;
 		}
@@ -864,12 +864,12 @@ static void node_info_command_output(struct admin_command *cmd,
 				sizeof connections[i].remote_gid);
 		if (connections[i].connection_type < 0 ||
 		    connections[i].connection_type >= ARRAY_SIZE(ssa_connection_type_names)) {
-			fprintf(stderr, "Unknown connection type \n");
+			fprintf(stderr, "ERROR - Unknown connection type \n");
 			continue;
 		}
 		if (connections[i].dbtype < 0 ||
 		    connections[i].dbtype >= ARRAY_SIZE(ssa_database_type_names)) {
-			fprintf(stderr, "Unknown database type \n");
+			fprintf(stderr, "ERROR - Unknown database type \n");
 			continue;
 		}
 		timestamp.tv_sec = ntohll(connections[i].connection_tv_sec);
@@ -952,7 +952,7 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 
 	ret = admin_cmd->impl->create_request(admin_cmd, &context, &msg);
 	if (ret < 0) {
-		fprintf(stderr, "message creation error\n");
+		fprintf(stderr, "ERROR - message creation error\n");
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
@@ -961,7 +961,7 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 
 	ret = rsend(rsock, &msg, sizeof(msg), 0);
 	if (ret < 0 || ret != sizeof(msg)) {
-		fprintf(stderr, "rsend rsock %d ERROR %d (%s)\n",
+		fprintf(stderr, "ERROR - rsend rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		cmd_impl->destroy(admin_cmd);
 		return -1;
@@ -975,19 +975,19 @@ recv:
 #endif
 	ret = rpoll(&fds[0], 1, timeout);
 	if (ret < 0) {
-		fprintf(stderr, "rpoll rsock %d ERROR %d (%s)\n",
+		fprintf(stderr, "ERROR - rpoll rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 
 	} else if (ret == 0) {
-		fprintf(stderr, "timeout expired\n");
+		fprintf(stderr, "ERROR - timeout expired\n");
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
 
 	if (fds[0].revents & (POLLERR | /*POLLHUP |*/ POLLNVAL)) {
-		fprintf(stderr, "error event 0x%x on rsock %d\n",
+		fprintf(stderr, "ERROR - error event 0x%x on rsock %d\n",
 			fds[0].revents, fds[0].fd);
 		cmd_impl->destroy(admin_cmd);
 		return -1;
@@ -1001,7 +1001,7 @@ recv:
 			goto recv;
 		}
 #endif
-		fprintf(stderr, "rrecv rsock %d ERROR %d (%s)\n",
+		fprintf(stderr, "ERROR - rrecv rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		cmd_impl->destroy(admin_cmd);
 		return -1;
@@ -1011,7 +1011,7 @@ recv:
 	if (len > sizeof(msg.hdr)) {
 		ret += rrecv(rsock, (char *) &msg.data, len - sizeof(msg.hdr), 0);
 		if (ret != len) {
-			fprintf(stderr, "%d out of %d bytes read from SSA node\n",
+			fprintf(stderr, "ERROR - %d out of %d bytes read from SSA node\n",
 				ret, len);
 			cmd_impl->destroy(admin_cmd);
 			return -1;
