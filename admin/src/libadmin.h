@@ -76,10 +76,10 @@ int admin_init(const char *short_opts, struct option *long_opts);
 void admin_cleanup();
 
 int admin_connect(void *dest_addr, int type, struct admin_opts *opts);
-void admin_disconnect();
+void admin_disconnect(int rsock);
 
 struct cmd_opts *admin_get_cmd_opts(int cmd);
 const struct cmd_help *admin_cmd_help(int cmd);
-int admin_exec(int cmd, int argc, char **argv);
+int admin_exec(int rsock, int cmd, int argc, char **argv);
 
 #endif /* _LIB_ADMIN_H */

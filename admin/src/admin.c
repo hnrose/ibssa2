@@ -369,6 +369,7 @@ int main(int argc, char **argv)
 	struct admin_opts opts;
 	int i, ret, addr_type, status = 0;
 	int cmd_num = ARRAY_SIZE(admin_cmds);
+	int rsock;
 
 	ret = parse_opts(argc, argv, &status);
 	if (ret)
@@ -433,19 +434,20 @@ int main(int argc, char **argv)
 	opts.pkey = pkey;
 	opts.timeout = timeout;
 
-	if (admin_connect(dest_addr, addr_type, &opts) != 0) {
+	rsock = admin_connect(dest_addr, addr_type, &opts);
+	if (rsock < 0) {
 		fprintf(stderr, "ERROR - unable to connect\n");
 		exit(-1);
 	}
 
 	optind = 1;
-	if (admin_exec(cmd->id, argc, argv)) {
+	if (admin_exec(rsock, cmd->id, argc, argv)) {
 		fprintf(stderr, "Failed executing '%s' command (%s)\n",
 		       cmd->cmd, admin_cmd_help(cmd->id)->desc);
 		exit(-1);
 	}
 
-	admin_disconnect();
+	admin_disconnect(rsock);
 	admin_cleanup();
 
 	return 0;

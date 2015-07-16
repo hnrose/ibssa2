@@ -136,7 +136,6 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	}
 };
 
-static int rsock = -1;
 static int loopback;
 static atomic_t tid;
 static short admin_port = 7477;
@@ -393,6 +392,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	int port = opts->admin_port ? opts->admin_port : admin_port;
 	uint16_t pkey = opts->pkey ? opts->pkey : pkey_default;
 	struct pollfd fds;
+	int rsock = -1;
 
 	timeout = opts->timeout;
 
@@ -524,7 +524,7 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 		goto err;
 	}
 
-	return 0;
+	return rsock;
 
 err:
 	rclose(rsock);
@@ -532,7 +532,7 @@ err:
 	return -1;
 }
 
-void admin_disconnect()
+void admin_disconnect(int rsock)
 {
 	if (rsock == -1)
 		return;
@@ -915,7 +915,7 @@ const struct cmd_help *admin_cmd_help(int cmd)
 	return &impl->help;
 }
 
-int admin_exec(int cmd, int argc, char **argv)
+int admin_exec(int rsock, int cmd, int argc, char **argv)
 {
 	struct ssa_admin_msg msg;
 	struct admin_command *admin_cmd;
