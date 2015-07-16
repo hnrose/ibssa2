@@ -6609,6 +6609,8 @@ static void *ssa_admin_handler(void *context)
 			}
 			if (revents & POLLIN) {
 				int rsock_data;
+				struct sockaddr_ib peer_addr;
+				socklen_t peer_len;
 
 				rsock_data = raccept(rsock, NULL, 0);
 				if (rsock_data < 0) {
@@ -6622,6 +6624,34 @@ static void *ssa_admin_handler(void *context)
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "close previous admin client \n");
 				}
+				ssa_log(SSA_LOG_CTRL,
+					"New admin connection accepted on rsock %d\n",
+					rsock_data);
+
+				peer_len = sizeof(peer_addr);
+				if (!rgetpeername(rsock_data, (struct sockaddr *) &peer_addr, &peer_len)) {
+					if (peer_addr.sib_family == AF_IB) {
+						ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+								log_data, sizeof log_data, SSA_ADDR_GID,
+								(uint8_t *) &peer_addr.sib_addr,
+								peer_len);
+						ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+								"peer GID %s\n", log_data);
+					} else {
+						ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+							"rgetpeername fd %d family %d not AF_IB\n",
+							rsock_data, peer_addr.sib_family);
+						rclose(rsock_data);
+						continue;
+					}
+				} else {
+					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+							"rgetpeername rsock %d ERROR %d (%s)\n",
+							rsock_data, errno, strerror(errno));
+					rclose(rsock_data);
+					continue;
+				}
+
 				fds[2].fd = rsock_data;
 				fds[2].events = POLLIN;
 				fds[2].revents = 0;
