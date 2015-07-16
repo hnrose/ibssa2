@@ -6618,14 +6618,13 @@ static void *ssa_admin_handler(void *context)
 					continue;
 				}
 				if (fds[2].fd >= 0) {
-					rclose(rsock_data);
+					rclose(fds[2].fd);
 					ssa_log_warn(SSA_LOG_CTRL,
-						     "busy with previous admin client \n");
-				} else {
-					fds[2].fd = rsock_data;
-					fds[2].events = POLLIN;
-					fds[2].revents = 0;
+						     "close previous admin client \n");
 				}
+				fds[2].fd = rsock_data;
+				fds[2].events = POLLIN;
+				fds[2].revents = 0;
 			}
 		}
 
