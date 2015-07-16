@@ -987,12 +987,16 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 	cmd_impl = &admin_cmd_command_impls[cmd];
 
 	if (!cmd_impl->init || !cmd_impl->destroy ||
-	    !cmd_impl->create_request || !cmd_impl->handle_response)
+	    !cmd_impl->create_request || !cmd_impl->handle_response) {
+		fprintf(stderr, "ERROR - command creation failed\n");
 		return -1;
+	}
 
 	admin_cmd = cmd_impl->init(cmd, &context, argc, argv);
-	if (!admin_cmd)
+	if (!admin_cmd) {
+		fprintf(stderr, "ERROR - command creation failed\n");
 		return -1;
+	}
 
 	memset(&msg, 0, sizeof(msg));
 	msg.hdr.version	= SSA_ADMIN_PROTOCOL_VERSION;
