@@ -6338,8 +6338,8 @@ static int ssa_admin_verify_message(struct ssa_admin_msg *admin_request)
 
 struct ssa_admin_handler_context {
 	struct ssa_class *ssa;;
-	GHashTable* connections_hash;
-	GHashTable* svcs_hash;
+	GHashTable *connections_hash;
+	GHashTable *svcs_hash;
 };
 
 static void ssa_destroy_connection_info(gpointer data)
@@ -6466,8 +6466,8 @@ static void *ssa_admin_handler(void *context)
 	int rsock = -1;
 	int ret, len, svc_cnt = 0;
 	int i, d, p, s;
-	GHashTable* connections_hash = NULL;
-	GHashTable* svcs_hash = NULL;
+	GHashTable *connections_hash = NULL;
+	GHashTable *svcs_hash = NULL;
 	gboolean gres;
 	struct ssa_admin_handler_context handler_context;
 
