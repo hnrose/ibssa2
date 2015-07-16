@@ -818,7 +818,7 @@ static int node_info_command_create_msg(struct admin_command *cmd,
 					struct admin_context *ctx,
 					struct ssa_admin_msg *msg)
 {
-	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *)&msg->data.counter;
+	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
 	uint16_t n;
 
 	n = ntohs(msg->hdr.len) + sizeof(*node_info_msg);
@@ -845,7 +845,7 @@ static void node_info_command_output(struct admin_command *cmd,
 {
 	int i, n;
 	char addr_buf[128];
-	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.counter;
+	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
 	struct ssa_admin_connection_info *connections =
 		(struct ssa_admin_connection_info *) node_info_msg->connections;
 	struct timeval timestamp;
