@@ -930,7 +930,7 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 	}
 
 	if (rsock < 0) {
-		fprintf(stderr, "WARNING - no connection was established\n");
+		fprintf(stderr, "ERROR - no connection was established\n");
 		return -1;
 	}
 
