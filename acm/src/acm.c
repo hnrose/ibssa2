@@ -4674,24 +4674,72 @@ static void acm_destroy_svc(struct ssa_svc *svc)
 {
 }
 
+static struct ssa_port *acm_get_active_port()
+{
+	struct ibv_port_attr attr;
+	struct ssa_device *dev;
+	struct ssa_port *port, *port_active = NULL;
+	struct ssa_port *port_alt1 = NULL, *port_alt2 = NULL;
+	int d, p, ret;
+
+	for (d = 0; d < ssa.dev_cnt; d++) {
+		dev = ssa_dev(&ssa, d);
+		for (p = 1; p <= dev->port_cnt; p++) {
+			port = ssa_dev_port(dev, p);
+			if (port->link_layer != IBV_LINK_LAYER_INFINIBAND)
+				continue;
+
+			ret = ibv_query_port(port->dev->verbs, port->port_num, &attr);
+			if (ret) {
+				ssa_log_err(0, "unable to get port state ERROR %d (%s)\n",
+					    errno, strerror(errno));
+				return NULL;
+			}
+
+			if (!port_alt1 && attr.state == IBV_PORT_ARMED)
+				port_alt1 = port;
+
+			if (!port_alt2 && attr.state == IBV_PORT_INIT)
+				port_alt2 = port;
+
+			if (attr.state != IBV_PORT_ACTIVE)
+				continue;
+
+			port_active = port;
+			goto out;
+		}
+	}
+
+	if (port_active)
+		goto out;
+
+	if (port_alt1)
+		port_active = port_alt1;
+	else if (port_alt2)
+		port_active = port_alt2;
+	else
+		port_active = ssa_dev_port(ssa_dev(&ssa, 0), 1);
+
+out:
+	return port_active;
+}
+
 static void *acm_ctrl_handler(void *context)
 {
 	struct ssa_svc *svc;
+	struct ssa_port *port;
 	int ret;
 
 	SET_THREAD_NAME(ctrl_thread, "CTRL");
 
-	/* TODO: check for existing IB port in ssa device */
-	if (ssa_dev_port(ssa_dev(&ssa, 0), 1)->link_layer != IBV_LINK_LAYER_INFINIBAND) {
-		ssa_log_err(0, "%s:%d link layer %d is not IB\n",
-			    ssa_dev(&ssa, 0)->name, 1,
-			    ssa_dev_port(ssa_dev(&ssa, 0), 1)->link_layer);
+	port = acm_get_active_port();
+	if (!port) {
+		ssa_log_err(0, "no active port found\n");
 		goto close;
 	}
 
-	svc = ssa_start_svc(ssa_dev_port(ssa_dev(&ssa, 0), 1), SSA_DB_PATH_DATA,
-			    sizeof *svc, acm_process_msg, acm_init_svc,
-			    acm_destroy_svc);
+	svc = ssa_start_svc(port, SSA_DB_PATH_DATA,  sizeof *svc,
+			    acm_process_msg, acm_init_svc, acm_destroy_svc);
 	if (!svc) {
 		ssa_log_err(0, "starting service\n");
 		goto close;
