@@ -6720,7 +6720,17 @@ static void *ssa_admin_handler(void *context)
 
 
 		for (i = ADMIN_FIRST_SERVICE_FD_SLOT; i < ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE; i++) {
-			if (fds[i].revents) {
+			if (fds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+				if (fds[i].revents & POLLERR)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "revent 0x%x on sock %d\n",
+						    fds[i].revents, fds[i].fd);
+				fds[i].fd = -1;
+				fds[i].events = 0;
+				fds[i].revents = 0;
+				continue;
+			}
+			if (fds[i].revents & POLLIN) {
 				fds[i].revents = 0;
 
 				ret = read(fds[i].fd,
