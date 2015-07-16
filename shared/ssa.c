@@ -4896,6 +4896,8 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 		goto close;
 	}
 
+	svc->conn_dataup.remote_lid = ntohs(svc->primary.path.dlid);
+
 	dst_addr.sib_family = AF_IB;
 	dst_addr.sib_pkey = 0xFFFF;
 	dst_addr.sib_flowinfo = 0;
