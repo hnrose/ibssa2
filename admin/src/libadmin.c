@@ -913,13 +913,43 @@ const struct cmd_help *admin_cmd_help(int cmd)
 	return &impl->help;
 }
 
+static int admin_read_response(int rsock, struct ssa_admin_msg *response)
+{
+	int ret, len;
+
+	ret = rrecv(rsock, response, sizeof(response->hdr), 0);
+	if (ret != sizeof(response->hdr)) {
+#if 0
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			do_poll(rsock);
+			goto recv;
+		}
+#endif
+		fprintf(stderr, "ERROR - rrecv rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
+		return -1;
+	}
+
+	len = ntohs(response->hdr.len);
+	if (len > sizeof(response->hdr)) {
+		ret += rrecv(rsock, (char *) &response->data, len - sizeof(response->hdr), 0);
+		if (ret != len) {
+			fprintf(stderr, "ERROR - %d out of %d bytes read from SSA node\n",
+				ret, len);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int admin_exec(int rsock, int cmd, int argc, char **argv)
 {
 	struct ssa_admin_msg msg;
 	struct admin_command *admin_cmd;
 	struct cmd_struct_impl *cmd_impl;
 	struct admin_context context;
-	int ret, len;
+	int ret;
 	struct pollfd fds[1];
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
@@ -991,29 +1021,9 @@ recv:
 		return -1;
 	}
 
-	ret = rrecv(rsock, &msg, sizeof(msg.hdr), 0);
-	if (ret != sizeof(msg.hdr)) {
-#if 0
-		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			do_poll(rsock);
-			goto recv;
-		}
-#endif
-		fprintf(stderr, "ERROR - rrecv rsock %d ERROR %d (%s)\n",
-			rsock, errno, strerror(errno));
+	if (admin_read_response(rsock, &msg)) {
 		cmd_impl->destroy(admin_cmd);
 		return -1;
-	}
-
-	len = ntohs(msg.hdr.len);
-	if (len > sizeof(msg.hdr)) {
-		ret += rrecv(rsock, (char *) &msg.data, len - sizeof(msg.hdr), 0);
-		if (ret != len) {
-			fprintf(stderr, "ERROR - %d out of %d bytes read from SSA node\n",
-				ret, len);
-			cmd_impl->destroy(admin_cmd);
-			return -1;
-		}
 	}
 
 	context.etime = get_timestamp();
