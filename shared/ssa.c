@@ -6713,10 +6713,6 @@ static void *ssa_admin_handler(void *context)
 					ssa_log_err(SSA_LOG_CTRL,
 						    "admin failed to create a response\n");
 				}
-
-				rclose(fds[2].fd);
-				fds[2].fd = -1;
-				fds[2].events = 0;
 			}
 			fds[2].revents = 0;
 		}
