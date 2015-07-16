@@ -136,7 +136,6 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	}
 };
 
-static int loopback;
 static atomic_t tid;
 static short admin_port = 7477;
 static uint16_t pkey_default = 0xffff;
@@ -436,7 +435,6 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 	if (type == ADMIN_ADDR_TYPE_GID) {
 		if (!strncmp((char *) dest, local_gid, strlen(local_gid))) {
 			snprintf(dest_addr, 10, "localhost");
-			loopback = 1;
 		} else {
 			snprintf(dest_addr, max(64, strlen((char *) dest)),
 				 "GID %s", (char *) dest);
