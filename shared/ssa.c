@@ -6744,9 +6744,16 @@ static void *ssa_admin_handler(void *context)
 					if (!connection_info) {
 						ssa_log_err(SSA_LOG_CTRL, "failed allocate connection info\n");
 					} else {
+						struct timeval now;
+
 						connection_info->connection_type = msg.data.conn->type;
 						connection_info->dbtype = msg.data.conn->dbtype;
 						connection_info->remote_lid = htons(msg.data.conn->remote_lid);
+
+						gettimeofday(&now, NULL);
+						connection_info->connection_tv_sec = htonll(now.tv_sec);
+						connection_info->connection_tv_usec = htonll(now.tv_usec);
+
 						memcpy(&connection_info->remote_gid, &msg.data.conn->remote_gid.raw, sizeof(connection_info->remote_gid));
 						g_hash_table_replace(connections_hash, GINT_TO_POINTER(msg.data.conn->remote_lid), connection_info);
 					}

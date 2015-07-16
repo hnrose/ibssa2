@@ -106,7 +106,9 @@ struct ssa_admin_connection_info {
 	uint8_t		connection_type;
 	uint8_t		dbtype;
 	be16_t		remote_lid;
-	uint8_t		reserved[12];
+	uint8_t		reserved[4];
+	be64_t		connection_tv_sec;
+	be64_t		connection_tv_usec;
 	uint8_t		remote_gid[16];
 };
 

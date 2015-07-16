@@ -850,6 +850,9 @@ static void node_info_command_output(struct admin_command *cmd,
 	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.counter;
 	struct ssa_admin_connection_info *connections =
 		(struct ssa_admin_connection_info *) node_info_msg->connections;
+	struct timeval timestamp;
+	time_t timestamp_time;
+	struct tm *timestamp_tm;
 
 	printf("%s %s\n", ssa_node_type_str(node_info_msg->type),
 	       node_info_msg->version);
@@ -869,9 +872,17 @@ static void node_info_command_output(struct admin_command *cmd,
 			fprintf(stderr, "Unknown database type \n");
 			continue;
 		}
-		printf("%s %u %s %s\n", addr_buf, ntohs(connections[i].remote_lid),
+		timestamp.tv_sec = ntohll(connections[i].connection_tv_sec);
+		timestamp.tv_usec = ntohll(connections[i].connection_tv_usec);
+
+		timestamp_time = timestamp.tv_sec;
+		timestamp_tm = localtime(&timestamp_time);
+
+		printf("%s %u %s %s ", addr_buf, ntohs(connections[i].remote_lid),
 		       ssa_connection_type_names[connections[i].connection_type],
 		       ssa_database_type_names[connections[i].dbtype]);
+		ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
+		printf("\n");
 	}
 }
 
