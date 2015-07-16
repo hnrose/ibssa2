@@ -878,9 +878,10 @@ static void node_info_command_output(struct admin_command *cmd,
 		timestamp_time = timestamp.tv_sec;
 		timestamp_tm = localtime(&timestamp_time);
 
-		printf("%s %u %s %s ", addr_buf, ntohs(connections[i].remote_lid),
+		printf("%s %u %s %s %s ", addr_buf, ntohs(connections[i].remote_lid),
 		       ssa_connection_type_names[connections[i].connection_type],
-		       ssa_database_type_names[connections[i].dbtype]);
+		       ssa_database_type_names[connections[i].dbtype],
+		       ssa_node_type_str(connections[i].remote_type));
 		ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
 		printf("\n");
 	}

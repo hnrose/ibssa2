@@ -6339,6 +6339,7 @@ static int ssa_admin_verify_message(struct ssa_admin_msg *admin_request)
 struct ssa_admin_handler_context {
 	struct ssa_class *ssa;;
 	GHashTable* connections_hash;
+	GHashTable* svcs_hash;
 };
 
 static void ssa_destroy_connection_info(gpointer data)
@@ -6466,6 +6467,7 @@ static void *ssa_admin_handler(void *context)
 	int ret, len, svc_cnt = 0;
 	int i, d, p, s;
 	GHashTable* connections_hash = NULL;
+	GHashTable* svcs_hash = NULL;
 	gboolean gres;
 	struct ssa_admin_handler_context handler_context;
 
@@ -6475,6 +6477,12 @@ static void *ssa_admin_handler(void *context)
 						 ssa_destroy_connection_info);
 	if (!connections_hash) {
 		ssa_log_err(SSA_LOG_CTRL, "unable allocate connections hash\n");
+		goto out;
+	}
+
+	svcs_hash = g_hash_table_new_full(NULL, NULL, NULL, NULL);
+	if (!svcs_hash) {
+		ssa_log_err(SSA_LOG_CTRL, "unable allocate svc hash\n");
 		goto out;
 	}
 
@@ -6490,6 +6498,7 @@ static void *ssa_admin_handler(void *context)
 	}
 
 	handler_context.connections_hash = connections_hash;
+	handler_context.svcs_hash = svcs_hash;
 	handler_context.ssa = ssa;
 
 	fds = calloc(ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE,
@@ -6525,10 +6534,12 @@ static void *ssa_admin_handler(void *context)
 				fds[i].fd = port->svc[s]->sock_adminup[1];
 				fds[i].events = POLLIN;
 				fds[i].revents = 0;
+				g_hash_table_insert(svcs_hash, GINT_TO_POINTER(fds[i].fd), port->svc[s]);
 				i++;
 				fds[i].fd = port->svc[s]->sock_admindown[1];
 				fds[i].events = POLLIN;
 				fds[i].revents = 0;
+				g_hash_table_insert(svcs_hash, GINT_TO_POINTER(fds[i].fd), port->svc[s]);
 				i++;
 			}
 		}
@@ -6731,6 +6742,7 @@ static void *ssa_admin_handler(void *context)
 				switch (msg.hdr.type) {
 				case SSA_CONN_DONE:
 				{
+					struct ssa_svc *svc;
 					struct ssa_admin_connection_info *connection_info;
 
 					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
@@ -6742,6 +6754,15 @@ static void *ssa_admin_handler(void *context)
 						"connection done on rsock %d from GID %s LID %u\n",
 						msg.data.conn->rsock, log_data,
 						msg.data.conn->remote_lid);
+
+					svc = g_hash_table_lookup(svcs_hash, GINT_TO_POINTER(fds[i].fd));
+					if (!svc) {
+						ssa_log_err(SSA_LOG_CTRL, "failed get SSA service for fd %d\n", fds[i].fd);
+						fds[i].fd = -1;
+						fds[i].events = 0;
+						fds[i].revents = 0;
+						continue;
+					}
 					connection_info = (struct ssa_admin_connection_info *) malloc(sizeof(*connection_info));
 					if (!connection_info) {
 						ssa_log_err(SSA_LOG_CTRL, "failed allocate connection info\n");
@@ -6750,6 +6771,8 @@ static void *ssa_admin_handler(void *context)
 
 						connection_info->connection_type = msg.data.conn->type;
 						connection_info->dbtype = msg.data.conn->dbtype;
+						connection_info->remote_type = connection_info->connection_type == SSA_CONN_TYPE_UPSTREAM ?
+							svc->primary_type : 0;
 						connection_info->remote_lid = htons(msg.data.conn->remote_lid);
 
 						gettimeofday(&now, NULL);
@@ -6793,6 +6816,9 @@ out:
 
 	if (connections_hash)
 		g_hash_table_destroy(connections_hash);
+
+	if (svcs_hash)
+		g_hash_table_destroy(svcs_hash);
 
 	return NULL;
 }

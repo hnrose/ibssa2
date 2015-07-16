@@ -105,8 +105,10 @@ struct ssa_admin_counter {
 struct ssa_admin_connection_info {
 	uint8_t		connection_type;
 	uint8_t		dbtype;
+	uint8_t		remote_type;
+	uint8_t		reserved;
 	be16_t		remote_lid;
-	uint8_t		reserved[4];
+	uint8_t		reserved2[2];
 	be64_t		connection_tv_sec;
 	be64_t		connection_tv_usec;
 	uint8_t		remote_gid[16];
