@@ -1013,8 +1013,8 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 
 	context.stime = get_timestamp();
 
-	ret = rsend(rsock, &msg, sizeof(msg), 0);
-	if (ret < 0 || ret != sizeof(msg)) {
+	ret = rsend(rsock, &msg, ntohs(msg.hdr.len), 0);
+	if (ret < 0 || ret != ntohs(msg.hdr.len)) {
 		fprintf(stderr, "ERROR - rsend rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		cmd_impl->destroy(admin_cmd);
