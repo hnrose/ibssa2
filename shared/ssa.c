@@ -6701,6 +6701,12 @@ static void *ssa_admin_handler(void *context)
 					}
 				}
 
+				ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+					"new admin request received: method %d opcode %d len %d\n",
+					admin_request.hdr.method,
+					ntohs(admin_request.hdr.opcode),
+					ntohs(admin_request.hdr.len));
+
 				if (!ssa_admin_verify_message(&admin_request)) {
 					ssa_log_warn(SSA_LOG_CTRL,
 						     "admin request verification failed\n");
