@@ -6674,10 +6674,15 @@ static void *ssa_admin_handler(void *context)
 				ret = rrecv(fds[2].fd, (char *) &admin_request,
 					    sizeof(admin_request.hdr), 0);
 				if (ret != sizeof(admin_request.hdr)) {
-					ssa_log_err(SSA_LOG_CTRL,
-						    "rrecv failed: %d (%s) on rsock %d\n",
-						    errno, strerror(errno),
-						    fds[2].fd);
+					if (!ret)
+						ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+							"admin peer disconnected rsock %d\n",
+							fds[2].fd);
+					else
+						ssa_log_err(SSA_LOG_CTRL,
+							    "rrecv failed: %d (%s) on rsock %d\n",
+							    errno, strerror(errno),
+							    fds[2].fd);
 					rclose(fds[2].fd);
 					fds[2].fd = -1;
 					fds[2].events = 0;
