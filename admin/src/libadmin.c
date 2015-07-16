@@ -913,9 +913,16 @@ const struct cmd_help *admin_cmd_help(int cmd)
 	return &impl->help;
 }
 
-static int admin_read_response(int rsock, struct ssa_admin_msg *response)
+static struct ssa_admin_msg *admin_read_response(int rsock)
 {
 	int ret, len;
+	struct ssa_admin_msg *response;
+
+	response = (struct ssa_admin_msg *) malloc(sizeof(*response));
+	if (!response) {
+		fprintf(stderr, "ERROR - response allocation failed\n");
+		return NULL;
+	}
 
 	ret = rrecv(rsock, response, sizeof(response->hdr), 0);
 	if (ret != sizeof(response->hdr)) {
@@ -927,25 +934,40 @@ static int admin_read_response(int rsock, struct ssa_admin_msg *response)
 #endif
 		fprintf(stderr, "ERROR - rrecv rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
-		return -1;
+		free(response);
+		return NULL;
 	}
 
 	len = ntohs(response->hdr.len);
 	if (len > sizeof(response->hdr)) {
+		if (len > sizeof(*response)) {
+			struct ssa_admin_msg *tmp;
+			tmp = (struct ssa_admin_msg *) realloc(response, len);
+			if (!tmp) {
+				fprintf(stderr, "ERROR - response allocation failed\n");
+				free(response);
+				return NULL;
+			} else {
+				response = tmp;
+			}
+		}
+
 		ret += rrecv(rsock, (char *) &response->data, len - sizeof(response->hdr), 0);
 		if (ret != len) {
 			fprintf(stderr, "ERROR - %d out of %d bytes read from SSA node\n",
 				ret, len);
-			return -1;
+			free(response);
+			return NULL;
 		}
 	}
 
-	return 0;
+	return response;
 }
 
 int admin_exec(int rsock, int cmd, int argc, char **argv)
 {
 	struct ssa_admin_msg msg;
+	struct ssa_admin_msg *response;
 	struct admin_command *admin_cmd;
 	struct cmd_struct_impl *cmd_impl;
 	struct admin_context context;
@@ -1021,24 +1043,26 @@ recv:
 		return -1;
 	}
 
-	if (admin_read_response(rsock, &msg)) {
+	response = admin_read_response(rsock);
+	if (!response) {
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
 
 	context.etime = get_timestamp();
 
-	if (msg.hdr.status != SSA_ADMIN_STATUS_SUCCESS) {
+	if (response->hdr.status != SSA_ADMIN_STATUS_SUCCESS) {
 		fprintf(stderr, "ERROR - target SSA node failed to process request\n");
 		ret = -1;
-	} else if (msg.hdr.method != SSA_ADMIN_METHOD_RESP) {
+	} else if (response->hdr.method != SSA_ADMIN_METHOD_RESP) {
 		fprintf(stderr, "ERROR - response has wrong method\n");
 		ret = -1;
 	} else {
-		cmd_impl->handle_response(admin_cmd, &context, &msg);
+		cmd_impl->handle_response(admin_cmd, &context, response);
 		ret = 0;
 	}
 
+	free(response);
 	cmd_impl->destroy(admin_cmd);
 
 	return ret;
