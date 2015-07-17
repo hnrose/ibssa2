@@ -6622,7 +6622,8 @@ static void *ssa_admin_handler(void *context)
 				if (fds[2].fd >= 0) {
 					rclose(fds[2].fd);
 					ssa_log_warn(SSA_LOG_CTRL,
-						     "close previous admin client \n");
+						     "closed previous admin client connection on rsock %d\n",
+						     fds[2].fd);
 				}
 				ssa_log(SSA_LOG_CTRL,
 					"New admin connection accepted on rsock %d\n",
