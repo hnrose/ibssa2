@@ -6672,9 +6672,14 @@ static void *ssa_admin_handler(void *context)
 
 		if (fds[2].revents) {
 			if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-				ssa_log_err(SSA_LOG_CTRL,
-					    "revent 0x%x on rsock %d\n",
-					    fds[2].revents, fds[2].fd);
+				if (fds[2].revents & POLLHUP)
+					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+						"admin peer disconnected rsock %d\n",
+						fds[2].fd);
+				else
+					ssa_log_err(SSA_LOG_CTRL,
+						    "revent 0x%x on rsock %d\n",
+						    fds[2].revents, fds[2].fd);
 				rclose(fds[2].fd);
 				fds[2].fd = -1;
 				fds[2].events = 0;
