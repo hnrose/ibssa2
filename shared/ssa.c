@@ -6674,7 +6674,7 @@ static void *ssa_admin_handler(void *context)
 			if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				ssa_log_err(SSA_LOG_CTRL,
 					    "revent 0x%x on rsock %d\n",
-					    fds[2].revents, rsock);
+					    fds[2].revents, fds[2].fd);
 				rclose(fds[2].fd);
 				fds[2].fd = -1;
 				fds[2].events = 0;
