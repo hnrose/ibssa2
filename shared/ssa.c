@@ -6464,7 +6464,7 @@ static void *ssa_admin_handler(void *context)
 	struct ssa_admin_msg admin_request, *admin_response;
 	struct pollfd *fds = NULL;
 	int rsock = -1;
-	int ret, len, svc_cnt = 0;
+	int val, ret, len, svc_cnt = 0;
 	int i, d, p, s;
 	GHashTable *connections_hash = NULL;
 	GHashTable *svcs_hash = NULL;
@@ -6649,6 +6649,17 @@ static void *ssa_admin_handler(void *context)
 					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 							"rgetpeername rsock %d ERROR %d (%s)\n",
 							rsock_data, errno, strerror(errno));
+					rclose(rsock_data);
+					continue;
+				}
+
+				val = 1;
+				ret = rsetsockopt(rsock_data, IPPROTO_TCP, TCP_NODELAY,
+						  (void *) &val, sizeof(val));
+				if (ret) {
+					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+						"rsetsockopt TCP_NODELAY ERROR %d (%s) on rsock %d\n",
+						errno, strerror(errno), rsock_data);
 					rclose(rsock_data);
 					continue;
 				}
