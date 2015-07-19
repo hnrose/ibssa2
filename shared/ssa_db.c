@@ -263,7 +263,7 @@ struct ssa_db *ssa_db_alloc(uint64_t * p_num_recs_arr,
 			    uint64_t tbl_cnt)
 {
 	struct ssa_db *p_db;
-	int i, k;
+	int i, k, size;
 
 	p_db = (struct ssa_db *) calloc(1, sizeof(*p_db));
 	if (!p_db)
@@ -290,8 +290,10 @@ struct ssa_db *ssa_db_alloc(uint64_t * p_num_recs_arr,
 		goto err5;
 
 	for (i = 0; i < tbl_cnt; i++) {
-		p_db->pp_tables[i] =
-			(void *) malloc(p_data_recs_size_arr[i] * p_num_recs_arr[i]);
+		size = p_data_recs_size_arr[i] * p_num_recs_arr[i];
+		if (!size)
+			continue;
+		p_db->pp_tables[i] = (void *) malloc(size);
 		if (!p_db->pp_tables[i]) {
 			for (k = i - 1; k >= 0; k--)
 				free(p_db->pp_tables[k]);
