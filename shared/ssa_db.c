@@ -384,8 +384,9 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name,
 					ntohl(p_tbl_def->ref_table_id));
 
 	/* data tables datasets initialization */
-	for (p_dataset = dataset_tbl; p_dataset->version != DB_VERSION_INVALID; p_dataset++)
-		ssa_db_dataset_init(&p_ssa_db->p_db_tables[p_dataset->id.table],
+	for (p_dataset = dataset_tbl, i = 0;
+	     p_dataset->version != DB_VERSION_INVALID; p_dataset++, i++)
+		ssa_db_dataset_init(&p_ssa_db->p_db_tables[i],
 				    p_dataset->version, p_dataset->size,
 				    p_dataset->access, p_dataset->id.db,
 				    p_dataset->id.table, p_dataset->id.field,
@@ -394,7 +395,8 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name,
 				    p_dataset->set_count);
 
 	/* field tables datasets initialization */
-	for (p_dataset = field_dataset_tbl; p_dataset->version != DB_VERSION_INVALID; p_dataset++, i++)
+	for (p_dataset = field_dataset_tbl, i = 0;
+	     p_dataset->version != DB_VERSION_INVALID; p_dataset++, i++)
 		ssa_db_dataset_init(&p_ssa_db->p_db_field_tables[i],
 				    p_dataset->version, p_dataset->size,
 				    p_dataset->access, p_dataset->id.db,
