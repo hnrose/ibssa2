@@ -675,7 +675,7 @@ static void ping_command_output(struct admin_command *cmd,
 				const struct ssa_admin_msg *msg)
 {
 	printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
-	       sizeof(msg), dest_addr, 1e-3 * (ctx->etime - ctx->stime));
+	       sizeof(*msg), dest_addr, 1e-3 * (ctx->etime - ctx->stime));
 }
 
 static const char *ssa_counter_type_names[] = {
