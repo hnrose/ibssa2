@@ -6699,6 +6699,11 @@ static void *ssa_admin_handler(void *context)
 						ssa_log_err(SSA_LOG_CTRL,
 							    "%d out of %d bytes read from admin application\n",
 							    ret, len);
+						rclose(fds[2].fd);
+						fds[2].fd = -1;
+						fds[2].events = 0;
+						fds[2].revents = 0;
+						continue;
 					}
 				}
 
