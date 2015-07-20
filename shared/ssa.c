@@ -6851,7 +6851,7 @@ static void *ssa_admin_handler(void *context)
 						connection_info->connection_tv_usec = htonll(now.tv_usec);
 
 						memcpy(&connection_info->remote_gid, &msg.data.conn->remote_gid.raw, sizeof(connection_info->remote_gid));
-						g_hash_table_replace(connections_hash, GINT_TO_POINTER(msg.data.conn->remote_lid), connection_info);
+						g_hash_table_replace(connections_hash, GINT_TO_POINTER(msg.data.conn->rsock), connection_info);
 					}
 				}
 					break;
@@ -6864,7 +6864,7 @@ static void *ssa_admin_handler(void *context)
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 						"connection from GID %s LID %u gone\n",
 						log_data, msg.data.conn->remote_lid);
-					gres = g_hash_table_remove(connections_hash, GINT_TO_POINTER(msg.data.conn->remote_lid));
+					gres = g_hash_table_remove(connections_hash, GINT_TO_POINTER(msg.data.conn->rsock));
 					if (!gres)
 						ssa_log_warn(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 								"connection from GID %s LID %u not found\n",
