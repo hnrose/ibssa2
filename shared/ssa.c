@@ -563,8 +563,8 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 		if ((msg->data.event == IBV_EVENT_PORT_ERR ||
 		     svc->primary_type & SSA_NODE_CORE) &&
 		    svc->conn_dataup.rsock >= 0) {
-			ssa_close_ssa_conn(&svc->conn_dataup);
 			ssa_upstream_conn(svc, &svc->conn_dataup, 1);
+			ssa_close_ssa_conn(&svc->conn_dataup);
 			pfd->fd = -1;
 			pfd->events = 0;
 			pfd->revents = 0;
@@ -663,8 +663,8 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 		if (memcmp(&svc->primary, &info_rec->path_data,
 			   sizeof(svc->primary))) {
 			if (svc->conn_dataup.rsock >= 0) {
-				ssa_close_ssa_conn(&svc->conn_dataup);
 				ssa_upstream_conn(svc, &svc->conn_dataup, 1);
+				ssa_close_ssa_conn(&svc->conn_dataup);
 				svc->state = SSA_STATE_HAVE_PARENT;
 			}
 			memcpy(&svc->primary, &info_rec->path_data,
