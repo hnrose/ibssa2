@@ -220,6 +220,7 @@ static void ssa_access_wait_for_tasks_completion();
 static void ssa_access_process_task(struct ssa_access_task *task);
 #endif
 static void ssa_svc_schedule_join(struct ssa_svc *svc);
+static void ssa_upstream_conn(struct ssa_svc *svc, struct ssa_conn *conn, int gone);
 
 static inline int get_max_rejoin_timeout()
 {
@@ -563,6 +564,7 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 		     svc->primary_type & SSA_NODE_CORE) &&
 		    svc->conn_dataup.rsock >= 0) {
 			ssa_close_ssa_conn(&svc->conn_dataup);
+			ssa_upstream_conn(svc, &svc->conn_dataup, 1);
 			pfd->fd = -1;
 			pfd->events = 0;
 			pfd->revents = 0;
@@ -662,6 +664,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			   sizeof(svc->primary))) {
 			if (svc->conn_dataup.rsock >= 0) {
 				ssa_close_ssa_conn(&svc->conn_dataup);
+				ssa_upstream_conn(svc, &svc->conn_dataup, 1);
 				svc->state = SSA_STATE_HAVE_PARENT;
 			}
 			memcpy(&svc->primary, &info_rec->path_data,
@@ -4636,13 +4639,17 @@ static void ssa_ctrl_port(struct ssa_port *port)
 		ssa_ctrl_send_listen(svc);
 }
 
-static void ssa_upstream_conn_done(struct ssa_svc *svc, struct ssa_conn *conn)
+static void ssa_upstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
+		int gone)
 {
 	int ret;
 	struct ssa_conn_done_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
-	msg.hdr.type = SSA_CONN_DONE;
+	if (gone)
+		msg.hdr.type = SSA_CONN_GONE;
+	else
+		msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
 	msg.conn = conn;
 	ret = write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
@@ -4708,7 +4715,7 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 	}
 
 	svc->conn_dataup.reconnect_count = 0;
-	ssa_upstream_conn_done(svc, &svc->conn_dataup);
+	ssa_upstream_conn(svc, &svc->conn_dataup, 0);
 	ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_UPSTR_CONN);
 
 	return 0;
