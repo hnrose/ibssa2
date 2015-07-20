@@ -6413,9 +6413,9 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	nodeinfo_msg->connections_num = htons(n);
 
 	connections = (struct ssa_admin_connection_info *) nodeinfo_msg->connections;
-	g_hash_table_iter_init (&iter, context->connections_hash);
+	g_hash_table_iter_init(&iter, context->connections_hash);
 	i = 0;
-	while (g_hash_table_iter_next (&iter, &key, &value))
+	while (g_hash_table_iter_next(&iter, &key, &value))
 		connections[i++] = *(struct ssa_admin_connection_info *)value;
 
 	return response;
