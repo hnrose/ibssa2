@@ -142,6 +142,7 @@ static uint16_t pkey_default = 0xffff;
 static char dest_addr[64];
 static const char *local_gid = "::1";
 static int timeout = 1000;
+static  struct admin_opts global_opts;
 
 static const char *short_opts_to_skip;
 static struct option *long_opts_to_skip;
@@ -382,18 +383,18 @@ err:
 	return status;
 }
 
-int admin_connect(void *dest, int type, struct admin_opts *opts)
+
+static int admin_connect_init(void *dest, int type, struct admin_opts *opts)
 {
 	struct sockaddr_ib dst_addr;
 	union ibv_gid dgid;
-	int ret, val, port_id, err;
-	unsigned int len;
+	int ret, val, port_id;
 	int port = opts->admin_port ? opts->admin_port : admin_port;
 	uint16_t pkey = opts->pkey ? opts->pkey : pkey_default;
-	struct pollfd fds;
 	int rsock = -1;
 
 	timeout = opts->timeout;
+	global_opts = *opts;
 
 	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (rsock < 0) {
@@ -476,7 +477,29 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 		goto err;
 	}
 
-	if (ret && (errno == EINPROGRESS)) {
+	return rsock;
+
+err:
+	rclose(rsock);
+	rsock = -1;
+	return -1;
+}
+
+int admin_connect(void *dest, int type, struct admin_opts *opts)
+{
+	int ret, val, err;
+	unsigned int len;
+	struct pollfd fds;
+	int rsock = -1;
+
+	timeout = opts->timeout;
+	global_opts = *opts;
+
+	rsock = admin_connect_init(dest, type, opts);
+	if (rsock < 0)
+		return -1;
+
+	if (rsock && (errno == EINPROGRESS)) {
 		fds.fd = rsock;
 		fds.events = POLLOUT;
 		fds.revents = 0;
@@ -1068,6 +1091,421 @@ recv:
 
 	free(response);
 	cmd_impl->destroy(admin_cmd);
+
+	return ret;
+}
+
+enum admin_connection_state {
+	ADM_CONN_CONNECTING,
+	ADM_CONN_NODEINFO,
+	ADM_CONN_COMMAND,
+};
+
+struct admin_connection {
+	enum admin_connection_state state;
+	time_t epoch;
+	int slen, sleft;
+	struct ssa_admin_msg *smsg;
+	int rlen, rcount;
+	struct ssa_admin_msg *rmsg;
+	struct ssa_admin_msg_hdr rhdr;
+};
+
+static int admin_recv_buff(int rsock, char *buf, int *rcount, int rlen)
+{
+	int n;
+
+	while (*rcount < rlen) {
+		n = rrecv(rsock, buf + *rcount, rlen - *rcount, MSG_DONTWAIT);
+		if (n > 0)
+			*rcount += n;
+		else if (!n)
+			return -ECONNRESET;
+		else if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return *rcount;
+		else
+			return n;
+	}
+	return 0;
+}
+
+static int admin_recv_msg(struct pollfd *pfd, struct admin_connection *conn)
+{
+	int ret;
+
+	if (conn->rcount < sizeof(conn->rhdr)) {
+		ret = admin_recv_buff(pfd->fd, (char *) &conn->rhdr,
+				      &conn->rcount, sizeof(conn->rhdr));
+		if (ret == -ECONNRESET) {
+			fprintf(stderr, "ERROR - SSA node closed admin connection\n");
+			return -1;
+		} else if (ret < 0) {
+			fprintf(stderr,
+				"ERROR - rrecv failed: %d (%s) on rsock %d\n",
+				errno, strerror(errno), pfd->fd);
+			return ret;
+		}
+		if (conn->rcount < sizeof(conn->rhdr))
+			return 0;
+	}
+
+	if (conn->rcount == sizeof(conn->rhdr)) {
+		if (conn->rhdr.status != SSA_ADMIN_STATUS_SUCCESS) {
+			fprintf(stderr, "ERROR - target SSA node failed to process request\n");
+			return -1;
+		} else if (conn->rhdr.method != SSA_ADMIN_METHOD_RESP) {
+			fprintf(stderr, "ERROR - response has wrong method\n");
+			return -1;
+		}
+
+		conn->rlen = ntohs(conn->rhdr.len);
+		conn->rmsg = (struct ssa_admin_msg *) malloc(max(sizeof(conn->rmsg),
+							     conn->rlen));
+		if (!conn->rmsg) {
+			fprintf(stderr, "ERROR - failed allocate message buffer\n");
+			return -1;
+		}
+
+		conn->rmsg->hdr = conn->rhdr;
+	}
+
+	ret = admin_recv_buff(pfd->fd, (char *) conn->rmsg,
+			      &conn->rcount, conn->rlen);
+	if (ret == -ECONNRESET) {
+		fprintf(stderr, "ERROR - SSA node closed admin connection\n");
+		return -1;
+	} else if (ret < 0) {
+		fprintf(stderr, "ERROR - rrecv failed: %d (%s) on rsock %d\n",
+			errno, strerror(errno), pfd->fd);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int admin_send_msg(struct pollfd *pfd, struct admin_connection *conn)
+{
+	int sent = conn->slen - conn->sleft;
+	int n;
+
+	while (conn->sleft) {
+		n  = rsend(pfd->fd, (char *) conn->smsg + sent, conn->sleft, MSG_DONTWAIT);
+		if (n < 0)
+			break;
+		conn->sleft -= n;
+		sent += n;
+	}
+
+	if (!conn->sleft) {
+		return 0;
+	} else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+		return 0;
+	} else if (n < 0)
+		return n;
+
+	return 0;
+}
+
+static void admin_update_connection_state(struct admin_connection *conn,
+					  enum admin_connection_state state,
+					  struct ssa_admin_msg *msg)
+{
+	conn->state = state;
+	conn->epoch  = time(NULL);
+
+	free(conn->rmsg);
+	conn->rmsg = NULL;
+	conn->rlen = 0;
+	conn->rcount = 0;
+
+	if (state == ADM_CONN_CONNECTING) {
+		conn->smsg = NULL;
+		conn->slen = 0;
+		conn->sleft = 0;
+	} else {
+		conn->smsg = msg;
+		conn->slen = ntohs(msg->hdr.len);
+		conn->sleft = conn->slen;
+	}
+}
+
+static void admin_close_connection(struct pollfd *pfd,
+				   struct admin_connection *conn)
+{
+	if (pfd->fd > 0)
+		rclose(pfd->fd);
+	pfd->fd = -1;
+	pfd->events = 0;
+	pfd->revents = 0;
+
+	free(conn->rmsg);
+	conn->rmsg = NULL;
+}
+
+static int admin_connect_new_nodes(struct pollfd **fds,
+				   struct admin_connection **admin_conns,
+				   int *admin_conns_num,
+				   const struct ssa_admin_msg *rmsg)
+{
+	int i, slot, node_conns_num, rsock;
+	char addr_buf[128];
+	struct ssa_admin_node_info *node_info = (struct ssa_admin_node_info *) &rmsg->data.node_info;
+	struct ssa_admin_connection_info *node_conns =
+		(struct ssa_admin_connection_info *) node_info->connections;
+	void *tmp;
+
+	node_conns_num = ntohs(node_info->connections_num);
+	if (node_conns_num < 0) {
+		fprintf(stderr, "ERROR - Negative number of SSA node's connections\n");
+		return -1;
+	} else if (node_conns_num  == 0) {
+		return 0;
+	}
+
+	slot = 0;
+	for (i = 0; i < node_conns_num; ++i) {
+		if (node_conns[i].connection_type == SSA_CONN_TYPE_DOWNSTREAM) {
+			for (; slot < *admin_conns_num && (*fds)[slot].fd > 0; slot++);
+
+			if (slot == *admin_conns_num) {
+				tmp = realloc(*fds, 2 * *admin_conns_num * sizeof(**fds));
+				if (!tmp) {
+					fprintf(stderr, "ERROR - failed reallocate pfds array\n");
+					return -1;
+				}
+
+				*fds = (struct pollfd *) tmp;
+
+				tmp = realloc(*admin_conns, 2 * *admin_conns_num * sizeof(**admin_conns));
+				if (!tmp) {
+					fprintf(stderr, "ERROR - failed reallocate connections array\n");
+					return -1;
+				}
+
+				*admin_conns_num *= 2;
+			}
+
+			ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+					node_conns[i].remote_gid,
+					sizeof node_conns[i].remote_gid);
+			rsock = admin_connect_init(addr_buf, ADMIN_ADDR_TYPE_GID, &global_opts);
+			if (rsock < 0 && (errno != EINPROGRESS)) {
+				fprintf(stderr, "ERROR - Unable connect to %s\n", addr_buf);
+				continue;
+			}
+
+			(*fds)[slot].fd = rsock;
+			(*fds)[slot].events = POLLOUT;
+			(*fds)[slot].revents = 0;
+
+			admin_update_connection_state(*admin_conns + slot, ADM_CONN_CONNECTING, NULL);
+		}
+	}
+	return 0;
+}
+
+int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
+{
+	struct cmd_struct_impl *nodeinfo_impl;
+	struct admin_command *nodeinfo_cmd;
+	struct ssa_admin_msg nodeinfo_msg, msg;
+	struct admin_command *admin_cmd = NULL;
+	struct cmd_struct_impl *cmd_impl = NULL;
+	struct admin_context context;
+	int n = 1024, ret, i, revents, err;
+	struct pollfd *fds;
+	unsigned int len;
+	struct admin_connection *connections;
+
+	fds = (struct pollfd *) malloc(n * sizeof(*fds));
+	if (!fds) {
+		fprintf(stderr, "ERROR - failed to allocate pollfd array\n");
+		return -1;
+	}
+
+	for (i = 0; i < n; ++i) {
+		fds[i].fd = -1;
+		fds[i].events = 0;
+		fds[i].revents = 0;
+	}
+
+	connections = (struct admin_connection *) malloc(n * sizeof(*connections));
+	if (!connections) {
+		fprintf(stderr, "ERROR - failed to allocate admin connections array\n");
+		free(fds);
+		return -1;
+	}
+
+	memset(connections, 0, n * sizeof(*connections));
+
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
+		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
+		free(connections);
+		free(fds);
+		return -1;
+	}
+
+	nodeinfo_impl = &admin_cmd_command_impls[SSA_ADMIN_CMD_NODE_INFO];
+	nodeinfo_cmd = nodeinfo_impl->init(SSA_ADMIN_CMD_NODE_INFO, &context, 0, NULL);
+	if (!nodeinfo_cmd) {
+		fprintf(stderr, "ERROR - failed to create nodeinfo command\n");
+		free(connections);
+		free(fds);
+		return -1;
+	}
+
+	memset(&nodeinfo_msg, 0, sizeof(nodeinfo_msg));
+	nodeinfo_msg.hdr.version= SSA_ADMIN_PROTOCOL_VERSION;
+	nodeinfo_msg.hdr.method	= SSA_ADMIN_METHOD_GET;
+	nodeinfo_msg.hdr.opcode	= htons(SSA_ADMIN_CMD_NODE_INFO);
+	nodeinfo_msg.hdr.len	= htons(sizeof(nodeinfo_msg.hdr));
+
+	ret = nodeinfo_impl->create_request(nodeinfo_cmd, &context, &nodeinfo_msg);
+	if (ret < 0) {
+		fprintf(stderr, "ERROR - message creation error\n");
+		goto err;
+	}
+	cmd_impl = &admin_cmd_command_impls[cmd];
+
+	if (!cmd_impl->init || !cmd_impl->destroy ||
+	    !cmd_impl->create_request || !cmd_impl->handle_response) {
+		fprintf(stderr, "ERROR - command creation error\n");
+		goto err;
+	}
+
+	admin_cmd = cmd_impl->init(cmd, &context, argc, argv);
+	if (!admin_cmd) {
+		fprintf(stderr, "ERROR - command creation error\n");
+		goto err;
+	}
+
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.version	= SSA_ADMIN_PROTOCOL_VERSION;
+	msg.hdr.method	= SSA_ADMIN_METHOD_GET;
+	msg.hdr.opcode	= htons(admin_cmd->cmd->id);
+	msg.hdr.len	= htons(sizeof(msg.hdr));
+
+	ret = admin_cmd->impl->create_request(admin_cmd, &context, &msg);
+	if (ret < 0) {
+		fprintf(stderr, "ERROR - message creation error\n");
+		goto err;
+	}
+
+	fds[0].fd = rsock;
+	fds[0].events = POLLOUT;
+	fds[0].revents = 0;
+
+	admin_update_connection_state(&connections[0], ADM_CONN_NODEINFO, &nodeinfo_msg);
+
+	for (;;) {
+		for (i = 0; i < n && fds[i].fd < 0; ++i);
+		if (i == n)
+			break;
+
+		ret = rpoll(fds, n, timeout);
+		if (ret < 0) {
+			fprintf(stderr, "ERROR - rpoll rsock %d ERROR %d (%s)\n",
+				rsock, errno, strerror(errno));
+			goto err;
+
+		} else if (ret == 0) {
+			time_t now_epoch = time(NULL);
+
+			for (i = 0; i < n; ++i) {
+				if (fds[i].fd >= 0 && connections[i].epoch - now_epoch >= timeout) {
+					fprintf(stderr, "ERROR - timeout expired\n");
+					admin_close_connection(&fds[i], &connections[i]);
+				}
+			}
+			continue;
+		}
+
+		for (i = 0; i < n; ++i) {
+			if (fds[i].fd < 0 || !fds[i].revents)
+				continue;
+
+			revents = fds[i].revents;
+			fds[i].revents = 0;
+
+			connections[i].epoch = time(NULL);
+
+			if (revents & (POLLERR /*| POLLHUP */| POLLNVAL)) {
+				fprintf(stderr,
+					"ERROR - error event 0x%x on rsock %d\n",
+					fds[i].revents, fds[i].fd);
+				admin_close_connection(&fds[i], &connections[i]);
+				continue;
+			}
+
+			if (revents & POLLIN) {
+				ret = admin_recv_msg(&fds[i], &connections[i]);
+				if (ret) {
+					admin_close_connection(&fds[i], &connections[i]);
+					continue;
+				} else if (connections[i].rcount != connections[i].rlen) {
+					continue;
+				}
+
+				ret = 0;
+				if (ntohs(connections[i].rmsg->hdr.opcode) == SSA_ADMIN_CMD_NODE_INFO &&
+				    connections[i].state == ADM_CONN_NODEINFO) {
+					ret = admin_connect_new_nodes(&fds, &connections, &n, connections[i].rmsg);
+					if (ret) {
+						fprintf(stderr, "WARNING - failed connect downstream nodes\n");
+						continue;
+					}
+
+					admin_update_connection_state(&connections[i], ADM_CONN_COMMAND, &msg);
+					fds[i].events = POLLOUT;
+					continue;
+				} else {
+					cmd_impl->handle_response(admin_cmd, &context, connections[i].rmsg);
+					admin_close_connection(&fds[i], &connections[i]);
+					continue;
+				}
+			}
+			if (revents & POLLOUT) {
+				if (connections[i].state == ADM_CONN_CONNECTING) {
+					len = sizeof(err);
+					ret = rgetsockopt(fds[i].fd, SOL_SOCKET, SO_ERROR, &err, &len);
+					if (ret) {
+						fprintf(stderr,
+							"rgetsockopt rsock %d ERROR %d (%s)\n",
+							fds[i].fd, errno,
+							strerror(errno));
+						admin_close_connection(&fds[i], &connections[i]);
+						continue;
+					}
+					if (err) {
+						ret = -1;
+						errno = err;
+						fprintf(stderr,
+							"ERROR - async rconnect rsock %d ERROR %d (%s)\n",
+							fds[i].fd, errno,
+							strerror(errno));
+						admin_close_connection(&fds[i], &connections[i]);
+						continue;
+					}
+
+					admin_update_connection_state(&connections[i], ADM_CONN_NODEINFO, &nodeinfo_msg);
+				}
+
+				ret = admin_send_msg(&fds[i], &connections[i]);
+				if (ret) {
+					fprintf(stderr, "ERROR - response has wrong method\n");
+					admin_close_connection(&fds[i],  &connections[i]);
+				}
+
+				if (!connections[i].sleft)
+					fds[i].events = POLLIN;
+			}
+		}
+	}
+err:
+	cmd_impl->destroy(admin_cmd);
+	nodeinfo_impl->destroy(nodeinfo_cmd);
+	free(connections);
+	free(fds);
 
 	return ret;
 }

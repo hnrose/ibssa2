@@ -53,6 +53,7 @@ static char *dest_gid;
 static uint16_t dest_lid;
 static uint16_t pkey;
 static int timeout = 1000;
+static short recursive;
 
 struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_COUNTER]= { "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR },
@@ -61,7 +62,7 @@ struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_NODE_INFO] = { "nodeinfo",        SSA_ADMIN_CMD_NODE_INFO, CMD_TYPE_MONITOR },
 };
 
-static const char *const short_option = "l:g:d:P:p:a:t:vh?";
+static const char *const short_option = "rl:g:d:P:p:a:t:vh?";
 static struct option long_option[] = {
 	{"lid",          required_argument, 0, 'l'},
 	{"gid",          required_argument, 0, 'g'},
@@ -71,6 +72,7 @@ static struct option long_option[] = {
 	{"admin_port",   required_argument, 0, 'a'},
 	{"version",      no_argument,       0, 'v'},
 	{"help",         no_argument,       0, 'h'},
+	{"recursive",    no_argument,       0, 'r'},
 	{"timeout",      required_argument, 0, 't'},
 	{0, 0, 0, 0}	/* Required at the end of the array */
 };
@@ -79,7 +81,7 @@ static const char admin_usage_string[] =
 	"ssadmin  [-v | --version] [-h | --help] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]\n"
 	"\t\t[[-d | --device] <device name>] [[-P | --Port] <CA port>] \n"
 	"\t\t[[-p | --pkey] <partition key>] [[-a | --admin_port] <admin server port>]\n"
-	"\t\t[[-t | --timeout] <operation timeout>]";
+	"\t\t[[-t | --timeout] <operation timeout>] [-r | --recursive]";
 
 static const char admin_more_info_string[] =
 	"'ssadmin help <command>' shows specific subcommand "
@@ -332,6 +334,9 @@ static int parse_opts(int argc, char **argv, int *status)
 		case 'a':
 			admin_port = atoi(optarg);
 			break;
+		case 'r':
+			recursive = 1;
+			break;
 		case '?':
 		case 'h':
 			free(long_option_arr);
@@ -441,7 +446,11 @@ int main(int argc, char **argv)
 	}
 
 	optind = 1;
-	if (admin_exec(rsock, cmd->id, argc, argv)) {
+	if (!recursive)
+		ret = admin_exec(rsock, cmd->id, argc, argv);
+	else
+		ret = admin_exec_recursive(rsock, cmd->id, argc, argv);
+	if (ret) {
 		fprintf(stderr, "Failed executing '%s' command (%s)\n",
 		       cmd->cmd, admin_cmd_help(cmd->id)->desc);
 		exit(-1);
