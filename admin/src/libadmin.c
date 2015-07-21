@@ -1317,6 +1317,11 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	unsigned int len;
 	struct admin_connection *connections;
 
+	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
+		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
+		return -1;
+	}
+
 	fds = (struct pollfd *) malloc(n * sizeof(*fds));
 	if (!fds) {
 		fprintf(stderr, "ERROR - failed to allocate pollfd array\n");
@@ -1337,13 +1342,6 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	}
 
 	memset(connections, 0, n * sizeof(*connections));
-
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
-		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
-		free(connections);
-		free(fds);
-		return -1;
-	}
 
 	nodeinfo_impl = &admin_cmd_command_impls[SSA_ADMIN_CMD_NODE_INFO];
 	nodeinfo_cmd = nodeinfo_impl->init(SSA_ADMIN_CMD_NODE_INFO, &context, 0, NULL);
