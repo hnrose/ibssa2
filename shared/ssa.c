@@ -4640,7 +4640,7 @@ static void ssa_ctrl_port(struct ssa_port *port)
 }
 
 static void ssa_upstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
-		int gone)
+			      int gone)
 {
 	int ret;
 	struct ssa_conn_done_msg msg;
