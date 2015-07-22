@@ -6730,7 +6730,7 @@ static void *ssa_admin_handler(void *context)
 					}
 				}
 
-				ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				ssa_log(SSA_LOG_CTRL,
 					"new admin request received: method %d opcode %d len %d\n",
 					admin_request.hdr.method,
 					ntohs(admin_request.hdr.opcode),
