@@ -3515,7 +3515,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	struct ssa_db *prdb = NULL;
 	struct ssa_db *prdb_copy = NULL;
 	int n, ret;
-	uint64_t epoch, prdb_epoch;
+	uint64_t epoch, prdb_epoch, actual_epoch;
 	char dump_dir[1024];
 	struct stat dstat;
 
@@ -3642,8 +3642,12 @@ skip_db_save:
 	if (prdb != NULL) {
 		if (++prdb_epoch == DB_EPOCH_INVALID)
 			prdb_epoch++;
-		ssa_db_set_epoch(prdb, DB_DEF_TBL_ID, prdb_epoch);
-		ssa_db_set_epoch(prdb_copy, DB_DEF_TBL_ID, prdb_epoch);
+		actual_epoch = ssa_db_set_epoch(prdb, DB_DEF_TBL_ID, prdb_epoch);
+		if (actual_epoch == DB_EPOCH_INVALID)
+			ssa_log(SSA_LOG_VERBOSE, "PRDB epoch set failed\n");
+		actual_epoch = ssa_db_set_epoch(prdb_copy, DB_DEF_TBL_ID, prdb_epoch);
+		if (actual_epoch == DB_EPOCH_INVALID)
+			ssa_log(SSA_LOG_VERBOSE, "PRDB copy epoch set failed\n");
 		consumer->smdb_epoch = epoch;
 		ssa_db_destroy(consumer->prdb_current);
 		consumer->prdb_current = prdb;
