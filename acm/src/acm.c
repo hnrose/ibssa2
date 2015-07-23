@@ -3323,6 +3323,118 @@ err:
 	return ret;
 }
 
+static int acm_insert_addr_dest(struct acm_ep *ep, uint32_t qpn, uint8_t flags,
+				uint8_t *addr, size_t addr_size,
+				uint8_t addr_type, uint8_t *gid)
+{
+	struct acm_dest *dest, *gid_dest;
+	char buf[ACM_MAX_ADDRESS], host[ACM_MAX_ADDRESS];
+	char lladdr[20];
+	uint8_t name[ACM_MAX_ADDRESS] = { 0 };
+	in_addr_t ipv4_addr, local_ipv4_addr;
+	int neigh, i, ret = 0;
+
+	if (addr_type == ACM_ADDRESS_NAME)
+		strncpy((char *) name, (char *) addr, addr_size);
+	else
+		memcpy(name, addr, addr_size);
+
+	dest = acm_acquire_dest(ep, addr_type, name);
+	if (!dest) {
+		if (addr_type == ACM_ADDRESS_IP)
+			inet_ntop(AF_INET, addr, buf, sizeof(buf));
+		else if (addr_type == ACM_ADDRESS_IP6)
+			inet_ntop(AF_INET6, addr, buf, sizeof(buf));
+		else
+			strncpy(buf, (char *) addr, sizeof(buf));
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to create addr dest %s type %d\n",
+			    buf, addr_type);
+		ret = -1;
+		goto out;
+	}
+
+	memset(name, 0, sizeof(name));
+	memcpy(name, gid, 16);
+	gid_dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
+	if (gid_dest) {
+		dest->path = gid_dest->path;
+		dest->state = ACM_READY;
+		acm_put_dest(gid_dest);
+	} else {
+		memcpy(&dest->path.dgid, gid, 16);
+		if (acm_mode == ACM_MODE_ACM) {
+			//ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
+			//		((struct acm_port *)ep->port)->port_num,
+			//		0, &dest->path.sgid);
+			dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
+		} else {	/* ACM_MODE_SSA */
+			//ibv_query_gid(((struct ssa_port *)ep->port)->dev->verbs,
+			//		((struct ssa_port *)ep->port)->port_num,
+			//		0, &dest->path.sgid);
+			dest->path.slid = htons(((struct ssa_port *)ep->port)->lid);
+		}
+		dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
+		dest->path.pkey = htons(ep->pkey);
+		dest->state = ACM_ADDR_RESOLVED;
+	}
+
+	dest->remote_qpn = qpn;
+	dest->remote_flags = flags;
+	dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
+	dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
+	acm_put_dest(dest);
+
+	if (addr_type == ACM_ADDRESS_IP)
+		inet_ntop(AF_INET, addr, host, sizeof(host));
+	else if (addr_type == ACM_ADDRESS_IP6)
+		inet_ntop(AF_INET6, addr, host, sizeof(host));
+	else
+		snprintf(host, sizeof(host), "%s", (char *) addr);
+	inet_ntop(AF_INET6, gid, buf, sizeof(buf));
+	ssa_log(SSA_LOG_VERBOSE,
+		"added host %s address type %d IB GID %s "
+		"QPN 0x%x flags 0x%x pkey 0x%x\n",
+		host, addr_type, buf, qpn, flags, ep->pkey);
+
+	if (addr_type == ACM_ADDRESS_IP)
+		neigh = NEIGH_MODE_IPV4;
+	else if (addr_type == ACM_ADDRESS_IP6)
+		neigh = NEIGH_MODE_IPV6;
+	else
+		neigh = 0;
+
+	if (neigh_mode & NEIGH_MODE_IPV4 && neigh & NEIGH_MODE_IPV4) {
+		if (qpn && qpn != 1) {
+			local_ipv4_addr = 0;
+			for (i = 0; i < MAX_EP_ADDR; i++) {
+				if (ep->addr_type[i] == ACM_ADDRESS_IP) {
+					memcpy(&local_ipv4_addr,
+					       ep->addr[i].addr, 4);
+					break;
+				}
+			}
+
+			memcpy(&ipv4_addr, addr, 4);
+			if (ipv4_addr == local_ipv4_addr)
+				goto out;
+			ssa_log(SSA_LOG_VERBOSE,
+				"IPv4 neighbor 0x%x to be added to ifindex %u\n",
+				htonl(ipv4_addr), ep->ifindex);
+			qpn = htonl(qpn | flags << 24);
+			memcpy(&lladdr[0], &qpn, 4);
+			memcpy(&lladdr[4], gid, 16);
+			if (ipv4_neighbor_add(neigh_socket, ep->ifindex,
+					      ipv4_addr, lladdr, sizeof(lladdr)))
+				ssa_log(SSA_LOG_DEFAULT,
+					"ipv4_neighbor_add IP 0x%x send failed\n",
+					ntohl(ipv4_addr));
+		}
+	}
+out:
+	return ret;
+}
+
 static void acm_parse_hosts_file(struct acm_ep *ep)
 {
 	FILE *f;
@@ -3330,16 +3442,12 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	char addr[INET6_ADDRSTRLEN + 1], gid[INET6_ADDRSTRLEN + 1];
 	char buf1[8], buf2[16];
 	char *endptr;
-	uint8_t name[ACM_MAX_ADDRESS + 1];
-	char lladdr[20];
 	struct in6_addr ip_addr, ib_addr;
-	in_addr_t ipv4_addr, local_ipv4_addr;
-	struct acm_dest *dest, *gid_dest;
 	long int tmp;
-	int ret, idx, invalid_input, line = 0, neigh, i;
+	int ret, idx, invalid_input, line = 0;
 	uint32_t qpn;
 	uint16_t pkey = ACM_DEFAULT_DEST_PKEY;
-	uint8_t addr_type, flags;
+	uint8_t flags;
 
 	if (!(f = fopen(addr_data_file, "r"))) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't open %s\n",
@@ -3453,90 +3561,18 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 		if (pkey != ep->pkey)
 			continue;
 
-		neigh = 0;
-		memset(name, 0, sizeof(name));
-		if (inet_pton(AF_INET, addr, &ip_addr) > 0) {
-			addr_type = ACM_ADDRESS_IP;
-			memcpy(name, &ip_addr, 4);
-			neigh = NEIGH_MODE_IPV4;
-		} else if (inet_pton(AF_INET6, addr, &ip_addr) > 0) {
-			addr_type = ACM_ADDRESS_IP6;
-			memcpy(name, &ip_addr, sizeof(ip_addr));
-			neigh = NEIGH_MODE_IPV6;
-		} else {
-			addr_type = ACM_ADDRESS_NAME;
-			strncpy((char *)name, addr, ACM_MAX_ADDRESS);
-		}
-
-		dest = acm_acquire_dest(ep, addr_type, name);
-		if (!dest) {
-			ssa_log(SSA_LOG_DEFAULT,
-				"ERROR - unable to create dest %s\n", addr);
-			continue;
-		}
-
-		memset(name, 0, sizeof(name));
-		memcpy(name, &ib_addr, sizeof(ib_addr));
-		gid_dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
-		if (gid_dest) {
-			dest->path = gid_dest->path;
-			dest->state = ACM_READY;
-			acm_put_dest(gid_dest);
-		} else {
-			memcpy(&dest->path.dgid, &ib_addr, 16);
-			if (acm_mode == ACM_MODE_ACM) {
-				//ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
-				//		((struct acm_port *)ep->port)->port_num,
-				//		0, &dest->path.sgid);
-				dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
-			} else {	/* ACM_MODE_SSA */
-				//ibv_query_gid(((struct ssa_port *)ep->port)->dev->verbs,
-				//		((struct ssa_port *)ep->port)->port_num,
-				//		0, &dest->path.sgid);
-				dest->path.slid = htons(((struct ssa_port *)ep->port)->lid);
-			}
-			dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
-			dest->path.pkey = htons(ep->pkey);
-			dest->state = ACM_ADDR_RESOLVED;
-		}
-
-		dest->remote_qpn = qpn;
-		dest->remote_flags = flags;
-		dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
-		dest->route_timeout = time_stamp_min() + (unsigned) route_timeout;
-		acm_put_dest(dest);
-		ssa_log(SSA_LOG_VERBOSE,
-			"added host %s address type %d IB GID %s "
-			"QPN 0x%x flags 0x%x pkey 0x%x\n",
-			addr, addr_type, gid, qpn, flags, pkey);
-
-		if (neigh_mode & NEIGH_MODE_IPV4 && neigh & NEIGH_MODE_IPV4) {
-			if (qpn && qpn != 1) {
-				local_ipv4_addr = 0;
-				for (i = 0; i < MAX_EP_ADDR; i++) {
-					if (ep->addr_type[i] == ACM_ADDRESS_IP) {
-						memcpy(&local_ipv4_addr,
-						       ep->addr[i].addr, 4);
-						break;
-					}
-				}
-
-				memcpy(&ipv4_addr, &ip_addr, 4);
-				if (ipv4_addr == local_ipv4_addr)
-					continue;
-				ssa_log(SSA_LOG_VERBOSE,
-					"IPv4 neighbor 0x%x to be added to ifindex %u\n",
-					htonl(ipv4_addr), ep->ifindex);
-				qpn = htonl(qpn | flags << 24);
-				memcpy(&lladdr[0], &qpn, 4);
-				memcpy(&lladdr[4], &ib_addr, 16);
-				if (ipv4_neighbor_add(neigh_socket, ep->ifindex,
-						      ipv4_addr, lladdr, sizeof(lladdr)))
-					ssa_log(SSA_LOG_DEFAULT,
-						"ipv4_neighbor_add IP 0x%x send failed\n",
-						ntohl(ipv4_addr));
-			}
-		}
+		if (inet_pton(AF_INET, addr, &ip_addr) > 0)
+			acm_insert_addr_dest(ep, qpn, flags, (void *) &ip_addr,
+					     4, ACM_ADDRESS_IP,
+					     (void *) &ib_addr);
+		else if (inet_pton(AF_INET6, addr, &ip_addr) > 0)
+			acm_insert_addr_dest(ep, qpn, flags, (void *) &ip_addr,
+					     sizeof(ip_addr), ACM_ADDRESS_IP6,
+					     (void *) &ib_addr);
+		else
+			acm_insert_addr_dest(ep, qpn, flags, (void *) addr,
+					     ACM_MAX_ADDRESS, ACM_ADDRESS_NAME,
+					     (void *) &ib_addr);
 	}
 
 	fclose(f);
@@ -4085,6 +4121,54 @@ err0:
 	free(ep);
 }
 
+static int
+acm_parse_access_v1_address(struct ssa_db *ssa_db, struct acm_ep *ep)
+{
+	struct ipdb_ipv4 *ipv4;
+	struct ipdb_ipv6 *ipv6;
+	struct ipdb_name *name;
+	uint64_t i, rec_cnt;
+	int no_recs = 1;
+
+	rec_cnt = ntohll(ssa_db->p_db_tables[PRDB_TBL_ID_IPv4].set_count);
+	ipv4 = (struct ipdb_ipv4 *) ssa_db->pp_tables[PRDB_TBL_ID_IPv4];
+	for (i = 0; i < rec_cnt; ipv4++, i++) {
+		if (ep->pkey != ntohs(ipv4->pkey))
+			continue;
+
+		acm_insert_addr_dest(ep, ntohl(ipv4->qpn), ipv4->flags,
+				     ipv4->addr, sizeof(ipv4->addr),
+				     ACM_ADDRESS_IP, ipv4->gid);
+		no_recs = 0;
+	}
+
+	rec_cnt = ntohll(ssa_db->p_db_tables[PRDB_TBL_ID_IPv6].set_count);
+	ipv6 = (struct ipdb_ipv6 *) ssa_db->pp_tables[PRDB_TBL_ID_IPv6];
+	for (i = 0; i < rec_cnt; ipv6++, i++) {
+		if (ep->pkey != ntohs(ipv6->pkey))
+			continue;
+
+		acm_insert_addr_dest(ep, ntohl(ipv6->qpn), ipv6->flags,
+				     ipv6->addr, sizeof(ipv6->addr),
+				     ACM_ADDRESS_IP6, ipv6->gid);
+		no_recs = 0;
+	}
+
+	rec_cnt = ntohll(ssa_db->p_db_tables[PRDB_TBL_ID_NAME].set_count);
+	name = (struct ipdb_name *) ssa_db->pp_tables[PRDB_TBL_ID_NAME];
+	for (i = 0; i < rec_cnt; name++, i++) {
+		if (ep->pkey != ntohs(name->pkey))
+			continue;
+
+		acm_insert_addr_dest(ep, ntohl(name->qpn), name->flags,
+				     name->addr, sizeof(name->addr),
+				     ACM_ADDRESS_NAME, name->gid);
+		no_recs = 0;
+	}
+
+	return no_recs;
+}
+
 static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 {
 	struct ssa_device *ssa_dev1 = NULL;
@@ -4144,6 +4228,14 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	ssa_log(SSA_LOG_VERBOSE,
 		"cache update complete with PRDB epoch 0x%" PRIx64 "\n",
 		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
+
+	ret = acm_parse_access_v1_address(p_ssa_db, acm_ep);
+	if (ret)
+		goto err;
+	else
+		ssa_log(SSA_LOG_VERBOSE,
+			"cache update complete with IPDB epoch 0x%" PRIx64 "\n",
+			ssa_db_get_epoch(p_ssa_db, PRDB_TBL_ID_IPv4));
 
 err:
 	/* TODO: decide whether the destroy call is needed */
