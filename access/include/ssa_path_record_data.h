@@ -62,7 +62,7 @@ extern "C" {
  *                    If not, the value is pointer to dynamically allocated lookup
  *                    table for switch's LFT blocks. The table's length is MAX_LFT_BLOCK_NUM.
  *@ca_port_lookup - lookup table for CA ports.
- *                  Index: LID , value: index in SSA_TABLE_ID_PORT table.
+ *                  Index: LID , value: index in SMDB_TBL_ID_PORT table.
  *@switch_port_lookup - lookup table for switch ports. The table allows lookup by pair (LID, port num).
  *						Index is a LID.
  *                      If LID is for CA port, the corresponding value in switch_port_lookup is NULL.
@@ -70,7 +70,7 @@ extern "C" {
  *                      table for switch's ports. The table's length is MAX_LOOKUP_PORT.
  *
  *@ca_link_lookup - lookup table for links from CA.
- *                  Index: LID, value: index in SSA_TABLE_ID_LINK table.
+ *                  Index: LID, value: index in SMDB_TBL_ID_LINK table.
  *@switch_link_lookup - lookup table for links from switch ports.
  *                      The table allows lookup by pair (LID, port num).
  *						Index is a LID.
@@ -123,21 +123,21 @@ int ssa_pr_rebuild_indexes(struct ssa_pr_smdb_index *p_index,
 			   const struct ssa_db *p_smdb);
 
 /*
- * find_guid_to_lid_rec_by_guid - search in SSA_TABLE_ID_GUID_TO_LID table
+ * find_guid_to_lid_rec_by_guid - search in SMDB_TBL_ID_GUID2LID table
  * @p_smdb: Pointer to smdb database
  * @port_guid: GUID in network order
  *
  * @return value: pointer to found record. NULL - failure.
  *
- * The function iterates SSA_TABLE_ID_GUID_TO_LID table and searches for a
+ * The function iterates SMDB_TBL_ID_GUID2LID table and searches for a
  * record with given GUID
  */
-const struct ep_guid_to_lid_tbl_rec
+const struct smdb_guid2lid
 *find_guid_to_lid_rec_by_guid(const struct ssa_db *p_smdb,
 			      const be64_t port_guid);
 
 /*
- * find_port - search in SSA_TABLE_ID_PORT table
+ * find_port - search in SMDB_TBL_ID_PORT table
  * @p_smdb: Pointer to smdb database
  * @p_index: Pointer to an smdb index. It's used for boot retrieval operations
  * @lid: LID in network order.
@@ -147,12 +147,12 @@ const struct ep_guid_to_lid_tbl_rec
  *
  * The function searches for port record
  */
-const struct ep_port_tbl_rec *find_port(const struct ssa_db *p_smdb,
-					const struct ssa_pr_smdb_index *p_index,
-					const be16_t lid, const int port_num);
+const struct smdb_port *find_port(const struct ssa_db *p_smdb,
+				  const struct ssa_pr_smdb_index *p_index,
+				  const be16_t lid, const int port_num);
 
 /*
- * find_destination_port - search in SSA_TABLE_ID_LFT_BLOCK table
+ * find_destination_port - search in SMDB_TBL_ID_LFT_BLOCK table
  * @p_smdb: Pointer to smdb database
  * @p_index: Pointer to an smdb index. It's used for boot retrieval operations
  * @source_lid: switch's LID in network order
@@ -167,7 +167,7 @@ int find_destination_port(const struct ssa_db *p_smdb,
 			  const be16_t source_lid, const be16_t dest_lid);
 
 /*
- * find_linked_port - search in SSA_TABLE_ID_LINK table for a linked port
+ * find_linked_port - search in SMDB_TBL_ID_LINK table for a linked port
  * @p_smdb: Pointer to smdb database
  * @p_index: Pointer to an smdb index. It's used for boot retrieval operations
  * @from_lid: source LID in network order.
@@ -178,7 +178,7 @@ int find_destination_port(const struct ssa_db *p_smdb,
  * The function searches for link record and if it's found returns pointer to
  * linked port
  */
-const struct ep_port_tbl_rec
+const struct smdb_port
 *find_linked_port(const struct ssa_db *p_smdb,
 		  const struct ssa_pr_smdb_index *p_index,
 		  const be16_t from_lid, const int from_port_num);

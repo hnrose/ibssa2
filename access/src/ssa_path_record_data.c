@@ -47,7 +47,7 @@ inline static size_t get_dataset_count(const struct ssa_db *p_smdb,
 				       unsigned int table_id)
 {
 	SSA_ASSERT(p_smdb);
-	SSA_ASSERT(table_id < SSA_TABLE_ID_MAX);
+	SSA_ASSERT(table_id < SMDB_TBL_ID_MAX);
 	SSA_ASSERT(&p_smdb->p_db_tables[table_id]);
 
 	return ntohll(p_smdb->p_db_tables[table_id].set_count);
@@ -57,27 +57,27 @@ static int build_is_switch_lookup(struct ssa_pr_smdb_index *p_index,
 				  const struct ssa_db *p_smdb)
 {
 	size_t i = 0, count = 0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+	const struct smdb_guid2lid *p_guid2lid_tbl = NULL;
 
 	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(p_index);
 
-	p_guid_to_lid_tbl =
-		(struct ep_guid_to_lid_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
+	p_guid2lid_tbl =
+		(struct smdb_guid2lid *)p_smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
 	SSA_ASSERT(p_guid_to_lid_tbl);
 
 	memset(p_index->is_switch_lookup, '\0',
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->is_switch_lookup[0]));
 
-	count = get_dataset_count(p_smdb,SSA_TABLE_ID_GUID_TO_LID);
+	count = get_dataset_count(p_smdb,SMDB_TBL_ID_GUID2LID);
 	if (!count) {
 		SSA_PR_LOG_ERROR("Guid to LID table is empty");
 		return 1;
 	}
 
 	for (i = 0; i < count; i++) {
-		uint16_t lid = ntohs(p_guid_to_lid_tbl[i].lid);
-		p_index->is_switch_lookup[lid] = p_guid_to_lid_tbl[i].is_switch;
+		uint16_t lid = ntohs(p_guid2lid_tbl[i].lid);
+		p_index->is_switch_lookup[lid] = p_guid2lid_tbl[i].is_switch;
 	}
 
 	return 0;
@@ -87,19 +87,19 @@ static int build_lft_top_lookup(struct ssa_pr_smdb_index *p_index,
 				const struct ssa_db *p_smdb)
 {
 	size_t i = 0, count = 0;
-	struct ep_lft_top_tbl_rec *p_lft_top_tbl = NULL;
+	struct smdb_lft_top *p_lft_top_tbl = NULL;
 
 	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(p_index);
 
 	p_lft_top_tbl =
-		(struct ep_lft_top_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_LFT_TOP];
+		(struct smdb_lft_top *)p_smdb->pp_tables[SMDB_TBL_ID_LFT_TOP];
 	SSA_ASSERT(p_lft_top_tbl);
 
 	memset(p_index->lft_top_lookup, '\0',
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->lft_top_lookup[0]));
 
-	count = get_dataset_count(p_smdb, SSA_TABLE_ID_LFT_TOP);
+	count = get_dataset_count(p_smdb, SMDB_TBL_ID_LFT_TOP);
 	if (!count) {
 		SSA_PR_LOG_ERROR("LFT top table is empty");
 		return 1;
@@ -115,14 +115,13 @@ static int build_port_index(struct ssa_pr_smdb_index *p_index,
 			    const struct ssa_db *p_smdb)
 {
 	size_t i = 0, count = 0, switch_count = 0;
-	const struct ep_port_tbl_rec *p_port_tbl = NULL;
+	const struct smdb_port *p_port_tbl = NULL;
 	uint64_t default_val = 0;
 
 	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(p_index);
 
-	p_port_tbl =
-		(struct ep_port_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_PORT];
+	p_port_tbl = (struct smdb_port *)p_smdb->pp_tables[SMDB_TBL_ID_PORT];
 	SSA_ASSERT(p_port_tbl);
 
 	memset(p_index->ca_port_lookup, '\0',
@@ -130,7 +129,7 @@ static int build_port_index(struct ssa_pr_smdb_index *p_index,
 	memset(p_index->switch_port_lookup, '\0',
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->switch_port_lookup[0]));
 
-	count = get_dataset_count(p_smdb, SSA_TABLE_ID_PORT);
+	count = get_dataset_count(p_smdb, SMDB_TBL_ID_PORT);
 	if (!count) {
 		SSA_PR_LOG_ERROR("Port table is empty");
 		return 1;
@@ -166,20 +165,20 @@ static int build_lft_block_lookup(struct ssa_pr_smdb_index *p_index,
 				  const struct ssa_db *p_smdb)
 {
 	size_t i = 0, count = 0;
-	const struct ep_lft_block_tbl_rec *p_lft_block_tbl = NULL;
+	const struct smdb_lft_block *p_lft_block_tbl = NULL;
 	size_t lookup_size = 0;
 	uint64_t default_val = 0;
 
 	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(p_index);
 
-	p_lft_block_tbl =(struct ep_lft_block_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK];
+	p_lft_block_tbl =(struct smdb_lft_block *)p_smdb->pp_tables[SMDB_TBL_ID_LFT_BLOCK];
 	SSA_ASSERT(p_lft_block_tbl);
 
 	memset(p_index->lft_block_lookup, '\0',
 	       (MAX_LOOKUP_LID + 1) * sizeof(p_index->lft_block_lookup[0]));
 
-	count = get_dataset_count(p_smdb, SSA_TABLE_ID_LFT_BLOCK);
+	count = get_dataset_count(p_smdb, SMDB_TBL_ID_LFT_BLOCK);
 	if (!count) {
 		SSA_PR_LOG_ERROR("LFT block table is empty");
 		return 1;
@@ -210,7 +209,7 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 			    const struct ssa_db *p_smdb)
 {
 	size_t i = 0, link_count = 0, port_count = 0;
-	const struct ep_link_tbl_rec *p_link_tbl = NULL;
+	const struct smdb_link *p_link_tbl = NULL;
 	uint64_t default_val = 0;
 
 	SSA_ASSERT(p_smdb);
@@ -222,15 +221,15 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 	memset(p_index->switch_link_lookup, '\0',
 	       (MAX_LOOKUP_PORT + 1) * sizeof(p_index->switch_link_lookup[0]));
 
-	p_link_tbl = (const struct ep_link_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_LINK];
+	p_link_tbl = (const struct smdb_link *)p_smdb->pp_tables[SMDB_TBL_ID_LINK];
 	SSA_ASSERT(p_link_tbl);
 
-	link_count = get_dataset_count(p_smdb, SSA_TABLE_ID_LINK);
+	link_count = get_dataset_count(p_smdb, SMDB_TBL_ID_LINK);
 	if (!link_count) {
 		SSA_PR_LOG_ERROR("Link table is empty");
 		return 1;
 	}
-	port_count = get_dataset_count(p_smdb, SSA_TABLE_ID_PORT);
+	port_count = get_dataset_count(p_smdb, SMDB_TBL_ID_PORT);
 	if (!port_count) {
 		SSA_PR_LOG_ERROR("Port table is empty");
 		return 1;
@@ -367,25 +366,25 @@ int ssa_pr_rebuild_indexes(struct ssa_pr_smdb_index *p_index,
 	return 0;
 }
 
-const struct ep_guid_to_lid_tbl_rec
+const struct smdb_guid2lid
 *find_guid_to_lid_rec_by_guid(const struct ssa_db *p_smdb,
 			      const be64_t port_guid)
 {
 	size_t i = 0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+	const struct smdb_guid2lid *p_guid2lid_tbl = NULL;
 	size_t count = 0;
 
 	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(port_guid);
 
-	p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
-	SSA_ASSERT(p_guid_to_lid_tbl);
+	p_guid2lid_tbl = (struct smdb_guid2lid *)p_smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
+	SSA_ASSERT(p_guid2lid_tbl);
 
-	count = get_dataset_count(p_smdb, SSA_TABLE_ID_GUID_TO_LID);
+	count = get_dataset_count(p_smdb, SMDB_TBL_ID_GUID2LID);
 
 	for (i = 0; i < count; i++) {
-		if (port_guid == p_guid_to_lid_tbl[i].guid)
-			return p_guid_to_lid_tbl + i;
+		if (port_guid == p_guid2lid_tbl[i].guid)
+			return p_guid2lid_tbl + i;
 	}
 
 	SSA_PR_LOG_ERROR("GUID to LID record not found. GUID: 0x%016" PRIx64,
@@ -398,7 +397,7 @@ int find_destination_port(const struct ssa_db *p_smdb,
 			  const struct ssa_pr_smdb_index *p_index,
 			  const be16_t source_lid, const be16_t dest_lid)
 {
-	struct ep_lft_block_tbl_rec *p_lft_block_tbl = NULL;
+	struct smdb_lft_block *p_lft_block_tbl = NULL;
 	size_t lft_block_count = 0;
 	size_t lft_block_num = 0;
 	size_t lft_port_shift = 0;
@@ -410,10 +409,10 @@ int find_destination_port(const struct ssa_db *p_smdb,
 	SSA_ASSERT(source_lid);
 	SSA_ASSERT(dest_lid);
 
-	p_lft_block_tbl = (struct ep_lft_block_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_LFT_BLOCK];
+	p_lft_block_tbl = (struct smdb_lft_block *)p_smdb->pp_tables[SMDB_TBL_ID_LFT_BLOCK];
 	SSA_ASSERT(p_lft_block_tbl);
 
-	lft_block_count = get_dataset_count(p_smdb, SSA_TABLE_ID_LFT_BLOCK);
+	lft_block_count = get_dataset_count(p_smdb, SMDB_TBL_ID_LFT_BLOCK);
 
 	/*
 	 * Optimization. If UMAD_LEN_SMP_DATA is power of 2, we can use shift istead of division
@@ -470,18 +469,19 @@ static size_t find_port_index(const struct ssa_db *p_smdb,
 	return port_index;
 }
 
-const struct ep_port_tbl_rec *find_port(const struct ssa_db *p_smdb,
-					const struct ssa_pr_smdb_index *p_index,
-					const be16_t lid, const int port_num)
+const struct smdb_port *find_port(const struct ssa_db *p_smdb,
+				  const struct ssa_pr_smdb_index *p_index,
+				  const be16_t lid, const int port_num)
 {
 	size_t port_index = 0;
-	const struct ep_port_tbl_rec *p_port_tbl = NULL;
+	const struct smdb_port *p_port_tbl = NULL;
 	size_t count = 0;
 
-	p_port_tbl = (const struct ep_port_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_PORT];
+	p_port_tbl =
+		(const struct smdb_port *)p_smdb->pp_tables[SMDB_TBL_ID_PORT];
 	SSA_ASSERT(p_port_tbl);
 
-	count = get_dataset_count(p_smdb, SSA_TABLE_ID_PORT);
+	count = get_dataset_count(p_smdb, SMDB_TBL_ID_PORT);
 
 	port_index = find_port_index(p_smdb, p_index, lid, port_num);
 
@@ -493,12 +493,11 @@ const struct ep_port_tbl_rec *find_port(const struct ssa_db *p_smdb,
 	return p_port_tbl + port_index;
 }
 
-const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
-					       const struct ssa_pr_smdb_index *p_index,
-					       const be16_t lid,
-					       const int port_num)
+const struct smdb_port *find_linked_port(const struct ssa_db *p_smdb,
+					 const struct ssa_pr_smdb_index *p_index,
+					 const be16_t lid, const int port_num)
 {
-	const struct ep_port_tbl_rec *p_port_tbl = NULL;
+	const struct smdb_port *p_port_tbl = NULL;
 	size_t port_count = 0;
 	size_t record_index = 0;
 
@@ -507,7 +506,7 @@ const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 	SSA_ASSERT(p_index->is_switch_lookup);
 	SSA_ASSERT(lid);
 
-	p_port_tbl = (const struct ep_port_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_PORT];
+	p_port_tbl = (const struct smdb_port *)p_smdb->pp_tables[SMDB_TBL_ID_PORT];
 	SSA_ASSERT(p_port_tbl);
 
 	if (p_index->is_switch_lookup[ntohs(lid)]) {
@@ -522,7 +521,7 @@ const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 		record_index = p_index->ca_link_lookup[ntohs(lid)];
 	}
 
-	port_count = get_dataset_count(p_smdb, SSA_TABLE_ID_PORT);
+	port_count = get_dataset_count(p_smdb, SMDB_TBL_ID_PORT);
 
 	if (record_index >= port_count) {
 		if (port_num >= 0) {
@@ -540,22 +539,22 @@ const struct ep_port_tbl_rec *find_linked_port(const struct ssa_db *p_smdb,
 int is_port_exist(const struct ssa_db *p_smdb, be64_t guid)
 {
 	size_t i = 0, count = 0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+	const struct smdb_guid2lid *p_guid2lid_tbl = NULL;
 
 	SSA_ASSERT(p_smdb);
 
-	p_guid_to_lid_tbl =
-		(struct ep_guid_to_lid_tbl_rec *)p_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
-	SSA_ASSERT(p_guid_to_lid_tbl);
+	p_guid2lid_tbl =
+		(struct smdb_guid2lid *)p_smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
+	SSA_ASSERT(p_guid2lid_tbl);
 
-	count = get_dataset_count(p_smdb,SSA_TABLE_ID_GUID_TO_LID);
+	count = get_dataset_count(p_smdb, SMDB_TBL_ID_GUID2LID);
 	if (!count) {
 		SSA_PR_LOG_INFO("Guid to LID table is empty");
 		return 0;
 	}
 
 	for (i = 0; i < count; i++)
-		if (p_guid_to_lid_tbl[i].guid == guid)
+		if (p_guid2lid_tbl[i].guid == guid)
 			return 1;
 
 	return 0;

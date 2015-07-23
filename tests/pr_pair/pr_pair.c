@@ -309,13 +309,13 @@ static gint path_compare(gconstpointer a,gconstpointer b)
 	return diff_from ? diff_from : diff_to;
 }
 */
-static const struct ep_port_tbl_rec* find_port(const struct ssa_db* p_ssa_db_smdb,
-		const be16_t lid)
+static const struct smdb_port* find_port(const struct ssa_db* p_ssa_db_smdb,
+					 const be16_t lid)
 {
 	size_t i = 0;
-	const struct ep_port_tbl_rec  *p_port_tbl =
-		(const struct ep_port_tbl_rec*)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_PORT];
-	const size_t count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_PORT);
+	const struct smdb_port *p_port_tbl =
+		(const struct smdb_port*) p_ssa_db_smdb->pp_tables[SMDB_TBL_ID_PORT];
+	const size_t count = get_dataset_count(p_ssa_db_smdb, SMDB_TBL_ID_PORT);
 
 	for (i = 0; i < count; i++){
 		if(p_port_tbl[i].port_lid==lid)
@@ -324,13 +324,13 @@ static const struct ep_port_tbl_rec* find_port(const struct ssa_db* p_ssa_db_smd
 	return NULL;
 }
 
-static const struct ep_guid_to_lid_tbl_rec *find_guid_to_lid_rec_by_lid(const struct ssa_db* p_ssa_db_smdb,
+static const struct smdb_guid2lid *find_guid_to_lid_rec_by_lid(const struct ssa_db* p_ssa_db_smdb,
 		const be16_t lid)
 {
 	size_t i =0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl =
-		(struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
-	const size_t count = get_dataset_count(p_ssa_db_smdb,SSA_TABLE_ID_GUID_TO_LID);
+	const struct smdb_guid2lid *p_guid_to_lid_tbl =
+		(struct smdb_guid2lid *)p_ssa_db_smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
+	const size_t count = get_dataset_count(p_ssa_db_smdb,SMDB_TBL_ID_GUID2LID);
 
 	for (i = 0; i < count; i++) {
 		if (lid == p_guid_to_lid_tbl[i].lid)
@@ -356,8 +356,8 @@ static void dump_pr(ptrvector_t *path_arr,struct ssa_db *p_smdb,FILE *fd)
 			break;
 
 		if(prev_lid != p_path_prm->from_lid) {
-			const struct ep_port_tbl_rec *p_port_rec = find_port(p_smdb,p_path_prm->from_lid);
-			const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_rec = find_guid_to_lid_rec_by_lid(p_smdb,p_path_prm->from_lid);
+			const struct smdb_port *p_port_rec = find_port(p_smdb, p_path_prm->from_lid);
+			const struct smdb_guid2lid *p_guid_to_lid_rec = find_guid_to_lid_rec_by_lid(p_smdb,p_path_prm->from_lid);
 
 			assert(p_port_rec && p_guid_to_lid_rec );
 
@@ -456,7 +456,7 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 		ptrvector_t* p_arr)
 {
 	size_t i, count;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl;
+	const struct smdb_guid2lid *p_guid2lid_tbl;
 
 	assert(p_prm && p_arr && p_db);
 
@@ -465,12 +465,12 @@ static size_t get_input_guids(const struct input_prm *p_prm,
 		ptrvector_pushback(p_arr,(void*)p_prm->id);
 		return 1;
 	} else if(p_prm->whole_world) {
-		p_guid_to_lid_tbl =
-			(struct ep_guid_to_lid_tbl_rec *)p_db->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
-		count = get_dataset_count(p_db,SSA_TABLE_ID_GUID_TO_LID);
+		p_guid2lid_tbl =
+			(struct smdb_guid2lid *)p_db->pp_tables[SMDB_TBL_ID_GUID2LID];
+		count = get_dataset_count(p_db,SMDB_TBL_ID_GUID2LID);
 
 		for (i = 0; i < count; i++) {
-			uint64_t id = ntohll(p_guid_to_lid_tbl[i].guid);
+			uint64_t id = ntohll(p_guid2lid_tbl[i].guid);
 			ptrvector_pushback(p_arr,(void*)id);
 		}
 	} else if(strlen(p_prm->input_path)>0) {

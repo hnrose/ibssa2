@@ -47,18 +47,14 @@
 
 BEGIN_C_DECLS
 
-void ep_subnet_opts_tbl_rec_init(osm_subn_t *p_subn,
-				 struct ep_subnet_opts_tbl_rec * p_rec);
-void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
-				 struct ep_guid_to_lid_tbl_rec * p_rec);
-void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec * p_rec);
-void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec * p_rec);
-void ep_port_tbl_rec_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
-			  uint16_t pkey_tbl_size, uint16_t lid,
-			  struct ep_port_tbl_rec *p_rec);
-void ep_lft_block_tbl_rec_init(osm_switch_t *p_sw, uint16_t lid, uint16_t block,
-			       struct ep_lft_block_tbl_rec * p_rec);
-void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top,
-			     struct ep_lft_top_tbl_rec *p_rec);
+void smdb_subnet_opts_init(osm_subn_t *p_subn, struct smdb_subnet_opts * p_rec);
+void smdb_guid2lid_init(osm_port_t *p_port, struct smdb_guid2lid * p_rec);
+void smdb_node_init(osm_node_t *p_node, struct smdb_node * p_rec);
+void smdb_link_init(osm_physp_t *p_physp, struct smdb_link * p_rec);
+void smdb_port_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
+		    uint16_t pkey_tbl_size, uint16_t lid, struct smdb_port *p_rec);
+void smdb_lft_block_init(osm_switch_t *p_sw, uint16_t lid, uint16_t block,
+			 struct smdb_lft_block * p_rec);
+void smdb_lft_top_init(uint16_t lid, uint16_t lft_top, struct smdb_lft_top *p_rec);
 END_C_DECLS
 #endif				/* _SSA_SMDB_API_H_ */

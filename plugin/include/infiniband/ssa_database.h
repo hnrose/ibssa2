@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2011-2015 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -54,10 +54,10 @@ struct ep_map_rec {
 };
 
 struct ssa_db_lft {
-	struct ep_lft_top_tbl_rec	*p_db_lft_top_tbl;
-	struct ep_lft_block_tbl_rec	*p_db_lft_block_tbl;
-	struct ep_lft_top_tbl_rec	*p_dump_lft_top_tbl;
-	struct ep_lft_block_tbl_rec	*p_dump_lft_block_tbl;
+	struct smdb_lft_top	*p_db_lft_top_tbl;
+	struct smdb_lft_block	*p_db_lft_block_tbl;
+	struct smdb_lft_top	*p_dump_lft_top_tbl;
+	struct smdb_lft_block	*p_dump_lft_block_tbl;
 
 	cl_qmap_t ep_db_lft_block_tbl;		/* LID + block_num based */
 	cl_qmap_t ep_db_lft_top_tbl;		/* LID based */
@@ -67,12 +67,12 @@ struct ssa_db_lft {
 
 struct ssa_db_extract {
 	/* mutex ??? */
-	struct ep_guid_to_lid_tbl_rec	*p_guid_to_lid_tbl;
-	struct ep_node_tbl_rec		*p_node_tbl;
-	struct ep_link_tbl_rec		*p_link_tbl;
-	struct ep_port_tbl_rec		*p_port_tbl;
-	be16_t				*p_pkey_tbl;
-	uint64_t			pkey_tbl_rec_num;
+	struct smdb_guid2lid	*p_guid_to_lid_tbl;
+	struct smdb_node	*p_node_tbl;
+	struct smdb_link	*p_link_tbl;
+	struct smdb_port	*p_port_tbl;
+	be16_t			*p_pkey_tbl;
+	uint64_t		pkey_tbl_rec_num;
 
 	cl_qmap_t ep_guid_to_lid_tbl;	/* port GUID -> offset */
 	cl_qmap_t ep_node_tbl;		/* node GUID -> offset */

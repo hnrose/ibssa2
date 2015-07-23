@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2011-2015 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,125 +35,125 @@
 #include <asm/byteorder.h>
 
 static const struct db_table_def def_tbl[] = {
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS, 0 },
-		"SUBNET_OPTS", __constant_htonl(sizeof(struct ep_subnet_opts_tbl_rec)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, 0 },
-		"SUBNET_OPTS_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_SUBNET_OPTS) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 },
-		"GUID_to_LID", __constant_htonl(sizeof(struct ep_guid_to_lid_tbl_rec)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 },
-		"GUID_to_LID_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_GUID_TO_LID) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_NODE, 0 },
-		"NODE", __constant_htonl(sizeof(struct ep_node_tbl_rec)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 },
-		"NODE_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_NODE) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LINK, 0 },
-		"LINK", __constant_htonl(sizeof(struct ep_link_tbl_rec)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 },
-		"LINK_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_LINK) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_PORT, 0 },
-		"PORT", __constant_htonl(sizeof(struct ep_port_tbl_rec)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 },
-		"PORT_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_PORT) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_PKEY, 0 },
-		"PKEY", __constant_htonl(DB_VARIABLE_SIZE), __constant_htonl(SSA_TABLE_ID_PORT) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LFT_TOP, 0 },
-		"LFT_TOP", __constant_htonl(sizeof(struct ep_lft_top_tbl_rec)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 },
-		"LFT_TOP_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_LFT_TOP) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SSA_TABLE_ID_LFT_BLOCK, 0 },
-		"LFT_BLOCK", __constant_htonl(sizeof(struct ep_lft_block_tbl_rec)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, 0 },
-		"LFT_BLOCK_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SSA_TABLE_ID_LFT_BLOCK) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_SUBNET_OPTS, 0 },
+		"SUBNET_OPTS", __constant_htonl(sizeof(struct smdb_subnet_opts)), 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, 0 },
+		"SUBNET_OPTS_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SMDB_TBL_ID_SUBNET_OPTS) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_GUID2LID, 0 },
+		"GUID_to_LID", __constant_htonl(sizeof(struct smdb_guid2lid)), 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SMDB_FIELD_TBL_ID_GUID2LID, 0 },
+		"GUID_to_LID_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SMDB_TBL_ID_GUID2LID) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_NODE, 0 },
+		"NODE", __constant_htonl(sizeof(struct smdb_node)), 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SMDB_FIELD_TBL_ID_NODE, 0 },
+		"NODE_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SMDB_TBL_ID_NODE) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_LINK, 0 },
+		"LINK", __constant_htonl(sizeof(struct smdb_link)), 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SMDB_FIELD_TBL_ID_LINK, 0 },
+		"LINK_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SMDB_TBL_ID_LINK) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_PORT, 0 },
+		"PORT", __constant_htonl(sizeof(struct smdb_port)), 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SMDB_FIELD_TBL_ID_PORT, 0 },
+		"PORT_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SMDB_TBL_ID_PORT) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_PKEY, 0 },
+		"PKEY", __constant_htonl(DB_VARIABLE_SIZE), __constant_htonl(SMDB_TBL_ID_PORT) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_LFT_TOP, 0 },
+		"LFT_TOP", __constant_htonl(sizeof(struct smdb_lft_top)), 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SMDB_FIELD_TBL_ID_LFT_TOP, 0 },
+		"LFT_TOP_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SMDB_TBL_ID_LFT_TOP) },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, SMDB_TBL_ID_LFT_BLOCK, 0 },
+		"LFT_BLOCK", __constant_htonl(sizeof(struct smdb_lft_block)), 0 },
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, SMDB_FIELD_TBL_ID_LFT_BLOCK, 0 },
+		"LFT_BLOCK_fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(SMDB_TBL_ID_LFT_BLOCK) },
 	{ DB_VERSION_INVALID }
 };
 
 static const struct db_dataset dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PKEY, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_SUBNET_OPTS, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_GUID2LID, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_NODE,        0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LINK,        0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_PORT,        0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_PKEY,        0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LFT_TOP,     0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LFT_BLOCK,   0 }, 0, 0, 0, 0 },
 	{ DB_VERSION_INVALID }
 };
 
 static const struct db_dataset field_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_PKEY_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_GUID2LID, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_NODE, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_LINK, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_PORT, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_PKEY, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_LFT_TOP, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_FIELD_TBL_ID_LFT_BLOCK, 0 }, 0, 0, 0, 0 },
 	{ DB_VERSION_INVALID }
 };
 
 static const struct db_field_def field_tbl[] = {
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_CHANGE_MASK }, "change_mask", __constant_htonl(64), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_SUBNET_PREFIX }, "subnet_prefix", __constant_htonl(64), __constant_htonl(64) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_SM_STATE }, "sm_state", __constant_htonl(8), __constant_htonl(128) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_LMC }, "lmc", __constant_htonl(8), __constant_htonl(136) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_SUBNET_TIMEOUT }, "subnet_timeout", __constant_htonl(8), __constant_htonl(144) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_SUBNET_OPTS_FIELD_DEF, SSA_FIELD_ID_SUBNET_OPTS_ALLOW_BOTH_PKEYS }, "allow_both_pkeys", __constant_htonl(8), __constant_htonl(152) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_GUID }, "guid", __constant_htonl(64), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LID }, "lid", __constant_htonl(16), __constant_htonl(64) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_LMC }, "lmc", __constant_htonl(8), __constant_htonl(80) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_GUID_TO_LID_FIELD_DEF, SSA_FIELD_ID_GUID_TO_LID_IS_SWITCH }, "is_switch", __constant_htonl(8), __constant_htonl(88) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_GUID }, "node_guid", __constant_htonl(64), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", __constant_htonl(8), __constant_htonl(64) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_NODE_TYPE }, "node_type", __constant_htonl(8), __constant_htonl(72) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_NODE_FIELD_DEF, SSA_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", __constant_htonl(8 * IB_NODE_DESCRIPTION_SIZE), __constant_htonl(80) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_FROM_LID }, "from_lid", __constant_htonl(16), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_TO_LID }, "to_lid", __constant_htonl(16), __constant_htonl(16) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_FROM_PORT_NUM }, "from_port_num", __constant_htonl(8), __constant_htonl(32) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LINK_FIELD_DEF, SSA_FIELD_ID_LINK_TO_PORT_NUM }, "to_port_num", __constant_htonl(8), __constant_htonl(40) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEY_TBL_OFFSET }, "pkey_tbl_offset", __constant_htonl(64), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PKEY_TBL_SIZE }, "pkey_tbl_size", __constant_htonl(16), __constant_htonl(64) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_LID }, "port_lid", __constant_htonl(16), __constant_htonl(80) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_PORT_NUM }, "port_num", __constant_htonl(8), __constant_htonl(96) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_MTU_CAP }, "mtu_cap", __constant_htonl(8), __constant_htonl(104) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_RATE }, "rate", __constant_htonl(8), __constant_htonl(112) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_PORT_FIELD_DEF, SSA_FIELD_ID_PORT_VL_ENFORCE }, "vl_enforce", __constant_htonl(8), __constant_htonl(120) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LID }, "lid", __constant_htonl(16), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_TOP_FIELD_DEF, SSA_FIELD_ID_LFT_TOP_LFT_TOP }, "lft_top", __constant_htonl(16), __constant_htonl(16) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_LID }, "lid", __constant_htonl(16), 0 },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK_NUM }, "block_num", __constant_htonl(16), __constant_htonl(16) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8, 0, { 0, SSA_TABLE_ID_LFT_BLOCK_FIELD_DEF, SSA_FIELD_ID_LFT_BLOCK_BLOCK }, "block", __constant_htonl(8 * UMAD_LEN_SMP_DATA), __constant_htonl(32) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, SMDB_FIELD_ID_SUBNET_OPTS_CHANGE_MASK }, "change_mask", __constant_htonl(64), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, SMDB_FIELD_ID_SUBNET_OPTS_SUBNET_PREFIX }, "subnet_prefix", __constant_htonl(64), __constant_htonl(64) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, SMDB_FIELD_ID_SUBNET_OPTS_SM_STATE }, "sm_state", __constant_htonl(8), __constant_htonl(128) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, SMDB_FIELD_ID_SUBNET_OPTS_LMC }, "lmc", __constant_htonl(8), __constant_htonl(136) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, SMDB_FIELD_ID_SUBNET_OPTS_SUBNET_TIMEOUT }, "subnet_timeout", __constant_htonl(8), __constant_htonl(144) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_SUBNET_OPTS, SMDB_FIELD_ID_SUBNET_OPTS_ALLOW_BOTH_PKEYS }, "allow_both_pkeys", __constant_htonl(8), __constant_htonl(152) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SMDB_FIELD_TBL_ID_GUID2LID, SMDB_FIELD_ID_GUID2LID_GUID }, "guid", __constant_htonl(64), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_GUID2LID, SMDB_FIELD_ID_GUID2LID_LID }, "lid", __constant_htonl(16), __constant_htonl(64) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_GUID2LID, SMDB_FIELD_ID_GUID2LID_LMC }, "lmc", __constant_htonl(8), __constant_htonl(80) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_GUID2LID, SMDB_FIELD_ID_GUID2LID_IS_SWITCH }, "is_switch", __constant_htonl(8), __constant_htonl(88) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SMDB_FIELD_TBL_ID_NODE, SMDB_FIELD_ID_NODE_NODE_GUID }, "node_guid", __constant_htonl(64), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_NODE, SMDB_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "is_enhanced_sp0", __constant_htonl(8), __constant_htonl(64) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_NODE, SMDB_FIELD_ID_NODE_NODE_TYPE }, "node_type", __constant_htonl(8), __constant_htonl(72) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_NODE, SMDB_FIELD_ID_NODE_IS_ENHANCED_SP0 }, "description", __constant_htonl(8 * IB_NODE_DESCRIPTION_SIZE), __constant_htonl(80) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_LINK, SMDB_FIELD_ID_LINK_FROM_LID }, "from_lid", __constant_htonl(16), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_LINK, SMDB_FIELD_ID_LINK_TO_LID }, "to_lid", __constant_htonl(16), __constant_htonl(16) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_LINK, SMDB_FIELD_ID_LINK_FROM_PORT_NUM }, "from_port_num", __constant_htonl(8), __constant_htonl(32) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_LINK, SMDB_FIELD_ID_LINK_TO_PORT_NUM }, "to_port_num", __constant_htonl(8), __constant_htonl(40) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, SMDB_FIELD_TBL_ID_PORT, SMDB_FIELD_ID_PORT_PKEY_TBL_OFFSET }, "pkey_tbl_offset", __constant_htonl(64), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_PORT, SMDB_FIELD_ID_PORT_PKEY_TBL_SIZE }, "pkey_tbl_size", __constant_htonl(16), __constant_htonl(64) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_PORT, SMDB_FIELD_ID_PORT_PORT_LID }, "port_lid", __constant_htonl(16), __constant_htonl(80) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_PORT, SMDB_FIELD_ID_PORT_PORT_NUM }, "port_num", __constant_htonl(8), __constant_htonl(96) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_PORT, SMDB_FIELD_ID_PORT_MTU_CAP }, "mtu_cap", __constant_htonl(8), __constant_htonl(104) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_PORT, SMDB_FIELD_ID_PORT_RATE }, "rate", __constant_htonl(8), __constant_htonl(112) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_PORT, SMDB_FIELD_ID_PORT_VL_ENFORCE }, "vl_enforce", __constant_htonl(8), __constant_htonl(120) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_LFT_TOP, SMDB_FIELD_ID_LFT_TOP_LID }, "lid", __constant_htonl(16), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_LFT_TOP, SMDB_FIELD_ID_LFT_TOP_LFT_TOP }, "lft_top", __constant_htonl(16), __constant_htonl(16) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_LFT_BLOCK, SMDB_FIELD_ID_LFT_BLOCK_LID }, "lid", __constant_htonl(16), 0 },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, SMDB_FIELD_TBL_ID_LFT_BLOCK, SMDB_FIELD_ID_LFT_BLOCK_BLOCK_NUM }, "block_num", __constant_htonl(16), __constant_htonl(16) },
+	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, SMDB_FIELD_TBL_ID_LFT_BLOCK, SMDB_FIELD_ID_LFT_BLOCK_BLOCK }, "block", __constant_htonl(8 * UMAD_LEN_SMP_DATA), __constant_htonl(32) },
 	{ DB_VERSION_INVALID }
 };
 
 /** =========================================================================
  */
-struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SSA_TABLE_ID_MAX])
+struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SMDB_TBL_ID_MAX])
 {
 	struct ssa_db *p_ssa_db;
-	uint64_t num_field_recs_arr[SSA_TABLE_ID_MAX];
-	size_t recs_size_arr[SSA_TABLE_ID_MAX];
+	uint64_t num_field_recs_arr[SMDB_TBL_ID_MAX];
+	size_t recs_size_arr[SMDB_TBL_ID_MAX];
 
-	recs_size_arr[SSA_TABLE_ID_SUBNET_OPTS] = sizeof(struct ep_subnet_opts_tbl_rec);
-	recs_size_arr[SSA_TABLE_ID_GUID_TO_LID] = sizeof(struct ep_guid_to_lid_tbl_rec);
-	recs_size_arr[SSA_TABLE_ID_NODE] = sizeof(struct ep_node_tbl_rec);
-	recs_size_arr[SSA_TABLE_ID_LINK] = sizeof(struct ep_link_tbl_rec);
-	recs_size_arr[SSA_TABLE_ID_PORT] = sizeof(struct ep_port_tbl_rec);
-	recs_size_arr[SSA_TABLE_ID_PKEY] = sizeof(uint16_t);
-	recs_size_arr[SSA_TABLE_ID_LFT_TOP] = sizeof(struct ep_lft_top_tbl_rec);
-	recs_size_arr[SSA_TABLE_ID_LFT_BLOCK] = sizeof(struct ep_lft_block_tbl_rec);
+	recs_size_arr[SMDB_TBL_ID_SUBNET_OPTS]	= sizeof(struct smdb_subnet_opts);
+	recs_size_arr[SMDB_TBL_ID_GUID2LID]	= sizeof(struct smdb_guid2lid);
+	recs_size_arr[SMDB_TBL_ID_NODE]		= sizeof(struct smdb_node);
+	recs_size_arr[SMDB_TBL_ID_LINK]		= sizeof(struct smdb_link);
+	recs_size_arr[SMDB_TBL_ID_PORT]		= sizeof(struct smdb_port);
+	recs_size_arr[SMDB_TBL_ID_PKEY]		= sizeof(uint16_t);
+	recs_size_arr[SMDB_TBL_ID_LFT_TOP]	= sizeof(struct smdb_lft_top);
+	recs_size_arr[SMDB_TBL_ID_LFT_BLOCK]	= sizeof(struct smdb_lft_block);
 
-	num_field_recs_arr[SSA_TABLE_ID_SUBNET_OPTS] = SSA_FIELD_ID_SUBNET_OPTS_MAX;
-	num_field_recs_arr[SSA_TABLE_ID_GUID_TO_LID] = SSA_FIELD_ID_GUID_TO_LID_MAX;
-	num_field_recs_arr[SSA_TABLE_ID_NODE] = SSA_FIELD_ID_NODE_MAX;
-	num_field_recs_arr[SSA_TABLE_ID_LINK] = SSA_FIELD_ID_LINK_MAX;
-	num_field_recs_arr[SSA_TABLE_ID_PORT] = SSA_FIELD_ID_PORT_MAX;
-	num_field_recs_arr[SSA_TABLE_ID_PKEY] = DB_VARIABLE_SIZE; /* variable size records */
-	num_field_recs_arr[SSA_TABLE_ID_LFT_TOP] = SSA_FIELD_ID_LFT_TOP_MAX;
-	num_field_recs_arr[SSA_TABLE_ID_LFT_BLOCK] = SSA_FIELD_ID_LFT_BLOCK_MAX;
+	num_field_recs_arr[SMDB_TBL_ID_SUBNET_OPTS]	= SMDB_FIELD_ID_SUBNET_OPTS_MAX;
+	num_field_recs_arr[SMDB_TBL_ID_GUID2LID]	= SMDB_FIELD_ID_GUID2LID_MAX;
+	num_field_recs_arr[SMDB_TBL_ID_NODE]		= SMDB_FIELD_ID_NODE_MAX;
+	num_field_recs_arr[SMDB_TBL_ID_LINK]		= SMDB_FIELD_ID_LINK_MAX;
+	num_field_recs_arr[SMDB_TBL_ID_PORT]		= SMDB_FIELD_ID_PORT_MAX;
+	num_field_recs_arr[SMDB_TBL_ID_PKEY]		= DB_VARIABLE_SIZE; /* variable size records */
+	num_field_recs_arr[SMDB_TBL_ID_LFT_TOP]		= SMDB_FIELD_ID_LFT_TOP_MAX;
+	num_field_recs_arr[SMDB_TBL_ID_LFT_BLOCK]	= SMDB_FIELD_ID_LFT_BLOCK_MAX;
 
 	p_ssa_db = ssa_db_alloc(data_rec_cnt, recs_size_arr,
-				num_field_recs_arr, SSA_TABLE_ID_MAX);
+				num_field_recs_arr, SMDB_TBL_ID_MAX);
 
 	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, epoch, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);
@@ -170,8 +170,7 @@ void ssa_db_smdb_destroy(struct ssa_db * p_smdb)
 
 /** =========================================================================
  */
-void ep_subnet_opts_tbl_rec_init(osm_subn_t * p_subn,
-				 struct ep_subnet_opts_tbl_rec * p_rec)
+void smdb_subnet_opts_init(osm_subn_t * p_subn, struct smdb_subnet_opts * p_rec)
 {
 	p_rec->change_mask = 0;
 	p_rec->subnet_prefix = p_subn->opt.subnet_prefix;
@@ -185,8 +184,7 @@ void ep_subnet_opts_tbl_rec_init(osm_subn_t * p_subn,
 
 /** =========================================================================
  */
-void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
-				 struct ep_guid_to_lid_tbl_rec *p_rec)
+void smdb_guid2lid_init(osm_port_t *p_port, struct smdb_guid2lid *p_rec)
 {
 	p_rec->guid = osm_physp_get_port_guid(p_port->p_physp);
 	p_rec->lid = osm_physp_get_base_lid(p_port->p_physp);
@@ -198,7 +196,7 @@ void ep_guid_to_lid_tbl_rec_init(osm_port_t *p_port,
 
 /** =========================================================================
  */
-void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec *p_rec)
+void smdb_node_init(osm_node_t *p_node, struct smdb_node *p_rec)
 {
 	p_rec->node_guid = osm_node_get_node_guid(p_node);
 	if (p_node->node_info.node_type == IB_NODE_TYPE_SWITCH)
@@ -214,7 +212,7 @@ void ep_node_tbl_rec_init(osm_node_t *p_node, struct ep_node_tbl_rec *p_rec)
 
 /** =========================================================================
  */
-void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
+void smdb_link_init(osm_physp_t *p_physp, struct smdb_link *p_rec)
 {
 	osm_physp_t *p_remote_physp;
 
@@ -240,9 +238,9 @@ void ep_link_tbl_rec_init(osm_physp_t *p_physp, struct ep_link_tbl_rec *p_rec)
 
 /** =========================================================================
  */
-void ep_port_tbl_rec_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
-			  uint16_t pkey_tbl_size, uint16_t lid,
-			  struct ep_port_tbl_rec *p_rec)
+void smdb_port_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
+		    uint16_t pkey_tbl_size, uint16_t lid,
+		    struct smdb_port *p_rec)
 {
 	const ib_port_info_t *p_pi;
 	const osm_physp_t *p_physp0;
@@ -278,8 +276,8 @@ void ep_port_tbl_rec_init(osm_physp_t *p_physp, uint64_t pkey_base_offset,
 
 /** =========================================================================
  */
-void ep_lft_block_tbl_rec_init(osm_switch_t * p_sw, uint16_t lid, uint16_t block,
-			       struct ep_lft_block_tbl_rec *p_rec)
+void smdb_lft_block_init(osm_switch_t * p_sw, uint16_t lid, uint16_t block,
+			 struct smdb_lft_block *p_rec)
 {
 	p_rec->lid		= htons(lid);
 	p_rec->block_num	= htons(block);
@@ -288,7 +286,7 @@ void ep_lft_block_tbl_rec_init(osm_switch_t * p_sw, uint16_t lid, uint16_t block
 
 /** =========================================================================
  */
-void ep_lft_top_tbl_rec_init(uint16_t lid, uint16_t lft_top, struct ep_lft_top_tbl_rec *p_rec)
+void smdb_lft_top_init(uint16_t lid, uint16_t lft_top, struct smdb_lft_top *p_rec)
 {
 	p_rec->lid = htons(lid);
 	p_rec->lft_top = htons(lft_top);

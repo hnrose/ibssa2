@@ -3935,15 +3935,15 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 				    struct ssa_db *smdb)
 {
 	int i, j, count, n;
-	const struct ep_guid_to_lid_tbl_rec *tbl;
-	const struct ep_subnet_opts_tbl_rec *opt_rec;
+	const struct smdb_guid2lid *tbl;
+	const struct smdb_subnet_opts *opt_rec;
 
 	if (!fake_acm_num)
 		return;
 
-	opt_rec = (const struct ep_subnet_opts_tbl_rec *)smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
-	tbl = (struct ep_guid_to_lid_tbl_rec *)smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
-	n = ntohll(smdb->p_db_tables[SSA_TABLE_ID_GUID_TO_LID].set_count);
+	opt_rec = (const struct smdb_subnet_opts *)smdb->pp_tables[SMDB_TBL_ID_SUBNET_OPTS];
+	tbl = (struct smdb_guid2lid *)smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
+	n = ntohll(smdb->p_db_tables[SMDB_TBL_ID_GUID2LID].set_count);
 	if (fake_acm_num < 0)
 		fake_acm_num = n;
 

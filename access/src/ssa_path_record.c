@@ -66,15 +66,15 @@ struct prdb_prm {
 static
 ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				   const struct ssa_pr_context *p_context,
-				   const struct ep_guid_to_lid_tbl_rec *p_source_rec,
-				   const struct ep_guid_to_lid_tbl_rec *p_dest_rec,
+				   const struct smdb_guid2lid *p_source_rec,
+				   const struct smdb_guid2lid *p_dest_rec,
 				   ssa_path_parms_t *p_path_prm);
 
 inline static size_t get_dataset_count(const struct ssa_db *p_ssa_db_smdb,
 				       unsigned int table_id)
 {
 	SSA_ASSERT(p_ssa_db_smdb);
-	SSA_ASSERT(table_id < SSA_TABLE_ID_MAX);
+	SSA_ASSERT(table_id < SMDB_TBL_ID_MAX);
 	SSA_ASSERT(&p_ssa_db_smdb->p_db_tables[table_id]);
 
 	return ntohll(p_ssa_db_smdb->p_db_tables[table_id].set_count);
@@ -125,9 +125,9 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 				  be64_t port_guid,
 				  ssa_pr_path_dump_t dump_clbk, void *clbk_prm)
 {
-	const struct ep_guid_to_lid_tbl_rec *p_source_rec = NULL;
+	const struct smdb_guid2lid *p_source_rec = NULL;
 	size_t guid_to_lid_count = 0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+	const struct smdb_guid2lid *p_guid2lid_tbl = NULL;
 	size_t i = 0;
 	uint16_t source_base_lid = 0;
 	uint16_t source_last_lid = 0;
@@ -149,11 +149,11 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 		return SSA_PR_PORT_ABSENT;
 	}
 
-	p_guid_to_lid_tbl = (const struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
-	SSA_ASSERT(p_guid_to_lid_tbl);
+	p_guid2lid_tbl = (const struct smdb_guid2lid *)
+		p_ssa_db_smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
+	SSA_ASSERT(p_guid2lid_tbl);
 
-	guid_to_lid_count = get_dataset_count(p_ssa_db_smdb,
-					      SSA_TABLE_ID_GUID_TO_LID);
+	guid_to_lid_count = get_dataset_count(p_ssa_db_smdb, SMDB_TBL_ID_GUID2LID);
 
 	p_source_rec = find_guid_to_lid_rec_by_guid(p_ssa_db_smdb, port_guid);
 	if (NULL == p_source_rec) {
@@ -171,7 +171,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 			uint16_t dest_last_lid = 0;
 			uint16_t dest_lid = 0;
 
-			const struct ep_guid_to_lid_tbl_rec* p_dest_rec = p_guid_to_lid_tbl + i;
+			const struct smdb_guid2lid *p_dest_rec = p_guid2lid_tbl + i;
 			dest_base_lid = ntohs(p_dest_rec->lid);
 			dest_last_lid = dest_base_lid +
 					(0x01 << p_dest_rec->lmc) - 1;
@@ -247,20 +247,21 @@ uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,
 				      be64_t port_guid)
 {
 	size_t guid_to_lid_count = 0 , i = 0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+	const struct smdb_guid2lid *p_guid2lid_tbl = NULL;
 	uint64_t destination_count = 0;
 	uint8_t source_lmc = 0;
 
 	SSA_ASSERT(p_ssa_db_smdb);
 
-	p_guid_to_lid_tbl = (const struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
+	p_guid2lid_tbl = (const struct smdb_guid2lid *)
+		p_ssa_db_smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
 	SSA_ASSERT(p_guid_to_lid_tbl);
 
 	guid_to_lid_count = get_dataset_count(p_ssa_db_smdb,
-					      SSA_TABLE_ID_GUID_TO_LID);
+					      SMDB_TBL_ID_GUID2LID);
 
 	for (i = 0; i < guid_to_lid_count; i++) {
-		const struct ep_guid_to_lid_tbl_rec* p_rec = p_guid_to_lid_tbl + i;
+		const struct smdb_guid2lid *p_rec = p_guid2lid_tbl + i;
 		if(p_rec->guid == port_guid)
 			source_lmc = p_rec->lmc;
 		destination_count += (0x01 << p_rec->lmc);
@@ -328,7 +329,7 @@ ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
 				   void *clbk_prm)
 {
 	size_t i = 0;
-	const struct ep_guid_to_lid_tbl_rec *p_guid_to_lid_tbl = NULL;
+	const struct smdb_guid2lid *p_guid2lid_tbl = NULL;
 	size_t count = 0;
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
 	struct ssa_pr_context *p_context = (struct ssa_pr_context *)context;
@@ -342,19 +343,20 @@ ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
 
 	SSA_ASSERT(p_ssa_db_smdb);
 
-	p_guid_to_lid_tbl = (struct ep_guid_to_lid_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_GUID_TO_LID];
+	p_guid2lid_tbl = (struct smdb_guid2lid *)
+		p_ssa_db_smdb->pp_tables[SMDB_TBL_ID_GUID2LID];
 	SSA_ASSERT(p_guid_to_lid_tbl);
 
-	count = get_dataset_count(p_ssa_db_smdb, SSA_TABLE_ID_GUID_TO_LID);
+	count = get_dataset_count(p_ssa_db_smdb, SMDB_TBL_ID_GUID2LID);
 
 	for (i = 0; i < count; i++) {
 		res = ssa_pr_half_world(p_ssa_db_smdb,context,
-					p_guid_to_lid_tbl[i].guid,
+					p_guid2lid_tbl[i].guid,
 					dump_clbk, clbk_prm);
 		if (SSA_PR_ERROR == res) {
 			SSA_PR_LOG_ERROR("\"Half world\" calculation failed for GUID: 0x%" PRIx64
 					 " . \"Whole world\" calculation stopped.",
-					 ntohll(p_guid_to_lid_tbl[i].guid));
+					 ntohll(p_guid2lid_tbl[i].guid));
 			return res;
 		}
 	}
@@ -362,18 +364,18 @@ ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
 }
 
 static inline
-const struct ep_port_tbl_rec *get_switch_port(const struct ssa_db *p_ssa_db_smdb,
-					      const struct ssa_pr_smdb_index *p_index,
-					      const be16_t switch_lid,
-					      const int port_num)
+const struct smdb_port *get_switch_port(const struct ssa_db *p_ssa_db_smdb,
+					const struct ssa_pr_smdb_index *p_index,
+					const be16_t switch_lid,
+					const int port_num)
 {
 	return find_port(p_ssa_db_smdb, p_index, switch_lid, port_num);
 }
 
 static inline
-const struct ep_port_tbl_rec *get_host_port(const struct ssa_db *p_ssa_db_smdb,
-					    const struct ssa_pr_smdb_index *p_index,
-					    const be16_t lid)
+const struct smdb_port *get_host_port(const struct ssa_db *p_ssa_db_smdb,
+				      const struct ssa_pr_smdb_index *p_index,
+				      const be16_t lid)
 {
 	/*
 	 * For host there is only one record in port table.
@@ -385,14 +387,14 @@ const struct ep_port_tbl_rec *get_host_port(const struct ssa_db *p_ssa_db_smdb,
 static
 ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 				   const struct ssa_pr_context *p_context,
-				   const struct ep_guid_to_lid_tbl_rec *p_source_rec,
-				   const struct ep_guid_to_lid_tbl_rec *p_dest_rec,
+				   const struct smdb_guid2lid *p_source_rec,
+				   const struct smdb_guid2lid *p_dest_rec,
 				   ssa_path_parms_t *p_path_prm)
 {
-	const struct ep_port_tbl_rec *source_port = NULL;
-	const struct ep_port_tbl_rec *dest_port = NULL;
-	const struct ep_port_tbl_rec *port = NULL;
-	const struct ep_subnet_opts_tbl_rec *opt_rec = NULL;
+	const struct smdb_port *source_port = NULL;
+	const struct smdb_port *dest_port = NULL;
+	const struct smdb_port *port = NULL;
+	const struct smdb_subnet_opts *opt_rec = NULL;
 
 	SSA_ASSERT(p_ssa_db_smdb);
 	SSA_ASSERT(p_context);
@@ -402,7 +404,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 	SSA_ASSERT(p_path_prm);
 
 	opt_rec =
-		(const struct ep_subnet_opts_tbl_rec *)p_ssa_db_smdb->pp_tables[SSA_TABLE_ID_SUBNET_OPTS];
+		(const struct smdb_subnet_opts *)p_ssa_db_smdb->pp_tables[SMDB_TBL_ID_SUBNET_OPTS];
 	SSA_ASSERT(opt_rec);
 
 	if (p_source_rec->is_switch)
