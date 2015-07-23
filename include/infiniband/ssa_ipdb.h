@@ -53,13 +53,6 @@ enum ipdb_tbl_id {
 	IPDB_TBL_ID_MAX
 };
 
-enum ipdb_field_tbl_id {
-	IPDB_FIELD_TBL_ID_IPv4 = IPDB_TBL_ID_MAX,
-	IPDB_FIELD_TBL_ID_IPv6,
-	IPDB_FIELD_TBL_ID_NAME,
-	IPDB_FIELD_TBL_ID_MAX
-};
-
 enum  ipdb_ipv4_fields {
 	IPDB_FIELD_ID_IPv4_QPN,
 	IPDB_FIELD_ID_IPv4_PKEY,
