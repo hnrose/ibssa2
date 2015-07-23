@@ -39,6 +39,7 @@
 #include <infiniband/ssa_db_helper.h>
 #include <infiniband/ssa_db.h>
 #include <infiniband/ssa_prdb.h>
+#include <infiniband/ssa_ipdb.h>
 #include <ssa_log.h>
 #include <common.h>
 #include <acm_shared.h>
@@ -190,9 +191,9 @@ static int set_lla_addr(struct ssa_db *ssa_db, uint16_t pkey,
 			struct lla_attr *attr, struct in6_addr *ip_addr)
 {
 	struct db_dataset *dataset;
-	struct prdb_ipv4 *p_ipv4;
-	struct prdb_ipv6 *p_ipv6;
-	struct prdb_name *p_name;
+	struct ipdb_ipv4 *p_ipv4;
+	struct ipdb_ipv6 *p_ipv6;
+	struct ipdb_name *p_name;
 	uint64_t set_count, set_size, rec_size;
 
 	if (inet_pton(AF_INET, attr->addr, ip_addr) > 0) {

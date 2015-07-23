@@ -9,7 +9,7 @@ svc_ibssa_SOURCES = src/distrib.c src/ssa.c src/ssa_db.c \
 		    src/ssa_db_helper.c src/ssa_log.c \
 		    src/ssa_path_record.c  src/ssa_path_record_data.c \
 		    src/ssa_path_record_helper.c src/ssa_prdb.c \
-		    src/ssa_signal_handler.c \
+		    src/ssa_signal_handler.c src/ssa_ipdb.c \
 		    src/ssa_runtime_counters.c \
 		    src/common.c
 svc_ibssa_CFLAGS = $(AM_CFLAGS) -DACCESS
@@ -28,6 +28,7 @@ EXTRA_DIST = include/osd.h include/dlist.h \
 	     include/infiniband/ssa_db.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_path_record.h include/infiniband/ssa_smdb.h \
 	     include/infiniband/ssa_prdb.h ibssa_logrotate \
+	     include/infiniband/ssa_ipdb.h \
 	     ibssa.spec.in $(man_MANS) ibssa_opts.cfg autogen.sh \
 	     ssa_release_notes.txt
 

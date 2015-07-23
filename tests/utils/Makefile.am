@@ -46,10 +46,10 @@ AM_CFLAGS  = -I. -I../include $(DBG) -Wall -Werror -D_GNU_SOURCE
 bin_PROGRAMS = hosts2prdb prdb2hosts
 hosts2prdb_SOURCES = ./ssa_db.c ./ssa_db_helper.c ./hosts2prdb.c \
 		     ./ssa_log.c ./ssa_signal_handler.c ./ssa_prdb.c \
-		     ./ssa_runtime_counters.c ./common.c
+		     ./ssa_runtime_counters.c ./common.c ./ssa_ipdb.c
 hosts2prdb_LDFLAGS = -lpthread
 
 prdb2hosts_SOURCES = ./ssa_db.c ./ssa_db_helper.c ./prdb2hosts.c \
 		     ./ssa_log.c ./ssa_signal_handler.c ./ssa_prdb.c \
-		     ./ssa_runtime_counters.c ./common.c
+		     ./ssa_runtime_counters.c ./common.c ./ssa_ipdb.c
 prdb2hosts_LDFLAGS = -lpthread

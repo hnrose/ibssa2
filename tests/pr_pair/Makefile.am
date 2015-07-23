@@ -67,7 +67,7 @@ pr_pair_SOURCES = ./pr_pair.c \
 		  ./ssa_path_record.c  ./ssa_path_record_data.c \
 		  ./ssa_path_record_helper.c ./ssa_db.c ./ssa_prdb.c \
 		  ./ssa_smdb.c ./ssa_db_helper.c ./ssa_log.c \
-		  ./ssa_signal_handler.c \
+		  ./ssa_signal_handler.c ./ssa_ipdb.c \
 		  ./ssa_runtime_counters.c \
 		  ./common.c
 pr_pair_CPPFLAGS =  $(INCLUDE_DIRS) -I$(includedir)  $(DEPS_CFLAGS)  -g -D_GNU_SOURCE

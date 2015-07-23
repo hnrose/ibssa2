@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2015 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,11 +31,10 @@
  *
  */
 
-#ifndef _SSA_PR_DB_H_
-#define _SSA_PR_DB_H_
+#ifndef _SSA_IPDB_H_
+#define _SSA_IPDB_H_
 
 #include <infiniband/ssa_db.h>
-#include <infiniband/ssa_ipdb.h>
 
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
@@ -47,51 +46,79 @@
 
 BEGIN_C_DECLS
 
-enum prdb_tbl_id {
-	PRDB_TBL_ID_PR = 0,
-	PRDB_TBL_ID_IPv4,
-	PRDB_TBL_ID_IPv6,
-	PRDB_TBL_ID_NAME,
-	PRDB_TBL_ID_MAX
+enum ipdb_tbl_id {
+	IPDB_TBL_ID_IPv4 = 0,
+	IPDB_TBL_ID_IPv6,
+	IPDB_TBL_ID_NAME,
+	IPDB_TBL_ID_MAX
 };
 
-enum prdb_field_tbl_id {
-	PRDB_FIELD_TBL_ID_PR = PRDB_TBL_ID_MAX,
-	PRDB_FIELD_TBL_ID_IPv4,
-	PRDB_FIELD_TBL_ID_IPv6,
-	PRDB_FIELD_TBL_ID_NAME,
-	PRDB_FIELD_TBL_ID_MAX
+enum ipdb_field_tbl_id {
+	IPDB_FIELD_TBL_ID_IPv4 = IPDB_TBL_ID_MAX,
+	IPDB_FIELD_TBL_ID_IPv6,
+	IPDB_FIELD_TBL_ID_NAME,
+	IPDB_FIELD_TBL_ID_MAX
 };
 
-enum prdb_pr_fields {
-	PRDB_FIELD_ID_PR_DGUID,
-	PRDB_FIELD_ID_PR_DLID,
-	PRDB_FIELD_ID_PR_PK,
-	PRDB_FIELD_ID_PR_MTU,
-	PRDB_FIELD_ID_PR_RATE,
-	PRDB_FIELD_ID_PR_SL,
-	PRDB_FIELD_ID_PR_REVERSIBLE,
-	PRDB_FIELD_ID_PR_MAX
+enum  ipdb_ipv4_fields {
+	IPDB_FIELD_ID_IPv4_QPN,
+	IPDB_FIELD_ID_IPv4_PKEY,
+	IPDB_FIELD_ID_IPv4_FLAGS,
+	IPDB_FIELD_ID_IPv4_GID,
+	IPDB_FIELD_ID_IPv4_ADDR,
+	IPDB_FIELD_ID_IPv4_MAX
 };
 
-struct prdb_pr {
-	be64_t		guid;
-	be16_t		lid;
-	be16_t		pk;
-	uint8_t		mtu;
-	uint8_t		rate;
-	uint8_t		sl;
-	uint8_t		is_reversible;
+enum ipdb_ipv6_fields {
+	IPDB_FIELD_ID_IPv6_QPN,
+	IPDB_FIELD_ID_IPv6_PKEY,
+	IPDB_FIELD_ID_IPv6_FLAGS,
+	IPDB_FIELD_ID_IPv6_GID,
+	IPDB_FIELD_ID_IPv6_ADDR,
+	IPDB_FIELD_ID_IPv6_MAX
 };
 
-#define PRDB_TBLS		PRDB_FIELD_TBL_ID_MAX
-#define PRDB_DATA_TBLS		PRDB_TBL_ID_MAX
-#define PRDB_FIELD_TBLS		PRDB_FIELD_TBL_ID_MAX - PRDB_TBL_ID_MAX
-#define PRDB_FIELDS		PRDB_FIELD_ID_PR_MAX + IPDB_FIELDS
-#define PRDB_DATA_TBL_OFFSET	1
-#define PRDB_FIELD_TBL_OFFSET	1
+enum ipdb_name_fields {
+	IPDB_FIELD_ID_NAME_QPN,
+	IPDB_FIELD_ID_NAME_PKEY,
+	IPDB_FIELD_ID_NAME_FLAGS,
+	IPDB_FIELD_ID_NAME_GID,
+	IPDB_FIELD_ID_NAME_ADDR,
+	IPDB_FIELD_ID_NAME_MAX
+};
 
-extern struct ssa_db  *ssa_prdb_create(uint64_t epoch, uint64_t num_recs[PRDB_TBL_ID_MAX]);
+struct ipdb_ipv4 {
+	be32_t		qpn;
+	be16_t		pkey;
+	uint8_t		flags;
+	uint8_t		gid[16];
+	uint8_t		addr[4];
+	uint8_t		pad[5];
+};
+
+struct ipdb_ipv6 {
+	be32_t		qpn;
+	be16_t		pkey;
+	uint8_t		flags;
+	uint8_t		gid[16];
+	uint8_t		addr[16];
+	uint8_t		reserved;
+};
+
+struct ipdb_name {
+	be32_t		qpn;
+	be16_t		pkey;
+	uint8_t		flags;
+	uint8_t		gid[16];
+	uint8_t		addr[64];
+	uint8_t		reserved;
+};
+
+#define IPDB_FIELDS	(IPDB_FIELD_ID_IPv4_MAX + \
+			 IPDB_FIELD_ID_IPv6_MAX + \
+			 IPDB_FIELD_ID_NAME_MAX)
+
+struct ssa_db *ssa_ipdb_create(uint64_t epoch, uint64_t num_recs[IPDB_TBL_ID_MAX]);
 
 END_C_DECLS
-#endif				/* _SSA_PR_DB_H_ */
+#endif				/* _SSA_IPDB_H_ */

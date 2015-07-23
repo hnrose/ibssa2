@@ -28,7 +28,7 @@ EXTRA_DIST = src/acm_util.h src/acm_mad.h src/libacm.h ibacm.init.in \
 	     include/ssa_ctrl.h include/acm_neigh.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_mad.h include/infiniband/ssa_db.h \
 	     include/infiniband/ssa_db_helper.h include/infiniband/ssa_prdb.h \
-	     include/infiniband/ssa_path_record.h \
+	     include/infiniband/ssa_path_record.h include/infiniband/ssa_ipdb.h \
 	     ibacm.spec.in $(man_MANS) ibacm_opts.cfg ibacm_addr.data \
 	     ibacm_hosts.data ibacm_logrotate \
 	     autogen.sh ssa_release_notes.txt

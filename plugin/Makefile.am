@@ -20,7 +20,7 @@ src_libopensmssa_la_SOURCES = src/core.c src/ssa.c src/ssa_db.c src/ssa_db_helpe
 			      src/ssa_comparison.c src/ssa_log.c \
 			      src/ssa_path_record.c  src/ssa_path_record_data.c \
 			      src/ssa_path_record_helper.c src/ssa_prdb.c \
-			      src/ssa_signal_handler.c \
+			      src/ssa_signal_handler.c src/ssa_ipdb.c \
 			      src/ssa_runtime_counters.c \
 			      src/common.c
 src_libopensmssa_la_LDFLAGS = -version-info 1 -export-dynamic \
@@ -42,6 +42,7 @@ EXTRA_DIST = $(srcdir)/libopensmssa.map include/osd.h include/dlist.h \
 	     include/infiniband/ssa_smdb.h include/infiniband/ssa_db.h \
 	     include/infiniband/ssa.h include/infiniband/ssa_path_record.h \
 	     include/infiniband/ssa_smdb_api.h include/infiniband/ssa_prdb.h \
+	     include/infiniband/ssa_ipdb.h \
 	     libopensmssa.spec.in ibssa_core_opts.cfg autogen.sh ibssa_logrotate \
 	     $(man_MANS) ssa_release_notes.txt
 
