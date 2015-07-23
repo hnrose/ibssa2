@@ -85,12 +85,12 @@ static int insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 	struct prdb_prm *p_prm;
 	struct db_dataset *p_dataset = NULL;
 	uint64_t set_size = 0, set_count = 0;
-	struct ep_pr_tbl_rec *p_rec = NULL;
+	struct prdb_pr *p_rec = NULL;
 
 	p_prm = (struct prdb_prm*)prm;
 	SSA_ASSERT(p_prdb);
 
-	p_dataset = p_prm->prdb->p_db_tables + SSA_PR_TABLE_ID;
+	p_dataset = p_prm->prdb->p_db_tables + PRDB_TBL_ID_PR;
 	SSA_ASSERT(p_dataset);
 
 	set_size = ntohll(p_dataset->set_size);
@@ -101,7 +101,7 @@ static int insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 		return 1;
 	}
 
-	p_rec = ((struct ep_pr_tbl_rec *)p_prm->prdb->pp_tables[SSA_PR_TABLE_ID]) + set_count;
+	p_rec = ((struct prdb_pr *)p_prm->prdb->pp_tables[PRDB_TBL_ID_PR]) + set_count;
 	SSA_ASSERT(p_rec);
 
 	p_rec->guid = p_path_prm->to_guid;
@@ -112,7 +112,7 @@ static int insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 	p_rec->sl = p_path_prm->sl;
 	p_rec->is_reversible = p_path_prm->reversible;
 
-	set_size += sizeof(struct ep_pr_tbl_rec);
+	set_size += sizeof(struct prdb_pr);
 	set_count++;
 
 	p_dataset->set_count = htonll(set_count);
@@ -273,7 +273,7 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 					 void *p_ctnx, be64_t port_guid,
 					 struct ssa_db **pp_prdb)
 {
-	uint64_t records_num[SSA_PR_TABLE_ID_MAX] = { 0 };
+	uint64_t records_num[PRDB_TBL_ID_MAX] = { 0 };
 	ssa_pr_status_t res = SSA_PR_SUCCESS;
 	struct prdb_prm prm;
 	struct ssa_pr_context *p_context = (struct ssa_pr_context *)p_ctnx;
@@ -292,19 +292,19 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 		return SSA_PR_PORT_ABSENT;
 	}
 
-	records_num[SSA_PR_TABLE_ID] =
+	records_num[PRDB_TBL_ID_PR] =
 		ssa_pr_compute_pr_max_number(p_ssa_db_smdb, port_guid);
 
 	/* TODO: use previous PRDB version epoch */
 	*pp_prdb = ssa_prdb_create(DB_EPOCH_INVALID /* epoch */, records_num);
 	if (!*pp_prdb) {
 		SSA_PR_LOG_ERROR("Path record database creation failed."
-				 " Number of records: %"PRIu64, records_num[SSA_PR_TABLE_ID]);
+				 " Number of records: %"PRIu64, records_num[PRDB_TBL_ID_PR]);
 		return SSA_PR_PRDB_ERROR;
 	}
 
 	prm.prdb = *pp_prdb;
-	prm.max_count = records_num[SSA_PR_TABLE_ID];
+	prm.max_count = records_num[PRDB_TBL_ID_PR];
 
 	res = ssa_pr_half_world(p_ssa_db_smdb, p_ctnx, port_guid,
 				insert_pr_to_prdb,&prm);

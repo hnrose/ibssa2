@@ -3076,15 +3076,15 @@ err:
 /* Parse "access layer v1" file to build LID to GUID table */
 static void acm_parse_access_v1_lid2guid(struct ssa_db *p_ssa_db, uint64_t *lid2guid)
 {
-	struct ep_pr_tbl_rec *p_pr_tbl;
-	struct ep_pr_tbl_rec *p_pr_rec;
+	struct prdb_pr *p_pr_tbl;
+	struct prdb_pr *p_pr_rec;
 	uint64_t guid;
 	uint64_t pr_cnt;
 	uint64_t i;
 	uint16_t lid;
 
-	p_pr_tbl = (struct ep_pr_tbl_rec *) p_ssa_db->pp_tables[SSA_PR_TABLE_ID];
-	pr_cnt = ntohll(p_ssa_db->p_db_tables[SSA_PR_TABLE_ID].set_count);
+	p_pr_tbl = (struct prdb_pr *) p_ssa_db->pp_tables[PRDB_TBL_ID_PR];
+	pr_cnt = ntohll(p_ssa_db->p_db_tables[PRDB_TBL_ID_PR].set_count);
 
 	for (i = 0; i < pr_cnt; i++) {
 		p_pr_rec = p_pr_tbl + i;
@@ -3108,7 +3108,7 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db,
 	struct ibv_port_attr attr = { 0 };
 	struct ibv_context *verbs;
 	struct acm_dest *dest;
-	struct ep_pr_tbl_rec *p_pr_tbl, *p_pr_rec;
+	struct prdb_pr *p_pr_tbl, *p_pr_rec;
 	uint16_t *port_lid;
 	uint8_t *port_num;
 	uint64_t guid, i, k, pr_cnt;
@@ -3134,8 +3134,8 @@ static int acm_parse_access_v1_paths(struct ssa_db *p_ssa_db,
 		return ret;
 	}
 
-	p_pr_tbl = (struct ep_pr_tbl_rec *) p_ssa_db->pp_tables[SSA_PR_TABLE_ID];
-	pr_cnt = ntohll(p_ssa_db->p_db_tables[SSA_PR_TABLE_ID].set_count);
+	p_pr_tbl = (struct prdb_pr *) p_ssa_db->pp_tables[PRDB_TBL_ID_PR];
+	pr_cnt = ntohll(p_ssa_db->p_db_tables[PRDB_TBL_ID_PR].set_count);
 
 	/* Search for endpoint's SLID */
 	for (i = 0; i < pr_cnt; i++) {

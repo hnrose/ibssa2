@@ -81,7 +81,7 @@ static int is_dir_exist(const char* path)
 static int gen_hosts(struct ssa_db *prdb, const char *hosts_file)
 {
 	FILE *fd;
-	struct ep_pr_tbl_rec *tbl, *rec;
+	struct prdb_pr *tbl, *rec;
 	char buf[120], ip[INET6_ADDRSTRLEN];
 	uint8_t ipv4[4] = { 1, 1, 1, 1 };
 	union gid gid;
@@ -96,8 +96,8 @@ static int gen_hosts(struct ssa_db *prdb, const char *hosts_file)
 		return -1;
 	}
 
-	tbl = (struct ep_pr_tbl_rec *) prdb->pp_tables[SSA_PR_TABLE_ID];
-	pr_cnt = ntohll(prdb->p_db_tables[SSA_PR_TABLE_ID].set_count);
+	tbl = (struct prdb_pr *) prdb->pp_tables[PRDB_TBL_ID_PR];
+	pr_cnt = ntohll(prdb->p_db_tables[PRDB_TBL_ID_PR].set_count);
 
 	fprintf(fd, "#\n");
 	fprintf(fd, "# InfiniBand Communication Management Assistant for clusters hosts file\n");

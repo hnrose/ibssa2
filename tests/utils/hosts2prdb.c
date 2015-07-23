@@ -190,20 +190,20 @@ static int set_lla_addr(struct ssa_db *ssa_db, uint16_t pkey,
 			struct lla_attr *attr, struct in6_addr *ip_addr)
 {
 	struct db_dataset *dataset;
-	struct ep_ipv4_tbl_rec *p_ipv4;
-	struct ep_ipv6_tbl_rec *p_ipv6;
-	struct ep_name_tbl_rec *p_name;
+	struct prdb_ipv4 *p_ipv4;
+	struct prdb_ipv6 *p_ipv6;
+	struct prdb_name *p_name;
 	uint64_t set_count, set_size, rec_size;
 
 	if (inet_pton(AF_INET, attr->addr, ip_addr) > 0) {
-		dataset = &ssa_db->p_db_tables[SSA_IPv4_TABLE_ID];
+		dataset = &ssa_db->p_db_tables[PRDB_TBL_ID_IPv4];
 		if (!dataset)
 			return -1;
 
 		set_count = ntohll(dataset->set_count);
 		set_size = ntohll(dataset->set_size);
 
-		p_ipv4 = ssa_db->pp_tables[SSA_IPv4_TABLE_ID] + set_size;
+		p_ipv4 = ssa_db->pp_tables[PRDB_TBL_ID_IPv4] + set_size;
 		rec_size = sizeof(*p_ipv4);
 		memset(p_ipv4, 0, rec_size);
 		p_ipv4->qpn = htonl(attr->qpn);
@@ -212,14 +212,14 @@ static int set_lla_addr(struct ssa_db *ssa_db, uint16_t pkey,
 		memcpy(p_ipv4->gid, &attr->ib_addr, sizeof(p_ipv4->gid));
 		memcpy(p_ipv4->addr, ip_addr, sizeof(p_ipv4->addr));
 	} else if (inet_pton(AF_INET6, attr->addr, ip_addr) > 0) {
-		dataset = &ssa_db->p_db_tables[SSA_IPv6_TABLE_ID];
+		dataset = &ssa_db->p_db_tables[PRDB_TBL_ID_IPv6];
 		if (!dataset)
 			return -1;
 
 		set_count = ntohll(dataset->set_count);
 		set_size = ntohll(dataset->set_size);
 
-		p_ipv6 = ssa_db->pp_tables[SSA_IPv6_TABLE_ID] + set_size;
+		p_ipv6 = ssa_db->pp_tables[PRDB_TBL_ID_IPv6] + set_size;
 		rec_size = sizeof(*p_ipv6);
 		memset(p_ipv6, 0, rec_size);
 		p_ipv6->qpn = htonl(attr->qpn);
@@ -228,14 +228,14 @@ static int set_lla_addr(struct ssa_db *ssa_db, uint16_t pkey,
 		memcpy(p_ipv6->gid, &attr->ib_addr, sizeof(p_ipv6->gid));
 		memcpy(p_ipv6->addr, ip_addr, sizeof(p_ipv6->addr));
 	} else {
-		dataset = &ssa_db->p_db_tables[SSA_NAME_TABLE_ID];
+		dataset = &ssa_db->p_db_tables[PRDB_TBL_ID_NAME];
 		if (!dataset)
 			return -1;
 
 		set_count = ntohll(dataset->set_count);
 		set_size = ntohll(dataset->set_size);
 
-		p_name = ssa_db->pp_tables[SSA_NAME_TABLE_ID] + set_size;
+		p_name = ssa_db->pp_tables[PRDB_TBL_ID_NAME] + set_size;
 		rec_size = sizeof(*p_name);
 		memset(p_name, 0, rec_size);
 		p_name->qpn = htonl(attr->qpn);
@@ -256,7 +256,7 @@ static struct ssa_db *gen_prdb(const char *hosts_file)
 	FILE *f = NULL;
 	struct ssa_db *ssa_db = NULL;
 	char gid[INET6_ADDRSTRLEN + 1], s[160];
-	uint64_t num_recs[SSA_PR_TABLE_ID_MAX] = { 0 };
+	uint64_t num_recs[PRDB_TBL_ID_MAX] = { 0 };
 	struct lla_attr attr;
 	struct in6_addr ip_addr;
 	int idx, line = 0;
@@ -286,11 +286,11 @@ static struct ssa_db *gen_prdb(const char *hosts_file)
 		}
 
 		if (inet_pton(AF_INET, attr.addr, &ip_addr) > 0) {
-			num_recs[SSA_IPv4_TABLE_ID]++;
+			num_recs[PRDB_TBL_ID_IPv4]++;
 		} else if (inet_pton(AF_INET6, attr.addr, &ip_addr) > 0) {
-			num_recs[SSA_IPv6_TABLE_ID]++;
+			num_recs[PRDB_TBL_ID_IPv6]++;
 		} else {
-			num_recs[SSA_NAME_TABLE_ID]++;
+			num_recs[PRDB_TBL_ID_NAME]++;
 		}
 	}
 
