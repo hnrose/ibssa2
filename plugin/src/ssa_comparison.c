@@ -1311,7 +1311,7 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 {
 	struct ssa_db *p_smdb;
 	char *tbl_name = NULL;
-	uint64_t epoch_old, epoch_new, smdb_epoch;
+	uint64_t epoch_old, epoch_new, epoch;
 	uint64_t i, k, tbl_cnt;
 	boolean_t update_global_epoch = FALSE;
 
@@ -1333,8 +1333,9 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 		if (!smdb_deltas && tbl_changed[i] == FALSE)
 			continue;
 
-		ssa_db_set_epoch(p_smdb, i, epoch_new);
-		update_global_epoch = TRUE;
+		epoch = ssa_db_set_epoch(p_smdb, i, epoch_new);
+		if (epoch != DB_EPOCH_INVALID)
+			update_global_epoch = TRUE;
 
 		for (k = 0; k < p_smdb->db_table_def.set_count; k++) {
 			if (p_smdb->p_def_tbl[k].id.table == i) {
@@ -1349,11 +1350,11 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 	}
 
 	if (update_global_epoch) {
-		smdb_epoch = ssa_db_increment_epoch(p_smdb, DB_DEF_TBL_ID);
+		epoch = ssa_db_increment_epoch(p_smdb, DB_DEF_TBL_ID);
 		ssa_log(SSA_LOG_VERBOSE,
 			"%s epoch was updated: 0x%" PRIx64 " --> "
 			"0x%" PRIx64 "\n", p_smdb->db_def.name,
-			epoch_old, smdb_epoch);
+			epoch_old, epoch);
 	}
 
 	ssa_log(SSA_LOG_VERBOSE, "]\n");
