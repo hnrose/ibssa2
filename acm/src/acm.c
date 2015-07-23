@@ -4119,7 +4119,7 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 		goto err;
 
 	ssa_log(SSA_LOG_VERBOSE,
-		"updating cache with new prdb epoch 0x%" PRIx64 "\n",
+		"updating cache with new PRDB epoch 0x%" PRIx64 "\n",
 		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
 
 	acm_ep = acm_find_ep(port, pkey);
@@ -4142,7 +4142,7 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	lid2guid_cached = lid2guid;
 
 	ssa_log(SSA_LOG_VERBOSE,
-		"cache update complete with prdb epoch 0x%" PRIx64 "\n",
+		"cache update complete with PRDB epoch 0x%" PRIx64 "\n",
 		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
 
 err:
