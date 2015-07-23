@@ -4144,6 +4144,7 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	ssa_log(SSA_LOG_VERBOSE,
 		"cache update complete with prdb epoch 0x%" PRIx64 "\n",
 		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
+
 err:
 	/* TODO: decide whether the destroy call is needed */
 	/* ssa_db_destroy(p_ssa_db); */
