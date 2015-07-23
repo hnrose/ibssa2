@@ -55,14 +55,6 @@ enum prdb_tbl_id {
 	PRDB_TBL_ID_MAX
 };
 
-enum prdb_field_tbl_id {
-	PRDB_FIELD_TBL_ID_PR = PRDB_TBL_ID_MAX,
-	PRDB_FIELD_TBL_ID_IPv4,
-	PRDB_FIELD_TBL_ID_IPv6,
-	PRDB_FIELD_TBL_ID_NAME,
-	PRDB_FIELD_TBL_ID_MAX
-};
-
 enum prdb_pr_fields {
 	PRDB_FIELD_ID_PR_DGUID,
 	PRDB_FIELD_ID_PR_DLID,
@@ -84,12 +76,10 @@ struct prdb_pr {
 	uint8_t		is_reversible;
 };
 
-#define PRDB_TBLS		PRDB_FIELD_TBL_ID_MAX
+#define PRDB_TBLS		PRDB_TBL_ID_MAX * 2 /* each data table has field table */
 #define PRDB_DATA_TBLS		PRDB_TBL_ID_MAX
-#define PRDB_FIELD_TBLS		PRDB_FIELD_TBL_ID_MAX - PRDB_TBL_ID_MAX
 #define PRDB_FIELDS		PRDB_FIELD_ID_PR_MAX + IPDB_FIELDS
-#define PRDB_DATA_TBL_OFFSET	1
-#define PRDB_FIELD_TBL_OFFSET	1
+#define PRDB_TBL_OFFSET		1
 
 extern struct ssa_db  *ssa_prdb_create(uint64_t epoch, uint64_t num_recs[PRDB_TBL_ID_MAX]);
 
