@@ -57,6 +57,7 @@ enum  ipdb_ipv4_fields {
 	IPDB_FIELD_ID_IPv4_QPN,
 	IPDB_FIELD_ID_IPv4_PKEY,
 	IPDB_FIELD_ID_IPv4_FLAGS,
+	IPDB_FIELD_ID_IPv4_RESERVED,
 	IPDB_FIELD_ID_IPv4_GID,
 	IPDB_FIELD_ID_IPv4_ADDR,
 	IPDB_FIELD_ID_IPv4_MAX
@@ -66,6 +67,7 @@ enum ipdb_ipv6_fields {
 	IPDB_FIELD_ID_IPv6_QPN,
 	IPDB_FIELD_ID_IPv6_PKEY,
 	IPDB_FIELD_ID_IPv6_FLAGS,
+	IPDB_FIELD_ID_IPv6_RESERVED,
 	IPDB_FIELD_ID_IPv6_GID,
 	IPDB_FIELD_ID_IPv6_ADDR,
 	IPDB_FIELD_ID_IPv6_MAX
@@ -75,6 +77,7 @@ enum ipdb_name_fields {
 	IPDB_FIELD_ID_NAME_QPN,
 	IPDB_FIELD_ID_NAME_PKEY,
 	IPDB_FIELD_ID_NAME_FLAGS,
+	IPDB_FIELD_ID_NAME_RESERVED,
 	IPDB_FIELD_ID_NAME_GID,
 	IPDB_FIELD_ID_NAME_ADDR,
 	IPDB_FIELD_ID_NAME_MAX
@@ -84,27 +87,28 @@ struct ipdb_ipv4 {
 	be32_t		qpn;
 	be16_t		pkey;
 	uint8_t		flags;
+	uint8_t		reserved;
 	uint8_t		gid[16];
 	uint8_t		addr[4];
-	uint8_t		pad[5];
+	uint8_t		pad[4];
 };
 
 struct ipdb_ipv6 {
 	be32_t		qpn;
 	be16_t		pkey;
 	uint8_t		flags;
+	uint8_t		reserved;
 	uint8_t		gid[16];
 	uint8_t		addr[16];
-	uint8_t		reserved;
 };
 
 struct ipdb_name {
 	be32_t		qpn;
 	be16_t		pkey;
 	uint8_t		flags;
+	uint8_t		reserved;
 	uint8_t		gid[16];
 	uint8_t		addr[64];
-	uint8_t		reserved;
 };
 
 #define IPDB_FIELDS	(IPDB_FIELD_ID_IPv4_MAX + \
