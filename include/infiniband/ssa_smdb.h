@@ -35,6 +35,7 @@
 #define _SSA_SMDB_H_
 
 #include <infiniband/ssa_db.h>
+#include <infiniband/ssa_ipdb.h>
 #include <infiniband/umad_sm.h>
 
 #ifdef __cplusplus
@@ -58,6 +59,9 @@ enum smdb_tbl_id {
 	SMDB_TBL_ID_PKEY,
 	SMDB_TBL_ID_LFT_TOP,
 	SMDB_TBL_ID_LFT_BLOCK,
+	SMDB_TBL_ID_IPv4,
+	SMDB_TBL_ID_IPv6,
+	SMDB_TBL_ID_NAME,
 	SMDB_TBL_ID_MAX
 };
 
@@ -187,6 +191,19 @@ struct smdb_lft_block {
 #define SSA_DB_CHANGEMASK_ALLOW_BOTH_PKEYS	(((uint16_t) 1) << 4)
 
 #define SSA_TABLE_BLOCK_SIZE			1024
+
+/* each data table has field table, pkey table has no field table */
+#define SMDB_TBLS		(SMDB_TBL_ID_MAX * 2 - 1)
+#define SMDB_DATA_TBLS		SMDB_TBL_ID_MAX
+#define SMDB_FIELDS		(SMDB_FIELD_ID_SUBNET_OPTS_MAX + \
+				 SMDB_FIELD_ID_GUID2LID_MAX + \
+				 SMDB_FIELD_ID_NODE_MAX + \
+				 SMDB_FIELD_ID_LINK_MAX + \
+				 SMDB_FIELD_ID_PORT_MAX + \
+				 SMDB_FIELD_ID_LFT_TOP_MAX + \
+				 SMDB_FIELD_ID_LFT_BLOCK_MAX + \
+				 IPDB_FIELDS)
+#define SMDB_TBL_OFFSET		8
 
 struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SMDB_TBL_ID_MAX]);
 

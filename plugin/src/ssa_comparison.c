@@ -1429,7 +1429,7 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev, int first)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 	boolean_t tbl_changed[SMDB_TBL_ID_MAX] = { FALSE };
-	uint64_t data_rec_cnt[SMDB_TBL_ID_MAX];
+	uint64_t data_rec_cnt[SMDB_TBL_ID_MAX] = { 0 };
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
