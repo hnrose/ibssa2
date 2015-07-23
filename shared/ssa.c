@@ -3520,10 +3520,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	struct stat dstat;
 
 	epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
-	if (consumer->prdb_current != NULL)
-		prdb_epoch = ssa_db_get_epoch(consumer->prdb_current, DB_DEF_TBL_ID);
-	else
-		prdb_epoch = DB_EPOCH_INVALID;
+	prdb_epoch = ssa_db_get_epoch(consumer->prdb_current, DB_DEF_TBL_ID);
 
 	/* Call below "pulls" in access layer for any node type (if ACCESS defined) !!! */
 	ret = ssa_pr_compute_half_world(access_context.smdb,
