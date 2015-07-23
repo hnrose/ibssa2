@@ -3626,9 +3626,9 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 							SSA_ADDR_GID, consumer->gid.raw,
 							sizeof consumer->gid.raw);
 					ssa_log_err(SSA_LOG_CTRL,
-							"smdb error dump to %s for GID %s: %d (%s)\n",
-							dump_dir, log_data,
-							errno, strerror(errno));
+						    "SMDB error dump to %s for GID %s: %d (%s)\n",
+						    dump_dir, log_data,
+						    errno, strerror(errno));
 					goto skip_db_save;
 				}
 				ssa_db_save(dump_dir, access_context.smdb,
