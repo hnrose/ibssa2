@@ -2266,44 +2266,6 @@ static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 			    ret, sizeof msg);
 }
 
-static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
-				      short events)
-{
-	int ret;
-
-	conn->sbuf = malloc(sizeof(struct ssa_msg_hdr));
-	conn->sbuf2 = NULL;
-	if (conn->sbuf) {
-		conn->ssize = sizeof(struct ssa_msg_hdr);
-		conn->soffset = 0;
-		ssa_init_ssa_msg_hdr(conn->sbuf, op, conn->ssize,
-				     SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
-				     conn->rid, 0, 0);
-		ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
-		if (ret >= 0) {
-			conn->soffset += ret;
-			if (conn->soffset == conn->ssize) {
-				free(conn->sbuf);
-				conn->sbuf = NULL;
-				return POLLIN;
-			} else
-				return POLLOUT | POLLIN;
-		} else {
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-				return POLLOUT | POLLIN;
-			ssa_log_err(SSA_LOG_CTRL,
-				    "rsend failed: %d (%s) for response "
-				    "to op %u on rsock %d\n",
-				    errno, strerror(errno), op, conn->rsock);
-		}
-	} else
-		ssa_log_err(SSA_LOG_CTRL,
-			    "failed to allocate ssa_msg_hdr for response "
-			    "to op %d on rsock %d\n",
-			    op, conn->rsock);
-	return events;
-}
-
 static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 				 uint16_t flags, uint32_t id, uint64_t rdma_addr,
 				 void *buf, size_t len, short events)
@@ -2361,6 +2323,14 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 			    "failed to allocate ssa_msg_hdr for op %u on rsock %d\n",
 			    len, op, conn->rsock);
 	return events;
+}
+
+static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
+				      short events)
+{
+	return ssa_downstream_send(conn, op,
+				   SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
+				   conn->rid, 0, NULL, 0, events);
 }
 
 static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
