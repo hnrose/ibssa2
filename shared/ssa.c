@@ -2352,8 +2352,7 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 		}
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
-			    "failed to allocate ssa_msg_hdr for response "
-			    "to op %u on rsock %d\n",
+			    "failed to allocate ssa_msg_hdr for op %u on rsock %d\n",
 			    len, op, conn->rsock);
 	return events;
 }
