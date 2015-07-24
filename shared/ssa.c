@@ -2304,6 +2304,7 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 }
 
 static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
+				 uint16_t flags, uint32_t id, uint64_t rdma_addr,
 				 void *buf, size_t len, short events)
 {
 	int ret;
@@ -2315,7 +2316,7 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 		conn->ssize2 = len;
 		conn->soffset = 0;
 		ssa_init_ssa_msg_hdr(conn->sbuf, op, conn->ssize + len,
-				     SSA_MSG_FLAG_RESP, conn->rid, 0, 0);
+				     flags, id, 0, rdma_addr);
 		ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
 		if (ret >= 0) {
 			conn->soffset += ret;
@@ -2399,6 +2400,8 @@ ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just incremented to %u\n", ssadb
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_DEF,
+					      SSA_MSG_FLAG_RESP,
+					      conn->rid, 0,
 					      &ssadb->db_def,
 					      sizeof(ssadb->db_def),
 					      events);
@@ -2424,6 +2427,8 @@ static short ssa_downstream_handle_query_tbl_def(struct ssa_conn *conn,
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_TBL_DEF,
+					      SSA_MSG_FLAG_RESP,
+					      conn->rid, 0,
 					      &ssadb->db_table_def,
 					      sizeof(ssadb->db_table_def),
 					      events);
@@ -2450,6 +2455,8 @@ static short ssa_downstream_handle_query_tbl_defs(struct ssa_conn *conn,
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_TBL_DEF_DATASET,
+					      SSA_MSG_FLAG_RESP,
+					      conn->rid, 0,
 					      ssadb->p_def_tbl,
 					      ntohll(ssadb->db_table_def.set_size),
 					      events);
@@ -2475,6 +2482,8 @@ static short ssa_downstream_handle_query_field_defs(struct ssa_conn *conn,
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
+					      SSA_MSG_FLAG_RESP,
+					      conn->rid, 0,
 					      ssadb->p_db_field_tables,
 					      ssadb->data_tbl_cnt * sizeof(*ssadb->p_db_field_tables),
 					      events);
@@ -2486,6 +2495,8 @@ static short ssa_downstream_handle_query_field_defs(struct ssa_conn *conn,
 ssa_log(SSA_LOG_DEFAULT, "pp_field_tables index %d %p len %d rsock %d\n", conn->sindex, ssadb->pp_field_tables[conn->sindex], ntohll(ssadb->p_db_field_tables[conn->sindex].set_size), conn->rsock);
 			revents = ssa_downstream_send(conn,
 						      SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
+						      SSA_MSG_FLAG_RESP,
+						      conn->rid, 0,
 						      ssadb->pp_field_tables[conn->sindex],
 						      ntohll(ssadb->p_db_field_tables[conn->sindex].set_size),
 						      events);
@@ -2518,6 +2529,8 @@ static short ssa_downstream_handle_query_data(struct ssa_conn *conn,
 		conn->roffset = 0;
 		revents = ssa_downstream_send(conn,
 					      SSA_MSG_DB_QUERY_DATA_DATASET,
+					      SSA_MSG_FLAG_RESP,
+					      conn->rid, 0,
 					      ssadb->p_db_tables,
 					      ssadb->data_tbl_cnt * sizeof(*ssadb->p_db_tables),
 					      events);
@@ -2529,6 +2542,8 @@ static short ssa_downstream_handle_query_data(struct ssa_conn *conn,
 ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d rsock %d\n", conn->sindex, ssadb->pp_tables[conn->sindex], ntohll(ssadb->p_db_tables[conn->sindex].set_size), conn->rsock);
 			revents = ssa_downstream_send(conn,
 						      SSA_MSG_DB_QUERY_DATA_DATASET,
+						      SSA_MSG_FLAG_RESP,
+						      conn->rid, 0,
 						      ssadb->pp_tables[conn->sindex],
 						      ntohll(ssadb->p_db_tables[conn->sindex].set_size),
 						      events);
