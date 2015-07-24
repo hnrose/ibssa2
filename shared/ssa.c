@@ -2725,40 +2725,10 @@ static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
 					     struct ssa_conn *conn,
 					     uint64_t epoch)
 {
-	int ret;
-
-	conn->sbuf = malloc(sizeof(struct ssa_msg_hdr));
-	if (!conn->sbuf) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "failed to allocate ssa_msg_hdr on rsock %d\n",
-			    conn->rsock);
-		return POLLIN;
-	}
-
-	conn->ssize = sizeof(struct ssa_msg_hdr);
-	conn->soffset = 0;
-	ssa_init_ssa_msg_hdr(conn->sbuf, SSA_MSG_DB_UPDATE, conn->ssize,
-			     SSA_MSG_FLAG_END, 0, 0, epoch);
 	usleep(1000);	/* 1 msec delay is a temporary workaround so rsend does not indicate EAGAIN/EWOULDBLOCK !!! */
-	ret = rsend(conn->rsock, conn->sbuf, conn->ssize, MSG_DONTWAIT);
-	if (ret >= 0) {
-		conn->soffset += ret;
-		if (conn->soffset == conn->ssize) {
-			free(conn->sbuf);
-			conn->sbuf = NULL;
-			return POLLIN;
-		} else {
-			return POLLIN | POLLOUT;
-		}
-	}
 
-	if (errno == EAGAIN || errno == EWOULDBLOCK)
-		return POLLIN | POLLOUT;
-
-	ssa_log_err(SSA_LOG_CTRL,
-		    "rsend of update notification failed %d (%s) on rsock %d\n",
-		    errno, strerror(errno), conn->rsock);
-	return POLLIN;
+	return ssa_downstream_send(conn, SSA_MSG_DB_UPDATE, SSA_MSG_FLAG_END,
+				   0, epoch, NULL, 0, POLLIN);
 }
 
 static int ssa_find_pollfd_slot(struct pollfd *fds, int nfds)
