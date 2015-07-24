@@ -2721,8 +2721,7 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 	return revents;
 }
 
-static short ssa_downstream_notify_db_update(struct ssa_svc *svc,
-					     struct ssa_conn *conn,
+static short ssa_downstream_notify_db_update(struct ssa_conn *conn,
 					     uint64_t epoch)
 {
 	usleep(1000);	/* 1 msec delay is a temporary workaround so rsend does not indicate EAGAIN/EWOULDBLOCK !!! */
@@ -2841,7 +2840,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 					else if (conn_dbtype == SSA_CONN_SMDB_TYPE) {
 						ssa_downstream_conn(svc, conn_data, 0);
 						if (!update_pending && !update_waiting && smdb)
-							pfd->events = ssa_downstream_notify_db_update(svc, conn_data, epoch);
+							pfd->events = ssa_downstream_notify_db_update(conn_data, epoch);
 else ssa_log(SSA_LOG_DEFAULT, "SMDB connection accepted but notify DB update deferred since update is pending %d or waiting %d or no SMDB\n", update_pending, update_waiting);
 					} else {
 						ssa_close_ssa_conn(conn_data);
@@ -2925,8 +2924,7 @@ static void ssa_downstream_notify_smdb_conns(struct ssa_svc *svc,
 		conn = svc->fd_to_conn[fds[slot].fd];
 		if (conn && conn->dbtype == SSA_CONN_SMDB_TYPE) {
 			pfd = (struct pollfd *)(fds + slot);
-			pfd->events = ssa_downstream_notify_db_update(svc, conn,
-								      epoch);
+			pfd->events = ssa_downstream_notify_db_update(conn, epoch);
 		}
 	}
 }
