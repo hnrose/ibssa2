@@ -2321,8 +2321,10 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 			conn->soffset += ret;
 			if (conn->soffset == conn->ssize) {
 				free(conn->sbuf);
-				if (!conn->sbuf2 || conn->ssize2 == 0)
+				if (!conn->sbuf2 || conn->ssize2 == 0) {
+					conn->sbuf = NULL;
 					return POLLIN;
+				}
 				conn->sbuf = conn->sbuf2;
 				conn->ssize = conn->ssize2;
 				conn->soffset = 0;
@@ -2330,9 +2332,10 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 					    conn->ssize, MSG_DONTWAIT);
 				if (ret >= 0) {
 					conn->soffset += ret;
-					if (conn->soffset == conn->ssize)
+					if (conn->soffset == conn->ssize) {
+						conn->sbuf = NULL;
 						return POLLIN;
-					else
+					} else
 						return POLLOUT | POLLIN;
 				} else {
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
