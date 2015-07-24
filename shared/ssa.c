@@ -2325,14 +2325,6 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 	return events;
 }
 
-static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
-				      short events)
-{
-	return ssa_downstream_send(conn, op,
-				   SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
-				   conn->rid, 0, NULL, 0, events);
-}
-
 static struct ssa_db *ssa_downstream_db(struct ssa_conn *conn)
 {
 	/* Use SSA DB if available; otherwise use preloaded DB */
@@ -2355,9 +2347,9 @@ static short ssa_downstream_handle_query_defs(struct ssa_conn *conn,
 ssa_log(SSA_LOG_DEFAULT, "No ssa_db or prdb as yet\n");
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
-		revents = ssa_downstream_send_resp(conn,
-						   SSA_MSG_DB_QUERY_DEF,
-						   events);
+		revents = ssa_downstream_send(conn, SSA_MSG_DB_QUERY_DEF,
+					      SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
+					      conn->rid, 0, NULL, 0, events);
 		return revents;
 	}
 
@@ -2474,9 +2466,10 @@ ssa_log(SSA_LOG_DEFAULT, "pp_field_tables index %d %p len %d rsock %d\n", conn->
 
 			conn->sindex++;
 		} else {
-			revents = ssa_downstream_send_resp(conn,
-							   SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
-							   events);
+			revents = ssa_downstream_send(conn,
+						      SSA_MSG_DB_QUERY_FIELD_DEF_DATASET,
+						      SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
+						      conn->rid, 0, NULL, 0, events);
 		}
 	} else
 		ssa_log_warn(SSA_LOG_CTRL,
@@ -2525,9 +2518,10 @@ ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d rsock %d\n", conn->sindex
 ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just decremented to %u\n", ssadb, smdb_refcnt);
 			}
 			conn->phase = SSA_DB_IDLE;
-			revents = ssa_downstream_send_resp(conn,
-							   SSA_MSG_DB_QUERY_DATA_DATASET,
-							   events);
+			revents = ssa_downstream_send(conn,
+						      SSA_MSG_DB_QUERY_DATA_DATASET,
+						      SSA_MSG_FLAG_END | SSA_MSG_FLAG_RESP,
+						      conn->rid, 0, NULL, 0, events);
 		}
 	} else
 		ssa_log_warn(SSA_LOG_CTRL,
