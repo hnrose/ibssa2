@@ -2288,12 +2288,13 @@ static short ssa_downstream_send_resp(struct ssa_conn *conn, uint16_t op,
 				return POLLIN;
 			} else
 				return POLLOUT | POLLIN;
-		} else
+		} else {
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				return POLLOUT | POLLIN;
 			ssa_log_err(SSA_LOG_CTRL,
 				    "rsend failed: %d (%s) on rsock %d\n",
 				    errno, strerror(errno), conn->rsock);
+		}
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
 			    "failed to allocate ssa_msg_hdr for response "
