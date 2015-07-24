@@ -6856,7 +6856,7 @@ static void *ssa_admin_handler(void *context)
 							msg.data.conn->remote_gid.raw,
 							sizeof msg.data.conn->remote_gid.raw);
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-						"connection from GID %s LID %u gone\n",
+						"connection gone from GID %s LID %u\n",
 						log_data, msg.data.conn->remote_lid);
 					gres = g_hash_table_remove(connections_hash, GINT_TO_POINTER(msg.data.conn->rsock));
 					if (!gres)
