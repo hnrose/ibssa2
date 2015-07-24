@@ -2305,9 +2305,10 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
 						return POLLOUT | POLLIN;
 					ssa_log_err(SSA_LOG_CTRL,
-						    "rsend failed: %d (%s) for op %u on rsock %d\n",
+						    "rsend failed: %d (%s) for "
+						    "op %u flags 0x%x on rsock %d\n",
 						    errno, strerror(errno),
-						    op, conn->rsock);
+						    op, flags, conn->rsock);
 				}
 			} else
 				return POLLOUT | POLLIN;
@@ -2315,13 +2316,15 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				return POLLOUT | POLLIN;
 			ssa_log_err(SSA_LOG_CTRL,
-				    "rsend failed: %d (%s) for op %u on rsock %d\n",
-				    errno, strerror(errno), op, conn->rsock);
+				    "rsend failed: %d (%s) for op %u "
+				    "flags 0x%x on rsock %d\n",
+				    errno, strerror(errno), op, flags, conn->rsock);
 		}
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
-			    "failed to allocate ssa_msg_hdr for op %u on rsock %d\n",
-			    len, op, conn->rsock);
+			    "failed to allocate ssa_msg_hdr for op %u "
+			    "flags 0x%x on rsock %d\n",
+			    len, op, flags, conn->rsock);
 	return events;
 }
 
