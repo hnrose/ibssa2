@@ -2342,9 +2342,9 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
 						return POLLOUT | POLLIN;
 					ssa_log_err(SSA_LOG_CTRL,
-						    "rsend failed: %d (%s) on rsock %d\n",
+						    "rsend failed: %d (%s) for op %u on rsock %d\n",
 						    errno, strerror(errno),
-						    conn->rsock);
+						    op, conn->rsock);
 				}
 			} else
 				return POLLOUT | POLLIN;
@@ -2352,8 +2352,8 @@ static short ssa_downstream_send(struct ssa_conn *conn, uint16_t op,
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				return POLLOUT | POLLIN;
 			ssa_log_err(SSA_LOG_CTRL,
-				    "rsend failed: %d (%s) on rsock %d\n",
-				    errno, strerror(errno), conn->rsock);
+				    "rsend failed: %d (%s) for op %u on rsock %d\n",
+				    errno, strerror(errno), op, conn->rsock);
 		}
 	} else
 		ssa_log_err(SSA_LOG_CTRL,
