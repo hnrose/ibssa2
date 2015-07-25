@@ -1189,6 +1189,14 @@ ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", conn
 			conn->phase, conn->rsock);
 }
 
+static void ssa_upstream_handle_db_update(struct ssa_conn *conn,
+					  struct ssa_msg_hdr *hdr)
+{
+	conn->roffset = 0;
+	free(hdr);		/* same as svc->conn_dataup.rbuf */
+	conn->rbuf = NULL;
+}
+
 static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 {
 	int count = 0, ret;
@@ -1555,9 +1563,7 @@ cate check !!! */
 		break;
 	case SSA_MSG_DB_UPDATE:
 ssa_log(SSA_LOG_DEFAULT, "SSA_MSG_DB_UPDATE received from upstream when ssa_db %p epoch 0x%" PRIx64 " phase %d rsock %d\n", svc->conn_dataup.ssa_db, ntohll(hdr->rdma_addr), svc->conn_dataup.phase, svc->conn_dataup.rsock);
-		svc->conn_dataup.roffset = 0;
-		free(hdr);		/* same as svc->conn_dataup.rbuf */
-		svc->conn_dataup.rbuf = NULL;
+		ssa_upstream_handle_db_update(&svc->conn_dataup, hdr);
 		/* Ignore DB update notification message if phase is not IDLE */
 		if (svc->conn_dataup.phase == SSA_DB_IDLE) {
 			if (svc->conn_dataup.ssa_db) {
