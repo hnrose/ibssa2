@@ -48,7 +48,7 @@
 
 #define MAX_COMMAND_OPTS 20
 
-struct admin_context {
+struct cmd_exec_info {
 	uint64_t stime, etime;
 };
 
@@ -66,14 +66,13 @@ struct admin_command {
 };
 
 struct cmd_struct_impl {
-	struct admin_command *(*init)(int cmd_id, struct admin_context *ctx,
+	struct admin_command *(*init)(int cmd_id,
 				      int argc, char **argv);
 	void (*destroy)(struct admin_command *admin_cmd);
 	int (*create_request)(struct admin_command *admin_cmd,
-			      struct admin_context *ctx,
 			      struct ssa_admin_msg *msg);
 	void (*handle_response)(struct admin_command *cmd,
-				struct admin_context *ctx,
+				struct cmd_exec_info *exec_info,
 				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg);
 	struct cmd_opts opts[MAX_COMMAND_OPTS];
@@ -83,30 +82,27 @@ struct cmd_struct_impl {
 
 static void default_destroy(struct admin_command *cmd);
 static void default_print_usage(FILE *stream);
-static struct admin_command *default_init(int cmd_id, struct admin_context *ctx,
+static struct admin_command *default_init(int cmd_id,
 					  int argc, char **argv);
 static int default_create_msg(struct admin_command *cmd,
-			      struct admin_context *ctx,
 			      struct ssa_admin_msg *msg);
 static void ping_command_output(struct admin_command *cmd,
-				struct admin_context *ctx,
+				struct cmd_exec_info *exec_info,
 				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg);
-static struct admin_command *counter_init(int cmd_id, struct admin_context *ctx,
+static struct admin_command *counter_init(int cmd_id,
 					  int argc, char **argv);
 static void counter_print_help(FILE *stream);
 static int counter_command_create_msg(struct admin_command *cmd,
-				      struct admin_context *ctx,
 				      struct ssa_admin_msg *msg);
 static void counter_command_output(struct admin_command *cmd,
-				   struct admin_context *ctx,
+				   struct cmd_exec_info *exec_info,
 				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg);
 static int node_info_command_create_msg(struct admin_command *cmd,
-					struct admin_context *ctx,
 					struct ssa_admin_msg *msg);
 static void node_info_command_output(struct admin_command *cmd,
-				     struct admin_context *ctx,
+				     struct cmd_exec_info *exec_info,
 				     union ibv_gid remote_gid,
 				     const struct ssa_admin_msg *msg);
 
@@ -626,8 +622,7 @@ static void default_print_usage(FILE *stream)
 	(void)(stream);
 }
 
-static struct admin_command *default_init(int cmd_id, struct admin_context *ctx,
-					  int argc, char **argv)
+static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 {
 	struct option *long_opts;
 	char short_opts[256];
@@ -685,7 +680,6 @@ static struct admin_command *default_init(int cmd_id, struct admin_context *ctx,
 }
 
 static int default_create_msg(struct admin_command *cmd,
-			      struct admin_context *ctx,
 			      struct ssa_admin_msg *msg)
 {
 	return 0;
@@ -698,7 +692,7 @@ struct ssa_admin_counter_descr {
 };
 
 static void ping_command_output(struct admin_command *cmd,
-				struct admin_context *ctx,
+				struct cmd_exec_info *exec_info,
 				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg)
 {
@@ -707,7 +701,7 @@ static void ping_command_output(struct admin_command *cmd,
 	ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
 			remote_gid.raw, sizeof remote_gid.raw);
 	printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
-	       sizeof(*msg), addr_buf, 1e-3 * (ctx->etime - ctx->stime));
+	       sizeof(*msg), addr_buf, 1e-3 * (exec_info->etime - exec_info->stime));
 }
 
 static const char *ssa_counter_type_names[] = {
@@ -732,10 +726,9 @@ static struct ssa_admin_counter_descr counters_descr[] = {
 };
 
 
-static struct admin_command *counter_init(int cmd_id, struct admin_context *ctx,
-					  int argc, char **argv)
+static struct admin_command *counter_init(int cmd_id, int argc, char **argv)
 {
-	struct admin_command *cmd = default_init(cmd_id, ctx, argc, argv);
+	struct admin_command *cmd = default_init(cmd_id, argc, argv);
 	struct admin_count_command *count_cmd;
 	int i, j;
 
@@ -784,7 +777,6 @@ static void counter_print_help(FILE *stream)
 }
 
 int counter_command_create_msg(struct admin_command *cmd,
-			       struct admin_context *ctx,
 			       struct ssa_admin_msg *msg)
 {
 	struct ssa_admin_counter *counter_msg = &msg->data.counter;
@@ -798,7 +790,7 @@ int counter_command_create_msg(struct admin_command *cmd,
 }
 
 static void counter_command_output(struct admin_command *cmd,
-				   struct admin_context *ctx,
+				   struct cmd_exec_info *exec_info,
 				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg)
 {
@@ -848,7 +840,6 @@ static void counter_command_output(struct admin_command *cmd,
 }
 
 static int node_info_command_create_msg(struct admin_command *cmd,
-					struct admin_context *ctx,
 					struct ssa_admin_msg *msg)
 {
 	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
@@ -873,7 +864,7 @@ static const char *ssa_database_type_names[] = {
 };
 
 static void node_info_command_output(struct admin_command *cmd,
-				     struct admin_context *ctx,
+				     struct cmd_exec_info *exec_info,
 				     union ibv_gid remote_gid,
 				     const struct ssa_admin_msg *msg)
 {
@@ -1004,7 +995,7 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 	struct ssa_admin_msg *response;
 	struct admin_command *admin_cmd;
 	struct cmd_struct_impl *cmd_impl;
-	struct admin_context context;
+	struct cmd_exec_info exec_info;
 	int ret;
 	struct pollfd fds[1];
 	struct sockaddr_ib peer_addr;
@@ -1046,7 +1037,7 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 		return -1;
 	}
 
-	admin_cmd = cmd_impl->init(cmd, &context, argc, argv);
+	admin_cmd = cmd_impl->init(cmd, argc, argv);
 	if (!admin_cmd) {
 		fprintf(stderr, "ERROR - command creation failed\n");
 		return -1;
@@ -1058,14 +1049,14 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 	msg.hdr.opcode	= htons(admin_cmd->cmd->id);
 	msg.hdr.len	= htons(sizeof(msg.hdr));
 
-	ret = admin_cmd->impl->create_request(admin_cmd, &context, &msg);
+	ret = admin_cmd->impl->create_request(admin_cmd, &msg);
 	if (ret < 0) {
 		fprintf(stderr, "ERROR - message creation error\n");
 		cmd_impl->destroy(admin_cmd);
 		return -1;
 	}
 
-	context.stime = get_timestamp();
+	exec_info.stime = get_timestamp();
 
 	ret = rsend(rsock, &msg, ntohs(msg.hdr.len), 0);
 	if (ret < 0 || ret != ntohs(msg.hdr.len)) {
@@ -1107,7 +1098,7 @@ recv:
 		return -1;
 	}
 
-	context.etime = get_timestamp();
+	exec_info.etime = get_timestamp();
 
 	if (response->hdr.status != SSA_ADMIN_STATUS_SUCCESS) {
 		fprintf(stderr, "ERROR - target SSA node failed to process request\n");
@@ -1116,7 +1107,7 @@ recv:
 		fprintf(stderr, "ERROR - response has wrong method\n");
 		ret = -1;
 	} else {
-		cmd_impl->handle_response(admin_cmd, &context, remote_gid, response);
+		cmd_impl->handle_response(admin_cmd, &exec_info, remote_gid, response);
 		ret = 0;
 	}
 
@@ -1348,7 +1339,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	struct ssa_admin_msg nodeinfo_msg, msg;
 	struct admin_command *admin_cmd = NULL;
 	struct cmd_struct_impl *cmd_impl = NULL;
-	struct admin_context context;
+	struct cmd_exec_info exec_info;
 	int n = 1024, ret, i, revents, err;
 	struct pollfd *fds;
 	unsigned int len;
@@ -1383,7 +1374,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	memset(connections, 0, n * sizeof(*connections));
 
 	nodeinfo_impl = &admin_cmd_command_impls[SSA_ADMIN_CMD_NODE_INFO];
-	nodeinfo_cmd = nodeinfo_impl->init(SSA_ADMIN_CMD_NODE_INFO, &context, 0, NULL);
+	nodeinfo_cmd = nodeinfo_impl->init(SSA_ADMIN_CMD_NODE_INFO, 0, NULL);
 	if (!nodeinfo_cmd) {
 		fprintf(stderr, "ERROR - failed to create nodeinfo command\n");
 		free(connections);
@@ -1397,7 +1388,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	nodeinfo_msg.hdr.opcode	= htons(SSA_ADMIN_CMD_NODE_INFO);
 	nodeinfo_msg.hdr.len	= htons(sizeof(nodeinfo_msg.hdr));
 
-	ret = nodeinfo_impl->create_request(nodeinfo_cmd, &context, &nodeinfo_msg);
+	ret = nodeinfo_impl->create_request(nodeinfo_cmd, &nodeinfo_msg);
 	if (ret < 0) {
 		fprintf(stderr, "ERROR - message creation error\n");
 		goto err;
@@ -1410,7 +1401,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 		goto err;
 	}
 
-	admin_cmd = cmd_impl->init(cmd, &context, argc, argv);
+	admin_cmd = cmd_impl->init(cmd, argc, argv);
 	if (!admin_cmd) {
 		fprintf(stderr, "ERROR - command creation error\n");
 		goto err;
@@ -1422,7 +1413,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	msg.hdr.opcode	= htons(admin_cmd->cmd->id);
 	msg.hdr.len	= htons(sizeof(msg.hdr));
 
-	ret = admin_cmd->impl->create_request(admin_cmd, &context, &msg);
+	ret = admin_cmd->impl->create_request(admin_cmd, &msg);
 	if (ret < 0) {
 		fprintf(stderr, "ERROR - message creation error\n");
 		goto err;
@@ -1515,7 +1506,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 						continue;
 					}
 				}
-				cmd_impl->handle_response(admin_cmd, &context, connections[i].remote_gid, connections[i].rmsg);
+				cmd_impl->handle_response(admin_cmd, &exec_info, connections[i].remote_gid, connections[i].rmsg);
 				admin_close_connection(&fds[i], &connections[i]);
 				continue;
 			}
