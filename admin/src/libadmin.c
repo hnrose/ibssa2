@@ -1133,6 +1133,7 @@ struct admin_connection {
 	int rlen, rcount;
 	struct ssa_admin_msg *rmsg;
 	struct ssa_admin_msg_hdr rhdr;
+	struct cmd_exec_info exec_info;
 };
 
 static int admin_recv_buff(int rsock, char *buf, int *rcount, int rlen)
@@ -1251,6 +1252,8 @@ static void admin_update_connection_state(struct admin_connection *conn,
 		conn->slen = ntohs(msg->hdr.len);
 		conn->sleft = conn->slen;
 	}
+
+	conn->exec_info.stime = get_timestamp();
 }
 
 static void admin_close_connection(struct pollfd *pfd,
@@ -1339,7 +1342,6 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	struct ssa_admin_msg nodeinfo_msg, msg;
 	struct admin_command *admin_cmd = NULL;
 	struct cmd_struct_impl *cmd_impl = NULL;
-	struct cmd_exec_info exec_info;
 	int n = 1024, ret, i, revents, err;
 	struct pollfd *fds;
 	unsigned int len;
@@ -1493,6 +1495,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 				}
 
 				ret = 0;
+				connections[i].exec_info.etime = get_timestamp();
 				if (ntohs(connections[i].rmsg->hdr.opcode) == SSA_ADMIN_CMD_NODE_INFO &&
 				    connections[i].state == ADM_CONN_NODEINFO) {
 					ret = admin_connect_new_nodes(&fds, &connections, &n, connections[i].rmsg);
@@ -1506,7 +1509,8 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 						continue;
 					}
 				}
-				cmd_impl->handle_response(admin_cmd, &exec_info, connections[i].remote_gid, connections[i].rmsg);
+				cmd_impl->handle_response(admin_cmd, &connections[i].exec_info,
+						connections[i].remote_gid, connections[i].rmsg);
 				admin_close_connection(&fds[i], &connections[i]);
 				continue;
 			}
