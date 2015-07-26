@@ -63,6 +63,7 @@ struct admin_command {
 	union {
 		struct admin_count_command count_cmd;
 	} data;
+	short recursive;
 };
 
 struct cmd_struct_impl {
@@ -649,6 +650,7 @@ static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 
 	admin_cmd->impl = impl;
 	admin_cmd->cmd = cmd;
+	admin_cmd->recursive = 0;
 
 	n = ARRAY_SIZE(impl->opts) + long_opts_num;
 	long_opts = calloc(1, n * sizeof(*long_opts));
@@ -801,6 +803,7 @@ static void counter_command_output(struct admin_command *cmd,
 	time_t timestamp_time;
 	struct tm *timestamp_tm;
 	long val;
+	char addr_buf[128];
 
 	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
 
@@ -815,6 +818,12 @@ static void counter_command_output(struct admin_command *cmd,
 
 		if (val < 0 && ssa_admin_counters_type[i] != ssa_counter_signed_numeric)
 			continue;
+
+		if (cmd->recursive && ssa_admin_counters_type[i] != ssa_counter_obsolete) {
+			ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+					remote_gid.raw, sizeof remote_gid.raw);
+			printf("%s: ", addr_buf);
+		}
 
 		switch (ssa_admin_counters_type[i]) {
 			case ssa_counter_obsolete:
@@ -870,12 +879,19 @@ static void node_info_command_output(struct admin_command *cmd,
 {
 	int i, n;
 	char addr_buf[128];
+	char node_addr_buf[128];
 	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
 	struct ssa_admin_connection_info *connections =
 		(struct ssa_admin_connection_info *) node_info_msg->connections;
 	struct timeval timestamp;
 	time_t timestamp_time;
 	struct tm *timestamp_tm;
+
+	if (cmd->recursive) {
+		ssa_format_addr(node_addr_buf, sizeof node_addr_buf, SSA_ADDR_GID,
+				remote_gid.raw, sizeof remote_gid.raw);
+		printf("%s: ", node_addr_buf);
+	}
 
 	printf("%s %s\n", ssa_node_type_str(node_info_msg->type),
 	       node_info_msg->version);
@@ -900,6 +916,9 @@ static void node_info_command_output(struct admin_command *cmd,
 
 		timestamp_time = timestamp.tv_sec;
 		timestamp_tm = localtime(&timestamp_time);
+
+		if (cmd->recursive)
+			printf("%s: ", node_addr_buf);
 
 		printf("%s %u %s %s %s ", addr_buf, ntohs(connections[i].remote_lid),
 		       ssa_connection_type_names[connections[i].connection_type],
@@ -1042,6 +1061,7 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 		fprintf(stderr, "ERROR - command creation failed\n");
 		return -1;
 	}
+	admin_cmd->recursive = 0;
 
 	memset(&msg, 0, sizeof(msg));
 	msg.hdr.version	= SSA_ADMIN_PROTOCOL_VERSION;
@@ -1420,6 +1440,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 		fprintf(stderr, "ERROR - message creation error\n");
 		goto err;
 	}
+	admin_cmd->recursive = 1;
 
 	fds[0].fd = rsock;
 	fds[0].events = POLLOUT;
