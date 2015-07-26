@@ -74,6 +74,7 @@ struct cmd_struct_impl {
 			      struct ssa_admin_msg *msg);
 	void (*handle_response)(struct admin_command *cmd,
 				struct admin_context *ctx,
+				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg);
 	struct cmd_opts opts[MAX_COMMAND_OPTS];
 	struct cmd_help help;
@@ -89,6 +90,7 @@ static int default_create_msg(struct admin_command *cmd,
 			      struct ssa_admin_msg *msg);
 static void ping_command_output(struct admin_command *cmd,
 				struct admin_context *ctx,
+				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg);
 static struct admin_command *counter_init(int cmd_id, struct admin_context *ctx,
 					  int argc, char **argv);
@@ -98,12 +100,14 @@ static int counter_command_create_msg(struct admin_command *cmd,
 				      struct ssa_admin_msg *msg);
 static void counter_command_output(struct admin_command *cmd,
 				   struct admin_context *ctx,
+				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg);
 static int node_info_command_create_msg(struct admin_command *cmd,
 					struct admin_context *ctx,
 					struct ssa_admin_msg *msg);
 static void node_info_command_output(struct admin_command *cmd,
 				     struct admin_context *ctx,
+				     union ibv_gid remote_gid,
 				     const struct ssa_admin_msg *msg);
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
@@ -695,10 +699,15 @@ struct ssa_admin_counter_descr {
 
 static void ping_command_output(struct admin_command *cmd,
 				struct admin_context *ctx,
+				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg)
 {
+	char addr_buf[128];
+
+	ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+			remote_gid.raw, sizeof remote_gid.raw);
 	printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
-	       sizeof(*msg), dest_addr, 1e-3 * (ctx->etime - ctx->stime));
+	       sizeof(*msg), addr_buf, 1e-3 * (ctx->etime - ctx->stime));
 }
 
 static const char *ssa_counter_type_names[] = {
@@ -790,6 +799,7 @@ int counter_command_create_msg(struct admin_command *cmd,
 
 static void counter_command_output(struct admin_command *cmd,
 				   struct admin_context *ctx,
+				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg)
 {
 	int i, n;
@@ -864,6 +874,7 @@ static const char *ssa_database_type_names[] = {
 
 static void node_info_command_output(struct admin_command *cmd,
 				     struct admin_context *ctx,
+				     union ibv_gid remote_gid,
 				     const struct ssa_admin_msg *msg)
 {
 	int i, n;
@@ -996,6 +1007,9 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 	struct admin_context context;
 	int ret;
 	struct pollfd fds[1];
+	struct sockaddr_ib peer_addr;
+	socklen_t peer_len;
+	union ibv_gid remote_gid;
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
 		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
@@ -1004,6 +1018,23 @@ int admin_exec(int rsock, int cmd, int argc, char **argv)
 
 	if (rsock < 0) {
 		fprintf(stderr, "ERROR - no connection was established\n");
+		return -1;
+	}
+
+	peer_len = sizeof(peer_addr);
+	if (!rgetpeername(rsock, (struct sockaddr *) &peer_addr, &peer_len)) {
+		if (peer_addr.sib_family == AF_IB) {
+			memcpy(&remote_gid.raw, &peer_addr.sib_addr, sizeof(union ibv_gid));
+		} else {
+			fprintf(stderr, "ERROR - "
+				"rgetpeername fd %d family %d not AF_IB\n",
+				rsock, peer_addr.sib_family);
+			return -1;
+		}
+	} else {
+		fprintf(stderr, "ERROR - "
+			"rgetpeername rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
 		return -1;
 	}
 
@@ -1085,7 +1116,7 @@ recv:
 		fprintf(stderr, "ERROR - response has wrong method\n");
 		ret = -1;
 	} else {
-		cmd_impl->handle_response(admin_cmd, &context, response);
+		cmd_impl->handle_response(admin_cmd, &context, remote_gid, response);
 		ret = 0;
 	}
 
@@ -1484,7 +1515,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 						continue;
 					}
 				}
-				cmd_impl->handle_response(admin_cmd, &context, connections[i].rmsg);
+				cmd_impl->handle_response(admin_cmd, &context, connections[i].remote_gid, connections[i].rmsg);
 				admin_close_connection(&fds[i], &connections[i]);
 				continue;
 			}
