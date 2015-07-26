@@ -9,6 +9,7 @@ ssadmin \- test and configuration utility for SSA services
         [[-p | --pkey] <partition key>] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]
         [[-a | --admin_port] <server port>]
         [[-t | --timeout] <timeout>]
+        [-r | --recursive]
         <command> [<args>]
 .fi
 .SH "DESCRIPTION"
@@ -49,6 +50,9 @@ Destination node port for communication (default: 7477).
 .TP
 \-t, \-\-timeout <timeout>
 Timeout for command processing in milliseconds (default: 1000).
+.TP
+\-r, \-\-recursive
+Send a command recursively down to a sub-tree.
 .TP
 \-v, \-\-version
 Prints ssadmin version and exit.
