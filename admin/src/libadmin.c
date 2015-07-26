@@ -1102,6 +1102,8 @@ enum admin_connection_state {
 };
 
 struct admin_connection {
+	union ibv_gid remote_gid;
+	uint16_t remote_lid;
 	enum admin_connection_state state;
 	time_t epoch;
 	int slen, sleft;
@@ -1299,6 +1301,10 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 			(*fds)[slot].revents = 0;
 
 			admin_update_connection_state(*admin_conns + slot, ADM_CONN_CONNECTING, NULL);
+			(*admin_conns)[slot].remote_lid = ntohs(node_conns[i].remote_lid);
+			memcpy((*admin_conns)[slot].remote_gid.raw,
+			       &node_conns[i].remote_gid,
+			       sizeof((*admin_conns)[slot].remote_gid.raw));
 		}
 	}
 	return 0;
@@ -1316,6 +1322,8 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 	struct pollfd *fds;
 	unsigned int len;
 	struct admin_connection *connections;
+	struct sockaddr_ib peer_addr;
+	socklen_t peer_len;
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
 		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
@@ -1395,7 +1403,25 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 
 	admin_update_connection_state(&connections[0], ADM_CONN_NODEINFO, &nodeinfo_msg);
 
-	for (;;) {
+	peer_len = sizeof(peer_addr);
+	if (!rgetpeername(rsock, (struct sockaddr *) &peer_addr, &peer_len)) {
+		if (peer_addr.sib_family == AF_IB) {
+			memcpy(&connections[0].remote_gid, &peer_addr.sib_addr, sizeof(union ibv_gid));
+		} else {
+			fprintf(stderr, "ERROR - "
+				"rgetpeername fd %d family %d not AF_IB\n",
+				rsock, peer_addr.sib_family);
+			return -1;
+			goto err;
+		}
+	} else {
+		fprintf(stderr, "ERROR - "
+			"rgetpeername rsock %d ERROR %d (%s)\n",
+			rsock, errno, strerror(errno));
+		goto err;
+	}
+
+	for(;;) {
 		for (i = 0; i < n && fds[i].fd < 0; ++i);
 		if (i == n)
 			break;
@@ -1458,7 +1484,6 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 						continue;
 					}
 				}
-
 				cmd_impl->handle_response(admin_cmd, &context, connections[i].rmsg);
 				admin_close_connection(&fds[i], &connections[i]);
 				continue;
