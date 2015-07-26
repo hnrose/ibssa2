@@ -638,3 +638,87 @@ uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db)
 out:
 	return data_tbl_cnt;
 }
+
+static int get_table_id(const char *name, struct db_dataset *dataset,
+			struct db_table_def *tbl_def)
+{
+	int table_id = -1;
+	uint64_t i;
+
+	for (i = 0; i < ntohll(dataset->set_count); i++) {
+		if (tbl_def[i].type != DBT_TYPE_DATA)
+			continue;
+
+		if (strncmp(name, tbl_def[i].name, DB_NAME_LEN))
+			continue;
+
+		table_id = tbl_def[i].id.table;
+		break;
+	}
+
+	return table_id;
+}
+
+int ssa_db_attach(struct ssa_db *ssa_db, const char *tbl_name,
+		  struct db_dataset tbl_dataset, void *tbl)
+{
+	struct db_dataset *dataset;
+	int id;
+
+	if (!ssa_db || !tbl_name || !tbl)
+		goto err;
+
+	id = get_table_id(tbl_name, &ssa_db->db_table_def, ssa_db->p_def_tbl);
+	if (id < 0)
+		goto err;
+
+	dataset = &ssa_db->p_db_tables[id];
+	if (dataset->set_size > 0 || dataset->set_count > 0 ||
+	    ssa_db->pp_tables[id])
+		goto err;
+
+	if (dataset->version != tbl_dataset.version ||
+	    dataset->size != tbl_dataset.size ||
+	    dataset->access != tbl_dataset.access)
+		goto err;
+
+	ssa_db->pp_tables[id] = malloc(ntohll(tbl_dataset.set_size));
+	if (!ssa_db->pp_tables[id])
+		goto err;
+
+	memcpy(ssa_db->pp_tables[id], tbl, ntohll(tbl_dataset.set_size));
+
+	dataset->epoch = tbl_dataset.epoch;
+	dataset->set_size = tbl_dataset.set_size;
+	dataset->set_count = tbl_dataset.set_count;
+
+	return 0;
+
+err:
+	return -1;
+}
+
+void ssa_db_detach(struct ssa_db *ssa_db, const char *tbl_name)
+{
+	struct db_dataset *dataset;
+	int id;
+
+	if (!ssa_db || !tbl_name)
+		goto out;
+
+	id = get_table_id(tbl_name, &ssa_db->db_table_def, ssa_db->p_def_tbl);
+	if (id < 0)
+		goto out;
+
+	dataset = &ssa_db->p_db_tables[id];
+	dataset->set_size = 0;
+	dataset->set_count = 0;
+
+	if (!ssa_db->pp_tables[id])
+		goto out;
+
+	free(ssa_db->pp_tables[id]);
+	ssa_db->pp_tables[id] = NULL;
+out:
+	return;
+}
