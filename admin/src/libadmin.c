@@ -1452,15 +1452,16 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 						fprintf(stderr, "WARNING - failed connect downstream nodes\n");
 						continue;
 					}
-
-					admin_update_connection_state(&connections[i], ADM_CONN_COMMAND, &msg);
-					fds[i].events = POLLOUT;
-					continue;
-				} else {
-					cmd_impl->handle_response(admin_cmd, &context, connections[i].rmsg);
-					admin_close_connection(&fds[i], &connections[i]);
-					continue;
+					if (cmd != SSA_ADMIN_CMD_NODE_INFO) {
+						admin_update_connection_state(&connections[i], ADM_CONN_COMMAND, &msg);
+						fds[i].events = POLLOUT;
+						continue;
+					}
 				}
+
+				cmd_impl->handle_response(admin_cmd, &context, connections[i].rmsg);
+				admin_close_connection(&fds[i], &connections[i]);
+				continue;
 			}
 			if (revents & POLLOUT) {
 				if (connections[i].state == ADM_CONN_CONNECTING) {
