@@ -86,9 +86,17 @@ struct ssa_conn_req_msg {
 	struct ssa_svc		*svc;
 };
 
+struct ssa_conn_done_payload {
+	int			rsock;
+	int			type;
+	int 			dbtype;
+	union ibv_gid		remote_gid;
+	uint16_t		remote_lid;
+};
+
 struct ssa_conn_done_msg {
 	struct ssa_ctrl_msg	hdr;
-	struct ssa_conn		*conn;
+	struct ssa_conn_done_payload data;
 };
 
 enum ssa_db_update_flag {
@@ -128,7 +136,7 @@ struct ssa_ctrl_msg_buf {
 		struct ssa_umad		umad;
 		struct sa_umad		umad_sa;
 		struct ssa_svc		*svc;
-		struct ssa_conn		*conn;
+		struct ssa_conn_done_payload conn_data;
 		struct ssa_db_update	db_upd;
 		int			status;
 	} data;

@@ -2247,6 +2247,15 @@ out:
 	return NULL;
 }
 
+static void ssa_conn_msg_init(const struct ssa_conn *conn, struct ssa_conn_done_msg *msg)
+{
+	msg->data.rsock = conn->rsock;
+	msg->data.type = conn->type;
+	msg->data.dbtype = conn->dbtype;
+	memcpy(&msg->data.remote_gid.raw, &conn->remote_gid.raw, sizeof(msg->data.remote_gid.raw));
+	msg->data.remote_lid = conn->remote_lid;
+}
+
 static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 				int gone)
 {
@@ -2259,7 +2268,7 @@ static void ssa_downstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 	else
 		msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
-	msg.conn = conn;
+	ssa_conn_msg_init(conn, &msg);
 	if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
 		ret = write(svc->sock_accessdown[0], (char *) &msg, sizeof msg);
 		if (ret != sizeof msg)
@@ -4243,20 +4252,20 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID,
-							msg.data.conn->remote_gid.raw,
-							sizeof msg.data.conn->remote_gid.raw);
+							msg.data.conn_data.remote_gid.raw,
+							sizeof msg.data.conn_data.remote_gid.raw);
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 						"connection done on rsock %d from GID %s LID %u\n",
-						msg.data.conn->rsock, log_data,
-						msg.data.conn->remote_lid);
+						msg.data.conn_data.rsock, log_data,
+						msg.data.conn_data.remote_lid);
 					/* First, see if consumer GID in access map */
 					/* Then, calculate half world PathRecords for GID if needed */
 					/* Finally, "tell" downstream where this ssa_db struct is */
 #ifdef ACCESS
 					consumer = ssa_add_access_consumer(svc_arr[i],
-									   &msg.data.conn->remote_gid,
-									   msg.data.conn->remote_lid,
-									   msg.data.conn->rsock);
+									   &msg.data.conn_data.remote_gid,
+									   msg.data.conn_data.remote_lid,
+									   msg.data.conn_data.rsock);
 					if (NULL == consumer) {
 						ssa_log_err(SSA_LOG_DEFAULT,
 							    "adding access consumer failed\n");
@@ -4293,14 +4302,14 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 #ifdef ACCESS
 						ssa_log(SSA_LOG_DEFAULT,
 							"GID %s LID %u rsock %d PRDB %p calculation complete\n",
-							log_data, msg.data.conn->remote_lid, msg.data.conn->rsock, prdb);
+							log_data, msg.data.conn_data.remote_lid, msg.data.conn_data.rsock, prdb);
 skip_prdb_calc:
-						if (msg.data.conn->rsock >= 0) {
+						if (msg.data.conn_data.rsock >= 0) {
 							ssa_db_update_init(svc_arr[i],
 									   prdb,
-									   msg.data.conn->remote_lid,
-									   &msg.data.conn->remote_gid,
-									   msg.data.conn->rsock,
+									   msg.data.conn_data.remote_lid,
+									   &msg.data.conn_data.remote_gid,
+									   msg.data.conn_data.rsock,
 									   0, 0,
 									   &db_upd);
 							ssa_push_db_update(&update_queue,
@@ -4322,11 +4331,11 @@ skip_prdb_calc:
 					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID,
-							msg.data.conn->remote_gid.raw,
-							sizeof msg.data.conn->remote_gid.raw);
+							msg.data.conn_data.remote_gid.raw,
+							sizeof msg.data.conn_data.remote_gid.raw);
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 						"connection from GID %s LID %u gone\n",
-						log_data, msg.data.conn->remote_lid);
+						log_data, msg.data.conn_data.remote_lid);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
@@ -4612,7 +4621,7 @@ static void ssa_upstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
 	else
 		msg.hdr.type = SSA_CONN_DONE;
 	msg.hdr.len = sizeof(msg);
-	msg.conn = conn;
+	ssa_conn_msg_init(conn, &msg);
 	ret = write(svc->sock_upctrl[0], (char *) &msg, sizeof msg);
 	if (ret != sizeof msg)
 		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
@@ -6787,12 +6796,12 @@ static void *ssa_admin_handler(void *context)
 					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID,
-							msg.data.conn->remote_gid.raw,
-							sizeof msg.data.conn->remote_gid.raw);
+							msg.data.conn_data.remote_gid.raw,
+							sizeof msg.data.conn_data.remote_gid.raw);
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 						"connection done on rsock %d from GID %s LID %u\n",
-						msg.data.conn->rsock, log_data,
-						msg.data.conn->remote_lid);
+						msg.data.conn_data.rsock, log_data,
+						msg.data.conn_data.remote_lid);
 
 					svc = g_hash_table_lookup(svcs_hash, GINT_TO_POINTER(fds[i].fd));
 					if (!svc) {
@@ -6808,18 +6817,18 @@ static void *ssa_admin_handler(void *context)
 					} else {
 						struct timeval now;
 
-						connection_info->connection_type = msg.data.conn->type;
-						connection_info->dbtype = msg.data.conn->dbtype;
+						connection_info->connection_type = msg.data.conn_data.type;
+						connection_info->dbtype = msg.data.conn_data.dbtype;
 						connection_info->remote_type = connection_info->connection_type == SSA_CONN_TYPE_UPSTREAM ?
 							svc->primary_type : 0;
-						connection_info->remote_lid = htons(msg.data.conn->remote_lid);
+						connection_info->remote_lid = htons(msg.data.conn_data.remote_lid);
 
 						gettimeofday(&now, NULL);
 						connection_info->connection_tv_sec = htonll(now.tv_sec);
 						connection_info->connection_tv_usec = htonll(now.tv_usec);
 
-						memcpy(&connection_info->remote_gid, &msg.data.conn->remote_gid.raw, sizeof(connection_info->remote_gid));
-						g_hash_table_replace(connections_hash, GINT_TO_POINTER(msg.data.conn->rsock), connection_info);
+						memcpy(&connection_info->remote_gid, &msg.data.conn_data.remote_gid.raw, sizeof(connection_info->remote_gid));
+						g_hash_table_replace(connections_hash, GINT_TO_POINTER(msg.data.conn_data.rsock), connection_info);
 					}
 				}
 					break;
@@ -6827,16 +6836,16 @@ static void *ssa_admin_handler(void *context)
 					ssa_sprint_addr(SSA_LOG_DEFAULT | SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 							log_data, sizeof log_data,
 							SSA_ADDR_GID,
-							msg.data.conn->remote_gid.raw,
-							sizeof msg.data.conn->remote_gid.raw);
+							msg.data.conn_data.remote_gid.raw,
+							sizeof msg.data.conn_data.remote_gid.raw);
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 						"connection gone from GID %s LID %u\n",
-						log_data, msg.data.conn->remote_lid);
-					gres = g_hash_table_remove(connections_hash, GINT_TO_POINTER(msg.data.conn->rsock));
+						log_data, msg.data.conn_data.remote_lid);
+					gres = g_hash_table_remove(connections_hash, GINT_TO_POINTER(msg.data.conn_data.rsock));
 					if (!gres)
 						ssa_log_warn(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 								"connection from GID %s LID %u not found\n",
-								log_data, msg.data.conn->remote_lid);
+								log_data, msg.data.conn_data.remote_lid);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
