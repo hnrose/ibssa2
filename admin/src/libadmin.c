@@ -139,7 +139,6 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 static atomic_t tid;
 static short admin_port = 7477;
 static uint16_t pkey_default = 0xffff;
-static char dest_addr[64];
 static const char *local_gid = "::1";
 static int timeout = 1000;
 static  struct admin_opts global_opts;
@@ -392,6 +391,7 @@ static int admin_connect_init(void *dest, int type, struct admin_opts *opts)
 	int port = opts->admin_port ? opts->admin_port : admin_port;
 	uint16_t pkey = opts->pkey ? opts->pkey : pkey_default;
 	int rsock = -1;
+	char dest_addr[64];
 
 	timeout = opts->timeout;
 	global_opts = *opts;
