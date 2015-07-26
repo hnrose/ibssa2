@@ -2768,20 +2768,20 @@ ssa_log(SSA_LOG_DEFAULT, "conn %p phase %d dbtype %d\n", conn, conn->phase, conn
 
 	if (conn->phase != SSA_DB_IDLE) {
 		if (conn->dbtype == SSA_CONN_PRDB_TYPE) {
-			ssa_close_ssa_conn(conn);
 			ssa_downstream_conn(svc, conn, 1);
+			ssa_close_ssa_conn(conn);
 		} else if (conn->dbtype == SSA_CONN_SMDB_TYPE) {
 			smdb_refcnt--;
 ssa_log(SSA_LOG_DEFAULT, "SMDB %p ref count was just decremented to %u\n", ssa_downstream_db(conn), smdb_refcnt);
-			ssa_close_ssa_conn(conn);
 			ssa_downstream_conn(svc, conn, 1);
+			ssa_close_ssa_conn(conn);
 ssa_log(SSA_LOG_DEFAULT, "SMDB transfer in progress %d update pending %d\n", ssa_downstream_smdb_xfer_in_progress(svc, (struct pollfd *)fds, FD_SETSIZE), update_pending);
 			if (update_pending)
 				ssa_downstream_smdb_update_ready(conn, svc, fds);
 		}
 	} else {
-		ssa_close_ssa_conn(conn);
 		ssa_downstream_conn(svc, conn, 1);
+		ssa_close_ssa_conn(conn);
 	}
 }
 
