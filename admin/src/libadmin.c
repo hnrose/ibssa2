@@ -482,7 +482,6 @@ static int admin_connect_init(void *dest, int type, struct admin_opts *opts)
 
 err:
 	rclose(rsock);
-	rsock = -1;
 	return -1;
 }
 
@@ -550,7 +549,6 @@ int admin_connect(void *dest, int type, struct admin_opts *opts)
 
 err:
 	rclose(rsock);
-	rsock = -1;
 	return -1;
 }
 
