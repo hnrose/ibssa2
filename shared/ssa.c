@@ -6432,17 +6432,112 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 	return default_response;
 }
 
+static int ssa_admin_recv_buf(int rsock, char *buf, int *rcount, int rlen)
+{
+	int ret;
+
+	while (*rcount < rlen) {
+		ret = rrecv(rsock, buf + *rcount, rlen - *rcount, MSG_DONTWAIT);
+		if (ret > 0)
+			*rcount += ret;
+		else if (!ret)
+			return -ECONNRESET;
+		else if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return *rcount;
+		else
+			return ret;
+	}
+	return *rcount;
+
+}
+
+static int ssa_admin_read_msg(int rsock, struct ssa_admin_msg *msg,
+			      int *rcount, int *rlen)
+{
+	int ret = 0, n = 0;
+
+	if (*rcount < sizeof(msg->hdr)) {
+		ret = ssa_admin_recv_buf(rsock, (char *) &msg->hdr,
+					 rcount, sizeof(msg->hdr));
+		if (ret == -ECONNRESET) {
+			ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+				"admin peer disconnected rsock %d\n", rsock);
+			return ret;
+		} else if (ret < 0) {
+			ssa_log_err(SSA_LOG_CTRL,
+				    "rrecv failed: %d (%s) on rsock %d\n",
+				    errno, strerror(errno), rsock);
+			return ret;
+		}
+		if (*rcount < sizeof(msg->hdr))
+			return ret;
+	}
+
+	*rlen = ntohs(msg->hdr.len);
+	if (*rlen > sizeof(*msg)) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "received admin message (%d bytes) longer than internal struct (%d bytes) on rsock %d\n",
+			    *rlen, sizeof(*msg), rsock);
+		return -1;
+	}
+
+	if (*rlen == ret)
+		return ret;
+
+	n = ret;
+
+	ret = ssa_admin_recv_buf(rsock, (char *) msg, rcount, *rlen);
+	if (ret == -ECONNRESET) {
+		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+			"admin peer disconnected rsock %d\n", rsock);
+		return ret;
+	} else if (ret < 0) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "rrecv failed: %d (%s) on rsock %d\n",
+			    errno, strerror(errno), rsock);
+		return ret;
+	}
+	n += ret;
+	return n;
+}
+
+static int ssa_admin_send_msg(int rsock, struct ssa_admin_msg *msg,
+			      int *sleft, int slen)
+{
+	int sent = slen - *sleft;
+	int n;
+
+	while (*sleft) {
+		n = rsend(rsock, (char *) msg + sent, *sleft, MSG_DONTWAIT);
+		if (n < 0)
+			break;
+		*sleft -= n;
+		sent +=n;
+	}
+
+	if (*sleft) {
+		return 0;
+	} else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+		return 0;
+	} else if (n < 0)
+		return n;
+
+	return 0;
+}
+
 static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
 	struct ssa_device *dev;
 	struct ssa_port *port;
 	struct ssa_ctrl_msg_buf msg;
-	struct ssa_admin_msg admin_request, *admin_response;
+	struct ssa_admin_msg admin_request, *admin_response = NULL;
 	struct pollfd *fds = NULL;
 	int rsock = -1;
-	int val, ret, len, svc_cnt = 0;
+	int val, ret, svc_cnt = 0;
 	int i, d, p, s;
+	int rlen = 0, rcount;
+	int slen = 0, sleft = 0;
 	GHashTable *connections_hash = NULL;
 	GHashTable *svcs_hash = NULL;
 	gboolean gres;
@@ -6641,6 +6736,22 @@ static void *ssa_admin_handler(void *context)
 					continue;
 				}
 
+				ret = rfcntl(rsock_data, F_SETFL, O_NONBLOCK);
+				if (ret) {
+					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+						"rfcntl ERROR %d (%s) on rsock %d\n",
+						errno, strerror(errno), rsock_data);
+					rclose(rsock_data);
+					continue;
+				}
+
+				rlen = 0;
+				rcount = 0;
+				slen = 0;
+				sleft = 0;
+
+				free(admin_response);
+				admin_response = NULL;
 				fds[2].fd = rsock_data;
 				fds[2].events = POLLIN;
 				fds[2].revents = 0;
@@ -6663,20 +6774,34 @@ static void *ssa_admin_handler(void *context)
 				fds[2].revents = 0;
 				continue;
 			}
+			if (fds[2].revents & POLLOUT) {
+				fds[2].revents = 0;
+
+				if (admin_response && slen && sleft) {
+					ret = ssa_admin_send_msg(fds[2].fd, admin_response, &sleft, slen);
+					if (ret) {
+						rclose(fds[2].fd);
+						fds[2].fd = -1;
+						fds[2].events = 0;
+						fds[2].revents = 0;
+						continue;
+					}
+
+					if (!sleft) {
+						fds[2].events = POLLIN;
+						slen = 0;
+						rlen = 0;
+						rcount = 0;
+					}
+
+				}
+				continue;
+			}
 			if (fds[2].revents & POLLIN) {
 				fds[2].revents = 0;
-				ret = rrecv(fds[2].fd, (char *) &admin_request,
-					    sizeof(admin_request.hdr), 0);
-				if (ret != sizeof(admin_request.hdr)) {
-					if (!ret)
-						ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-							"admin peer disconnected rsock %d\n",
-							fds[2].fd);
-					else
-						ssa_log_err(SSA_LOG_CTRL,
-							    "rrecv failed: %d (%s) on rsock %d\n",
-							    errno, strerror(errno),
-							    fds[2].fd);
+
+				ret = ssa_admin_read_msg(fds[2].fd, &admin_request, &rcount, &rlen);
+				if (ret < 0) {
 					rclose(fds[2].fd);
 					fds[2].fd = -1;
 					fds[2].events = 0;
@@ -6684,73 +6809,44 @@ static void *ssa_admin_handler(void *context)
 					continue;
 				}
 
-				len = ntohs(admin_request.hdr.len);
-				if (len > sizeof(admin_request.hdr)) {
-					ret += rrecv(fds[2].fd, (char *) &admin_request.data,
-						     len - sizeof(admin_request.hdr), 0);
-					if (ret != len) {
-						ssa_log_err(SSA_LOG_CTRL,
-							    "%d out of %d bytes read from admin application\n",
-							    ret, len);
-						rclose(fds[2].fd);
-						fds[2].fd = -1;
-						fds[2].events = 0;
-						fds[2].revents = 0;
-						continue;
-					}
-				}
+				if (rlen > 0 && rcount == rlen) {
+					rcount = 0;
+					rlen = 0;
 
-				ssa_log(SSA_LOG_CTRL,
-					"new admin request received: method %d opcode %d len %d\n",
-					admin_request.hdr.method,
-					ntohs(admin_request.hdr.opcode),
-					ntohs(admin_request.hdr.len));
+					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
+						"new admin request received method %d opcode %d len %d\n",
+						admin_request.hdr.method, ntohs(admin_request.hdr.opcode),
+						ntohs(admin_request.hdr.len));
 
-				if (!ssa_admin_verify_message(&admin_request)) {
-					ssa_log_warn(SSA_LOG_CTRL,
-						     "admin request verification failed\n");
-					admin_response = (struct ssa_admin_msg *) malloc(sizeof(*admin_response));
-					if (!admin_response ) {
-						ssa_log_err(SSA_LOG_CTRL,
-							    "admin response allocation failed\n");
-						rclose(fds[2].fd);
-						fds[2].fd = -1;
-						fds[2].events = 0;
-						fds[2].revents = 0;
-						continue;
+					if (!ssa_admin_verify_message(&admin_request)) {
+						ssa_log_warn(SSA_LOG_CTRL,
+							     "admin request verification failed\n");
+						admin_response = (struct ssa_admin_msg *) malloc(sizeof(*admin_response));
+						if (!admin_response) {
+							ssa_log_err(SSA_LOG_CTRL,
+								    "admin response allocation failed\n");
+							rclose(fds[2].fd);
+							fds[2].fd = -1;
+							fds[2].events = 0;
+							fds[2].revents = 0;
+							continue;
+						}
+
+						admin_response->hdr = admin_request.hdr;
+						admin_response->hdr.status = SSA_ADMIN_STATUS_FAILURE;
+						admin_response->hdr.method = SSA_ADMIN_METHOD_RESP;
+						admin_response->hdr.len = htons(sizeof(*admin_response));
+					} else {
+						admin_response = ssa_admin_handle_message(&admin_request, &handler_context);
 					}
 
-					admin_response->hdr = admin_request.hdr;
-					admin_response->hdr.status = SSA_ADMIN_STATUS_FAILURE;
-					admin_response->hdr.method = SSA_ADMIN_METHOD_RESP;
-					admin_response->hdr.len = htons(sizeof(*admin_response));
-				} else {
-					admin_response = ssa_admin_handle_message(&admin_request, &handler_context);
-				}
-
-				if (admin_response) {
-					ret = rsend(fds[2].fd,
-						    (char *) admin_response,
-						    ntohs(admin_response->hdr.len),
-						    0);
-
-					free(admin_response);
-					admin_response = NULL;
-
-					if (ret < 0) {
+					if (admin_response) {
+						fds[2].events = POLLOUT;
+						slen = ntohs(admin_response->hdr.len);
+						sleft = slen;
+					} else
 						ssa_log_err(SSA_LOG_CTRL,
-							    "rsend failed: %d (%s) on rsock %d\n",
-							    errno, strerror(errno),
-							    fds[2].fd);
-						rclose(fds[2].fd);
-						fds[2].fd = -1;
-						fds[2].events = 0;
-						fds[2].revents = 0;
-						continue;
-					}
-				} else {
-					ssa_log_err(SSA_LOG_CTRL,
-						    "admin failed to create a response\n");
+							    "admin failed to create response\n");
 				}
 			}
 			fds[2].revents = 0;
