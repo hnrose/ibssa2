@@ -6719,8 +6719,8 @@ static void *ssa_admin_handler(void *context)
 					}
 				} else {
 					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
-							"rgetpeername rsock %d ERROR %d (%s)\n",
-							rsock_data, errno, strerror(errno));
+						"rgetpeername rsock %d ERROR %d (%s)\n",
+						rsock_data, errno, strerror(errno));
 					rclose(rsock_data);
 					continue;
 				}
