@@ -4229,8 +4229,7 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 		"cache update complete with PRDB epoch 0x%" PRIx64 "\n",
 		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
 
-	ret = acm_parse_access_v1_address(p_ssa_db, acm_ep);
-	if (ret)
+	if (acm_parse_access_v1_address(p_ssa_db, acm_ep))
 		goto err;
 	else
 		ssa_log(SSA_LOG_VERBOSE,
