@@ -6752,6 +6752,13 @@ static void *ssa_admin_handler(void *context)
 					continue;
 				}
 
+				ret = ssa_rsock_enable_keepalive(rsock_data, keepalive);
+				if (ret) {
+					rclose(rsock_data);
+					continue;
+
+				}
+
 				rlen = 0;
 				rcount = 0;
 				slen = 0;
