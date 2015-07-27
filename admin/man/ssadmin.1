@@ -9,7 +9,7 @@ ssadmin \- test and configuration utility for SSA services
         [[-p | --pkey] <partition key>] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]
         [[-a | --admin_port] <server port>]
         [[-t | --timeout] <timeout>]
-        [-r | --recursive]
+        [-r | --recursive=[d|u]]
         <command> [<args>]
 .fi
 .SH "DESCRIPTION"
@@ -51,8 +51,8 @@ Destination node port for communication (default: 7477).
 \-t, \-\-timeout <timeout>
 Timeout for command processing in milliseconds (default: 1000).
 .TP
-\-r, \-\-recursive
-Send a command recursively down to a sub-tree.
+\-r, \-\-recursive=[d|u]
+Send a command recursively. By default the command is sent down to all connected node. Long option allows to specify the direction. "d" - send the command down, "u" - send the command to upstream connections.
 .TP
 \-v, \-\-version
 Prints ssadmin version and exit.

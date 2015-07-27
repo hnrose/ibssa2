@@ -1289,6 +1289,7 @@ static void admin_close_connection(struct pollfd *pfd,
 
 static int admin_connect_new_nodes(struct pollfd **fds,
 				   struct admin_connection **admin_conns,
+				   enum admin_recursion_mode mode,
 				   int *admin_conns_num,
 				   const struct ssa_admin_msg *rmsg)
 {
@@ -1298,6 +1299,7 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 	struct ssa_admin_connection_info *node_conns =
 		(struct ssa_admin_connection_info *) node_info->connections;
 	void *tmp;
+	int type;
 
 	node_conns_num = ntohs(node_info->connections_num);
 	if (node_conns_num < 0) {
@@ -1307,9 +1309,14 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 		return 0;
 	}
 
+	if (mode == ADMIN_RECURSION_DOWN)
+		type = SSA_CONN_TYPE_DOWNSTREAM;
+	else
+		type = SSA_CONN_TYPE_UPSTREAM;
+
 	slot = 0;
 	for (i = 0; i < node_conns_num; ++i) {
-		if (node_conns[i].connection_type == SSA_CONN_TYPE_DOWNSTREAM) {
+		if (node_conns[i].connection_type == type) {
 			for (; slot < *admin_conns_num && (*fds)[slot].fd > 0; slot++);
 
 			if (slot == *admin_conns_num) {
@@ -1353,7 +1360,7 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 	return 0;
 }
 
-int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
+int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode, int argc, char **argv)
 {
 	struct cmd_struct_impl *nodeinfo_impl;
 	struct admin_command *nodeinfo_cmd;
@@ -1517,7 +1524,7 @@ int admin_exec_recursive(int rsock, int cmd, int argc, char **argv)
 				connections[i].exec_info.etime = get_timestamp();
 				if (ntohs(connections[i].rmsg->hdr.opcode) == SSA_ADMIN_CMD_NODE_INFO &&
 				    connections[i].state == ADM_CONN_NODEINFO) {
-					ret = admin_connect_new_nodes(&fds, &connections, &n, connections[i].rmsg);
+					ret = admin_connect_new_nodes(&fds, &connections, mode, &n, connections[i].rmsg);
 					if (ret) {
 						fprintf(stderr, "WARNING - failed connect downstream nodes\n");
 						continue;

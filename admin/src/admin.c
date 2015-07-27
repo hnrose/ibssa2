@@ -53,7 +53,7 @@ static char *dest_gid;
 static uint16_t dest_lid;
 static uint16_t pkey;
 static int timeout = 1000;
-static short recursive;
+static short recursive = ADMIN_RECURSION_NONE;
 
 struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_COUNTER]= { "counter",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR },
@@ -72,7 +72,7 @@ static struct option long_option[] = {
 	{"admin_port",   required_argument, 0, 'a'},
 	{"version",      no_argument,       0, 'v'},
 	{"help",         no_argument,       0, 'h'},
-	{"recursive",    no_argument,       0, 'r'},
+	{"recursive",    optional_argument, 0, 'r'},
 	{"timeout",      required_argument, 0, 't'},
 	{0, 0, 0, 0}	/* Required at the end of the array */
 };
@@ -81,7 +81,7 @@ static const char admin_usage_string[] =
 	"ssadmin  [-v | --version] [-h | --help] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]\n"
 	"\t\t[[-d | --device] <device name>] [[-P | --Port] <CA port>] \n"
 	"\t\t[[-p | --pkey] <partition key>] [[-a | --admin_port] <admin server port>]\n"
-	"\t\t[[-t | --timeout] <operation timeout>] [-r | --recursive]";
+	"\t\t[[-t | --timeout] <operation timeout>] [-r | --recursive=[d|u]]";
 
 static const char admin_more_info_string[] =
 	"'ssadmin help <command>' shows specific subcommand "
@@ -335,7 +335,14 @@ static int parse_opts(int argc, char **argv, int *status)
 			admin_port = atoi(optarg);
 			break;
 		case 'r':
-			recursive = 1;
+			if (!optarg || !strcmp(optarg, "d")) {
+				recursive = ADMIN_RECURSION_DOWN;
+			} else if (!strcmp(optarg, "u")) {
+				recursive = ADMIN_RECURSION_UP;
+			} else {
+				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
+				return 1;
+			}
 			break;
 		case '?':
 		case 'h':
@@ -446,10 +453,10 @@ int main(int argc, char **argv)
 	}
 
 	optind = 1;
-	if (!recursive)
+	if (recursive == ADMIN_RECURSION_NONE)
 		ret = admin_exec(rsock, cmd->id, argc, argv);
 	else
-		ret = admin_exec_recursive(rsock, cmd->id, argc, argv);
+		ret = admin_exec_recursive(rsock, cmd->id, recursive, argc, argv);
 	if (ret) {
 		fprintf(stderr, "Failed executing '%s' command (%s)\n",
 		       cmd->cmd, admin_cmd_help(cmd->id)->desc);
