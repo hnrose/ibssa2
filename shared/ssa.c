@@ -4334,7 +4334,7 @@ skip_prdb_calc:
 							msg.data.conn_data.remote_gid.raw,
 							sizeof msg.data.conn_data.remote_gid.raw);
 					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
-						"connection from GID %s LID %u gone\n",
+						"connection gone from GID %s LID %u\n",
 						log_data, msg.data.conn_data.remote_lid);
 					break;
 				default:
