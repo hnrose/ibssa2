@@ -3571,7 +3571,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 					     (void *) &ib_addr);
 		else
 			acm_insert_addr_dest(ep, qpn, flags, (void *) addr,
-					     ACM_MAX_ADDRESS, ACM_ADDRESS_NAME,
+					     sizeof(addr), ACM_ADDRESS_NAME,
 					     (void *) &ib_addr);
 	}
 
