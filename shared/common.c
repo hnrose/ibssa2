@@ -122,3 +122,36 @@ void ssa_format_addr(char *str, size_t str_size,
 		break;
 	}
 }
+
+struct poll_event {
+	int val;
+	const char *name;
+};
+
+static const struct poll_event poll_events[] = {
+	{POLLHUP, "POLLHUP"},
+	{POLLERR, "POLLERR"},
+	{POLLNVAL, "POLLNVAL"},
+	{POLLIN, "POLLIN"},
+	{POLLPRI, "POLLPRI"},
+	{POLLOUT, "POLLOUT"},
+	{POLLRDHUP ,"POLLRDHUP"},
+	{POLLRDBAND ,"POLLRDBAND"},
+	{POLLWRBAND ,"POLLWRBAND"}
+};
+
+void ssa_format_event(char *str,const size_t str_size, const int event)
+{
+	int i, n = 0, ret;
+
+	for (i = 0; n < str_size && i < sizeof(poll_events) / sizeof(poll_events[0]); ++i) {
+		if (event & poll_events[i].val) {
+			ret = snprintf(str + n, str_size - n, "%s|", poll_events[i].name);
+			if (ret > 0)
+				n += ret;
+		}
+	}
+	n = strlen(str);
+	if (n && str[n - 1] == '|')
+		str[n -1] = '\0';
+}

@@ -6681,9 +6681,13 @@ static void *ssa_admin_handler(void *context)
 
 			fds[1].revents = 0;
 			if (revents & (POLLERR | POLLHUP | POLLNVAL)) {
+				char event_val[128] = {};
+
+				ssa_format_event(event_val, sizeof(event_val), fds[1].revents);
+
 				ssa_log_err(SSA_LOG_CTRL,
-					    "error event 0x%x on rsock %d\n",
-					    revents, rsock);
+					    "error event 0x%x (%s) on rsock %d\n",
+					    revents, event_val, rsock);
 				continue;
 			}
 			if (revents & POLLIN) {
@@ -6774,14 +6778,18 @@ static void *ssa_admin_handler(void *context)
 
 		if (fds[2].revents) {
 			if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-				if (fds[2].revents & POLLHUP)
+				if (fds[2].revents & POLLHUP) {
 					ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 						"admin peer disconnected rsock %d\n",
 						fds[2].fd);
-				else
+				} else {
+					char event_val[128] = {};
+
+					ssa_format_event(event_val, sizeof(event_val), fds[2].revents);
 					ssa_log_err(SSA_LOG_CTRL,
-						    "revent 0x%x on rsock %d\n",
-						    fds[2].revents, fds[2].fd);
+						    "revent 0x%x (%s)on rsock %d\n",
+						    fds[2].revents, event_val, fds[2].fd);
+				}
 				rclose(fds[2].fd);
 				fds[2].fd = -1;
 				fds[2].events = 0;

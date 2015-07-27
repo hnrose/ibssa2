@@ -341,6 +341,7 @@ const char *month_str[12];
 void ssa_write_date(FILE *stream, time_t tim, unsigned int usec);
 void ssa_format_addr(char *str, size_t str_size,
 		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size);
+void ssa_format_event(char *str, size_t str_size, int event);
 #ifdef __cplusplus
 }
 #endif
