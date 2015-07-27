@@ -4691,9 +4691,9 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 	return 0;
 }
 
-static void ssa_rsock_enable_keepalive(int rsock, int keepalive)
+static int ssa_rsock_enable_keepalive(int rsock, int keepalive)
 {
-	int val, ret;
+	int val, ret = 0;
 
 	if (keepalive) {
 		val = 1;
@@ -4713,6 +4713,7 @@ static void ssa_rsock_enable_keepalive(int rsock, int keepalive)
 					rsock, errno, strerror(errno));
 		}
 	}
+	return ret;
 }
 
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
@@ -4774,7 +4775,11 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		return -1;
 	}
 
-	ssa_rsock_enable_keepalive(fd, keepalive);
+	ret = ssa_rsock_enable_keepalive(fd, keepalive);
+	if (ret) {
+		ssa_close_rsocket(fd);
+		return -1;
+	}
 
 	val = 1;
 	ret = rsetsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
@@ -4835,7 +4840,9 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 		goto close;
 	}
 
-	ssa_rsock_enable_keepalive(svc->conn_dataup.rsock, keepalive);
+	ret = ssa_rsock_enable_keepalive(svc->conn_dataup.rsock, keepalive);
+	if (ret)
+		goto close;
 
 	ret = rsetsockopt(svc->conn_dataup.rsock, IPPROTO_TCP, TCP_NODELAY,
 			  (void *) &val, sizeof(val));
