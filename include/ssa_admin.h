@@ -78,7 +78,7 @@ enum ssa_counter_type {
 	ssa_counter_timestamp
 };
 
-const static enum ssa_counter_type ssa_admin_counters_type[] = {
+static const enum ssa_counter_type ssa_admin_counters_type[] = {
 	[COUNTER_ID_NODE_START_TIME] = ssa_counter_timestamp,
 	[COUNTER_ID_DB_UPDATES_NUM] = ssa_counter_numeric,
 	[COUNTER_ID_DB_LAST_UPDATE_TIME] = ssa_counter_timestamp,
