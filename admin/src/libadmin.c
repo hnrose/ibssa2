@@ -767,8 +767,8 @@ static void counter_print_help(FILE *stream)
 {
 	unsigned int i;
 
-	printf("counter is a command for gathering runtime information from a SSA node.\n");
-	printf("Supported counters:\n");
+	fprintf(stream, "counter is a command for gathering runtime information from a SSA node.\n");
+	fprintf(stream, "Supported counters:\n");
 
 	for (i = 0; i < ARRAY_SIZE(counters_descr); ++i) {
 		if (ssa_admin_counters_type[i] != ssa_counter_obsolete)
