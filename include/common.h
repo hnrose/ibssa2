@@ -66,6 +66,9 @@ extern "C" {
 	#define SET_THREAD_NAME(thread, ...)
 #endif
 
+#define DEFAULT_PKEY         0xFFFF
+#define DEFAULT_REMOTE_FLAGS 0x80
+
 void ssa_daemonize(void);
 int ssa_open_lock_file(char *lock_file, char *msg, int n);
 void ssa_close_lock_file();

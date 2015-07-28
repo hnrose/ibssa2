@@ -3446,7 +3446,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 	long int tmp;
 	int ret, idx, invalid_input, line = 0;
 	uint32_t qpn;
-	uint16_t pkey = ACM_DEFAULT_DEST_PKEY;
+	uint16_t pkey = DEFAULT_PKEY;
 	uint8_t flags;
 
 	if (!(f = fopen(addr_data_file, "r"))) {
@@ -3473,20 +3473,20 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 				if ((endptr == buf1) || (errno == EINVAL) ||
 				    (errno == ERANGE && (tmp == LONG_MIN ||
 				     tmp == LONG_MAX)) || (tmp <= 0) ||
-				    (tmp == 0x8000) || (tmp > ACM_DEFAULT_DEST_PKEY))
+				    (tmp == 0x8000) || (tmp > DEFAULT_PKEY))
 					invalid_input = 1;
 				pkey = (uint16_t) tmp;
 			} else {
-				pkey = ACM_DEFAULT_DEST_PKEY;
+				pkey = DEFAULT_PKEY;
 			}
 
 			if (invalid_input) {
 				ssa_log_warn(SSA_LOG_DEFAULT,
 					     "invalid pkey was specified (0x%x)"
 					     " assuming default (0x%x) %s:%d\n",
-					     tmp, ACM_DEFAULT_DEST_PKEY,
+					     tmp, DEFAULT_PKEY,
 					     addr_data_file, line);
-				pkey = ACM_DEFAULT_DEST_PKEY;
+				pkey = DEFAULT_PKEY;
 			}
 			continue;
 		}
@@ -3523,7 +3523,7 @@ static void acm_parse_hosts_file(struct acm_ep *ep)
 			}
 
 			qpn = (uint32_t) tmp;
-			flags = ACM_DEFAULT_DEST_REMOTE_FLAGS;
+			flags = DEFAULT_REMOTE_FLAGS;
 			break;
 		case 4:
 			tmp = strtol(buf2, &endptr, 0);
@@ -3809,7 +3809,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 				continue;
 			}
 		} else {
-			pkey = ACM_DEFAULT_DEST_PKEY;
+			pkey = DEFAULT_PKEY;
 		}
 
 		if (!strcasecmp(dev_name, dev) && (*port_num == (uint8_t) port) &&

@@ -42,7 +42,6 @@
 #include <infiniband/ssa_ipdb.h>
 #include <ssa_log.h>
 #include <common.h>
-#include <acm_shared.h>
 
 static char log_file[128]	= "/var/log/hosts2addr.log";
 
@@ -81,19 +80,19 @@ static uint16_t get_pkey(char *buf)
 		if ((endptr == pkey_str) || (errno == EINVAL) ||
 		    (errno == ERANGE && (tmp == LONG_MIN ||
 		     tmp == LONG_MAX)) || (tmp <= 0) ||
-		    (tmp == 0x8000) || (tmp > ACM_DEFAULT_DEST_PKEY))
+		    (tmp == 0x8000) || (tmp > DEFAULT_PKEY))
 			invalid_input = 1;
 		pkey = (uint16_t) tmp;
 	} else {
-		pkey = ACM_DEFAULT_DEST_PKEY;
+		pkey = DEFAULT_PKEY;
 	}
 
 	if (invalid_input) {
 		ssa_log_warn(SSA_LOG_DEFAULT,
 			     "invalid pkey was specified (0x%x),"
 			     " assuming default (0x%x)\n",
-			     tmp, ACM_DEFAULT_DEST_PKEY);
-		pkey = ACM_DEFAULT_DEST_PKEY;
+			     tmp, DEFAULT_PKEY);
+		pkey = DEFAULT_PKEY;
 	}
 
 	return pkey;
@@ -147,7 +146,7 @@ static int get_lla_attr(const char *buf, const char *file, int line,
 		}
 
 		attr->qpn = (uint32_t) tmp;
-		attr->flags = ACM_DEFAULT_DEST_REMOTE_FLAGS;
+		attr->flags = DEFAULT_REMOTE_FLAGS;
 		break;
 	case 4:
 		tmp = strtol(buf2, &endptr, 0);
@@ -261,7 +260,7 @@ static struct ssa_db *gen_prdb(const char *hosts_file)
 	struct lla_attr attr;
 	struct in6_addr ip_addr;
 	int idx, line = 0;
-	uint16_t pkey = ACM_DEFAULT_DEST_PKEY;
+	uint16_t pkey = DEFAULT_PKEY;
 
 	if (!(f = fopen(hosts_file, "r"))) {
 		ssa_log_err(SSA_LOG_DEFAULT, "couldn't open %s\n", hosts_file);
