@@ -778,7 +778,7 @@ static void counter_print_help(FILE *stream)
 			       counters_descr[i].description);
 	}
 
-	printf("\n\n");
+	fprintf(stream, "\n\n");
 }
 
 int counter_command_create_msg(struct admin_command *cmd,
