@@ -4775,11 +4775,7 @@ static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn)
 		return -1;
 	}
 
-	ret = ssa_rsock_enable_keepalive(fd, keepalive);
-	if (ret) {
-		ssa_close_rsocket(fd);
-		return -1;
-	}
+	ssa_rsock_enable_keepalive(fd, keepalive);
 
 	val = 1;
 	ret = rsetsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
@@ -4840,9 +4836,7 @@ static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport)
 		goto close;
 	}
 
-	ret = ssa_rsock_enable_keepalive(svc->conn_dataup.rsock, keepalive);
-	if (ret)
-		goto close;
+	ssa_rsock_enable_keepalive(svc->conn_dataup.rsock, keepalive);
 
 	ret = rsetsockopt(svc->conn_dataup.rsock, IPPROTO_TCP, TCP_NODELAY,
 			  (void *) &val, sizeof(val));
@@ -6756,12 +6750,7 @@ static void *ssa_admin_handler(void *context)
 					continue;
 				}
 
-				ret = ssa_rsock_enable_keepalive(rsock_data, keepalive);
-				if (ret) {
-					rclose(rsock_data);
-					continue;
-
-				}
+				ssa_rsock_enable_keepalive(rsock_data, keepalive);
 
 				rlen = 0;
 				rcount = 0;
