@@ -760,7 +760,7 @@ static struct admin_command *counter_init(int cmd_id, int argc, char **argv)
 }
 static void counter_print_help(FILE *stream)
 {
-	int i;
+	unsigned int i;
 
 	printf("counter is a command for gathering runtime information from a SSA node.\n");
 	printf("Supported counters:\n");
@@ -957,7 +957,8 @@ const struct cmd_help *admin_cmd_help(int cmd)
 
 static struct ssa_admin_msg *admin_read_response(int rsock)
 {
-	int ret, len;
+	int ret;
+	unsigned int len;
 	struct ssa_admin_msg *response;
 
 	response = (struct ssa_admin_msg *) malloc(sizeof(*response));
@@ -1146,15 +1147,15 @@ struct admin_connection {
 	uint16_t remote_lid;
 	enum admin_connection_state state;
 	time_t epoch;
-	int slen, sleft;
+	unsigned int slen, sleft;
 	struct ssa_admin_msg *smsg;
-	int rlen, rcount;
+	unsigned int rlen, rcount;
 	struct ssa_admin_msg *rmsg;
 	struct ssa_admin_msg_hdr rhdr;
 	struct cmd_exec_info exec_info;
 };
 
-static int admin_recv_buff(int rsock, char *buf, int *rcount, int rlen)
+static int admin_recv_buff(int rsock, char *buf, unsigned int *rcount, unsigned int rlen)
 {
 	int n;
 

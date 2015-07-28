@@ -95,7 +95,7 @@ static void show_version()
 static void show_usage()
 {
 	struct cmd_struct *cmd;
-	int i;
+	unsigned int i;
 
 	printf("usage: %s\n\t\t<command> [<command args>]\n\n",
 	       admin_usage_string);
@@ -173,7 +173,8 @@ static void show_cmd_usage(const char *cmd_name, const struct cmd_help *help_fun
 static int get_opt_num()
 {
 	struct cmd_opts *opts;
-	int i, j = 0, opt_num = 0;
+	unsigned int i, j = 0;
+	int opt_num = 0;
 
 	for (i = 0; i < ARRAY_SIZE(admin_cmds); j = 0, i++) {
 		if (admin_cmds[i].id <= SSA_ADMIN_CMD_NONE ||
@@ -191,7 +192,8 @@ static int get_opt_num()
 static int get_long_opts(struct option *opts_arr, int len)
 {
 	struct cmd_opts *opts;
-	int i, j = 0, n = 0;
+	unsigned int i, j = 0;
+	int n = 0;
 
 	for (i = 0; i < ARRAY_SIZE(admin_cmds); j = 0, i++) {
 		if (admin_cmds[i].id <= SSA_ADMIN_CMD_NONE ||
@@ -209,7 +211,8 @@ static int get_long_opts(struct option *opts_arr, int len)
 static int get_short_opts(char *buf, int len)
 {
 	struct cmd_opts *opts;
-	int i, j = 0, n = 0;
+	unsigned int i, j = 0;
+	int n = 0;
 
 	for (i = 0; i < ARRAY_SIZE(admin_cmds); j = 0, i++) {
 		if (admin_cmds[i].id <= SSA_ADMIN_CMD_NONE ||
