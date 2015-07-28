@@ -399,7 +399,8 @@ static int admin_connect_init(void *dest, int type, struct admin_opts *opts)
 
 	rsock = rsocket(AF_IB, SOCK_STREAM, 0);
 	if (rsock < 0) {
-		fprintf(stderr, "rsocket ERROR %d (%s)\n", errno, strerror(errno));
+		fprintf(stderr, "rsocket ERROR %d (%s)\n",
+			errno, strerror(errno));
 		return -1;
 	}
 
@@ -767,15 +768,15 @@ static void counter_print_help(FILE *stream)
 {
 	unsigned int i;
 
-	fprintf(stream, "counter is a command for gathering runtime information from a SSA node.\n");
+	fprintf(stream, "counter is a command for gathering runtime information from a SSA node\n");
 	fprintf(stream, "Supported counters:\n");
 
 	for (i = 0; i < ARRAY_SIZE(counters_descr); ++i) {
 		if (ssa_admin_counters_type[i] != ssa_counter_obsolete)
 			fprintf(stream, "%-25s %-10s %s\n",
-			       counters_descr[i].name,
-			       ssa_counter_type_names[ssa_admin_counters_type[i]],
-			       counters_descr[i].description);
+				counters_descr[i].name,
+				ssa_counter_type_names[ssa_admin_counters_type[i]],
+				counters_descr[i].description);
 	}
 
 	fprintf(stream, "\n\n");
@@ -913,11 +914,11 @@ static void node_info_command_output(struct admin_command *cmd,
 				connections[i].remote_gid,
 				sizeof connections[i].remote_gid);
 		if (connections[i].connection_type >= ARRAY_SIZE(ssa_connection_type_names)) {
-			fprintf(stderr, "ERROR - Unknown connection type \n");
+			fprintf(stderr, "ERROR - Unknown connection type\n");
 			continue;
 		}
 		if (connections[i].dbtype >= ARRAY_SIZE(ssa_database_type_names)) {
-			fprintf(stderr, "ERROR - Unknown database type \n");
+			fprintf(stderr, "ERROR - Unknown database type\n");
 			continue;
 		}
 		timestamp.tv_sec = ntohll(connections[i].connection_tv_sec);
@@ -1334,7 +1335,7 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 			if (slot == *admin_conns_num) {
 				tmp = realloc(*fds, 2 * *admin_conns_num * sizeof(**fds));
 				if (!tmp) {
-					fprintf(stderr, "ERROR - failed reallocate pfds array\n");
+					fprintf(stderr, "ERROR - failed to reallocate pfds array\n");
 					return -1;
 				}
 
@@ -1342,7 +1343,7 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 
 				tmp = realloc(*admin_conns, 2 * *admin_conns_num * sizeof(**admin_conns));
 				if (!tmp) {
-					fprintf(stderr, "ERROR - failed reallocate connections array\n");
+					fprintf(stderr, "ERROR - failed to reallocate connections array\n");
 					return -1;
 				}
 
@@ -1372,7 +1373,8 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 	return 0;
 }
 
-int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode, int argc, char **argv)
+int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
+			 int argc, char **argv)
 {
 	struct cmd_struct_impl *nodeinfo_impl;
 	struct admin_command *nodeinfo_cmd;
@@ -1463,7 +1465,8 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode, int
 	fds[0].events = POLLOUT;
 	fds[0].revents = 0;
 
-	admin_update_connection_state(&connections[0], ADM_CONN_NODEINFO, &nodeinfo_msg);
+	admin_update_connection_state(&connections[0], ADM_CONN_NODEINFO,
+				      &nodeinfo_msg);
 
 	peer_len = sizeof(peer_addr);
 	if (!rgetpeername(rsock, (struct sockaddr *) &peer_addr, &peer_len)) {
@@ -1541,7 +1544,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode, int
 				    connections[i].state == ADM_CONN_NODEINFO) {
 					ret = admin_connect_new_nodes(&fds, &connections, mode, &n, connections[i].rmsg);
 					if (ret) {
-						fprintf(stderr, "WARNING - failed connect downstream nodes\n");
+						fprintf(stderr, "WARNING - failed to connect downstream nodes\n");
 						continue;
 					}
 					if (cmd != SSA_ADMIN_CMD_NODE_INFO) {
