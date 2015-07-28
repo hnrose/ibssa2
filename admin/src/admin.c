@@ -132,7 +132,8 @@ static void show_usage()
 	printf("--help, -h, -?\n\tDisplay this usage info then exit.\n");
 }
 
-static void show_cmd_usage(const char *cmd_name, const struct cmd_help *help_funcs,
+static void show_cmd_usage(const char *cmd_name,
+			   const struct cmd_help *help_funcs,
 			   struct cmd_opts *opts)
 {
 	char buf[256];
@@ -165,7 +166,8 @@ static void show_cmd_usage(const char *cmd_name, const struct cmd_help *help_fun
 
 	if (help_funcs->print_usage) {
 		printf("usage: %s\n"
-				"\t\t%s %s\n\n", admin_usage_string, cmd_name, buf);
+		       "\t\t%s %s\n\n",
+		       admin_usage_string, cmd_name, buf);
 		help_funcs->print_usage(stdout);
 	}
 }
