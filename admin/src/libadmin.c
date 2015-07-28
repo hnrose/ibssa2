@@ -912,13 +912,11 @@ static void node_info_command_output(struct admin_command *cmd,
 		ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
 				connections[i].remote_gid,
 				sizeof connections[i].remote_gid);
-		if (connections[i].connection_type < 0 ||
-		    connections[i].connection_type >= ARRAY_SIZE(ssa_connection_type_names)) {
+		if (connections[i].connection_type >= ARRAY_SIZE(ssa_connection_type_names)) {
 			fprintf(stderr, "ERROR - Unknown connection type \n");
 			continue;
 		}
-		if (connections[i].dbtype < 0 ||
-		    connections[i].dbtype >= ARRAY_SIZE(ssa_database_type_names)) {
+		if (connections[i].dbtype >= ARRAY_SIZE(ssa_database_type_names)) {
 			fprintf(stderr, "ERROR - Unknown database type \n");
 			continue;
 		}
