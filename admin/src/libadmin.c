@@ -614,6 +614,7 @@ static void do_poll(int rsock)
 
 static void default_destroy(struct admin_command *cmd)
 {
+	(void)(cmd);
 }
 
 static void default_print_usage(FILE *stream)
@@ -682,6 +683,8 @@ static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 static int default_create_msg(struct admin_command *cmd,
 			      struct ssa_admin_msg *msg)
 {
+	(void)(cmd);
+	(void)(msg);
 	return 0;
 }
 
@@ -697,6 +700,8 @@ static void ping_command_output(struct admin_command *cmd,
 				const struct ssa_admin_msg *msg)
 {
 	char addr_buf[128];
+
+	(void)(cmd);
 
 	ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
 			remote_gid.raw, sizeof remote_gid.raw);
@@ -782,6 +787,8 @@ int counter_command_create_msg(struct admin_command *cmd,
 	struct ssa_admin_counter *counter_msg = &msg->data.counter;
 	uint16_t n;
 
+	(void)(cmd);
+
 	counter_msg->n = htons(COUNTER_ID_LAST);
 	n = ntohs(msg->hdr.len) + sizeof(*counter_msg);
 	msg->hdr.len = htons(n);
@@ -802,6 +809,8 @@ static void counter_command_output(struct admin_command *cmd,
 	struct tm *timestamp_tm;
 	long val;
 	char addr_buf[128];
+
+	(void)(exec_info);
 
 	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
 
@@ -852,6 +861,8 @@ static int node_info_command_create_msg(struct admin_command *cmd,
 	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
 	uint16_t n;
 
+	(void)(cmd);
+
 	n = ntohs(msg->hdr.len) + sizeof(*node_info_msg);
 	msg->hdr.len = htons(n);
 
@@ -884,6 +895,8 @@ static void node_info_command_output(struct admin_command *cmd,
 	struct timeval timestamp;
 	time_t timestamp_time;
 	struct tm *timestamp_tm;
+
+	(void)(exec_info);
 
 	if (cmd->recursive) {
 		ssa_format_addr(node_addr_buf, sizeof node_addr_buf, SSA_ADDR_GID,
