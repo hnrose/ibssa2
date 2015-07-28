@@ -772,7 +772,7 @@ static void counter_print_help(FILE *stream)
 
 	for (i = 0; i < ARRAY_SIZE(counters_descr); ++i) {
 		if (ssa_admin_counters_type[i] != ssa_counter_obsolete)
-			printf("%-25s %-10s %s\n",
+			fprintf(stream, "%-25s %-10s %s\n",
 			       counters_descr[i].name,
 			       ssa_counter_type_names[ssa_admin_counters_type[i]],
 			       counters_descr[i].description);
