@@ -276,6 +276,21 @@ struct node_t {
 };
 #endif
 
+#ifdef ACM
+#define HOST_MAX_ADDRESS ACM_MAX_ADDRESS
+#else
+#define HOST_MAX_ADDRESS 64
+#endif
+
+struct host_addr {
+	uint32_t	qpn;
+	uint16_t	pkey;
+	uint8_t		flags;
+	uint8_t		addr_type;
+	uint8_t		addr[HOST_MAX_ADDRESS];
+	struct in6_addr gid;
+};
+
 int ssa_open_devices(struct ssa_class *ssa);
 void ssa_close_devices(struct ssa_class *ssa);
 

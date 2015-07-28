@@ -230,6 +230,9 @@ extern int reconnect_timeout;
 extern int reconnect_max_count;
 extern int rejoin_timeout;
 
+extern struct host_addr *parse_addr(const char *addr_file, uint64_t *ipv4,
+				    uint64_t *ipv6, uint64_t *name);
+
 static void
 acm_format_name(int level, char *name, size_t name_size,
 		uint8_t addr_type, uint8_t *addr, size_t addr_size)
@@ -3437,145 +3440,32 @@ out:
 
 static void acm_parse_hosts_file(struct acm_ep *ep)
 {
-	FILE *f;
-	char s[160];
-	char addr[INET6_ADDRSTRLEN + 1], gid[INET6_ADDRSTRLEN + 1];
-	char buf1[8], buf2[16];
-	char *endptr;
-	struct in6_addr ip_addr, ib_addr;
-	long int tmp;
-	int ret, idx, invalid_input, line = 0;
-	uint32_t qpn;
-	uint16_t pkey = DEFAULT_PKEY;
-	uint8_t flags;
+	struct host_addr *host_addrs, *host_addr;
+	uint64_t ipv4, ipv6, name;
+	int i;
+	size_t addr_size;
+	size_t size_lookup[] = { [ACM_ADDRESS_IP] = 4,
+				 [ACM_ADDRESS_IP6] = sizeof(struct in6_addr),
+				 [ACM_ADDRESS_NAME] = HOST_MAX_ADDRESS };
 
-	if (!(f = fopen(addr_data_file, "r"))) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - couldn't open %s\n",
-			addr_data_file);
+	host_addrs = parse_addr(addr_data_file, &ipv4, &ipv6, &name);
+	if (!host_addrs)
 		return;
-        }
 
-	while (fgets(s, sizeof s, f)) {
-		line++;
-		idx = 0;
-
-		while (isspace(s[idx]))
-			idx++;
-
-		if (s[idx] == '#')
+	for (i = 0; i < ipv4 + ipv6 + name; i++) {
+		host_addr = host_addrs + i;
+		if (ep->pkey != host_addr->pkey)
 			continue;
 
-		if (s[idx] == '[' && s[strlen(s) - 2] == ']') {
-			invalid_input = 0;
-			ret = sscanf(s + idx, "[%*[ \tp]key%*[ \t=]%7s]", buf1);
-			if (ret == 1) {
-				tmp = strtol(buf1, &endptr, 16);
-				if ((endptr == buf1) || (errno == EINVAL) ||
-				    (errno == ERANGE && (tmp == LONG_MIN ||
-				     tmp == LONG_MAX)) || (tmp <= 0) ||
-				    (tmp == 0x8000) || (tmp > DEFAULT_PKEY))
-					invalid_input = 1;
-				pkey = (uint16_t) tmp;
-			} else {
-				pkey = DEFAULT_PKEY;
-			}
+		addr_size = size_lookup[host_addr->addr_type];
 
-			if (invalid_input) {
-				ssa_log_warn(SSA_LOG_DEFAULT,
-					     "invalid pkey was specified (0x%x)"
-					     " assuming default (0x%x) %s:%d\n",
-					     tmp, DEFAULT_PKEY,
-					     addr_data_file, line);
-				pkey = DEFAULT_PKEY;
-			}
-			continue;
-		}
-
-		ret = sscanf(s + idx, "%46s%46s%15s%7s", addr, gid, buf2, buf1);
-		if (ret < 2 || ret > 4)
-			continue;
-
-		ssa_log(SSA_LOG_VERBOSE, "%s", s);
-		if (inet_pton(AF_INET6, gid, &ib_addr) <= 0) {
-			ssa_log(SSA_LOG_DEFAULT,
-				"ERROR - %s is not an IB GID\n", gid);
-			continue;
-		}
-
-		qpn = 0;
-
-		switch (ret) {
-		case 2:
-			qpn = 1;
-			flags = 0;
-			break;
-		case 3:
-			tmp = strtol(buf2, &endptr, 0);
-			if ((endptr == buf2) || (errno == EINVAL) ||
-			    (errno == ERANGE && (tmp == LONG_MIN ||
-			     tmp == LONG_MAX)) || (tmp < 0) ||
-			    (tmp > 0xFFFFFF)) {
-				ssa_log_err(SSA_LOG_DEFAULT,
-					    "invalid QPN was specified (0x%x)"
-					    " for gid %s %s:%d\n",
-					    tmp, gid, addr_data_file, line);
-				continue;
-			}
-
-			qpn = (uint32_t) tmp;
-			flags = DEFAULT_REMOTE_FLAGS;
-			break;
-		case 4:
-			tmp = strtol(buf2, &endptr, 0);
-			if ((endptr == buf2) || (errno == EINVAL) ||
-			    (errno == ERANGE && (tmp == LONG_MIN ||
-			     tmp == LONG_MAX)) || (tmp < 0) ||
-			    (tmp > 0xFFFFFF)) {
-				ssa_log_err(SSA_LOG_DEFAULT,
-					    "invalid QPN was specified (0x%x)"
-					    " for gid %s %s:%d\n",
-					    tmp, gid, addr_data_file, line);
-				continue;
-			}
-
-			qpn = (uint32_t) tmp;
-
-			tmp = strtol(buf1, &endptr, 0);
-			if ((endptr == buf1) || (errno == EINVAL) ||
-			    (errno == ERANGE && (tmp == LONG_MIN ||
-			     tmp == LONG_MAX)) || (tmp > 0xC0) ||
-			    (tmp & 0x3F)) {
-				ssa_log_err(SSA_LOG_DEFAULT,
-					    "invalid flags were specified (0x"
-					    "%x) for gid %s %s:%d\n",
-					    tmp, gid, addr_data_file, line);
-				continue;
-			}
-
-			flags = (uint8_t) tmp;
-			break;
-		default:
-			break;
-		}
-
-		if (pkey != ep->pkey)
-			continue;
-
-		if (inet_pton(AF_INET, addr, &ip_addr) > 0)
-			acm_insert_addr_dest(ep, qpn, flags, (void *) &ip_addr,
-					     4, ACM_ADDRESS_IP,
-					     (void *) &ib_addr);
-		else if (inet_pton(AF_INET6, addr, &ip_addr) > 0)
-			acm_insert_addr_dest(ep, qpn, flags, (void *) &ip_addr,
-					     sizeof(ip_addr), ACM_ADDRESS_IP6,
-					     (void *) &ib_addr);
-		else
-			acm_insert_addr_dest(ep, qpn, flags, (void *) addr,
-					     sizeof(addr), ACM_ADDRESS_NAME,
-					     (void *) &ib_addr);
+		acm_insert_addr_dest(ep, host_addr->qpn, host_addr->flags,
+				     host_addr->addr, addr_size,
+				     host_addr->addr_type,
+				     (void *) &host_addr->gid);
 	}
 
-	fclose(f);
+	free(host_addrs);
 }
 
 static int acm_ep_insert_addr(struct acm_ep *ep, uint8_t *addr,
