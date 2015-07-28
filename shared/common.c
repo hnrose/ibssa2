@@ -142,7 +142,8 @@ static const struct poll_event poll_events[] = {
 
 void ssa_format_event(char *str,const size_t str_size, const int event)
 {
-	int i, n = 0, ret;
+	unsigned int i, n = 0;
+	int ret;
 
 	for (i = 0; n < str_size && i < sizeof(poll_events) / sizeof(poll_events[0]); ++i) {
 		if (event & poll_events[i].val) {
