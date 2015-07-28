@@ -1516,12 +1516,12 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode, int
 			connections[i].epoch = time(NULL);
 
 			if (revents & (POLLERR /*| POLLHUP */| POLLNVAL)) {
-				char event_val[128] = {};
+				char event_str[128] = {};
 
-				ssa_format_event(event_val, sizeof(event_val), revents);
+				ssa_format_event(event_str, sizeof(event_str), revents);
 				fprintf(stderr,
 					"ERROR - error event 0x%x (%s) on rsock %d\n",
-					fds[i].revents, event_val, fds[i].fd);
+					fds[i].revents, event_str, fds[i].fd);
 				admin_close_connection(&fds[i], &connections[i]);
 				continue;
 			}

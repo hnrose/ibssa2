@@ -2178,9 +2178,14 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 		/* Only 1 upstream data connection currently */
 		if (fds[UPSTREAM_DATA_FD_SLOT].revents) {
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+				char event_str[128] = {};
+
+				ssa_format_event(event_str, sizeof(event_str),
+						 fds[UPSTREAM_DATA_FD_SLOT].revents);
 				ssa_log_err(SSA_LOG_DEFAULT,
-					    "error event 0x%x on rsock %d\n",
+					    "error event 0x%x (%s) on rsock %d\n",
 					    fds[UPSTREAM_DATA_FD_SLOT].revents,
+					    event_str,
 					    fds[UPSTREAM_DATA_FD_SLOT].fd);
 				ssa_upstream_reconnect(svc, fds);
 			}
@@ -2226,9 +2231,14 @@ else ssa_log(SSA_LOG_DEFAULT, "reusing rbuf %p rsize %d roffset %d rhdr %p\n", s
 					fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_rrecv(svc, fds[UPSTREAM_DATA_FD_SLOT].events, &outstanding_count, fds);
 			}
 			if (fds[UPSTREAM_DATA_FD_SLOT].revents & ~(POLLOUT | POLLIN)) {
+				char event_str[128] = {};
+
+				ssa_format_event(event_str, sizeof(event_str),
+						 fds[UPSTREAM_DATA_FD_SLOT].revents & ~(POLLOUT | POLLIN));
 				ssa_log(SSA_LOG_DEFAULT,
-					"unexpected event 0x%x on upstream rsock %d\n",
+					"unexpected event 0x%x (%s) on upstream rsock %d\n",
 					fds[UPSTREAM_DATA_FD_SLOT].revents & ~(POLLOUT | POLLIN),
+					event_str,
 					fds[UPSTREAM_DATA_FD_SLOT].fd);
 			}
 
@@ -2696,9 +2706,13 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 			revents = ssa_riowrite_continue(conn, events);
 	}
 	if (events & ~(POLLOUT | POLLIN)) {
+		char event_str[128] = {};
+
+		ssa_format_event(event_str, sizeof(event_str),
+				 events & ~(POLLOUT | POLLIN));
 		ssa_log(SSA_LOG_DEFAULT,
-			"unexpected event 0x%x on data rsock %d\n",
-			events & ~(POLLOUT | POLLIN), conn->rsock);
+			"unexpected event 0x%x (%s) on data rsock %d\n",
+			events & ~(POLLOUT | POLLIN), event_str, conn->rsock);
 	}
 
 	return revents;
@@ -3377,9 +3391,12 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 
 		pfd = (struct pollfd *)(fds + SMDB_LISTEN_FD_SLOT);
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			char event_str[128] = {};
+
+			ssa_format_event(event_str, sizeof(event_str), pfd->revents);
 			ssa_log_err(SSA_LOG_DEFAULT,
-				    "error event 0x%x on SMDB listen rsock %d\n",
-				    pfd->revents, pfd->fd);
+				    "error event 0x%x (%s) on SMDB listen rsock %d\n",
+				    pfd->revents, event_str, pfd->fd);
 #if 0
 			/* TODO: uncomment when RDMA CM library limitations will be understood better */
 			if (svc->conn_listen_smdb.rsock >= 0)
@@ -3395,9 +3412,12 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 
 		pfd = (struct pollfd *)(fds + PRDB_LISTEN_FD_SLOT);
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
+			char event_str[128] = {};
+
+			ssa_format_event(event_str, sizeof(event_str), pfd->revents);
 			ssa_log_err(SSA_LOG_DEFAULT,
-				    "error event 0x%x on PRDB listen rsock %d\n",
-				    pfd->revents, pfd->fd);
+				    "error event 0x%x (%s) on PRDB listen rsock %d\n",
+				    pfd->revents, event_str, pfd->fd);
 #if 0
 			/* TODO: uncomment when RDMA CM library limitations will be understood better */
 			if (svc->conn_listen_prdb.rsock >= 0)
@@ -3418,9 +3438,13 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				count++;
 			if (pfd->revents) {
 				if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
+					char event_str[128] = {};
+
+					ssa_format_event(event_str, sizeof(event_str),
+							 pfd->revents);
 					ssa_log_err(SSA_LOG_DEFAULT,
-						    "error event 0x%x on rsock %d\n",
-						    pfd->revents, pfd->fd);
+						    "error event 0x%x (%s) on rsock %d\n",
+						    pfd->revents, event_str, pfd->fd);
 					/* Update distribution tree (at least when core) ? */
 					/* Also, when not core, need to notify core via SSA MAD */
 					if (svc->fd_to_conn[pfd->fd])
@@ -3432,11 +3456,18 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				} else {
 					if (svc->fd_to_conn[pfd->fd])
 						pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents, svc, fds);
-					else
+					else {
+						char event_str[128] = {};
+
+						ssa_format_event(event_str,
+								 sizeof(event_str),
+								 pfd->revents);
 						ssa_log_warn(SSA_LOG_CTRL,
-							     "event 0x%x on data rsock %d pollfd slot %d but fd_to_conn slot is empty\n",
+							     "event 0x%x (%s) on data rsock %d pollfd slot %d but fd_to_conn slot is empty\n",
 							     pfd->revents,
+							     event_str,
 							     pfd->fd, i);
+					}
 				}
 			}
 			pfd->revents = 0;
@@ -6675,13 +6706,13 @@ static void *ssa_admin_handler(void *context)
 
 			fds[1].revents = 0;
 			if (revents & (POLLERR | POLLHUP | POLLNVAL)) {
-				char event_val[128] = {};
+				char event_str[128] = {};
 
-				ssa_format_event(event_val, sizeof(event_val), fds[1].revents);
+				ssa_format_event(event_str, sizeof(event_str), fds[1].revents);
 
 				ssa_log_err(SSA_LOG_CTRL,
 					    "error event 0x%x (%s) on rsock %d\n",
-					    revents, event_val, rsock);
+					    revents, event_str, rsock);
 				continue;
 			}
 			if (revents & POLLIN) {
@@ -6772,12 +6803,12 @@ static void *ssa_admin_handler(void *context)
 						"admin peer disconnected rsock %d\n",
 						fds[2].fd);
 				} else {
-					char event_val[128] = {};
+					char event_str[128] = {};
 
-					ssa_format_event(event_val, sizeof(event_val), fds[2].revents);
+					ssa_format_event(event_str, sizeof(event_str), fds[2].revents);
 					ssa_log_err(SSA_LOG_CTRL,
 						    "revent 0x%x (%s)on rsock %d\n",
-						    fds[2].revents, event_val, fds[2].fd);
+						    fds[2].revents, event_str, fds[2].fd);
 				}
 				rclose(fds[2].fd);
 				fds[2].fd = -1;
@@ -6866,10 +6897,15 @@ static void *ssa_admin_handler(void *context)
 
 		for (i = ADMIN_FIRST_SERVICE_FD_SLOT; i < ADMIN_FIRST_SERVICE_FD_SLOT + svc_cnt * ADMIN_FDS_PER_SERVICE; i++) {
 			if (fds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-				if (fds[i].revents & POLLERR)
+				if (fds[i].revents & POLLERR) {
+					char event_str[128] = {};
+
+					ssa_format_event(event_str, sizeof(event_str),
+							 fds[i].revents);
 					ssa_log_err(SSA_LOG_CTRL,
-						    "revent 0x%x on sock %d\n",
-						    fds[i].revents, fds[i].fd);
+						    "revent 0x%x (%s) on sock %d\n",
+						    fds[i].revents, event_str, fds[i].fd);
+				}
 				fds[i].fd = -1;
 				fds[i].events = 0;
 				fds[i].revents = 0;
