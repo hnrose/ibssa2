@@ -431,7 +431,7 @@ static void dump_port_qos(osm_port_t *p_port)
 
 /** ===========================================================================
  */
-void static extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
+static void extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 				uint64_t *p_pkey_offset, uint64_t *p_port_offset,
 				uint64_t *p_link_offset,
 				struct ssa_db_extract *p_ssa_db)
@@ -497,7 +497,7 @@ void static extract_switch_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset
 
 /** ===========================================================================
  */
-void static extract_host_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
+static void extract_host_port(osm_port_t *p_port, uint64_t *p_pkey_base_offset,
 			      uint64_t *p_pkey_offset, uint64_t *p_port_offset,
 			      uint64_t *p_link_offset,
 			      struct ssa_db_extract *p_ssa_db)
