@@ -7061,7 +7061,7 @@ err1:
 	return 1;
 }
 
-void ssa_stop_admin(struct ssa_class *ssa)
+void ssa_stop_admin()
 {
 	int ret;
 	struct ssa_ctrl_msg msg;

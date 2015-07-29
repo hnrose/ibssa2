@@ -304,7 +304,7 @@ struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 int ssa_start_access(struct ssa_class *ssa);
 void ssa_stop_access(struct ssa_class *ssa);
 int ssa_start_admin(struct ssa_class *ssa);
-void ssa_stop_admin(struct ssa_class *ssa);
+void ssa_stop_admin();
 int ssa_ctrl_run(struct ssa_class *ssa);
 void ssa_ctrl_conn(struct ssa_class *ssa, struct ssa_svc *svc);
 void ssa_ctrl_stop(struct ssa_class *ssa);

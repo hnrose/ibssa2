@@ -2436,7 +2436,7 @@ err8:
 	pthread_join(extract_thread, NULL);
 #endif
 err7:
-	ssa_stop_admin(&ssa);
+	ssa_stop_admin();
 err6:
 #ifndef SIM_SUPPORT
 	ssa_stop_access(&ssa);

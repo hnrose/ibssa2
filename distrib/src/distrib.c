@@ -209,7 +209,7 @@ static void *distrib_ctrl_handler(void *context)
 	}
 close:
 	ssa_log(SSA_LOG_VERBOSE, "closing SSA framework\n");
-	ssa_stop_admin(&ssa);
+	ssa_stop_admin();
 	ssa_close_devices(&ssa);
 	return context;
 }
