@@ -39,8 +39,7 @@
 #include "ssa_path_record_helper.h"
 #include "ssa_path_record_data.h"
 
-static size_t find_port_index(const struct ssa_db *p_smdb,
-			      const struct ssa_pr_smdb_index *p_index,
+static size_t find_port_index(const struct ssa_pr_smdb_index *p_index,
 			      const be16_t lid, const unsigned int port_num);
 
 inline static size_t get_dataset_count(const struct ssa_db *p_smdb,
@@ -237,7 +236,7 @@ static int build_link_index(struct ssa_pr_smdb_index *p_index,
 	default_val = port_count + 1;
 
 	for (i = 0; i < link_count; i++) {
-		size_t to_port_index = find_port_index(p_smdb, p_index,
+		size_t to_port_index = find_port_index(p_index,
 						       p_link_tbl[i].to_lid,
 						       p_link_tbl[i].to_port_num);
 
@@ -442,13 +441,11 @@ int find_destination_port(const struct ssa_db *p_smdb,
 	return p_lft_block_tbl[lft_block_index].block[lft_port_shift];
 }
 
-static size_t find_port_index(const struct ssa_db *p_smdb,
-			      const struct ssa_pr_smdb_index *p_index,
+static size_t find_port_index(const struct ssa_pr_smdb_index *p_index,
 			      const be16_t lid, const unsigned int port_num)
 {
 	size_t port_index = -1;
 
-	SSA_ASSERT(p_smdb);
 	SSA_ASSERT(p_index);
 	SSA_ASSERT(p_index->is_switch_lookup);
 	SSA_ASSERT(lid);
@@ -483,7 +480,7 @@ const struct smdb_port *find_port(const struct ssa_db *p_smdb,
 
 	count = get_dataset_count(p_smdb, SMDB_TBL_ID_PORT);
 
-	port_index = find_port_index(p_smdb, p_index, lid, port_num);
+	port_index = find_port_index(p_index, lid, port_num);
 
 	if (port_index >= count) {
 		SSA_PR_LOG_ERROR("Port not found. LID: %u Port num: %d",
