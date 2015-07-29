@@ -473,10 +473,7 @@ int main(int argc, char **argv)
 	}
 
 	optind = 1;
-	if (recursive == ADMIN_RECURSION_NONE)
-		ret = admin_exec(rsock, cmd->id, argc, argv);
-	else
-		ret = admin_exec_recursive(rsock, cmd->id, recursive, argc, argv);
+	ret = admin_exec_recursive(rsock, cmd->id, recursive, argc, argv);
 	if (ret) {
 		fprintf(stderr, "Failed executing '%s' command (%s)\n",
 		       cmd->cmd, admin_cmd_help(cmd->id)->desc);

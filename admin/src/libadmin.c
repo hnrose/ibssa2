@@ -1022,135 +1022,6 @@ static struct ssa_admin_msg *admin_read_response(int rsock)
 	return response;
 }
 
-int admin_exec(int rsock, int cmd, int argc, char **argv)
-{
-	struct ssa_admin_msg msg;
-	struct ssa_admin_msg *response;
-	struct admin_command *admin_cmd;
-	struct cmd_struct_impl *cmd_impl;
-	struct cmd_exec_info exec_info;
-	int ret;
-	struct pollfd fds[1];
-	struct sockaddr_ib peer_addr;
-	socklen_t peer_len;
-	union ibv_gid remote_gid;
-
-	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
-		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
-		return -1;
-	}
-
-	if (rsock < 0) {
-		fprintf(stderr, "ERROR - no connection was established\n");
-		return -1;
-	}
-
-	peer_len = sizeof(peer_addr);
-	if (!rgetpeername(rsock, (struct sockaddr *) &peer_addr, &peer_len)) {
-		if (peer_addr.sib_family == AF_IB) {
-			memcpy(&remote_gid.raw, &peer_addr.sib_addr, sizeof(union ibv_gid));
-		} else {
-			fprintf(stderr, "ERROR - "
-				"rgetpeername fd %d family %d not AF_IB\n",
-				rsock, peer_addr.sib_family);
-			return -1;
-		}
-	} else {
-		fprintf(stderr, "ERROR - "
-			"rgetpeername rsock %d ERROR %d (%s)\n",
-			rsock, errno, strerror(errno));
-		return -1;
-	}
-
-	cmd_impl = &admin_cmd_command_impls[cmd];
-
-	if (!cmd_impl->init || !cmd_impl->destroy ||
-	    !cmd_impl->create_request || !cmd_impl->handle_response) {
-		fprintf(stderr, "ERROR - command creation failed\n");
-		return -1;
-	}
-
-	admin_cmd = cmd_impl->init(cmd, argc, argv);
-	if (!admin_cmd) {
-		fprintf(stderr, "ERROR - command creation failed\n");
-		return -1;
-	}
-	admin_cmd->recursive = 0;
-
-	memset(&msg, 0, sizeof(msg));
-	msg.hdr.version	= SSA_ADMIN_PROTOCOL_VERSION;
-	msg.hdr.method	= SSA_ADMIN_METHOD_GET;
-	msg.hdr.opcode	= htons(admin_cmd->cmd->id);
-	msg.hdr.len	= htons(sizeof(msg.hdr));
-
-	ret = admin_cmd->impl->create_request(admin_cmd, &msg);
-	if (ret < 0) {
-		fprintf(stderr, "ERROR - message creation error\n");
-		cmd_impl->destroy(admin_cmd);
-		return -1;
-	}
-
-	exec_info.stime = get_timestamp();
-
-	ret = rsend(rsock, &msg, ntohs(msg.hdr.len), 0);
-	if (ret < 0 || ret != ntohs(msg.hdr.len)) {
-		fprintf(stderr, "ERROR - rsend rsock %d ERROR %d (%s)\n",
-			rsock, errno, strerror(errno));
-		cmd_impl->destroy(admin_cmd);
-		return -1;
-	}
-
-	fds[0].fd = rsock;
-	fds[0].events = POLLIN;
-	fds[0].revents = 0;
-#if 0
-recv:
-#endif
-	ret = rpoll(&fds[0], 1, timeout);
-	if (ret < 0) {
-		fprintf(stderr, "ERROR - rpoll rsock %d ERROR %d (%s)\n",
-			rsock, errno, strerror(errno));
-		cmd_impl->destroy(admin_cmd);
-		return -1;
-
-	} else if (ret == 0) {
-		fprintf(stderr, "ERROR - timeout expired\n");
-		cmd_impl->destroy(admin_cmd);
-		return -1;
-	}
-
-	if (fds[0].revents & (POLLERR | /*POLLHUP |*/ POLLNVAL)) {
-		fprintf(stderr, "ERROR - error event 0x%x on rsock %d\n",
-			fds[0].revents, fds[0].fd);
-		cmd_impl->destroy(admin_cmd);
-		return -1;
-	}
-
-	response = admin_read_response(rsock);
-	if (!response) {
-		cmd_impl->destroy(admin_cmd);
-		return -1;
-	}
-
-	exec_info.etime = get_timestamp();
-
-	if (response->hdr.status != SSA_ADMIN_STATUS_SUCCESS) {
-		fprintf(stderr, "ERROR - target SSA node failed to process request\n");
-		ret = -1;
-	} else if (response->hdr.method != SSA_ADMIN_METHOD_RESP) {
-		fprintf(stderr, "ERROR - response has wrong method\n");
-		ret = -1;
-	} else {
-		cmd_impl->handle_response(admin_cmd, &exec_info, remote_gid, response);
-		ret = 0;
-	}
-
-	free(response);
-	cmd_impl->destroy(admin_cmd);
-
-	return ret;
-}
-
 enum admin_connection_state {
 	ADM_CONN_CONNECTING,
 	ADM_CONN_NODEINFO,
@@ -1462,14 +1333,20 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 		fprintf(stderr, "ERROR - message creation error\n");
 		goto err;
 	}
-	admin_cmd->recursive = 1;
 
 	fds[0].fd = rsock;
 	fds[0].events = POLLOUT;
 	fds[0].revents = 0;
 
-	admin_update_connection_state(&connections[0], ADM_CONN_NODEINFO,
-				      &nodeinfo_msg);
+	if (mode == ADMIN_RECURSION_NONE) {
+		admin_cmd->recursive = 0;
+		admin_update_connection_state(&connections[0], ADM_CONN_COMMAND,
+				&msg);
+	} else {
+		admin_cmd->recursive = 1;
+		admin_update_connection_state(&connections[0], ADM_CONN_NODEINFO,
+				&nodeinfo_msg);
+	}
 
 	peer_len = sizeof(peer_addr);
 	if (!rgetpeername(rsock, (struct sockaddr *) &peer_addr, &peer_len)) {
