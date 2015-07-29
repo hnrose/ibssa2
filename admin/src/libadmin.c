@@ -215,7 +215,7 @@ static int get_sm_info(const char *ca_name, int port,
 		       uint16_t *sm_lid, uint8_t *sm_sl)
 {
 	struct ibv_device **dev_arr, *dev;
-	struct ibv_context *verbs;
+	struct ibv_context *verbs = NULL;
 	struct ibv_port_attr port_attr;
 	struct ibv_device_attr attr;
 	int  d, p, ret, status = -1;
@@ -303,6 +303,9 @@ static int get_sm_info(const char *ca_name, int port,
 		status = 0;
 
 out:
+	if (verbs)
+		ibv_close_device(verbs);
+
 	ibv_free_device_list(dev_arr);
 
 	return status;
