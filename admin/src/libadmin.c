@@ -615,7 +615,7 @@ static void do_poll(int rsock)
 
 static void default_destroy(struct admin_command *cmd)
 {
-	(void)(cmd);
+	free(cmd);
 }
 
 static void default_print_usage(FILE *stream)
