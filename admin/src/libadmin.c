@@ -970,57 +970,6 @@ const struct cmd_help *admin_cmd_help(int cmd)
 	return &impl->help;
 }
 
-static struct ssa_admin_msg *admin_read_response(int rsock)
-{
-	int ret;
-	unsigned int len;
-	struct ssa_admin_msg *response;
-
-	response = (struct ssa_admin_msg *) malloc(sizeof(*response));
-	if (!response) {
-		fprintf(stderr, "ERROR - response allocation failed\n");
-		return NULL;
-	}
-
-	ret = rrecv(rsock, response, sizeof(response->hdr), 0);
-	if (ret != sizeof(response->hdr)) {
-#if 0
-		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			do_poll(rsock);
-			goto recv;
-		}
-#endif
-		fprintf(stderr, "ERROR - rrecv rsock %d ERROR %d (%s)\n",
-			rsock, errno, strerror(errno));
-		free(response);
-		return NULL;
-	}
-
-	len = ntohs(response->hdr.len);
-	if (len > sizeof(response->hdr)) {
-		if (len > sizeof(*response)) {
-			struct ssa_admin_msg *tmp;
-			tmp = (struct ssa_admin_msg *) realloc(response, len);
-			if (!tmp) {
-				fprintf(stderr, "ERROR - response allocation failed\n");
-				free(response);
-				return NULL;
-			} else {
-				response = tmp;
-			}
-		}
-
-		ret += rrecv(rsock, (char *) &response->data, len - sizeof(response->hdr), 0);
-		if (ret != len) {
-			fprintf(stderr, "ERROR - %d out of %d bytes read from SSA node\n",
-				ret, len);
-			free(response);
-			return NULL;
-		}
-	}
-
-	return response;
-}
 
 enum admin_connection_state {
 	ADM_CONN_CONNECTING,
