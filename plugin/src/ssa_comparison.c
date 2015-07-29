@@ -1504,8 +1504,9 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 {
 	struct host_addr *host_addrs = NULL;
 	static struct timespec mtime_last;
+	static uint64_t recs[IPDB_TBL_ID_MAX];
 	struct stat fstat;
-	uint64_t epoch = 0x1, recs[IPDB_TBL_ID_MAX] = { 0 };
+	uint64_t epoch = 0x1;
 	int ret;
 
 	ret = stat(addr_data_file, &fstat);
@@ -1516,8 +1517,11 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		return;
 	}
 
-	if (!memcmp(&fstat.st_mtime, &mtime_last, sizeof(mtime_last)))
+	if (!memcmp(&fstat.st_mtime, &mtime_last, sizeof(mtime_last))) {
+		if (ipdb)
+			goto attach_ipdb;
 		goto out;
+	}
 
 	host_addrs = parse_addr(addr_data_file,
 				&recs[IPDB_TBL_ID_IPv4],
@@ -1542,6 +1546,14 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		       recs[IPDB_TBL_ID_IPv6] + recs[IPDB_TBL_ID_NAME]);
 
 	memcpy(&mtime_last, &fstat.st_mtime, sizeof(mtime_last));
+
+	if (tbl_changed[SMDB_TBL_ID_IPv4] || tbl_changed[SMDB_TBL_ID_IPv6] ||
+	    tbl_changed[SMDB_TBL_ID_NAME])
+		p_ssa_db_diff->dirty = 1;
+
+attach_ipdb:
+	if (!p_ssa_db_diff->dirty)
+		goto out;
 
 	if (recs[IPDB_TBL_ID_IPv4] > 0) {
 		ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "IPv4",
@@ -1576,9 +1588,6 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		}
 	}
 
-	if (tbl_changed[SMDB_TBL_ID_IPv4] || tbl_changed[SMDB_TBL_ID_IPv6] ||
-	    tbl_changed[SMDB_TBL_ID_NAME])
-		p_ssa_db_diff->dirty = 1;
 out:
 	if (host_addrs)
 		free(host_addrs);
