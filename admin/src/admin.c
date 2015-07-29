@@ -238,8 +238,8 @@ static int get_short_opts(char *buf, int len)
 
 static int parse_opts(int argc, char **argv, int *status)
 {
-	struct option *long_option_arr;
-	int option, opt_num, n, i = 0;
+	struct option *long_option_arr = NULL;
+	int option, opt_num, n, i = 0, ret = 0;
 	char buf[256] = { 0 };
 	char *endptr;
 	long int tmp;
@@ -247,7 +247,8 @@ static int parse_opts(int argc, char **argv, int *status)
 	if (argc <= 1) {
 		show_usage();
 		*status = -1;
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	get_short_opts(buf, 256 - strlen(short_option));
@@ -258,7 +259,8 @@ static int parse_opts(int argc, char **argv, int *status)
 	if (!long_option_arr) {
 		fprintf(stderr, "ERROR - unable to allocate memory for parser\n");
 		*status = -1;
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	n = get_long_opts(long_option_arr, opt_num);
@@ -275,15 +277,18 @@ static int parse_opts(int argc, char **argv, int *status)
 			tmp = strtol(optarg, &endptr, 10);
 			if (endptr == optarg) {
 				fprintf(stderr, "ERROR - no digits were found in option -%c\n", option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			if (errno == ERANGE && (tmp == LONG_MAX || tmp == LONG_MIN) ) {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			if (tmp <0 || tmp >= IB_LID_MCAST_START) {
 				fprintf(stderr, "ERROR - invalid lid %ld in option -l\n", tmp);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 
 			dest_lid = tmp;
@@ -296,7 +301,8 @@ static int parse_opts(int argc, char **argv, int *status)
 			free(long_option_arr);
 			show_version();
 			*status = 0;
-			return 1;
+			ret = 1;
+			goto out;
 		case 'd':
 			ca_name = optarg;
 			break;
@@ -304,15 +310,18 @@ static int parse_opts(int argc, char **argv, int *status)
 			tmp = strtol(optarg, &endptr, 10);
 			if (endptr == optarg) {
 				fprintf(stderr, "ERROR - no digits were found in option -%c\n", option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			if (errno == ERANGE && (tmp == LONG_MAX || tmp == LONG_MIN) ) {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			if (tmp < 0) {
 				fprintf(stderr, "ERROR - invalid value %ld in option -%c\n", tmp, option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			src_port = tmp;
 			break;
@@ -320,11 +329,13 @@ static int parse_opts(int argc, char **argv, int *status)
 			tmp = strtol(optarg, &endptr, 10);
 			if (endptr == optarg) {
 				fprintf(stderr, "ERROR - no digits were found in option -%c\n", option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			if (errno == ERANGE && (tmp = LONG_MAX || tmp == LONG_MIN) ) {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			if (tmp < 0)
 				fprintf(stderr, "WARNING - infinite timeout is used\n");
@@ -346,7 +357,8 @@ static int parse_opts(int argc, char **argv, int *status)
 				recursive = ADMIN_RECURSION_UP;
 			} else {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
-				return 1;
+				ret = 1;
+				goto out;
 			}
 			break;
 		case '?':
@@ -354,29 +366,32 @@ static int parse_opts(int argc, char **argv, int *status)
 			free(long_option_arr);
 			show_usage();
 			*status = 0;
-			return 1;
+			ret = 1;
+			goto out;
 		default:
 			break;
 		}
 	} while (option != -1);
 
-	free(long_option_arr);
-
 	if (dest_lid && dest_gid) {
 		fprintf(stderr, "Destination address ambiguity: "
 			"both GID and LID are specified\n");
 		*status = -1;
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	if (optind == argc) {
 		fprintf(stderr, "No command specified\n");
 		show_usage();
 		*status = -1;
-		return 1;
+		ret = 1;
+		goto out;
 	}
-
-	return 0;
+out:
+	if (long_option_arr)
+		free(long_option_arr);
+	return ret;
 }
 
 int main(int argc, char **argv)
