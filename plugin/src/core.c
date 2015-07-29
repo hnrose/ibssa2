@@ -64,6 +64,8 @@ static int node_type = SSA_NODE_CORE;
 int smdb_deltas = 0;
 static char log_file[128] = "/var/log/ibssa.log";
 static char lock_file[128] = "/var/run/ibssa.pid";
+char addr_data_file[128] = RDMA_CONF_DIR "/" SSA_HOSTS_FILE;
+int addr_preload = 0;
 #if defined(SIM_SUPPORT) || defined(SIM_SUPPORT_SMDB)
 static char *smdb_lock_file = "ibssa_smdb.lock";
 static int smdb_lock_fd = -1;
@@ -154,6 +156,7 @@ struct core_tree_context {
 static struct ssa_class ssa;
 struct ssa_database *ssa_db;
 static struct ssa_db_diff *ssa_db_diff = NULL;
+struct ssa_db *ipdb = NULL;
 pthread_mutex_t ssa_db_diff_lock;
 pthread_t ctrl_thread, extract_thread;
 static osm_opensm_t *osm;
@@ -2216,6 +2219,10 @@ static void core_set_options(void)
 		else if (!strcasecmp("fake_acm_num", opt))
 			fake_acm_num = atoi(value);
 #endif
+		else if (!strcasecmp("addr_preload", opt))
+			addr_preload = atoi(value);
+		else if (!strcasecmp("addr_data_file", opt))
+			strncpy(addr_data_file, value, sizeof(addr_data_file));
 	}
 
 	fclose(f);
@@ -2257,6 +2264,8 @@ static void core_log_options(void)
 #ifndef SIM_SUPPORT
 	ssa_log(SSA_LOG_DEFAULT, "join timeout %d\n", join_timeout);
 #endif
+	ssa_log(SSA_LOG_DEFAULT, "addr preload %d\n", addr_preload);
+	ssa_log(SSA_LOG_DEFAULT, "addr data file %s\n", addr_data_file);
 }
 
 static void *core_construct(osm_opensm_t *opensm)
@@ -2492,6 +2501,9 @@ static void core_destroy(void *context)
 	ssa_log(SSA_LOG_CTRL, "closing devices\n");
 	ssa_close_devices(&ssa);
 #endif
+
+	if (ipdb)
+		ssa_db_destroy(ipdb);
 
 	pthread_mutex_lock(&ssa_db_diff_lock);
 	ssa_db_diff_destroy(ssa_db_diff);

@@ -39,6 +39,11 @@
 #include <ssa_log.h>
 
 extern int smdb_deltas;
+extern int addr_preload;
+extern char addr_data_file[128];
+extern struct ssa_db *ipdb;
+extern struct host_addr *parse_addr(const char *addr_file, uint64_t *ipv4,
+				    uint64_t *ipv6, uint64_t *name);
 
 /** =========================================================================
  */
@@ -1422,6 +1427,164 @@ ssa_db_diff_update_lfts(struct ssa_database *ssa_db, struct ssa_db_diff *p_ssa_d
 		p_ssa_db_diff->dirty = 1;
 }
 
+static void ipdb_add_addrs(struct ssa_db *ipdb, struct host_addr *addrs,
+			   boolean_t tbl_changed[], uint64_t cnt)
+{
+	struct db_dataset *dataset = NULL;
+	struct ipdb_ipv4 *ipv4;
+	struct ipdb_ipv6 *ipv6;
+	struct ipdb_name *name;
+	void *rec = NULL;
+	uint64_t i, set_size, set_count;
+	int tbl_id, tbl_id_lookup[] =
+		{ [SSA_ADDR_IP]   = IPDB_TBL_ID_IPv4,
+		  [SSA_ADDR_IP6]  = IPDB_TBL_ID_IPv6,
+		  [SSA_ADDR_NAME] = IPDB_TBL_ID_NAME };
+	size_t rec_size, size_lookup[] =
+		{ [SSA_ADDR_IP]   = sizeof(*ipv4),
+		  [SSA_ADDR_IP6]  = sizeof(*ipv6),
+		  [SSA_ADDR_NAME] = sizeof(*name) };
+
+	for (i = 0; i < cnt; i++) {
+		tbl_id = tbl_id_lookup[addrs->addr_type];
+		rec_size = size_lookup[addrs->addr_type];
+
+		dataset = &ipdb->p_db_tables[tbl_id];
+		set_count = ntohll(dataset->set_count);
+		set_size = ntohll(dataset->set_size);
+
+		rec = ipdb->pp_tables[tbl_id] + set_size;
+		memset(rec, 0, rec_size);
+
+		switch (addrs->addr_type) {
+		case SSA_ADDR_IP:
+			ipv4 = (struct ipdb_ipv4 *) rec;
+			ipv4->qpn = htonl(addrs->qpn);
+			ipv4->pkey = htons(addrs->pkey);
+			ipv4->flags = htonl(addrs->flags);
+			memcpy(ipv4->gid, &addrs->gid, sizeof(ipv4->gid));
+			memcpy(ipv4->addr, addrs->addr, sizeof(ipv4->addr));
+			tbl_changed[SMDB_TBL_ID_IPv4] = TRUE;
+			break;
+		case SSA_ADDR_IP6:
+			ipv6 = (struct ipdb_ipv6 *) rec;
+			ipv6->qpn = htonl(addrs->qpn);
+			ipv6->pkey = htons(addrs->pkey);
+			ipv6->flags = htonl(addrs->flags);
+			memcpy(ipv6->gid, &addrs->gid, sizeof(ipv6->gid));
+			memcpy(ipv6->addr, addrs->addr, sizeof(ipv6->addr));
+			tbl_changed[SMDB_TBL_ID_IPv6] = TRUE;
+			break;
+		case SSA_ADDR_NAME:
+			name = (struct ipdb_name *) rec;
+			name->qpn = htonl(addrs->qpn);
+			name->pkey = htons(addrs->pkey);
+			name->flags = htonl(addrs->flags);
+			memcpy(name->gid, &addrs->gid, sizeof(name->gid));
+			strncpy((char *) name->addr, (char *) addrs->addr,
+				sizeof(name->addr));
+			tbl_changed[SMDB_TBL_ID_NAME] = TRUE;
+			break;
+		default:
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "unexpected address type %d\n",
+				    addrs->addr_type);
+			return;
+		};
+
+		dataset->set_count = htonll(set_count + 1);
+		dataset->set_size = htonll(set_size + rec_size);
+
+		addrs++;
+	}
+}
+
+static void
+update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
+{
+	struct host_addr *host_addrs = NULL;
+	static struct timespec mtime_last;
+	struct stat fstat;
+	uint64_t epoch = 0x1, recs[IPDB_TBL_ID_MAX] = { 0 };
+	int ret;
+
+	ret = stat(addr_data_file, &fstat);
+	if (ret < 0) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to get addr data file (%s) stats\n",
+			    addr_data_file);
+		return;
+	}
+
+	if (!memcmp(&fstat.st_mtime, &mtime_last, sizeof(mtime_last)))
+		goto out;
+
+	host_addrs = parse_addr(addr_data_file,
+				&recs[IPDB_TBL_ID_IPv4],
+				&recs[IPDB_TBL_ID_IPv6],
+				&recs[IPDB_TBL_ID_NAME]);
+	if (!host_addrs)
+		goto out;
+
+	if (ipdb) {
+		epoch = ssa_db_get_epoch(ipdb, DB_DEF_TBL_ID);
+		epoch++;
+		ssa_db_destroy(ipdb);
+	}
+
+	ipdb = ssa_ipdb_create(epoch, recs);
+	if (!ipdb) {
+		ssa_log_err(SSA_LOG_DEFAULT, "unable to create IPDB\n");
+		goto out;
+	}
+
+	ipdb_add_addrs(ipdb, host_addrs, tbl_changed, recs[IPDB_TBL_ID_IPv4] +
+		       recs[IPDB_TBL_ID_IPv6] + recs[IPDB_TBL_ID_NAME]);
+
+	memcpy(&mtime_last, &fstat.st_mtime, sizeof(mtime_last));
+
+	if (recs[IPDB_TBL_ID_IPv4] > 0) {
+		ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "IPv4",
+				    ipdb->p_db_tables[IPDB_TBL_ID_IPv4],
+				    ipdb->pp_tables[IPDB_TBL_ID_IPv4]);
+		if (ret < 0) {
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "unable to attach IPv4 table to SMDB\n");
+			goto out;
+		}
+	}
+
+	if (recs[IPDB_TBL_ID_IPv6] > 0) {
+		ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "IPv6",
+				    ipdb->p_db_tables[IPDB_TBL_ID_IPv6],
+				    ipdb->pp_tables[IPDB_TBL_ID_IPv6]);
+		if (ret < 0) {
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "unable to attach IPv6 table to SMDB\n");
+			goto out;
+		}
+	}
+
+	if (recs[IPDB_TBL_ID_NAME] > 0) {
+		ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "NAME",
+				    ipdb->p_db_tables[IPDB_TBL_ID_NAME],
+				    ipdb->pp_tables[IPDB_TBL_ID_NAME]);
+		if (ret < 0) {
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "unable to attach NAME table to SMDB\n");
+			goto out;
+		}
+	}
+
+	if (tbl_changed[SMDB_TBL_ID_IPv4] || tbl_changed[SMDB_TBL_ID_IPv6] ||
+	    tbl_changed[SMDB_TBL_ID_NAME])
+		p_ssa_db_diff->dirty = 1;
+out:
+	if (host_addrs)
+		free(host_addrs);
+	return;
+}
+
 /** =========================================================================
  */
 struct ssa_db_diff *
@@ -1474,6 +1637,9 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev, int first)
 	ssa_db_diff_compare_subnet_tables(ssa_db->p_previous_db, ssa_db->p_current_db,
 					  p_ssa_db_diff, tbl_changed);
 	ssa_db_diff_update_lfts(ssa_db, p_ssa_db_diff, tbl_changed, smdb_deltas, first);
+
+	if (addr_preload)
+		update_addr_tables(p_ssa_db_diff, tbl_changed);
 
 	if (!p_ssa_db_diff->dirty) {
                 ssa_log(SSA_LOG_VERBOSE, "SMDB was not changed\n");

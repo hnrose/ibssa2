@@ -60,13 +60,15 @@ extern "C" {
 #define RDMADIR "rdma"
 #endif
 #define RDMA_CONF_DIR SYSCONFDIR "/" RDMADIR
-#define SSA_ADDR_FILE_SUFFIX "_addr.data"
-#define SSA_OPTS_FILE_SUFFIX "_opts.cfg"
+#define SSA_ADDR_FILE_SUFFIX  "_addr.data"
+#define SSA_OPTS_FILE_SUFFIX  "_opts.cfg"
+#define SSA_HOSTS_FILE_SUFFIX "_hosts.data"
 #define ACM_FILE_PREFIX "ibacm"
 #define ACM_ADDR_FILE   ACM_FILE_PREFIX SSA_ADDR_FILE_SUFFIX
 #define ACM_OPTS_FILE   ACM_FILE_PREFIX SSA_OPTS_FILE_SUFFIX
 #define SSA_FILE_PREFIX "ibssa"
 #define SSA_OPTS_FILE	SSA_FILE_PREFIX SSA_OPTS_FILE_SUFFIX
+#define SSA_HOSTS_FILE  SSA_FILE_PREFIX SSA_HOSTS_FILE_SUFFIX
 
 #define LIB_DESTRUCTOR __attribute__((destructor))
 #define CDECL_FUNC

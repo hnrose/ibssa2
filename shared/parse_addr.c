@@ -39,6 +39,16 @@
 #include <common.h>
 #include <ssa_log.h>
 
+#ifdef ACM
+	#define ADDRESS_IP   ACM_ADDRESS_IP
+	#define ADDRESS_IP6  ACM_ADDRESS_IP6
+	#define ADDRESS_NAME ACM_ADDRESS_NAME
+#else
+	#define ADDRESS_IP   SSA_ADDR_IP
+	#define ADDRESS_IP6  SSA_ADDR_IP6
+	#define ADDRESS_NAME SSA_ADDR_NAME
+#endif
+
 static uint16_t get_pkey(const char *buf)
 {
 	char pkey_str[8];
@@ -137,12 +147,12 @@ static int get_addr_record(const char *buf, const char *err_buf,
 	}
 
 	if (inet_pton(AF_INET, addr, host_addr->addr) > 0) {
-		host_addr->addr_type = ACM_ADDRESS_IP;
+		host_addr->addr_type = ADDRESS_IP;
 	} else if (inet_pton(AF_INET6, addr, host_addr->addr) > 0) {
-		host_addr->addr_type = ACM_ADDRESS_IP6;
+		host_addr->addr_type = ADDRESS_IP6;
 	} else {
 		memcpy(host_addr->addr, addr, sizeof(host_addr->addr));
-		host_addr->addr_type = ACM_ADDRESS_NAME;
+		host_addr->addr_type = ADDRESS_NAME;
 	}
 
 	host_addr->pkey = pkey;
