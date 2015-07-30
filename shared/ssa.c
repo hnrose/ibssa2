@@ -220,7 +220,8 @@ static void ssa_access_wait_for_tasks_completion();
 static void ssa_access_process_task(struct ssa_access_task *task);
 #endif
 static void ssa_svc_schedule_join(struct ssa_svc *svc);
-static void ssa_upstream_conn(struct ssa_svc *svc, struct ssa_conn *conn, int gone);
+static void ssa_upstream_conn(struct ssa_svc *svc, struct ssa_conn *conn,
+			      int gone);
 
 static inline int get_max_rejoin_timeout()
 {
