@@ -32,6 +32,7 @@
  */
 
 #include <stdio.h>
+#include <inttypes.h>
 #include <sys/time.h>
 #include <netinet/tcp.h>
 #include <rdma/rsocket.h>
@@ -732,6 +733,7 @@ static struct ssa_admin_counter_descr counters_descr[] = {
 	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = {"TIME_LAST_DOWNSTR_CONN", "Time of last downstream connect" },
 	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = {"TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
 	[COUNTER_ID_TIME_LAST_ERR] = {"TIME_LAST_ERR", "Time of last error" },
+	[COUNTER_ID_DB_EPOCH] = {"DB_EPOCH", "DB epoch" },
 };
 
 
@@ -890,7 +892,7 @@ static void node_info_command_output(struct admin_command *cmd,
 				     union ibv_gid remote_gid,
 				     const struct ssa_admin_msg *msg)
 {
-	int i, n;
+	int i, n, db_type;
 	char addr_buf[128];
 	char node_addr_buf[128];
 	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
@@ -908,8 +910,18 @@ static void node_info_command_output(struct admin_command *cmd,
 		printf("%s: ", node_addr_buf);
 	}
 
-	printf("%s %s\n", ssa_node_type_str(node_info_msg->type),
-	       node_info_msg->version);
+	if (node_info_msg->type == SSA_NODE_CONSUMER)
+		db_type = SSA_CONN_PRDB_TYPE;
+	else if (node_info_msg->type &
+		 (SSA_NODE_CORE | SSA_NODE_ACCESS | SSA_NODE_DISTRIBUTION))
+		db_type = SSA_CONN_SMDB_TYPE;
+	else
+		db_type = SSA_CONN_NODB_TYPE;
+
+	printf("%s %s (0x%" PRIx64") %s\n",
+	       ssa_node_type_str(node_info_msg->type),
+	       ssa_database_type_names[db_type],
+	       ntohll(node_info_msg->db_epoch), node_info_msg->version);
 	n = ntohs(node_info_msg->connections_num);
 
 	for (i = 0; i < n; ++i) {

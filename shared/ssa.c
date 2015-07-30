@@ -1233,7 +1233,7 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 	return count;
 }
 
-void ssa_db_update_change_counters()
+void ssa_db_update_change_counters(uint64_t epoch)
 {
 	static short first = 1;
 
@@ -1244,6 +1244,7 @@ void ssa_db_update_change_counters()
 
 	ssa_set_runtime_counter_time(COUNTER_ID_DB_LAST_UPDATE_TIME);
 	ssa_inc_runtime_counter(COUNTER_ID_DB_UPDATES_NUM);
+	ssa_set_runtime_counter(COUNTER_ID_DB_EPOCH, epoch);
 }
 
 static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
@@ -1280,7 +1281,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	}
 	if (svc->process_msg)
 		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg);
-	ssa_db_update_change_counters();
+	ssa_db_update_change_counters(epoch);
 }
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
@@ -6404,6 +6405,7 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	struct ssa_admin_connection_info *connections;
 	GHashTableIter iter;
 	gpointer key, value;
+	uint64_t db_epoch;
 
 	n = g_hash_table_size(context->connections_hash);
 	response = (struct ssa_admin_msg *) malloc(sizeof(*response) + n * sizeof(struct ssa_admin_connection_info));
@@ -6422,6 +6424,9 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	nodeinfo_msg->type = context->ssa->node_type;
 	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION,
 		SSA_ADMIN_VERSION_LEN - 1);
+
+	db_epoch = (uint64_t) ssa_get_runtime_counter(COUNTER_ID_DB_EPOCH);
+	nodeinfo_msg->db_epoch = htonll(db_epoch);
 
 	nodeinfo_msg->connections_num = htons(n);
 

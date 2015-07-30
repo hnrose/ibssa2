@@ -68,6 +68,7 @@ enum ssa_admin_counter_id {
 	COUNTER_ID_TIME_LAST_DOWNSTR_CONN,
 	COUNTER_ID_TIME_LAST_SSA_MAD_RCV,
 	COUNTER_ID_TIME_LAST_ERR,
+	COUNTER_ID_DB_EPOCH,
 	COUNTER_ID_LAST
 };
 
@@ -90,7 +91,8 @@ static const enum ssa_counter_type ssa_admin_counters_type[] = {
 	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = ssa_counter_timestamp,
 	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = ssa_counter_timestamp,
 	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = ssa_counter_timestamp,
-	[COUNTER_ID_TIME_LAST_ERR] = ssa_counter_timestamp
+	[COUNTER_ID_TIME_LAST_ERR] = ssa_counter_timestamp,
+	[COUNTER_ID_DB_EPOCH] =ssa_counter_numeric
 };
 
 
@@ -117,7 +119,9 @@ struct ssa_admin_connection_info {
 struct ssa_admin_node_info {
 	uint8_t		type;
 	uint8_t		version[SSA_ADMIN_VERSION_LEN];
+	be64_t		db_epoch;
 	be16_t		connections_num;
+	uint8_t		reserved2[2];
 	uint8_t		connections[0];
 };
 
