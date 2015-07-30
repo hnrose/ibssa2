@@ -5412,14 +5412,14 @@ static int ssa_access_thread_pool_init()
 	ret = pthread_cond_init(&access_context.th_pool_cond, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable initialize al thread pool condition variable\n");
+			    "unable to initialize al thread pool condition variable\n");
 		goto err1;
 	}
 
 	ret = pthread_mutex_init(&access_context.th_pool_mtx, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable initialize al thread pool mutex\n");
+			    "unable to initialize al thread pool mutex\n");
 		goto err2;
 	}
 
@@ -5506,21 +5506,21 @@ static int ssa_db_update_queue_init(struct ssa_db_update_queue *p_queue)
 	ret = pthread_mutex_init(&p_queue->cond_lock, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable initialize DB queue condition lock\n");
+			    "unable to initialize DB queue condition lock\n");
 		return ret;
 	}
 
 	ret = pthread_cond_init(&p_queue->cond_var, NULL);
 	if (ret) {
 		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable initialize DB queue condition variable\n");
+			    "unable to initialize DB queue condition variable\n");
 		pthread_mutex_destroy(&p_queue->cond_lock);
 		return ret;
 	}
 
 	ret = pthread_mutex_init(&p_queue->lock, NULL);
 	if (ret) {
-		ssa_log_err(SSA_LOG_DEFAULT, "unable initialize DB queue lock\n");
+		ssa_log_err(SSA_LOG_DEFAULT, "unable to initialize DB queue lock\n");
 		pthread_cond_destroy(&p_queue->cond_var);
 		pthread_mutex_destroy(&p_queue->lock);
 		return ret;
@@ -6580,13 +6580,13 @@ static void *ssa_admin_handler(void *context)
 	connections_hash = g_hash_table_new_full(NULL, NULL, NULL,
 						 ssa_destroy_connection_info);
 	if (!connections_hash) {
-		ssa_log_err(SSA_LOG_CTRL, "unable allocate connections hash\n");
+		ssa_log_err(SSA_LOG_CTRL, "unable to allocate connections hash\n");
 		goto out;
 	}
 
 	svcs_hash = g_hash_table_new_full(NULL, NULL, NULL, NULL);
 	if (!svcs_hash) {
-		ssa_log_err(SSA_LOG_CTRL, "unable allocate svc hash\n");
+		ssa_log_err(SSA_LOG_CTRL, "unable to allocate svc hash\n");
 		goto out;
 	}
 
