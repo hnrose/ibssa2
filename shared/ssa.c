@@ -3393,7 +3393,8 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
 			char event_str[128] = {};
 
-			ssa_format_event(event_str, sizeof(event_str), pfd->revents);
+			ssa_format_event(event_str, sizeof(event_str),
+					 pfd->revents);
 			ssa_log_err(SSA_LOG_DEFAULT,
 				    "error event 0x%x (%s) on SMDB listen rsock %d\n",
 				    pfd->revents, event_str, pfd->fd);
@@ -3414,7 +3415,8 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 		if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
 			char event_str[128] = {};
 
-			ssa_format_event(event_str, sizeof(event_str), pfd->revents);
+			ssa_format_event(event_str, sizeof(event_str),
+					 pfd->revents);
 			ssa_log_err(SSA_LOG_DEFAULT,
 				    "error event 0x%x (%s) on PRDB listen rsock %d\n",
 				    pfd->revents, event_str, pfd->fd);
@@ -3440,7 +3442,8 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
 					char event_str[128] = {};
 
-					ssa_format_event(event_str, sizeof(event_str),
+					ssa_format_event(event_str,
+							 sizeof(event_str),
 							 pfd->revents);
 					ssa_log_err(SSA_LOG_DEFAULT,
 						    "error event 0x%x (%s) on rsock %d\n",
@@ -6708,7 +6711,8 @@ static void *ssa_admin_handler(void *context)
 			if (revents & (POLLERR | POLLHUP | POLLNVAL)) {
 				char event_str[128] = {};
 
-				ssa_format_event(event_str, sizeof(event_str), fds[1].revents);
+				ssa_format_event(event_str, sizeof(event_str),
+						 fds[1].revents);
 
 				ssa_log_err(SSA_LOG_CTRL,
 					    "error event 0x%x (%s) on rsock %d\n",
@@ -6805,7 +6809,9 @@ static void *ssa_admin_handler(void *context)
 				} else {
 					char event_str[128] = {};
 
-					ssa_format_event(event_str, sizeof(event_str), fds[2].revents);
+					ssa_format_event(event_str,
+							 sizeof(event_str),
+							 fds[2].revents);
 					ssa_log_err(SSA_LOG_CTRL,
 						    "revent 0x%x (%s)on rsock %d\n",
 						    fds[2].revents, event_str, fds[2].fd);
@@ -6900,7 +6906,8 @@ static void *ssa_admin_handler(void *context)
 				if (fds[i].revents & POLLERR) {
 					char event_str[128] = {};
 
-					ssa_format_event(event_str, sizeof(event_str),
+					ssa_format_event(event_str,
+							 sizeof(event_str),
 							 fds[i].revents);
 					ssa_log_err(SSA_LOG_CTRL,
 						    "revent 0x%x (%s) on sock %d\n",
