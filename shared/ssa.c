@@ -6518,7 +6518,7 @@ static int ssa_admin_read_msg(int rsock, struct ssa_admin_msg *msg,
 
 	n = ret;
 
-	ret = ssa_admin_recv_buf(rsock, (char *) &msg->data, rcount, *rlen);
+	ret = ssa_admin_recv_buf(rsock, (char *) msg, rcount, *rlen);
 	if (ret == -ECONNRESET) {
 		ssa_log(SSA_LOG_DEFAULT | SSA_LOG_CTRL,
 			"admin peer disconnected rsock %d\n", rsock);
