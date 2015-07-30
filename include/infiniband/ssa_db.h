@@ -423,6 +423,7 @@ void ssa_db_init(struct ssa_db * p_ssa_db, char * name,
 		 const struct db_field_def *field_tbl);
 
 void ssa_db_destroy(struct ssa_db * p_ssa_db);
+int ssa_db_tbl_cmp(struct ssa_db *ssa_db1, struct ssa_db *ssa_db2, const char *name);
 int ssa_db_cmp(struct ssa_db const * const ssa_db1, struct ssa_db const * const ssa_db2);
 struct ssa_db *ssa_db_copy(struct ssa_db const * const ssa_db);
 uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db);

@@ -41,6 +41,26 @@
 #include <string.h>
 #include <infiniband/ssa_db.h>
 
+static int get_table_id(const char *name, struct db_dataset *dataset,
+			struct db_table_def *tbl_def)
+{
+	int table_id = -1;
+	uint64_t i;
+
+	for (i = 0; i < ntohll(dataset->set_count); i++) {
+		if (tbl_def[i].type != DBT_TYPE_DATA)
+			continue;
+
+		if (strncmp(name, tbl_def[i].name, DB_NAME_LEN))
+			continue;
+
+		table_id = tbl_def[i].id.table;
+		break;
+	}
+
+	return table_id;
+}
+
 /** =========================================================================
  */
 void ssa_db_def_init(struct db_def * p_db_def, uint8_t version,
@@ -473,6 +493,57 @@ void ssa_db_destroy(struct ssa_db * p_ssa_db)
  *	Return values:
  *	 0 - equal ssa_db structures
  *	 1 - different ssa_db structures
+ *	-1 - invalid input
+ */
+int ssa_db_tbl_cmp(struct ssa_db *ssa_db1, struct ssa_db *ssa_db2, const char *name)
+{
+	struct db_dataset *dataset1, *dataset2;
+	void *tbl1, *tbl2;
+	int id;
+
+	if (!ssa_db1 || !ssa_db2 || !name)
+		goto err;
+
+	id = get_table_id(name, &ssa_db1->db_table_def, ssa_db1->p_def_tbl);
+	if (id < 0)
+		goto err;
+
+	dataset1 = &ssa_db1->p_db_tables[id];
+	tbl1 = ssa_db1->pp_tables[id];
+
+	id = get_table_id(name, &ssa_db2->db_table_def, ssa_db2->p_def_tbl);
+	if (id < 0)
+		goto err;
+
+	dataset2 = &ssa_db2->p_db_tables[id];
+	tbl2 = ssa_db2->pp_tables[id];
+
+	if ((dataset1->size		!= dataset2->size) ||
+	    (dataset1->version		!= dataset2->version) ||
+	    (dataset1->access		!= dataset2->access) ||
+	    (dataset1->set_size		!= dataset2->set_size) ||
+	    (dataset1->set_count	!= dataset2->set_count))
+		return 1;
+
+	if (!tbl1 && !tbl2)
+		goto equal;
+
+	if ((!tbl1 && tbl2) || (tbl1 && !tbl2))
+		return 1;
+
+	if (memcmp(tbl1, tbl2, ntohll(dataset1->set_size)))
+		return 1;
+
+equal:
+	return 0;
+err:
+	return -1;
+}
+
+/*
+ *	Return values:
+ *	 0 - equal ssa_db structures
+ *	 1 - different ssa_db structures
  *	-1 - invalid ssa_db structures
  */
 int ssa_db_cmp(struct ssa_db const * const ssa_db1, struct ssa_db const * const ssa_db2)
@@ -637,26 +708,6 @@ uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db)
 
 out:
 	return data_tbl_cnt;
-}
-
-static int get_table_id(const char *name, struct db_dataset *dataset,
-			struct db_table_def *tbl_def)
-{
-	int table_id = -1;
-	uint64_t i;
-
-	for (i = 0; i < ntohll(dataset->set_count); i++) {
-		if (tbl_def[i].type != DBT_TYPE_DATA)
-			continue;
-
-		if (strncmp(name, tbl_def[i].name, DB_NAME_LEN))
-			continue;
-
-		table_id = tbl_def[i].id.table;
-		break;
-	}
-
-	return table_id;
 }
 
 int ssa_db_attach(struct ssa_db *ssa_db, const char *tbl_name,
