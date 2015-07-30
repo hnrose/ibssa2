@@ -1051,7 +1051,7 @@ static int admin_recv_msg(struct pollfd *pfd, struct admin_connection *conn)
 
 		conn->rlen = ntohs(conn->rhdr.len);
 		conn->rmsg = (struct ssa_admin_msg *) malloc(max(sizeof(*conn->rmsg),
-							     conn->rlen));
+								 conn->rlen));
 		if (!conn->rmsg) {
 			fprintf(stderr, "ERROR - failed allocate message buffer\n");
 			return -1;
