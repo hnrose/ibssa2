@@ -665,8 +665,11 @@ int ssa_db_attach(struct ssa_db *ssa_db, const char *tbl_name,
 	struct db_dataset *dataset;
 	int id;
 
-	if (!ssa_db || !tbl_name || !tbl)
+	if (!ssa_db || !tbl_name)
 		goto err;
+
+	if (!tbl || !tbl_dataset.set_size)
+		goto skip_attach;
 
 	id = get_table_id(tbl_name, &ssa_db->db_table_def, ssa_db->p_def_tbl);
 	if (id < 0)
@@ -692,6 +695,7 @@ int ssa_db_attach(struct ssa_db *ssa_db, const char *tbl_name,
 	dataset->set_size = tbl_dataset.set_size;
 	dataset->set_count = tbl_dataset.set_count;
 
+skip_attach:
 	return 0;
 
 err:

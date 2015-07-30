@@ -1555,37 +1555,31 @@ attach_ipdb:
 	if (!p_ssa_db_diff->dirty)
 		goto out;
 
-	if (recs[IPDB_TBL_ID_IPv4] > 0) {
-		ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "IPv4",
-				    ipdb->p_db_tables[IPDB_TBL_ID_IPv4],
-				    ipdb->pp_tables[IPDB_TBL_ID_IPv4]);
-		if (ret < 0) {
-			ssa_log_err(SSA_LOG_DEFAULT,
-				    "unable to attach IPv4 table to SMDB\n");
-			goto out;
-		}
+	ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "IPv4",
+			    ipdb->p_db_tables[IPDB_TBL_ID_IPv4],
+			    ipdb->pp_tables[IPDB_TBL_ID_IPv4]);
+	if (ret < 0) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to attach IPv4 table to SMDB\n");
+		goto out;
 	}
 
-	if (recs[IPDB_TBL_ID_IPv6] > 0) {
-		ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "IPv6",
-				    ipdb->p_db_tables[IPDB_TBL_ID_IPv6],
-				    ipdb->pp_tables[IPDB_TBL_ID_IPv6]);
-		if (ret < 0) {
-			ssa_log_err(SSA_LOG_DEFAULT,
-				    "unable to attach IPv6 table to SMDB\n");
-			goto out;
-		}
+	ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "IPv6",
+			    ipdb->p_db_tables[IPDB_TBL_ID_IPv6],
+			    ipdb->pp_tables[IPDB_TBL_ID_IPv6]);
+	if (ret < 0) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to attach IPv6 table to SMDB\n");
+		goto out;
 	}
 
-	if (recs[IPDB_TBL_ID_NAME] > 0) {
-		ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "NAME",
-				    ipdb->p_db_tables[IPDB_TBL_ID_NAME],
-				    ipdb->pp_tables[IPDB_TBL_ID_NAME]);
-		if (ret < 0) {
-			ssa_log_err(SSA_LOG_DEFAULT,
-				    "unable to attach NAME table to SMDB\n");
-			goto out;
-		}
+	ret = ssa_db_attach(p_ssa_db_diff->p_smdb, "NAME",
+			    ipdb->p_db_tables[IPDB_TBL_ID_NAME],
+			    ipdb->pp_tables[IPDB_TBL_ID_NAME]);
+	if (ret < 0) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "unable to attach NAME table to SMDB\n");
+		goto out;
 	}
 
 out:
