@@ -6380,7 +6380,7 @@ static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_m
 
 	counter_msg = (struct ssa_admin_counter *) &response->data.counter;
 
-	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
+	n = min(COUNTER_ID_LAST, ntohs(admin_request->data.counter.n));
 
 	for (i = 0; i < n; ++i) {
 		counter_msg->vals[i] = htonll((uint64_t) ssa_get_runtime_counter(i));
