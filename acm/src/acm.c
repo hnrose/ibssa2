@@ -3405,7 +3405,7 @@ static int acm_insert_addr_dest(struct acm_ep *ep, uint32_t qpn, uint8_t flags,
 	else if (addr_type == ACM_ADDRESS_IP6)
 		neigh = NEIGH_MODE_IPV6;
 	else
-		neigh = 0;
+		neigh = NEIGH_MODE_NONE;
 
 	if (neigh_mode & NEIGH_MODE_IPV4 && neigh & NEIGH_MODE_IPV4) {
 		if (qpn && qpn != 1) {
