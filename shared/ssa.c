@@ -2697,6 +2697,7 @@ static short ssa_downstream_rrecv(struct ssa_conn *conn, short events,
 			    "rrecv 0 out of %d bytes on rsock %d\n",
 			    conn->rsize - conn->roffset, conn->rsock);
 ssa_log(SSA_LOG_DEFAULT, "rbuf %p rsize %d roffset %d state %d phase %d\n", conn->rbuf, conn->rsize, conn->roffset, conn->state, conn->phase);
+		return 0;
 	}
 
 	return revents;
@@ -2709,6 +2710,15 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 {
 	short revents = events;
 
+	if (events & ~(POLLOUT | POLLIN)) {
+		char event_str[128] = {};
+
+		ssa_format_event(event_str, sizeof(event_str),
+				 events & ~(POLLOUT | POLLIN));
+		ssa_log(SSA_LOG_DEFAULT,
+			"unexpected event 0x%x (%s) on data rsock %d\n",
+			events & ~(POLLOUT | POLLIN), event_str, conn->rsock);
+	}
 	if (events & POLLIN) {
 		if (!conn->rbuf) {
 			conn->rbuf = malloc(sizeof(struct ssa_msg_hdr));
@@ -2723,6 +2733,8 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 		}
 		if (conn->rbuf) {
 			revents = ssa_downstream_rrecv(conn, events, svc, fds);
+			if (!revents)
+				return 0;
 		}
 	}
 	if (events & POLLOUT) {
@@ -2730,15 +2742,6 @@ static short ssa_downstream_handle_rsock_revents(struct ssa_conn *conn,
 			revents = ssa_rsend_continue(conn, events);
 		else
 			revents = ssa_riowrite_continue(conn, events);
-	}
-	if (events & ~(POLLOUT | POLLIN)) {
-		char event_str[128] = {};
-
-		ssa_format_event(event_str, sizeof(event_str),
-				 events & ~(POLLOUT | POLLIN));
-		ssa_log(SSA_LOG_DEFAULT,
-			"unexpected event 0x%x (%s) on data rsock %d\n",
-			events & ~(POLLOUT | POLLIN), event_str, conn->rsock);
 	}
 
 	return revents;
@@ -3483,9 +3486,14 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 					pfd->events = 0;
 					pfd->revents = 0;
 				} else {
-					if (svc->fd_to_conn[pfd->fd])
+					if (svc->fd_to_conn[pfd->fd]) {
 						pfd->events = ssa_downstream_handle_rsock_revents(svc->fd_to_conn[pfd->fd], pfd->revents, svc, fds);
-					else {
+						if (!pfd->events) {
+							ssa_downstream_close_ssa_conn(svc->fd_to_conn[pfd->fd], svc, fds);
+							svc->fd_to_conn[pfd->fd] = NULL;
+							pfd->fd = -1;
+						}
+					} else {
 						char event_str[128] = {};
 
 						ssa_format_event(event_str,
