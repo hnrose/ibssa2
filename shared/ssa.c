@@ -3447,7 +3447,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 				    "error event 0x%x (%s) on PRDB listen rsock %d\n",
 				    pfd->revents, event_str, pfd->fd);
 #if 0
-			/* TODO: uncomment when RDMA CM library limitations will be understood better */
+			/* TODO: uncomment when RDMA CM library limitations are better understood */
 			if (svc->conn_listen_prdb.rsock >= 0)
 				ssa_close_ssa_conn(&svc->conn_listen_prdb);
 			pfd->fd = -1;
