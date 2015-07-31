@@ -2559,7 +2559,7 @@ static short ssa_downstream_handle_query_data(struct ssa_conn *conn,
 		conn->rid = ntohl(hdr->id);
 		conn->roffset = 0;
 		if (conn->sindex < ssadb->data_tbl_cnt) {
-ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d %p len %d rsock %d\n", conn->sindex, ssadb->pp_tables[conn->sindex], ntohll(ssadb->p_db_tables[conn->sindex].set_size), conn->rsock);
+ssa_log(SSA_LOG_DEFAULT, "pp_tables index %d epoch 0x%" PRIx64 " %p len %d rsock %d\n", conn->sindex, ntohll(ssadb->p_db_tables[conn->sindex].epoch), ssadb->pp_tables[conn->sindex], ntohll(ssadb->p_db_tables[conn->sindex].set_size), conn->rsock);
 			revents = ssa_downstream_send(conn,
 						      SSA_MSG_DB_QUERY_DATA_DATASET,
 						      SSA_MSG_FLAG_RESP,
