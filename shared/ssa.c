@@ -3502,7 +3502,6 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			pfd->revents = 0;
 		}
 		ssa_set_runtime_counter(COUNTER_ID_NUM_CHILDREN, count);
-
 	}
 
 out:
