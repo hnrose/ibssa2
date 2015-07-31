@@ -1375,11 +1375,13 @@ int rsize;
 if (svc->conn_dataup.rbuf != svc->conn_dataup.rhdr) {
 rbuf = svc->conn_dataup.rbuf;
 rsize = svc->conn_dataup.rsize;
+epoch = ssa_db_get_epoch(svc->conn_dataup.ssa_db, svc->conn_dataup.rindex);
 } else {
 rbuf = NULL;
 rsize = 0;
+epoch = DB_EPOCH_INVALID;
 }
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p len %d rsock %d\n", svc->conn_dataup.rindex, rbuf, rsize, svc->conn_dataup.rsock);
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d epoch 0x%" PRIx64 " %p len %d rsock %d\n", svc->conn_dataup.rindex, epoch, rbuf, rsize, svc->conn_dataup.rsock);
 }
 				svc->conn_dataup.rindex++;
 			}
@@ -1435,11 +1437,13 @@ int rsize;
 if (svc->conn_dataup.rbuf != svc->conn_dataup.rhdr) {
 rbuf = svc->conn_dataup.rbuf;
 rsize = svc->conn_dataup.rsize;
+epoch = ssa_db_get_epoch(svc->conn_dataup.ssa_db, svc->conn_dataup.rindex + ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db));
 } else {
 rbuf = NULL;
 rsize = 0;
+epoch = DB_EPOCH_INVALID;
 }
-ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d %p len %d rsock %d\n", svc->conn_dataup.rindex, rbuf, rsize, svc->conn_dataup.rsock);
+ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d epoch 0x%" PRIx64 " %p len %d rsock %d\n", svc->conn_dataup.rindex, epoch, rbuf, rsize, svc->conn_dataup.rsock);
 }
 				svc->conn_dataup.rindex++;
 			}
