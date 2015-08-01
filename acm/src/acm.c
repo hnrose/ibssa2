@@ -3335,6 +3335,7 @@ static int acm_insert_addr_dest(struct acm_ep *ep, uint32_t qpn, uint8_t flags,
 	char lladdr[20];
 	uint8_t name[ACM_MAX_ADDRESS] = { 0 };
 	in_addr_t ipv4_addr, local_ipv4_addr;
+	struct in6_addr ipv6_addr, local_ipv6_addr;
 	int neigh, i, ret = 0;
 
 	if (addr_type == ACM_ADDRESS_NAME)
@@ -3432,6 +3433,33 @@ static int acm_insert_addr_dest(struct acm_ep *ep, uint32_t qpn, uint8_t flags,
 				ssa_log(SSA_LOG_DEFAULT,
 					"ipv4_neighbor_add IP 0x%x send failed\n",
 					ntohl(ipv4_addr));
+		}
+	} else if (neigh_mode & NEIGH_MODE_IPV6 && neigh & NEIGH_MODE_IPV6) {
+		if (qpn && qpn != 1) {
+			memset(&local_ipv6_addr, 0, sizeof(local_ipv6_addr));
+			for (i = 0; i < MAX_EP_ADDR; i++) {
+				if (ep->addr_type[i] == ACM_ADDRESS_IP6) {
+					memcpy(&local_ipv6_addr,
+					       ep->addr[i].addr, 16);
+					break;
+				}
+			}
+
+			memcpy(&ipv6_addr, addr, 16);
+			if (!memcmp(&ipv6_addr, &local_ipv6_addr, 16))
+				goto out;
+			inet_ntop(AF_INET6, &ipv6_addr, buf, sizeof(buf));
+			ssa_log(SSA_LOG_VERBOSE,
+				"IPv6 neighbor %s to be added to ifindex %u\n",
+				buf, ep->ifindex);
+			qpn = htonl(qpn | flags << 24);
+			memcpy(&lladdr[0], &qpn, 4);
+			memcpy(&lladdr[4], gid, 16);
+			if (ipv6_neighbor_add(neigh_socket, ep->ifindex,
+					      &ipv6_addr, lladdr, sizeof(lladdr)))
+				ssa_log(SSA_LOG_DEFAULT,
+					"ipv6_neighbor_add IP %s send failed\n",
+					buf);
 		}
 	}
 out:
@@ -4644,8 +4672,6 @@ static void acm_log_options(void)
 	else
 		ssa_log(SSA_LOG_DEFAULT, "timeout before next join request (in sec.) %d\n", rejoin_timeout);
 	ssa_log(SSA_LOG_DEFAULT, "neigh_mode %d\n", neigh_mode);
-	if (neigh_mode & NEIGH_MODE_IPV6)
-		ssa_log(SSA_LOG_DEFAULT, "NEIGH_MODE_IPV6 currently not supported\n");
 	ssa_log(SSA_LOG_DEFAULT, "support IPs in ibacm_addr.data %d\n",
 		support_ips_in_addr_cfg);
 }
