@@ -154,7 +154,7 @@ int ipv6_neighbor_add(int neighsock, int ifindex, struct in6_addr *ipaddr,
 	req.ndm.ndm_ifindex = ifindex;
 	req.ndm.ndm_type = RTN_UNICAST;
 
-	addattr_l(&req.n, sizeof(req), NDA_DST, &ipaddr, sizeof(ipaddr));
+	addattr_l(&req.n, sizeof(req), NDA_DST, ipaddr, sizeof(*ipaddr));
 	addattr_l(&req.n, sizeof(req), NDA_LLADDR, lla, llalen);
 
 	return send(neighsock, &req, req.n.nlmsg_len, 0) <= 0;
@@ -179,11 +179,11 @@ int ipv6_neighbor_delete(int neighsock, int ifindex, struct in6_addr *ipaddr)
 #endif
 	req.n.nlmsg_type = RTM_DELNEIGH;
 	req.n.nlmsg_seq = ++sequence_number;
-	req.ndm.ndm_family = AF_INET;
+	req.ndm.ndm_family = AF_INET6;
 	req.ndm.ndm_ifindex = ifindex;
 	req.ndm.ndm_type = RTN_UNICAST;
 
-	addattr_l(&req.n, sizeof(req), NDA_DST, &ipaddr, sizeof(ipaddr));
+	addattr_l(&req.n, sizeof(req), NDA_DST, ipaddr, sizeof(*ipaddr));
 
 	return send(neighsock, &req, req.n.nlmsg_len, 0) <= 0;
 }
