@@ -52,16 +52,16 @@ const struct db_table_def ip_def_tbl[] = {
 };
 
 const struct db_dataset ip_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_IPv4, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_IPv6, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_NAME, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_IPv4, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_IPv6, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_NAME, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
 	{ DB_VERSION_INVALID }
 };
 
 const struct db_dataset ip_field_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
 	{ DB_VERSION_INVALID }
 };
 

@@ -74,26 +74,26 @@ static struct db_table_def def_tbl[] = {
 };
 
 static struct db_dataset dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_SUBNET_OPTS, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_GUID2LID, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_NODE,        0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LINK,        0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_PORT,        0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_PKEY,        0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LFT_TOP,     0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LFT_BLOCK,   0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_SUBNET_OPTS, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_GUID2LID,    0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_NODE,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LINK,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_PORT,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_PKEY,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LFT_TOP,     0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_LFT_BLOCK,   0 }, DB_EPOCH_INVALID, 0, 0, 0 },
 	[SMDB_DATA_TBLS] = { DB_VERSION_INVALID }
 };
 
 static struct db_dataset field_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_SUBNET_OPTS, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_GUID2LID, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_NODE, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_LINK, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_PORT, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_PKEY, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_TOP, 0 }, 0, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_BLOCK, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_SUBNET_OPTS, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_GUID2LID,    0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_NODE,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_LINK,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_PORT,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_PKEY,        0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_TOP,     0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_BLOCK,   0 }, DB_EPOCH_INVALID, 0, 0, 0 },
 	[SMDB_DATA_TBLS] = { DB_VERSION_INVALID }
 };
 

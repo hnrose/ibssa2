@@ -49,12 +49,12 @@ static struct db_table_def def_tbl[] = {
 };
 
 static struct db_dataset dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, PRDB_TBL_ID_PR, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, PRDB_TBL_ID_PR, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
 	[PRDB_DATA_TBLS] = { DB_VERSION_INVALID }
 };
 
 static struct db_dataset field_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, 0 }, 0, 0, 0, 0 },
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
 	[PRDB_DATA_TBLS] = { DB_VERSION_INVALID }
 };
 
