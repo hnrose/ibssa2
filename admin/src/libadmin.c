@@ -59,11 +59,37 @@ struct admin_count_command {
 	short include_list[COUNTER_ID_LAST];
 };
 
+enum nodeinfo_mode {
+	NODEINFO_FULL = 0xFF,
+	NODEINFO_SINGLELINE = 0x1,
+	NODEINFO_UP_CONN = 0x2,
+	NODEINFO_DOWN_CONN = 0x4
+};
+
+struct nodeinfo_format_option {
+	const char *value;
+	const char *description;
+	uint16_t mode;
+};
+
+static const struct nodeinfo_format_option nodeinfo_format_options[] = {
+	{ "full", "print full SSA node information", NODEINFO_FULL },
+	{ "short", "print short SSA node information in single line", NODEINFO_SINGLELINE },
+	{ "conn", "print SSA node connections", NODEINFO_UP_CONN | NODEINFO_DOWN_CONN },
+	{ "up", "print upstream connection", NODEINFO_UP_CONN },
+	{ "down", "print downstream connections", NODEINFO_DOWN_CONN }
+};
+
+struct admin_nodeinfo_command {
+	uint16_t mode;
+};
+
 struct admin_command {
 	const struct cmd_struct_impl *impl;
 	const struct cmd_struct *cmd;
 	union {
 		struct admin_count_command count_cmd;
+		struct admin_nodeinfo_command nodeinfo_cmd;
 	} data;
 	short recursive;
 };
@@ -105,10 +131,14 @@ static void counter_command_output(struct admin_command *cmd,
 				   struct cmd_exec_info *exec_info,
 				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg);
+static int nodeinfo_init(struct admin_command *cmd);
 static void node_info_command_output(struct admin_command *cmd,
 				     struct cmd_exec_info *exec_info,
 				     union ibv_gid remote_gid,
 				     const struct ssa_admin_msg *msg);
+static int nodeinfo_handle_option(struct admin_command *admin_cmd,
+				  char option, const char *optarg);
+static void nodeinfo_print_help(FILE *stream);
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	[SSA_ADMIN_CMD_COUNTER] = {
@@ -133,12 +163,15 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	},
 	[SSA_ADMIN_CMD_NODE_INFO] = {
 		NULL,
-		NULL, NULL,
+		nodeinfo_handle_option, NULL,
 		default_destroy,
 		default_create_msg,
 		node_info_command_output,
-		{},
-		{ NULL, default_print_usage,
+		{
+			{ { "format",required_argument, 0, 'f' }, "[full|short|conn|up|down]" },
+			{ { 0, 0, 0, 0 } }	/* Required at the end of the array */
+		},
+		{ NULL, nodeinfo_print_help,
 		  "Retrieve basic node info" }
 	}
 };
@@ -907,6 +940,12 @@ static void counter_command_output(struct admin_command *cmd,
 	}
 }
 
+static int nodeinfo_init(struct admin_command *cmd)
+{
+	cmd->data.nodeinfo_cmd.mode = NODEINFO_FULL;
+	return 0;
+}
+
 static const char *ssa_connection_type_names[] = {
 	[SSA_CONN_TYPE_UPSTREAM] = "Upstream",
 	[SSA_CONN_TYPE_DOWNSTREAM] = "Downstream",
@@ -950,10 +989,12 @@ static void node_info_command_output(struct admin_command *cmd,
 	else
 		db_type = SSA_CONN_NODB_TYPE;
 
-	printf("%s %s (0x%" PRIx64") %s\n",
-	       ssa_node_type_str(node_info_msg->type),
-	       ssa_database_type_names[db_type],
-	       ntohll(node_info_msg->db_epoch), node_info_msg->version);
+	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_SINGLELINE)
+		printf("%s %s (0x%" PRIx64") %s\n",
+		       ssa_node_type_str(node_info_msg->type),
+		       ssa_database_type_names[db_type],
+		       ntohll(node_info_msg->db_epoch), node_info_msg->version);
+
 	n = ntohs(node_info_msg->connections_num);
 
 	for (i = 0; i < n; ++i) {
@@ -968,6 +1009,14 @@ static void node_info_command_output(struct admin_command *cmd,
 			fprintf(stderr, "ERROR - Unknown database type\n");
 			continue;
 		}
+
+		if (!(cmd->data.nodeinfo_cmd.mode & NODEINFO_UP_CONN) &&
+				connections[i].connection_type == SSA_CONN_TYPE_UPSTREAM)
+			continue;
+		if (!(cmd->data.nodeinfo_cmd.mode & NODEINFO_DOWN_CONN) &&
+				connections[i].connection_type == SSA_CONN_TYPE_DOWNSTREAM)
+			continue;
+
 		timestamp.tv_sec = ntohll(connections[i].connection_tv_sec);
 		timestamp.tv_usec = ntohll(connections[i].connection_tv_usec);
 
@@ -984,6 +1033,43 @@ static void node_info_command_output(struct admin_command *cmd,
 		ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
 		printf("\n");
 	}
+}
+
+static int nodeinfo_handle_option(struct admin_command *admin_cmd,
+				  char option, const char *optarg)
+{
+	unsigned int i;
+
+	if (option != 'f')
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(nodeinfo_format_options); ++i)
+		if (!strcmp(nodeinfo_format_options[i].value, optarg))
+			break;
+
+	if (i < ARRAY_SIZE(nodeinfo_format_options)) {
+		admin_cmd->data.nodeinfo_cmd.mode = nodeinfo_format_options[i].mode;
+		return 0;
+	} else {
+		fprintf(stderr, "ERROR - wrong value in format option\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+static void nodeinfo_print_help(FILE *stream)
+{
+	unsigned int i;
+
+	fprintf(stream, "Supported formating modes:\n");
+
+	for (i = 0; i < ARRAY_SIZE(nodeinfo_format_options); ++i)
+		fprintf(stream, "\t%s\t - \t%s\n",
+			nodeinfo_format_options[i].value,
+			nodeinfo_format_options[i].description);
+
+	fprintf(stream, "\n\n");
 }
 
 struct cmd_opts *admin_get_cmd_opts(int cmd)
