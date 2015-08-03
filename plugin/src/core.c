@@ -96,6 +96,7 @@ extern char smdb_dump_dir[128];
 extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
+extern short admin_port;
 extern int keepalive;
 extern int sock_accessextract[2];
 #ifdef SIM_SUPPORT_FAKE_ACM
@@ -2237,6 +2238,7 @@ static void core_log_options(void)
 		ssa_node_type_str(node_type));
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "admin port %u\n", admin_port);
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump %d\n", smdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "err smdb dump %d\n", err_smdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "smdb dump dir %s\n", smdb_dump_dir);

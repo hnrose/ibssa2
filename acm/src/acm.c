@@ -225,6 +225,7 @@ extern int accum_log_file;
 extern int prdb_dump;
 extern char prdb_dump_dir[128];
 extern short prdb_port;
+extern short admin_port;
 extern int keepalive;
 extern int reconnect_timeout;
 extern int reconnect_max_count;
@@ -4641,6 +4642,7 @@ static void acm_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "loopback resolution %d\n", loopback_prot);
 	ssa_log(SSA_LOG_DEFAULT, "server port %d\n", server_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "admin port %u\n", admin_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump %d\n", prdb_dump);
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "timeout %d ms\n", timeout);

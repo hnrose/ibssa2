@@ -63,6 +63,7 @@ extern char smdb_dump_dir[128];
 extern char prdb_dump_dir[128];
 extern short smdb_port;
 extern short prdb_port;
+extern short admin_port;
 extern int keepalive;
 #ifdef SIM_SUPPORT_FAKE_ACM
 extern int fake_acm_num;
@@ -298,6 +299,7 @@ static void distrib_log_options(void)
 	ssa_log(SSA_LOG_DEFAULT, "prdb dump dir %s\n", prdb_dump_dir);
 	ssa_log(SSA_LOG_DEFAULT, "smdb port %u\n", smdb_port);
 	ssa_log(SSA_LOG_DEFAULT, "prdb port %u\n", prdb_port);
+	ssa_log(SSA_LOG_DEFAULT, "admin port %u\n", admin_port);
 	ssa_log(SSA_LOG_DEFAULT, "keepalive time %d\n", keepalive);
 #ifdef SIM_SUPPORT_FAKE_ACM
 	if (node_type & SSA_NODE_ACCESS) {
