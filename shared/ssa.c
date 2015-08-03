@@ -6600,8 +6600,6 @@ static int ssa_admin_send_msg(int rsock, struct ssa_admin_msg *msg,
 }
 
 #ifdef SSA_ADMIN_DEBUG
-void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg);
-
 static void ssa_print_admin_msg(const struct ssa_admin_msg *msg)
 {
 	char buf[128] = {};

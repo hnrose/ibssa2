@@ -201,8 +201,6 @@ static uint64_t get_timestamp()
 }
 
 #ifdef SSA_ADMIN_DEBUG
-void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg);
-
 static void print_admin_msg(const struct ssa_admin_msg *msg)
 {
 	char buf[128] = {};

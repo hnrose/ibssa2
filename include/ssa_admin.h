@@ -158,4 +158,8 @@ struct ssa_admin_msg {
 	} data;
 };
 
+#ifdef SSA_ADMIN_DEBUG
+void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg);
+#endif
+
 #endif /* _SSA_ADMIN_H */
