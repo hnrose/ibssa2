@@ -607,30 +607,6 @@ static int get_cmd_opts(struct cmd_opts *cmd_opts, struct option *long_opts,
 	return 0;
 }
 
-#if 0
-static void do_poll(int rsock)
-{
-	struct pollfd fds[1];
-	int ret;
-	static int status = 0;
-	fds[0].fd	= rsock;
-	fds[0].events	= POLLIN;
-	fds[0].revents	= 0;
-	for (;;) {
-		ret = rpoll(fds, 1, -1);
-		if (ret < 0) {
-			printf("polling fds %d (%s)\n",
-			       errno, strerror(errno));
-			continue;
-		}
-		if (fds[0].revents) {
-			fds[0].events = 0;
-			return;
-		}
-	}
-}
-#endif
-
 static void default_destroy(struct admin_command *cmd)
 {
 	free(cmd);
