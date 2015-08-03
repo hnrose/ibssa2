@@ -131,7 +131,6 @@ static void counter_command_output(struct admin_command *cmd,
 				   struct cmd_exec_info *exec_info,
 				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg);
-static int nodeinfo_init(struct admin_command *cmd);
 static void node_info_command_output(struct admin_command *cmd,
 				     struct cmd_exec_info *exec_info,
 				     union ibv_gid remote_gid,
@@ -936,12 +935,6 @@ static void counter_command_output(struct admin_command *cmd,
 				continue;
 		};
 	}
-}
-
-static int nodeinfo_init(struct admin_command *cmd)
-{
-	cmd->data.nodeinfo_cmd.mode = NODEINFO_FULL;
-	return 0;
 }
 
 static const char *ssa_connection_type_names[] = {
