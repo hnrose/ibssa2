@@ -101,8 +101,6 @@ static void counter_command_output(struct admin_command *cmd,
 				   struct cmd_exec_info *exec_info,
 				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg);
-static int node_info_command_create_msg(struct admin_command *cmd,
-					struct ssa_admin_msg *msg);
 static void node_info_command_output(struct admin_command *cmd,
 				     struct cmd_exec_info *exec_info,
 				     union ibv_gid remote_gid,
@@ -130,7 +128,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	[SSA_ADMIN_CMD_NODE_INFO] = {
 		default_init,
 		default_destroy,
-		node_info_command_create_msg,
+		default_create_msg,
 		node_info_command_output,
 		{},
 		{ NULL, default_print_usage,
@@ -875,20 +873,6 @@ static void counter_command_output(struct admin_command *cmd,
 				continue;
 		};
 	}
-}
-
-static int node_info_command_create_msg(struct admin_command *cmd,
-					struct ssa_admin_msg *msg)
-{
-	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
-	uint16_t n;
-
-	(void)(cmd);
-
-	n = ntohs(msg->hdr.len) + sizeof(*node_info_msg);
-	msg->hdr.len = htons(n);
-
-	return 0;
 }
 
 static const char *ssa_connection_type_names[] = {
