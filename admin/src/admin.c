@@ -363,7 +363,6 @@ static int parse_opts(int argc, char **argv, int *status)
 			break;
 		case '?':
 		case 'h':
-			free(long_option_arr);
 			show_usage();
 			*status = 0;
 			ret = 1;
