@@ -55,6 +55,7 @@ struct cmd_exec_info {
 
 struct cmd_struct_impl;
 struct admin_count_command {
+	short print_all;
 	short include_list[COUNTER_ID_LAST];
 };
 
@@ -68,8 +69,11 @@ struct admin_command {
 };
 
 struct cmd_struct_impl {
-	struct admin_command *(*init)(int cmd_id,
-				      int argc, char **argv);
+	int (*init)(struct admin_command *admin_cmd);
+	int (*handle_option)(struct admin_command *admin_cmd,
+			     char option, const char *optarg);
+	int (*handle_param)(struct admin_command *admin_cmd,
+			    const char *param);
 	void (*destroy)(struct admin_command *admin_cmd);
 	int (*create_request)(struct admin_command *admin_cmd,
 			      struct ssa_admin_msg *msg);
@@ -92,8 +96,8 @@ static void ping_command_output(struct admin_command *cmd,
 				struct cmd_exec_info *exec_info,
 				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg);
-static struct admin_command *counter_init(int cmd_id,
-					  int argc, char **argv);
+static int counter_init(struct admin_command *cmd);
+static int counter_handle_param(struct admin_command *cmd, const char *param);
 static void counter_print_help(FILE *stream);
 static int counter_command_create_msg(struct admin_command *cmd,
 				      struct ssa_admin_msg *msg);
@@ -109,6 +113,7 @@ static void node_info_command_output(struct admin_command *cmd,
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	[SSA_ADMIN_CMD_COUNTER] = {
 		counter_init,
+		NULL, counter_handle_param,
 		default_destroy,
 		counter_command_create_msg,
 		counter_command_output,
@@ -117,7 +122,8 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		  "Retrieve specific counter" },
 	},
 	[SSA_ADMIN_CMD_PING]	= {
-		default_init,
+		NULL,
+		NULL, NULL,
 		default_destroy,
 		default_create_msg,
 		ping_command_output,
@@ -126,7 +132,8 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		  "Test ping between local node and SSA service on a specified target node" }
 	},
 	[SSA_ADMIN_CMD_NODE_INFO] = {
-		default_init,
+		NULL,
+		NULL, NULL,
 		default_destroy,
 		default_create_msg,
 		node_info_command_output,
@@ -619,13 +626,14 @@ static void default_print_usage(FILE *stream)
 
 static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 {
-	struct option *long_opts;
+	struct option *long_opts = NULL;
 	char short_opts[256];
 	int option, n;
 	struct cmd_opts *opts;
 	struct cmd_struct *cmd;
 	struct cmd_struct_impl *impl;
-	struct admin_command *admin_cmd;
+	struct admin_command *admin_cmd = NULL;
+	int i, ret;
 
 	if (cmd_id <= SSA_ADMIN_CMD_NONE || cmd_id >= SSA_ADMIN_CMD_MAX) {
 		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd_id);
@@ -639,12 +647,29 @@ static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 		return NULL;
 
 	admin_cmd = (struct admin_command *) malloc(sizeof(*admin_cmd));
-	if (!admin_cmd)
+	if (!admin_cmd) {
+		fprintf(stderr,
+			"ERROR - unable to allocate memory for %s command\n",
+			cmd->cmd);
 		return NULL;
+	}
 
 	admin_cmd->impl = impl;
 	admin_cmd->cmd = cmd;
 	admin_cmd->recursive = 0;
+
+	if (impl->init) {
+		ret = impl->init(admin_cmd);
+		if (ret) {
+			fprintf(stderr,
+				"ERROR - unable init %s command\n",
+				cmd->cmd);
+			goto error;
+		}
+	}
+
+	if (argc == 0)
+	       return admin_cmd;
 
 	n = ARRAY_SIZE(impl->opts) + long_opts_num;
 	long_opts = calloc(1, n * sizeof(*long_opts));
@@ -652,8 +677,7 @@ static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 		fprintf(stderr,
 			"ERROR - unable to allocate memory for %s command\n",
 			cmd->cmd);
-		free(admin_cmd);
-		return NULL;
+		goto error;
 	}
 
 	get_cmd_opts(opts, long_opts, short_opts);
@@ -661,18 +685,41 @@ static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 	do {
 		option = getopt_long(argc, argv, short_opts,
 				     long_opts, NULL);
+
+		if (impl->handle_option) {
+			ret = impl->handle_option(admin_cmd, option, optarg);
+			if (ret)
+				goto error;
+		}
+
 		switch (option) {
 		case '?':
-			free(long_opts);
-			return NULL;
+			goto error;
 		default:
 			break;
 		}
 	} while (option != -1);
 
+	optind++;
+
+	if (impl->handle_param)
+		for (i = optind; i < argc; ++i) {
+			ret = impl->handle_param(admin_cmd, argv[i]);
+			if (ret)
+				goto error;
+		}
+
 	free(long_opts);
 
 	return admin_cmd;
+
+error:
+	if (admin_cmd)
+		free(admin_cmd);
+	if (long_opts)
+		free(long_opts);
+
+	return NULL;
 }
 
 static int default_create_msg(struct admin_command *cmd,
@@ -727,38 +774,47 @@ static struct ssa_admin_counter_descr counters_descr[] = {
 };
 
 
-static struct admin_command *counter_init(int cmd_id, int argc, char **argv)
+static int counter_init(struct admin_command *cmd)
 {
-	struct admin_command *cmd = default_init(cmd_id, argc, argv);
+	int j;
 	struct admin_count_command *count_cmd;
-	int i, j;
-
-	if (!cmd)
-		return NULL;
 
 	count_cmd = (struct admin_count_command *) &cmd->data.count_cmd;
 
-	optind++;
+	for (j = 0; j < COUNTER_ID_LAST; ++j)
+		count_cmd->include_list[j] = 1;
 
-	for(j = 0; j < COUNTER_ID_LAST; ++j)
-		count_cmd->include_list[j] = optind == argc;
+	count_cmd->print_all = 1;
 
-	for (i = optind; i < argc; ++i) {
-		for (j = 0; j < COUNTER_ID_LAST; ++j) {
-			if (!strcmp(argv[i], counters_descr[j].name)) {
-				count_cmd->include_list[j] = 1;
-				break;
-			}
-		}
-		if (j == COUNTER_ID_LAST) {
-			fprintf(stderr, "ERROR - Name %s isn't found in the counters list\n", argv[i]);
-			cmd->impl->destroy(cmd);
-			return NULL;
-		}
+	return 0;
+}
+
+static int counter_handle_param(struct admin_command *cmd, const char *param)
+{
+	int j;
+	struct admin_count_command *count_cmd;
+
+	count_cmd = (struct admin_count_command *) &cmd->data.count_cmd;
+
+	if (count_cmd->print_all) {
+		memset(count_cmd->include_list, '\0', sizeof(count_cmd->include_list));
+		count_cmd->print_all = 0;
 	}
 
-	return cmd;
+	for (j = 0; j < COUNTER_ID_LAST; ++j) {
+		if (!strcmp(param, counters_descr[j].name)) {
+			count_cmd->include_list[j] = 1;
+			break;
+		}
+	}
+	if (j == COUNTER_ID_LAST) {
+		fprintf(stderr, "ERROR - Name %s isn't found in the counters list\n", param);
+		return -1;
+	}
+
+	return 0;
 }
+
 static void counter_print_help(FILE *stream)
 {
 	unsigned int i;
@@ -1226,7 +1282,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 	memset(connections, 0, n * sizeof(*connections));
 
 	nodeinfo_impl = &admin_cmd_command_impls[SSA_ADMIN_CMD_NODE_INFO];
-	nodeinfo_cmd = nodeinfo_impl->init(SSA_ADMIN_CMD_NODE_INFO, 0, NULL);
+	nodeinfo_cmd = default_init(SSA_ADMIN_CMD_NODE_INFO, 0, NULL);
 	if (!nodeinfo_cmd) {
 		fprintf(stderr, "ERROR - failed to create nodeinfo command\n");
 		free(connections);
@@ -1247,13 +1303,13 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 	}
 	cmd_impl = &admin_cmd_command_impls[cmd];
 
-	if (!cmd_impl->init || !cmd_impl->destroy ||
+	if (!cmd_impl->destroy ||
 	    !cmd_impl->create_request || !cmd_impl->handle_response) {
 		fprintf(stderr, "ERROR - command creation error\n");
 		goto err;
 	}
 
-	admin_cmd = cmd_impl->init(cmd, argc, argv);
+	admin_cmd = default_init(cmd, argc, argv);
 	if (!admin_cmd) {
 		fprintf(stderr, "ERROR - command creation error\n");
 		goto err;
