@@ -121,7 +121,7 @@ struct ssa_admin_node_info {
 	uint8_t		version[SSA_ADMIN_VERSION_LEN];
 	be64_t		db_epoch;
 	be16_t		connections_num;
-	uint8_t		reserved2[2];
+	uint8_t		reserved[3];
 	uint8_t		connections[0];
 };
 
