@@ -131,6 +131,7 @@ static void counter_command_output(struct admin_command *cmd,
 				   struct cmd_exec_info *exec_info,
 				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg);
+static int nodeinfo_init(struct admin_command *cmd);
 static void node_info_command_output(struct admin_command *cmd,
 				     struct cmd_exec_info *exec_info,
 				     union ibv_gid remote_gid,
@@ -161,7 +162,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		  "Test ping between local node and SSA service on a specified target node" }
 	},
 	[SSA_ADMIN_CMD_NODE_INFO] = {
-		NULL,
+		nodeinfo_init,
 		nodeinfo_handle_option, NULL,
 		default_destroy,
 		default_create_msg,
@@ -935,6 +936,12 @@ static void counter_command_output(struct admin_command *cmd,
 				continue;
 		};
 	}
+}
+
+static int nodeinfo_init(struct admin_command *cmd)
+{
+	cmd->data.nodeinfo_cmd.mode = NODEINFO_FULL;
+	return 0;
 }
 
 static const char *ssa_connection_type_names[] = {
