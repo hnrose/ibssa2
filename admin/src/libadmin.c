@@ -162,6 +162,22 @@ static uint64_t get_timestamp()
 	return tstamp;
 }
 
+#ifdef SSA_ADMIN_DEBUG
+void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg);
+
+static void print_admin_msg(const struct ssa_admin_msg *msg)
+{
+	char buf[128] = {};
+
+	ssa_format_admin_msg(buf, sizeof(buf), msg);
+	fprintf(stderr, "%s \n", buf);
+}
+
+#define SSA_ADMIN_REPORT_MSG(msg) {print_admin_msg(msg);}
+#else
+#define SSA_ADMIN_REPORT_MSG(msg)
+#endif
+
 int admin_init(const char *short_opts, struct option *long_opts)
 {
 	int i = 0;
@@ -1379,6 +1395,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 					continue;
 				}
 
+				SSA_ADMIN_REPORT_MSG(connections[i].rmsg);
 				ret = 0;
 				connections[i].exec_info.etime = get_timestamp();
 				if (ntohs(connections[i].rmsg->hdr.opcode) == SSA_ADMIN_CMD_NODE_INFO &&
@@ -1431,6 +1448,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 					admin_close_connection(&fds[i],  &connections[i]);
 				}
 
+				SSA_ADMIN_REPORT_MSG(connections[i].smsg);
 				if (!connections[i].sleft)
 					fds[i].events = POLLIN;
 			}

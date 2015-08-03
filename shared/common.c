@@ -41,6 +41,9 @@
 #include <inttypes.h>
 #include <infiniband/ssa_mad.h>
 #include <common.h>
+#ifdef SSA_ADMIN_DEBUG
+#include <ssa_admin.h>
+#endif
 
 const char *month_str[12] = {
 	"Jan",
@@ -156,3 +159,79 @@ void ssa_format_event(char *str,const size_t str_size, const int event)
 	if (n && str[n - 1] == '|')
 		str[n -1] = '\0';
 }
+
+#ifdef SSA_ADMIN_DEBUG
+static const char *admin_msg_status_name[] = {
+	[SSA_ADMIN_STATUS_SUCCESS] = "SUCCESS",
+	[SSA_ADMIN_STATUS_FAILURE] = "FAILURE"
+};
+
+static const char *admin_msg_method_name[] = {
+	[SSA_ADMIN_METHOD_GET] = "GET",
+	[SSA_ADMIN_METHOD_SET] = "SET",
+	[SSA_ADMIN_METHOD_RESP] = "RESP"
+};
+
+static const char *admin_msg_operation_name[] = {
+	[SSA_ADMIN_CMD_NONE] = "NONE",
+	[SSA_ADMIN_CMD_COUNTER] = "COUNTER",
+	[SSA_ADMIN_CMD_PING] = "PING",
+	[SSA_ADMIN_CMD_NODE_INFO] = "NODEINFO"
+};
+
+void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg)
+{
+	int len = ntohs(msg->hdr.len);
+
+	if (msg->hdr.status >=
+	    sizeof(admin_msg_status_name) / sizeof(admin_msg_status_name[0])) {
+			snprintf(buf, size, "Wrong status %d", msg->hdr.status);
+			return;
+	} else if (msg->hdr.method >=
+		   sizeof(admin_msg_method_name) / sizeof(admin_msg_method_name[0])) {
+			snprintf(buf, size, "Wrong method %d", msg->hdr.method);
+			return;
+	} else if (ntohs(msg->hdr.opcode) >= SSA_ADMIN_CMD_MAX) {
+			snprintf(buf, size, "Wrong operation %d", ntohs(msg->hdr.opcode));
+			return;
+	} else {
+		snprintf(buf, size,
+			 "Version: %d Status: %s Method: %s Op: %s Flags: %d Len: %d ",
+			 msg->hdr.version, admin_msg_status_name[msg->hdr.status],
+			 admin_msg_method_name[msg->hdr.method],
+			 admin_msg_operation_name[ntohs(msg->hdr.opcode)],
+			 ntohs(msg->hdr.flags), len);
+	}
+
+	if (len <= sizeof(msg->hdr))
+		return;
+
+
+	snprintf(buf + strlen(buf), size - strlen(buf), "Payload: ");
+
+	switch (ntohs(msg->hdr.opcode)) {
+	case SSA_ADMIN_CMD_PING:
+		return;
+	case SSA_ADMIN_CMD_COUNTER:
+		{
+		const struct ssa_admin_counter *payload = &msg->data.counter;
+
+		snprintf(buf + strlen(buf), size - strlen(buf), " N: %d", ntohs(payload->n));
+		}
+		break;
+	case SSA_ADMIN_CMD_NODE_INFO:
+		{
+		const struct ssa_admin_node_info *payload = &msg->data.node_info;
+
+		snprintf(buf + strlen(buf), size - strlen(buf),
+			 "Type: %d Version %s N: %d",
+			 payload->type, payload->version,
+			 ntohs(payload->connections_num));
+		}
+		break;
+	case SSA_ADMIN_CMD_NONE:
+	default:
+		snprintf(buf + strlen(buf), size - strlen(buf), "Unknown message");
+	};
+}
+#endif

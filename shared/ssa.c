@@ -6599,6 +6599,21 @@ static int ssa_admin_send_msg(int rsock, struct ssa_admin_msg *msg,
 	return 0;
 }
 
+#ifdef SSA_ADMIN_DEBUG
+void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg);
+
+static void ssa_print_admin_msg(const struct ssa_admin_msg *msg)
+{
+	char buf[128] = {};
+
+	ssa_format_admin_msg(buf, sizeof(buf), msg);
+	ssa_log(SSA_LOG_DEFAULT, "%s \n", buf);
+}
+#define SSA_ADMIN_REPORT_MSG(msg) {ssa_print_admin_msg(msg);}
+#else
+#define SSA_ADMIN_REPORT_MSG(msg)
+#endif
+
 static void *ssa_admin_handler(void *context)
 {
 	struct ssa_class *ssa = context;
@@ -6875,6 +6890,7 @@ static void *ssa_admin_handler(void *context)
 					}
 
 					if (!sleft) {
+						SSA_ADMIN_REPORT_MSG(admin_response);
 						fds[2].events = POLLIN;
 						slen = 0;
 						rlen = 0;
@@ -6904,6 +6920,8 @@ static void *ssa_admin_handler(void *context)
 						"new admin request received method %d opcode %d len %d\n",
 						admin_request.hdr.method, ntohs(admin_request.hdr.opcode),
 						ntohs(admin_request.hdr.len));
+
+					SSA_ADMIN_REPORT_MSG(&admin_request);
 
 					if (!ssa_admin_verify_message(&admin_request)) {
 						ssa_log_warn(SSA_LOG_CTRL,
