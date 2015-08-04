@@ -29,6 +29,11 @@ in the ACMs. "Half-world" means paths from the client (compute) node
 to every other node in the IB subnet.
 
 New 0.0.9 features are kernel IP address support and admin support.
+Kernel IP support allows for the IPv4 ARP and/or IPv6 neighbor caches
+in the kernel to be prepopulated by SSA ACM.
+admin support consists of ssadmin utility and admin support in SSA nodes.
+The ssadmin utility is used to monitor, debug and configure the SSA
+layers: core, distribution, access, and ACM.
 0.0.9 also supports ConnectX-4 (as well as Connect-IB). This was
 a limitation in the 0.0.8 release.
 
