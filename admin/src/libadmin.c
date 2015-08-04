@@ -889,7 +889,6 @@ static void counter_command_output(struct admin_command *cmd,
 	struct admin_count_command *count_cmd = (struct admin_count_command *) &cmd->data.count_cmd;
 	struct timeval epoch, timestamp;
 	time_t timestamp_time;
-	struct tm *timestamp_tm;
 	long val;
 	char addr_buf[128];
 
@@ -927,7 +926,6 @@ static void counter_command_output(struct admin_command *cmd,
 				timestamp.tv_sec = epoch.tv_sec + val / 1000;
 				timestamp.tv_usec = epoch.tv_usec + (val % 1000) * 1000;
 				timestamp_time =  timestamp.tv_sec;
-				timestamp_tm = localtime(&timestamp_time);
 				printf("%s ", counters_descr[i].name);
 				ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
 				printf("\n");
