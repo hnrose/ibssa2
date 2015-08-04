@@ -954,20 +954,59 @@ static const char *ssa_database_type_names[] = {
 	[SSA_CONN_PRDB_TYPE] = "PRDB",
 };
 
+static void node_info_connetions_output(const struct ssa_admin_connection_info *connections,
+					const int n, const char *node_addr_buf,
+					const int type)
+{
+	int i;
+	char addr_buf[128];
+	struct timeval timestamp;
+	time_t timestamp_time;
+	struct tm *timestamp_tm;
+
+	for (i = 0; i < n; ++i) {
+		if (connections[i].connection_type != type)
+			continue;
+
+		ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+				connections[i].remote_gid,
+				sizeof connections[i].remote_gid);
+		if (connections[i].connection_type >=
+		    ARRAY_SIZE(ssa_connection_type_names)) {
+			fprintf(stderr, "ERROR - Unknown connection type\n");
+			continue;
+		}
+		if (connections[i].dbtype >= ARRAY_SIZE(ssa_database_type_names)) {
+			fprintf(stderr, "ERROR - Unknown database type\n");
+			continue;
+		}
+
+		timestamp.tv_sec = ntohll(connections[i].connection_tv_sec);
+		timestamp.tv_usec = ntohll(connections[i].connection_tv_usec);
+
+		timestamp_time = timestamp.tv_sec;
+		timestamp_tm = localtime(&timestamp_time);
+
+		printf("%s%s %u %s %s %s ", node_addr_buf, addr_buf,
+		       ntohs(connections[i].remote_lid),
+		       ssa_connection_type_names[connections[i].connection_type],
+		       ssa_database_type_names[connections[i].dbtype],
+		       ssa_node_type_str(connections[i].remote_type));
+		ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
+		printf("\n");
+	}
+}
+
 static void node_info_command_output(struct admin_command *cmd,
 				     struct cmd_exec_info *exec_info,
 				     union ibv_gid remote_gid,
 				     const struct ssa_admin_msg *msg)
 {
-	int i, n, db_type;
-	char addr_buf[128];
+	int n, db_type;
 	char node_addr_buf[128];
 	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
 	struct ssa_admin_connection_info *connections =
 		(struct ssa_admin_connection_info *) node_info_msg->connections;
-	struct timeval timestamp;
-	time_t timestamp_time;
-	struct tm *timestamp_tm;
 
 	(void)(exec_info);
 
@@ -997,40 +1036,13 @@ static void node_info_command_output(struct admin_command *cmd,
 
 	n = ntohs(node_info_msg->connections_num);
 
-	for (i = 0; i < n; ++i) {
-		ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
-				connections[i].remote_gid,
-				sizeof connections[i].remote_gid);
-		if (connections[i].connection_type >= ARRAY_SIZE(ssa_connection_type_names)) {
-			fprintf(stderr, "ERROR - Unknown connection type\n");
-			continue;
-		}
-		if (connections[i].dbtype >= ARRAY_SIZE(ssa_database_type_names)) {
-			fprintf(stderr, "ERROR - Unknown database type\n");
-			continue;
-		}
+	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_UP_CONN)
+		node_info_connetions_output(connections, n, node_addr_buf,
+					    SSA_CONN_TYPE_UPSTREAM);
+	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_DOWN_CONN)
+		node_info_connetions_output(connections, n, node_addr_buf,
+					    SSA_CONN_TYPE_DOWNSTREAM);
 
-		if (!(cmd->data.nodeinfo_cmd.mode & NODEINFO_UP_CONN) &&
-				connections[i].connection_type == SSA_CONN_TYPE_UPSTREAM)
-			continue;
-		if (!(cmd->data.nodeinfo_cmd.mode & NODEINFO_DOWN_CONN) &&
-				connections[i].connection_type == SSA_CONN_TYPE_DOWNSTREAM)
-			continue;
-
-		timestamp.tv_sec = ntohll(connections[i].connection_tv_sec);
-		timestamp.tv_usec = ntohll(connections[i].connection_tv_usec);
-
-		timestamp_time = timestamp.tv_sec;
-		timestamp_tm = localtime(&timestamp_time);
-
-		printf("%s %s %u %s %s %s ", node_addr_buf, addr_buf,
-		       ntohs(connections[i].remote_lid),
-		       ssa_connection_type_names[connections[i].connection_type],
-		       ssa_database_type_names[connections[i].dbtype],
-		       ssa_node_type_str(connections[i].remote_type));
-		ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
-		printf("\n");
-	}
 }
 
 static int nodeinfo_handle_option(struct admin_command *admin_cmd,
