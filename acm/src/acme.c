@@ -401,8 +401,8 @@ static void gen_opts_temp(FILE *f)
 	fprintf(f, "neigh_mode 0\n");
 	fprintf(f, "\n");
 	fprintf(f, "# support_ips_in_addr_cfg:\n");
-	fprintf(f, "# If 1 continue to read IP addresses from ibacm_addr.data\n");
-	fprintf(f, "# Default is 0 \"no\"\n");
+	fprintf(f, "# 1 - continue to read IP addresses from ibacm_addr.data\n");
+	fprintf(f, "# Default is 0 (no)\n");
 	fprintf(f, "# support_ips_in_addr_cfg 0\n");
 }
 
