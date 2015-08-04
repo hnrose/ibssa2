@@ -974,7 +974,11 @@ static void node_info_command_output(struct admin_command *cmd,
 	if (cmd->recursive) {
 		ssa_format_addr(node_addr_buf, sizeof node_addr_buf, SSA_ADDR_GID,
 				remote_gid.raw, sizeof remote_gid.raw);
-		printf("%s: ", node_addr_buf);
+		snprintf(node_addr_buf + strlen(node_addr_buf),
+			 sizeof(node_addr_buf) - strlen(node_addr_buf), ": ");
+
+	} else {
+		node_addr_buf[0] = '\0';
 	}
 
 	if (node_info_msg->type == SSA_NODE_CONSUMER)
@@ -986,7 +990,7 @@ static void node_info_command_output(struct admin_command *cmd,
 		db_type = SSA_CONN_NODB_TYPE;
 
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_SINGLELINE)
-		printf("%s %s (0x%" PRIx64") %s\n",
+		printf("%s%s %s (0x%" PRIx64") %s\n", node_addr_buf,
 		       ssa_node_type_str(node_info_msg->type),
 		       ssa_database_type_names[db_type],
 		       ntohll(node_info_msg->db_epoch), node_info_msg->version);
@@ -1019,10 +1023,8 @@ static void node_info_command_output(struct admin_command *cmd,
 		timestamp_time = timestamp.tv_sec;
 		timestamp_tm = localtime(&timestamp_time);
 
-		if (cmd->recursive)
-			printf("%s: ", node_addr_buf);
-
-		printf("%s %u %s %s %s ", addr_buf, ntohs(connections[i].remote_lid),
+		printf("%s %s %u %s %s %s ", node_addr_buf, addr_buf,
+		       ntohs(connections[i].remote_lid),
 		       ssa_connection_type_names[connections[i].connection_type],
 		       ssa_database_type_names[connections[i].dbtype],
 		       ssa_node_type_str(connections[i].remote_type));
