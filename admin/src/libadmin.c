@@ -962,7 +962,6 @@ static void node_info_connetions_output(const struct ssa_admin_connection_info *
 	char addr_buf[128];
 	struct timeval timestamp;
 	time_t timestamp_time;
-	struct tm *timestamp_tm;
 
 	for (i = 0; i < n; ++i) {
 		if (connections[i].connection_type != type)
@@ -985,7 +984,6 @@ static void node_info_connetions_output(const struct ssa_admin_connection_info *
 		timestamp.tv_usec = ntohll(connections[i].connection_tv_usec);
 
 		timestamp_time = timestamp.tv_sec;
-		timestamp_tm = localtime(&timestamp_time);
 
 		printf("%s%s %u %s %s %s ", node_addr_buf, addr_buf,
 		       ntohs(connections[i].remote_lid),
