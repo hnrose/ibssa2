@@ -1428,11 +1428,11 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 	if (mode == ADMIN_RECURSION_NONE) {
 		admin_cmd->recursive = 0;
 		admin_update_connection_state(&connections[0], ADM_CONN_COMMAND,
-				&msg);
+					      &msg);
 	} else {
 		admin_cmd->recursive = 1;
 		admin_update_connection_state(&connections[0], ADM_CONN_NODEINFO,
-				&nodeinfo_msg);
+					      &nodeinfo_msg);
 	}
 
 	peer_len = sizeof(peer_addr);
