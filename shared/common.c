@@ -222,11 +222,23 @@ void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *ms
 	case SSA_ADMIN_CMD_NODE_INFO:
 		{
 		const struct ssa_admin_node_info *payload = &msg->data.node_info;
+		int i, conn_num = ntohs(payload->connections_num);
+		char addr_buf[128];
+		struct ssa_admin_connection_info *connections =
+			(struct ssa_admin_connection_info *) payload->connections;
 
 		snprintf(buf + strlen(buf), size - strlen(buf),
 			 "Type: %d Version %s N: %d",
 			 payload->type, payload->version,
-			 ntohs(payload->connections_num));
+			 conn_num);
+		for (i = 0; i < conn_num; ++i) {
+			ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+					connections[i].remote_gid,
+					sizeof connections[i].remote_gid);
+			snprintf(buf + strlen(buf), size - strlen(buf),
+				 " %s ", addr_buf);
+
+		}
 		}
 		break;
 	case SSA_ADMIN_CMD_NONE:
