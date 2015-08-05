@@ -298,7 +298,6 @@ static int parse_opts(int argc, char **argv, int *status)
 			dest_gid = optarg;
 			break;
 		case 'v':
-			free(long_option_arr);
 			show_version();
 			*status = 0;
 			ret = 1;
