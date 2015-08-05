@@ -1440,7 +1440,8 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 	peer_len = sizeof(peer_addr);
 	if (!rgetpeername(rsock, (struct sockaddr *) &peer_addr, &peer_len)) {
 		if (peer_addr.sib_family == AF_IB) {
-			memcpy(&connections[0].remote_gid, &peer_addr.sib_addr, sizeof(union ibv_gid));
+			memcpy(&connections[0].remote_gid,
+			       &peer_addr.sib_addr, sizeof(union ibv_gid));
 		} else {
 			fprintf(stderr, "ERROR - "
 				"rgetpeername fd %d family %d not AF_IB\n",
