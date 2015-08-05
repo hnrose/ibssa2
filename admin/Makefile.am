@@ -16,7 +16,7 @@ man_MANS = \
 
 EXTRA_DIST = \
 	     ssadmin.spec.in $(man_MANS) autogen.sh \
-	     ssa_release_notes.txt
+	     ssa_release_notes.txt include/common.h
 
 dist-hook: ssadmin.spec
 	cp ssadmin.spec $(distdir)
