@@ -1465,7 +1465,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 			goto err;
 
 		} else if (ret == 0) {
-			uint64_t now_epoch = get_timestamp(NULL);
+			uint64_t now_epoch = get_timestamp();
 
 			for (i = 0; i < n; ++i) {
 				if (fds[i].fd >= 0 && now_epoch -  connections[i].epoch >= timeout) {
