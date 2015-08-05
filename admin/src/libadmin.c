@@ -1445,7 +1445,6 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 			fprintf(stderr, "ERROR - "
 				"rgetpeername fd %d family %d not AF_IB\n",
 				rsock, peer_addr.sib_family);
-			return -1;
 			goto err;
 		}
 	} else {
