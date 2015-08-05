@@ -92,7 +92,7 @@ const char *ssa_node_type_str(int node_type)
 }
 
 void ssa_format_addr(char *str, size_t str_size,
-		     enum ssa_addr_type addr_type, uint8_t *addr, size_t addr_size)
+		     enum ssa_addr_type addr_type, const uint8_t *addr, size_t addr_size)
 {
 	struct ibv_path_record *path;
 
