@@ -1461,7 +1461,7 @@ static void ipdb_add_addrs(struct ssa_db *ipdb, struct host_addr *addrs,
 			ipv4 = (struct ipdb_ipv4 *) rec;
 			ipv4->qpn = htonl(addrs->qpn);
 			ipv4->pkey = htons(addrs->pkey);
-			ipv4->flags = htonl(addrs->flags);
+			ipv4->flags = addrs->flags;
 			memcpy(ipv4->gid, &addrs->gid, sizeof(ipv4->gid));
 			memcpy(ipv4->addr, addrs->addr, sizeof(ipv4->addr));
 			tbl_changed[SMDB_TBL_ID_IPv4] = TRUE;
@@ -1470,7 +1470,7 @@ static void ipdb_add_addrs(struct ssa_db *ipdb, struct host_addr *addrs,
 			ipv6 = (struct ipdb_ipv6 *) rec;
 			ipv6->qpn = htonl(addrs->qpn);
 			ipv6->pkey = htons(addrs->pkey);
-			ipv6->flags = htonl(addrs->flags);
+			ipv6->flags = addrs->flags;
 			memcpy(ipv6->gid, &addrs->gid, sizeof(ipv6->gid));
 			memcpy(ipv6->addr, addrs->addr, sizeof(ipv6->addr));
 			tbl_changed[SMDB_TBL_ID_IPv6] = TRUE;
@@ -1479,7 +1479,7 @@ static void ipdb_add_addrs(struct ssa_db *ipdb, struct host_addr *addrs,
 			name = (struct ipdb_name *) rec;
 			name->qpn = htonl(addrs->qpn);
 			name->pkey = htons(addrs->pkey);
-			name->flags = htonl(addrs->flags);
+			name->flags = addrs->flags;
 			memcpy(name->gid, &addrs->gid, sizeof(name->gid));
 			strncpy((char *) name->addr, (char *) addrs->addr,
 				sizeof(name->addr));
