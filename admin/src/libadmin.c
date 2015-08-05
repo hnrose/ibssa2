@@ -954,7 +954,7 @@ static const char *ssa_database_type_names[] = {
 	[SSA_CONN_PRDB_TYPE] = "PRDB",
 };
 
-static void node_info_connetions_output(const struct ssa_admin_connection_info *connections,
+static void node_info_connections_output(const struct ssa_admin_connection_info *connections,
 					const int n, const char *node_addr_buf,
 					const int type)
 {
@@ -1035,11 +1035,11 @@ static void node_info_command_output(struct admin_command *cmd,
 	n = ntohs(node_info_msg->connections_num);
 
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_UP_CONN)
-		node_info_connetions_output(connections, n, node_addr_buf,
-					    SSA_CONN_TYPE_UPSTREAM);
+		node_info_connections_output(connections, n, node_addr_buf,
+					     SSA_CONN_TYPE_UPSTREAM);
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_DOWN_CONN)
-		node_info_connetions_output(connections, n, node_addr_buf,
-					    SSA_CONN_TYPE_DOWNSTREAM);
+		node_info_connections_output(connections, n, node_addr_buf,
+					     SSA_CONN_TYPE_DOWNSTREAM);
 
 }
 
