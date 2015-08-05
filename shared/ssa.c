@@ -6431,7 +6431,7 @@ static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_m
 static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *admin_request,
 							struct ssa_admin_handler_context *context)
 {
-	int i, n;
+	int i, n, len;
 	struct ssa_admin_msg *response;
 	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.counter;
 	struct ssa_admin_connection_info *connections;
@@ -6440,7 +6440,8 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	uint64_t db_epoch;
 
 	n = g_hash_table_size(context->connections_hash);
-	response = (struct ssa_admin_msg *) malloc(sizeof(*response) + n * sizeof(struct ssa_admin_connection_info));
+	len = sizeof(*response) + n * sizeof(struct ssa_admin_connection_info);
+	response = (struct ssa_admin_msg *) malloc(len);
 	if (!response) {
 		ssa_log_err(SSA_LOG_CTRL, "admin response allocation failed\n");
 		return NULL;
@@ -6449,7 +6450,7 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	response->hdr = admin_request->hdr;
 	response->hdr.status = SSA_ADMIN_STATUS_SUCCESS;
 	response->hdr.method = SSA_ADMIN_METHOD_RESP;
-	response->hdr.len = htons(sizeof(*response));
+	response->hdr.len = htons(len);
 
 	nodeinfo_msg = (struct ssa_admin_node_info *) &response->data.counter;
 
