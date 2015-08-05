@@ -6602,7 +6602,7 @@ static int ssa_admin_send_msg(int rsock, struct ssa_admin_msg *msg,
 #ifdef SSA_ADMIN_DEBUG
 static void ssa_print_admin_msg(const struct ssa_admin_msg *msg)
 {
-	char buf[128] = {};
+	char buf[256] = {};
 
 	ssa_format_admin_msg(buf, sizeof(buf), msg);
 	ssa_log(SSA_LOG_DEFAULT, "%s \n", buf);

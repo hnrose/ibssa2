@@ -203,7 +203,7 @@ static uint64_t get_timestamp()
 #ifdef SSA_ADMIN_DEBUG
 static void print_admin_msg(const struct ssa_admin_msg *msg)
 {
-	char buf[128] = {};
+	char buf[256] = {};
 
 	ssa_format_admin_msg(buf, sizeof(buf), msg);
 	fprintf(stderr, "%s \n", buf);
