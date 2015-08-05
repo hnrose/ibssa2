@@ -1121,7 +1121,7 @@ struct admin_connection {
 	union ibv_gid remote_gid;
 	uint16_t remote_lid;
 	enum admin_connection_state state;
-	time_t epoch;
+	uint64_t epoch;
 	unsigned int slen, sleft;
 	struct ssa_admin_msg *smsg;
 	unsigned int rlen, rcount;
@@ -1230,7 +1230,7 @@ static void admin_update_connection_state(struct admin_connection *conn,
 					  struct ssa_admin_msg *msg)
 {
 	conn->state = state;
-	conn->epoch  = time(NULL);
+	conn->epoch  = get_timestamp();
 
 	free(conn->rmsg);
 	conn->rmsg = NULL;
@@ -1467,10 +1467,10 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 			goto err;
 
 		} else if (ret == 0) {
-			time_t now_epoch = time(NULL);
+			uint64_t now_epoch = get_timestamp(NULL);
 
 			for (i = 0; i < n; ++i) {
-				if (fds[i].fd >= 0 && connections[i].epoch - now_epoch >= timeout) {
+				if (fds[i].fd >= 0 && now_epoch -  connections[i].epoch >= timeout) {
 					fprintf(stderr, "ERROR - timeout expired\n");
 					admin_close_connection(&fds[i], &connections[i]);
 				}
@@ -1485,7 +1485,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 			revents = fds[i].revents;
 			fds[i].revents = 0;
 
-			connections[i].epoch = time(NULL);
+			connections[i].epoch  = get_timestamp();
 
 			if (revents & (POLLERR /*| POLLHUP */| POLLNVAL)) {
 				char event_str[128] = {};
