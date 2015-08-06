@@ -53,8 +53,11 @@
 #include <infiniband/ssa.h>
 #include <infiniband/ib.h>
 #include <infiniband/ssa_db.h>
-#ifdef SIM_SUPPORT_FAKE_ACM
+#if defined(SIM_SUPPORT_FAKE_ACM) || defined(ACCESS)
 #include <infiniband/ssa_smdb.h>
+#endif
+#ifdef ACCESS
+#include <infiniband/ssa_ipdb.h>
 #endif
 #include <infiniband/ssa_path_record.h>
 #include <infiniband/ssa_db_helper.h>
@@ -186,6 +189,7 @@ struct ssa_access_member {
 	int rsock;
 	uint16_t lid;
 };
+extern const char *data_tbl_name[];
 #endif
 
 struct ssa_sysinfo {
@@ -3521,6 +3525,65 @@ out:
 }
 
 #ifdef ACCESS
+static int
+ssa_is_addr_data_changed(struct ssa_db *smdb_new, struct ssa_db *ipdb_prev)
+{
+	int first_update = 0, res = 0, ret, i;
+	int do_comparison = 0;
+	uint64_t epoch, ipdb_epoch;
+
+	epoch = ssa_db_get_epoch(smdb_new, DB_DEF_TBL_ID);
+	if (epoch == DB_EPOCH_INVALID) {
+		ssa_log_err(SSA_LOG_DEFAULT,
+			    "invalid epoch for %s %p\n",
+			    smdb_new->db_def.name, smdb_new);
+		return -1;
+	}
+
+	if (epoch == DB_EPOCH_INITIAL)
+		first_update = 1;
+
+	if (ipdb_prev) {
+		ipdb_epoch = ssa_db_get_epoch(ipdb_prev, DB_DEF_TBL_ID);
+		if (first_update && ipdb_epoch != DB_EPOCH_INVALID)
+			do_comparison = 1;
+	} else {
+		ssa_log_err(SSA_LOG_DEFAULT, "no ipdb specified\n");
+		return -1;
+	}
+
+	if (do_comparison) {
+		/* first update after SM failover / handover */
+		for (i = 0; i < IPDB_TBL_ID_MAX; i++) {
+			ret = ssa_db_tbl_cmp(smdb_new, ipdb_prev,
+					     data_tbl_name[i]);
+			if (ret == 1) {
+				res = 1;
+				break;
+			} if (ret == -1) {
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "invalid %s table\n",
+					    data_tbl_name[i]);
+			}
+		}
+	} else if (first_update) {
+		/* first update */
+		res = 1;
+	} else {
+		uint64_t tbl_epoch, offset = SMDB_TBL_ID_MAX - IPDB_TBL_ID_MAX;
+		for (i = 0; i < IPDB_TBL_ID_MAX; i++) {
+			tbl_epoch = ssa_db_get_epoch(smdb_new, offset + i);
+			if (tbl_epoch != DB_EPOCH_INVALID &&
+			    tbl_epoch == epoch) {
+				res = 1;
+				break;
+			}
+		}
+	}
+
+	return res;
+}
+
 static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 				      int rsock, int flags, uint16_t remote_lid,
 				      union ibv_gid *remote_gid)
