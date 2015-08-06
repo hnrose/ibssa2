@@ -119,9 +119,9 @@ struct ssa_admin_connection_info {
 struct ssa_admin_node_info {
 	uint8_t		type;
 	uint8_t		version[SSA_ADMIN_VERSION_LEN];
+	uint8_t		reserved[5];
 	be64_t		db_epoch;
 	be16_t		connections_num;
-	uint8_t		reserved[3];
 	uint8_t		connections[0];
 };
 
