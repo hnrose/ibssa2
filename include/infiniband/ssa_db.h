@@ -433,20 +433,18 @@ uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id);
 
 /**
  * ssa_db_attach():
- * @ssa_db        - SSA DB for storing the attached table
- * @tbl_name      - attached table name
- * @tbl_dataset   - attached table dataset structure
- * @tbl           - pointer to table to be attached
+ * @dest        - destination SSA DB for attached table
+ * @src         - source SSA DB of the attached table
+ * @tbl_name    - attached table name
  *
  * This routine is being used in order to attach an existing table
- * (table + it's dataset) to some existing SSA DB. It is assumed that
- * SSA DB already includes the attached table definitions and also
- * have reserved indexes for storing the table. The attach procedure
- * involves deep copy of specified table, therefore new memory buffer
- * is allocated and on ssa_db_detach() call it is being free'd.
+ * destination SSA DB already includes the attached table definitions
+ * and also have reserved indexes for storing the table. The attach
+ * procedure involves deep copy of specified table, therefore new
+ * memory buffer is allocated and on ssa_db_detach() call it is
+ * being free'd.
  */
-int ssa_db_attach(struct ssa_db *ssa_db, const char *tbl_name,
-		  struct db_dataset tbl_dataset, void *tbl);
+int ssa_db_attach(struct ssa_db *dest, struct ssa_db *src, const char *tbl_name);
 void ssa_db_detach(struct ssa_db *ssa_db, const char *tbl_name);
 #ifdef __cplusplus
 }

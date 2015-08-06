@@ -710,41 +710,47 @@ out:
 	return data_tbl_cnt;
 }
 
-int ssa_db_attach(struct ssa_db *ssa_db, const char *tbl_name,
-		  struct db_dataset tbl_dataset, void *tbl)
+int
+ssa_db_attach(struct ssa_db *dest, struct ssa_db *src, const char *tbl_name)
 {
-	struct db_dataset *dataset;
-	int id;
+	struct db_dataset *dataset_src, *dataset_dest;
+	int id_src, id_dest;
 
-	if (!ssa_db || !tbl_name)
+	if (!dest || !src || !tbl_name)
 		goto err;
 
-	if (!tbl || !tbl_dataset.set_size)
+	id_src = get_table_id(tbl_name, &src->db_table_def, src->p_def_tbl);
+	if (id_src < 0)
+		goto err;
+
+	dataset_src = &src->p_db_tables[id_src];
+	if (!dataset_src->set_size || !src->pp_tables[id_src])
 		goto skip_attach;
 
-	id = get_table_id(tbl_name, &ssa_db->db_table_def, ssa_db->p_def_tbl);
-	if (id < 0)
+	id_dest = get_table_id(tbl_name, &dest->db_table_def, dest->p_def_tbl);
+	if (id_dest < 0)
 		goto err;
 
-	dataset = &ssa_db->p_db_tables[id];
-	if (dataset->set_size > 0 || dataset->set_count > 0 ||
-	    ssa_db->pp_tables[id])
+	dataset_dest = &dest->p_db_tables[id_dest];
+	if (dataset_dest->set_size > 0 ||
+	    dataset_dest->set_count > 0 || dest->pp_tables[id_dest])
 		goto err;
 
-	if (dataset->version != tbl_dataset.version ||
-	    dataset->size != tbl_dataset.size ||
-	    dataset->access != tbl_dataset.access)
+	if (dataset_dest->version != dataset_src->version ||
+	    dataset_dest->size    != dataset_src->size    ||
+	    dataset_dest->access  != dataset_src->access)
 		goto err;
 
-	ssa_db->pp_tables[id] = malloc(ntohll(tbl_dataset.set_size));
-	if (!ssa_db->pp_tables[id])
+	dest->pp_tables[id_dest] = malloc(ntohll(dataset_src->set_size));
+	if (!dest->pp_tables[id_dest])
 		goto err;
 
-	memcpy(ssa_db->pp_tables[id], tbl, ntohll(tbl_dataset.set_size));
+	memcpy(dest->pp_tables[id_dest], src->pp_tables[id_src],
+	       ntohll(dataset_src->set_size));
 
-	dataset->epoch = tbl_dataset.epoch;
-	dataset->set_size = tbl_dataset.set_size;
-	dataset->set_count = tbl_dataset.set_count;
+	dataset_dest->epoch	= dataset_src->epoch;
+	dataset_dest->set_size	= dataset_src->set_size;
+	dataset_dest->set_count	= dataset_src->set_count;
 
 skip_attach:
 	return 0;
