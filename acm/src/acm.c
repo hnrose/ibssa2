@@ -4093,7 +4093,7 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	struct ssa_device *ssa_dev1 = NULL;
 	struct ssa_port *port;
 	struct acm_ep *acm_ep;
-	uint64_t *lid2guid;
+	uint64_t *lid2guid, prdb_epoch, epoch;
 	uint16_t pkey;
 	int d, ret = 1;
 
@@ -4121,14 +4121,21 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	if (ret)
 		goto err;
 
+	prdb_epoch = ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID);
 	ssa_log(SSA_LOG_VERBOSE,
 		"updating cache with new PRDB epoch 0x%" PRIx64 "\n",
-		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
+		prdb_epoch);
 
 	acm_ep = acm_find_ep(port, pkey);
 	if (!acm_ep) {
 		ret = 1;
 		goto err;
+	}
+
+	epoch = ssa_db_get_epoch(p_ssa_db, PRDB_TBL_ID_PR);
+	if (epoch != prdb_epoch) {
+		ssa_log(SSA_LOG_VERBOSE, "skip updating path record cache\n");
+		goto skip_pr;
 	}
 
 	lid2guid = calloc(IB_LID_MCAST_START, sizeof(*lid2guid));
@@ -4146,8 +4153,8 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 
 	ssa_log(SSA_LOG_VERBOSE,
 		"cache update complete with PRDB epoch 0x%" PRIx64 "\n",
-		ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID));
-
+		prdb_epoch);
+skip_pr:
 	if (acm_parse_access_v1_address(p_ssa_db, acm_ep))
 		goto err;
 	else
