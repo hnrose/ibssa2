@@ -57,6 +57,7 @@
 #include <infiniband/ssa_smdb.h>
 #endif
 #ifdef ACCESS
+#include <infiniband/ssa_prdb.h>
 #include <infiniband/ssa_ipdb.h>
 #endif
 #include <infiniband/ssa_path_record.h>
@@ -3527,6 +3528,41 @@ out:
 
 #ifdef ACCESS
 static int
+ssa_smdb_is_pr_data_changed(struct ssa_db *smdb)
+{
+	uint64_t epoch, tbl_epoch;
+	int i, offset;
+
+	epoch = ssa_db_get_epoch(smdb, DB_DEF_TBL_ID);
+	offset = SMDB_TBL_ID_MAX - IPDB_TBL_ID_MAX;
+	for (i = 0; i < IPDB_TBL_ID_MAX; i++) {
+		tbl_epoch = ssa_db_get_epoch(smdb, i + offset);
+		if (tbl_epoch == epoch)
+			return 1;
+	}
+
+	return 0;
+}
+
+static int
+ssa_prdb_is_pr_data_changed(struct ssa_db *prdb, struct ssa_db *prdb_prev)
+{
+	uint64_t epoch, tbl_epoch;
+	int ret = 0;
+
+	if (prdb_prev) {
+		ret = ssa_db_cmp(prdb, prdb_prev);
+	} else {
+		epoch = ssa_db_get_epoch(prdb, DB_DEF_TBL_ID);
+		tbl_epoch = ssa_db_get_epoch(prdb, PRDB_TBL_ID_PR);
+		if (epoch == tbl_epoch)
+			ret = 1;
+	}
+
+	return ret;
+}
+
+static int
 ssa_is_addr_data_changed(struct ssa_db *smdb_new, struct ssa_db *ipdb_prev)
 {
 	int first_update = 0, res = 0, ret, i;
@@ -3616,116 +3652,74 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 {
 	struct ssa_db *prdb = NULL;
 	struct ssa_db *prdb_copy = NULL;
-	int n, ret;
+	int n, ret, pr_changed = 0, addr_changed = 0;
 	uint64_t epoch, prdb_epoch, actual_epoch;
 	char dump_dir[1024];
 	struct stat dstat;
 
+	if (consumer->smdb_epoch != DB_EPOCH_INVALID) {
+		addr_changed = ssa_is_addr_data_changed(access_context.smdb,
+							access_context.ipdb);
+		if (addr_changed < 0)
+			goto skip_update;
+	} else {
+		addr_changed = 1;
+	}
+
 	epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
 	prdb_epoch = ssa_db_get_epoch(consumer->prdb_current, DB_DEF_TBL_ID);
 
-	/* Call below "pulls" in access layer for any node type (if ACCESS defined) !!! */
+	ret = ssa_smdb_is_pr_data_changed(access_context.smdb);
+	if (ret != 1 && !addr_changed)
+		goto skip_update;
+
+	ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
+			SSA_ADDR_GID, consumer->gid.raw,
+			sizeof consumer->gid.raw);
+
 	ret = ssa_pr_compute_half_world(access_context.smdb,
 					access_context.context,
 					consumer->gid.global.interface_id,
 					&prdb);
-	if (ret == SSA_PR_PORT_ABSENT) {
-		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-				SSA_ADDR_GID, consumer->gid.raw,
-				sizeof consumer->gid.raw);
+	if (ret == SSA_PR_SUCCESS) {
+		pr_changed =
+			ssa_prdb_is_pr_data_changed(prdb, consumer->prdb_current);
+		if (pr_changed < 0) {
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "invalid PRDB structure for GID %s (new "
+				    "prdb %p or previously calculated one %p)\n",
+				    log_data, prdb, consumer->prdb_current);
+			goto skip_update;
+		} else if (!pr_changed && consumer->prdb_current) {
+			ssa_log(SSA_LOG_CTRL,
+				"PRDB calculated for GID %s is equal to "
+				"previous PRDB with epoch 0x%" PRIx64 "\n",
+				log_data, prdb_epoch);
+		}
+	} else if (ret == SSA_PR_PORT_ABSENT) {
 		if (consumer->smdb_epoch == DB_EPOCH_INVALID)
 			ssa_log_warn(SSA_LOG_DEFAULT,
-				     "GID %s not found in SMDB with epoch 0x%" PRIx64 "\n",
-				     log_data, epoch);
+				     "GID %s not found in SMDB with epoch 0x%"
+				     PRIx64 "\n", log_data, epoch);
 		else
 			ssa_log_warn(SSA_LOG_DEFAULT,
-				     "GID %s not found in SMDB with epoch 0x%" PRIx64
-				     ". Last used epoch 0x%" PRIx64 "\n",
+				     "GID %s not found in SMDB with epoch 0x%"
+				     PRIx64 ". Last used epoch 0x%" PRIx64 "\n",
 				     log_data, epoch, consumer->smdb_epoch);
-	} else if (ret == SSA_PR_SUCCESS) {
-		if (consumer->prdb_current) {
-			ret = ssa_db_cmp(prdb, consumer->prdb_current);
-			if (!ret) {
-				ssa_sprint_addr(SSA_LOG_CTRL, log_data, sizeof log_data,
-						SSA_ADDR_GID, consumer->gid.raw,
-						sizeof consumer->gid.raw);
-				ssa_log(SSA_LOG_CTRL,
-					"PRDB calculated for GID %s is equal to "
-					"previous PRDB with epoch 0x%" PRIx64 "\n",
-					log_data, prdb_epoch);
-			} else if (ret == -1) {
-				ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-						SSA_ADDR_GID, consumer->gid.raw,
-						sizeof consumer->gid.raw);
-				ssa_log_err(SSA_LOG_DEFAULT,
-					    "invalid PRDB structure for GID %s (new "
-					    "prdb %p or previously calculated one %p)\n",
-					    log_data, prdb, consumer->prdb_current);
-			}
-			/*
-			 * Destroy new PRDB and don't send PRDB update,
-			 * if it's equal to the previous PRDB (ret == 0), or
-			 * it's structure is wrong (ret == -1). If
-			 * structure is wrong, assumption is it's new PRDB
-			 * structure.
-			 */
-			if (ret != 1) {
-				ssa_db_destroy(prdb);
-				return NULL;
-			}
-		}
-
-		prdb_copy = ssa_db_copy(prdb);
-		if (!prdb_copy) {
-			ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-					SSA_ADDR_GID, consumer->gid.raw,
-					sizeof consumer->gid.raw);
-			ssa_log_warn(SSA_LOG_DEFAULT,
-				     "PRDB copy not created for GID %s for SMDB with epoch 0x%" PRIx64 "\n",
-				     log_data, epoch);
-		}
-
-		if (prdb_dump) {
-			n = snprintf(dump_dir, sizeof(dump_dir),
-				     "%s.", prdb_dump_dir);
-			snprintf(dump_dir + n, sizeof(dump_dir) - n,
-				 "0x%" PRIx64,
-				 ntohll(consumer->gid.global.interface_id));
-			if (lstat(dump_dir, &dstat)) {
-				if (mkdir(dump_dir, 0755)) {
-					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
-							sizeof log_data,
-							SSA_ADDR_GID,
-							consumer->gid.raw,
-							sizeof consumer->gid.raw);
-					ssa_log_err(SSA_LOG_CTRL,
-						    "prdb dump to %s for GID %s: %d (%s)\n",
-						    dump_dir, log_data,
-						    errno, strerror(errno));
-					goto skip_db_save;
-				}
-			}
-			ssa_db_save(dump_dir, prdb, prdb_dump);
-		}
+		goto skip_db_save;
 	} else {
-		ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
-				SSA_ADDR_GID, consumer->gid.raw,
-				sizeof consumer->gid.raw);
 		ssa_log(SSA_LOG_DEFAULT,
-			"PRDB calculation for GID %s failed for SMDB with epoch 0x%" PRIx64 "\n",
-			log_data, epoch);
+			"PRDB calculation for GID %s failed for SMDB with "
+			"epoch 0x%" PRIx64 "\n", log_data, epoch);
 
 		if (err_smdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
 				     "%s.0x%" PRIx64, smdb_dump_dir, epoch);
 			if (lstat(dump_dir, &dstat)) {
 				if (mkdir(dump_dir, 0755)) {
-					ssa_sprint_addr(SSA_LOG_CTRL, log_data,
-							sizeof log_data,
-							SSA_ADDR_GID, consumer->gid.raw,
-							sizeof consumer->gid.raw);
 					ssa_log_err(SSA_LOG_CTRL,
-						    "SMDB error dump to %s for GID %s: %d (%s)\n",
+						    "SMDB error dump to %s for"
+						    " GID %s: %d (%s)\n",
 						    dump_dir, log_data,
 						    errno, strerror(errno));
 					goto skip_db_save;
@@ -3735,10 +3729,43 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 			}
 			ssa_log(SSA_LOG_DEFAULT, "SMDB dump %s\n", dump_dir);
 		}
+		goto skip_db_save;
+	}
+
+	if (!pr_changed && !addr_changed) {
+		ssa_log(SSA_LOG_DEFAULT,
+			"IPDB and PRDB tables were not changed since "
+			"last SMDB update\n");
+		goto skip_update;
+	}
+
+	prdb_copy = ssa_db_copy(prdb);
+	if (!prdb_copy) {
+		ssa_log_warn(SSA_LOG_DEFAULT,
+			     "PRDB copy not created for GID %s for SMDB with "
+			     "epoch 0x%" PRIx64 "\n", log_data, epoch);
+	}
+
+	if (prdb_dump) {
+		n = snprintf(dump_dir, sizeof(dump_dir),
+			     "%s.", prdb_dump_dir);
+		snprintf(dump_dir + n, sizeof(dump_dir) - n,
+			 "0x%" PRIx64,
+			 ntohll(consumer->gid.global.interface_id));
+		if (lstat(dump_dir, &dstat)) {
+			if (mkdir(dump_dir, 0755)) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "prdb dump to %s for GID %s: "
+					    "%d (%s)\n", dump_dir, log_data,
+					    errno, strerror(errno));
+				goto skip_db_save;
+			}
+		}
+		ssa_db_save(dump_dir, prdb, prdb_dump);
 	}
 
 skip_db_save:
-	if (prdb != NULL) {
+	if (prdb) {
 		if (++prdb_epoch == DB_EPOCH_INVALID)
 			prdb_epoch++;
 		actual_epoch = ssa_db_set_epoch(prdb, DB_DEF_TBL_ID, prdb_epoch);
@@ -3747,11 +3774,30 @@ skip_db_save:
 		actual_epoch = ssa_db_set_epoch(prdb_copy, DB_DEF_TBL_ID, prdb_epoch);
 		if (actual_epoch == DB_EPOCH_INVALID)
 			ssa_log(SSA_LOG_VERBOSE, "PRDB copy epoch set failed\n");
+
+		if (pr_changed) {
+			actual_epoch = ssa_db_set_epoch(prdb_copy,
+							PRDB_TBL_ID_PR,
+							prdb_epoch);
+			if (actual_epoch == DB_EPOCH_INVALID)
+				ssa_log(SSA_LOG_VERBOSE,
+					"PR table epoch set failed\n");
+		}
+
+		if (addr_changed)
+			ssa_ipdb_attach(prdb_copy, access_context.smdb);
+
 		consumer->smdb_epoch = epoch;
 		ssa_db_destroy(consumer->prdb_current);
 		consumer->prdb_current = prdb;
 	}
+
 	return prdb_copy;
+
+skip_update:
+	if (prdb)
+		ssa_db_destroy(prdb);
+	return NULL;
 }
 
 static void
@@ -4449,6 +4495,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 							    ssa_db_get_epoch(access_context.smdb,
 									     DB_DEF_TBL_ID)) {
 								prdb = ssa_db_copy(consumer->prdb_current);
+								ssa_ipdb_attach(prdb, access_context.ipdb);
 								goto skip_prdb_calc;
 							}
 						}
@@ -4457,8 +4504,10 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 							"calculating PRDB for GID %s LID %u client\n",
 							log_data, consumer->lid);
 						prdb = ssa_calculate_prdb(svc_arr[i], consumer);
-						if (!prdb && consumer->prdb_current)
-							 prdb = ssa_db_copy(consumer->prdb_current);
+						if (!prdb && consumer->prdb_current) {
+							prdb = ssa_db_copy(consumer->prdb_current);
+							ssa_ipdb_attach(prdb, access_context.ipdb);
+						}
 #endif
 						if (!prdb)
 							continue;
