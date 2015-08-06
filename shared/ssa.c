@@ -191,7 +191,7 @@ struct ssa_access_member {
 	int rsock;
 	uint16_t lid;
 };
-extern const char *data_tbl_name[];
+extern const char *addr_data_tbl_name[];
 #endif
 
 struct ssa_sysinfo {
@@ -3593,14 +3593,14 @@ ssa_is_addr_data_changed(struct ssa_db *smdb_new, struct ssa_db *ipdb_prev)
 		/* first update after SM failover / handover */
 		for (i = 0; i < IPDB_TBL_ID_MAX; i++) {
 			ret = ssa_db_tbl_cmp(smdb_new, ipdb_prev,
-					     data_tbl_name[i]);
+					     addr_data_tbl_name[i]);
 			if (ret == 1) {
 				res = 1;
 				break;
 			} if (ret == -1) {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "invalid %s table\n",
-					    data_tbl_name[i]);
+					    addr_data_tbl_name[i]);
 			}
 		}
 	} else if (first_update) {

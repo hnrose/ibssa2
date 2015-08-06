@@ -37,7 +37,7 @@
 #include <inttypes.h>
 #include <asm/byteorder.h>
 
-const char *data_tbl_name[] =
+const char *addr_data_tbl_name[] =
 		{ [IPDB_TBL_ID_IPv4] = "IPv4",
 		  [IPDB_TBL_ID_IPv6] = "IPv6",
 		  [IPDB_TBL_ID_NAME] = "NAME" };
@@ -122,12 +122,12 @@ void ssa_ipdb_attach(struct ssa_db *ssa_db, struct ssa_db *ipdb)
 	int i, ret = 0;
 
 	for (i = 0; i < IPDB_TBL_ID_MAX; i++) {
-		ret = ssa_db_attach(ssa_db, ipdb, data_tbl_name[i]);
+		ret = ssa_db_attach(ssa_db, ipdb, addr_data_tbl_name[i]);
 		if (ret < 0)
 			ssa_log_err(SSA_LOG_DEFAULT,
 				    "unable to attach %s table from %s %p "
 				    "epoch 0x" PRIx64 " to %s %p epoch "
-				    "0x" PRIx64 "\n", data_tbl_name[i],
+				    "0x" PRIx64 "\n", addr_data_tbl_name[i],
 				    ipdb->db_def.name, ipdb,
 				    ssa_db_get_epoch(ipdb, DB_DEF_TBL_ID),
 				    ssa_db->db_def.name, ssa_db,
@@ -140,5 +140,5 @@ void ssa_ipdb_detach(struct ssa_db *ssa_db)
 	int i;
 
 	for (i = 0; i < IPDB_TBL_ID_MAX; i++)
-		ssa_db_detach(ssa_db, data_tbl_name[i]);
+		ssa_db_detach(ssa_db, addr_data_tbl_name[i]);
 }
