@@ -191,6 +191,7 @@ struct ssa_access_member {
 	int rsock;
 	uint16_t lid;
 };
+
 extern const char *addr_data_tbl_name[];
 #endif
 
