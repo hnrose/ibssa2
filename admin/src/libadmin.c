@@ -48,6 +48,7 @@
 
 
 #define MAX_COMMAND_OPTS 20
+#define GID_ADDRESS_WIDTH 21
 
 struct cmd_exec_info {
 	uint64_t stime, etime;
@@ -1009,10 +1010,13 @@ static void node_info_command_output(struct admin_command *cmd,
 	(void)(exec_info);
 
 	if (cmd->recursive) {
+		int addr_len;
+
 		ssa_format_addr(node_addr_buf, sizeof node_addr_buf, SSA_ADDR_GID,
 				remote_gid.raw, sizeof remote_gid.raw);
+		addr_len = strlen(node_addr_buf);
 		snprintf(node_addr_buf + strlen(node_addr_buf),
-			 sizeof(node_addr_buf) - strlen(node_addr_buf), ": ");
+			 sizeof(node_addr_buf) - addr_len, "%*c: ", GID_ADDRESS_WIDTH - addr_len, ' ');
 
 	} else {
 		node_addr_buf[0] = '\0';
