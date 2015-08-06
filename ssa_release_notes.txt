@@ -186,3 +186,6 @@ Possible seg fault in PerfMgr was fixed there.
 
 ACM is only tested in SSA acm_mode and not ACM acm_mode.
 
+IP and name tables in ACM caches do not have records removed
+currently; only added or replaced.
+
