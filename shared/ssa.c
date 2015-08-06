@@ -124,6 +124,7 @@ struct ssa_db_update_queue {
 
 struct ssa_access_context {
 	struct ssa_db		*smdb;
+	struct ssa_db		*ipdb;
 	void			*context;
 	GThreadPool		*g_th_pool;
 	pthread_cond_t		th_pool_cond;
@@ -4073,6 +4074,21 @@ void ssa_access_insert_fake_clients(struct ssa_svc **svc_arr, int svc_cnt,
 	}
 }
 #endif
+
+static void ssa_access_update_ipdb(struct ssa_db *ipdb, struct ssa_db *smdb)
+{
+	uint64_t epoch;
+
+	if (!ssa_is_addr_data_changed(smdb, ipdb))
+		return;
+
+	ssa_ipdb_detach(ipdb);
+	ssa_ipdb_attach(ipdb, smdb);
+
+	epoch = ssa_db_get_epoch(smdb, DB_DEF_TBL_ID);
+	if (ssa_db_set_epoch(ipdb, DB_DEF_TBL_ID, epoch) == DB_EPOCH_INVALID)
+		ssa_log_err(SSA_LOG_DEFAULT, "ipdb epoch set failed\n");
+}
 #endif
 
 static void *ssa_access_handler(void *context)
@@ -4087,6 +4103,7 @@ static void *ssa_access_handler(void *context)
 	struct ssa_db *prdb = NULL;
 	int i, ret, d, p, s, svc_cnt = 0;
 #ifdef ACCESS
+	uint64_t ipdb_recs[IPDB_TBL_ID_MAX] = { 0 };
 	int j;
 	struct ssa_access_member *consumer;
 	struct ssa_db_update db_upd;
@@ -4144,6 +4161,14 @@ static void *ssa_access_handler(void *context)
 		ssa_log_err(SSA_LOG_CTRL, "access context is empty\n");
 		goto out;
 	}
+
+#ifdef ACCESS
+	access_context.ipdb = ssa_ipdb_create(DB_EPOCH_INVALID, ipdb_recs);
+	if (!access_context.ipdb) {
+		ssa_log_err(SSA_LOG_DEFAULT, "unable to allocate ipdb\n");
+		goto out;
+	}
+#endif
 
 	pfd = (struct pollfd  *)fds;
 	pfd->fd = sock_accessctrl[1];
@@ -4268,6 +4293,9 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 							  svc_arr[j]);
 				}
 				ssa_access_wait_for_tasks_completion();
+
+				ssa_access_update_ipdb(access_context.ipdb,
+						       access_context.smdb);
 #endif
 				break;
 			default:
@@ -4341,6 +4369,9 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 							  ssa_access_map_callback,
 							  svc_arr[i]);
 					ssa_access_wait_for_tasks_completion();
+
+					ssa_access_update_ipdb(access_context.ipdb,
+							       access_context.smdb);
 #endif
 					break;
 				default:
@@ -4481,6 +4512,10 @@ skip_prdb_calc:
 	}
 
 out:
+#ifdef ACCESS
+	if (access_context.ipdb)
+		ssa_db_destroy(access_context.ipdb);
+#endif
 	if (svc_arr)
 		free(svc_arr);
 	if (fds)
