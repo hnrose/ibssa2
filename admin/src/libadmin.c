@@ -1477,7 +1477,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 		}
 	}
 
-	for(;;) {
+	for (;;) {
 		for (i = 0; i < n && fds[i].fd < 0; ++i);
 		if (i == n)
 			break;
