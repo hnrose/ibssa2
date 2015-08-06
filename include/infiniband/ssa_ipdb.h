@@ -116,6 +116,8 @@ struct ipdb_name {
 			 IPDB_FIELD_ID_NAME_MAX)
 
 struct ssa_db *ssa_ipdb_create(uint64_t epoch, uint64_t num_recs[IPDB_TBL_ID_MAX]);
+void ssa_ipdb_attach(struct ssa_db *ssa_db, struct ssa_db *ipdb);
+void ssa_ipdb_detach(struct ssa_db *ssa_db);
 
 END_C_DECLS
 #endif				/* _SSA_IPDB_H_ */

@@ -1555,26 +1555,7 @@ attach_ipdb:
 	if (!p_ssa_db_diff->dirty)
 		goto out;
 
-	ret = ssa_db_attach(p_ssa_db_diff->p_smdb, ipdb, "IPv4");
-	if (ret < 0) {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable to attach IPv4 table to SMDB\n");
-		goto out;
-	}
-
-	ret = ssa_db_attach(p_ssa_db_diff->p_smdb, ipdb, "IPv6");
-	if (ret < 0) {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable to attach IPv6 table to SMDB\n");
-		goto out;
-	}
-
-	ret = ssa_db_attach(p_ssa_db_diff->p_smdb, ipdb, "NAME");
-	if (ret < 0) {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable to attach NAME table to SMDB\n");
-		goto out;
-	}
+	ssa_ipdb_attach(p_ssa_db_diff->p_smdb, ipdb);
 
 out:
 	if (host_addrs)
