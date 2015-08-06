@@ -1352,6 +1352,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 	struct admin_connection *connections;
 	struct sockaddr_ib peer_addr;
 	socklen_t peer_len;
+	char addr_buf[128];
 
 	if (cmd <= SSA_ADMIN_CMD_NONE || cmd >= SSA_ADMIN_CMD_MAX) {
 		fprintf(stderr, "ERROR - command index %d is out of range\n", cmd);
@@ -1455,6 +1456,25 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 			"rgetpeername rsock %d ERROR %d (%s)\n",
 			rsock, errno, strerror(errno));
 		goto err;
+	}
+
+	ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+			connections[0].remote_gid.raw,
+			sizeof connections[0].remote_gid.raw);
+	if (!strcmp(addr_buf, local_gid)) {
+		struct ibv_path_data route;
+		socklen_t route_len;
+
+		route_len = sizeof(route);
+		if (!rgetsockopt(rsock, SOL_RDMA, RDMA_ROUTE, &route, &route_len)) {
+			memcpy(&connections[0].remote_gid,
+			       &route.path.sgid, sizeof(union ibv_gid));
+		} else {
+			fprintf(stderr, "ERROR - "
+				"rgetsockopt rsock %d ERROR %d (%s)\n",
+				rsock, errno, strerror(errno));
+			goto err;
+		}
 	}
 
 	for(;;) {
