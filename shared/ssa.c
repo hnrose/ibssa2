@@ -3733,26 +3733,6 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		goto skip_update;
 	}
 
-	if (prdb_dump) {
-		n = snprintf(dump_dir, sizeof(dump_dir),
-			     "%s.", prdb_dump_dir);
-		snprintf(dump_dir + n, sizeof(dump_dir) - n,
-			 "0x%" PRIx64,
-			 ntohll(consumer->gid.global.interface_id));
-		if (lstat(dump_dir, &dstat)) {
-			if (mkdir(dump_dir, 0755)) {
-				ssa_log_err(SSA_LOG_CTRL,
-					    "PRDB dump to %s for GID %s: "
-					    "%d (%s)\n", dump_dir, log_data,
-					    errno, strerror(errno));
-			} else {
-				ssa_db_save(dump_dir, prdb, prdb_dump);
-				ssa_log(SSA_LOG_DEFAULT,
-					"PRDB dump %s\n", dump_dir);
-			}
-		}
-	}
-
 	consumer->smdb_epoch = epoch;
 	prdb_epoch_prev = prdb_epoch;
 	prdb_epoch = ssa_epoch_inc(prdb_epoch);
@@ -3776,6 +3756,26 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 
 	if (addr_changed)
 		ssa_ipdb_attach(prdb_copy, access_context.smdb);
+
+	if (prdb_dump) {
+		n = snprintf(dump_dir, sizeof(dump_dir),
+			     "%s.", prdb_dump_dir);
+		snprintf(dump_dir + n, sizeof(dump_dir) - n,
+			 "0x%" PRIx64,
+			 ntohll(consumer->gid.global.interface_id));
+		if (lstat(dump_dir, &dstat)) {
+			if (mkdir(dump_dir, 0755)) {
+				ssa_log_err(SSA_LOG_CTRL,
+					    "PRDB dump to %s for GID %s: "
+					    "%d (%s)\n", dump_dir, log_data,
+					    errno, strerror(errno));
+			} else {
+				ssa_db_save(dump_dir, prdb_copy, prdb_dump);
+				ssa_log(SSA_LOG_DEFAULT,
+					"PRDB dump %s\n", dump_dir);
+			}
+		}
+	}
 
 	return prdb_copy;
 
