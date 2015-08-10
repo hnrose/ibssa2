@@ -3779,13 +3779,13 @@ skip_db_save:
 					"PR table epoch set failed\n");
 		}
 
-		if (addr_changed)
-			ssa_ipdb_attach(prdb_copy, access_context.smdb);
-
 		consumer->smdb_epoch = epoch;
 		ssa_db_destroy(consumer->prdb_current);
 		consumer->prdb_current = prdb;
 	}
+
+	if (addr_changed)
+		ssa_ipdb_attach(prdb_copy, access_context.smdb);
 
 	return prdb_copy;
 
