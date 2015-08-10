@@ -3697,7 +3697,6 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 				     "GID %s not found in SMDB with epoch 0x%"
 				     PRIx64 ". Last used epoch 0x%" PRIx64 "\n",
 				     log_data, epoch, consumer->smdb_epoch);
-		goto skip_db_save;
 	} else {
 		ssa_log(SSA_LOG_DEFAULT,
 			"PRDB calculation for GID %s failed for SMDB with "
