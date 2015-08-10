@@ -3572,8 +3572,7 @@ ssa_is_addr_data_changed(struct ssa_db *smdb_new, struct ssa_db *ipdb_prev)
 
 	epoch = ssa_db_get_epoch(smdb_new, DB_DEF_TBL_ID);
 	if (epoch == DB_EPOCH_INVALID) {
-		ssa_log_err(SSA_LOG_DEFAULT,
-			    "invalid epoch for %s %p\n",
+		ssa_log_err(SSA_LOG_DEFAULT, "invalid epoch for %s %p\n",
 			    smdb_new->db_def.name, smdb_new);
 		return -1;
 	}
