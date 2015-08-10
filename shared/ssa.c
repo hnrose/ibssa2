@@ -3738,6 +3738,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		ssa_log_warn(SSA_LOG_DEFAULT,
 			     "PRDB copy not created for GID %s for SMDB with "
 			     "epoch 0x%" PRIx64 "\n", log_data, epoch);
+		goto skip_update;
 	}
 
 	if (prdb_dump) {
