@@ -3657,21 +3657,12 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	char dump_dir[1024];
 	struct stat dstat;
 
-	if (consumer->smdb_epoch != DB_EPOCH_INVALID) {
+	if (access_context.ipdb)
 		addr_changed = ssa_is_addr_data_changed(access_context.smdb,
 							access_context.ipdb);
-		if (addr_changed < 0)
-			goto skip_update;
-	} else {
-		addr_changed = 1;
-	}
 
 	epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
 	prdb_epoch = ssa_db_get_epoch(consumer->prdb_current, DB_DEF_TBL_ID);
-
-	ret = ssa_smdb_is_pr_data_changed(access_context.smdb);
-	if (ret != 1 && !addr_changed)
-		goto skip_update;
 
 	ssa_sprint_addr(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 			SSA_ADDR_GID, consumer->gid.raw,
