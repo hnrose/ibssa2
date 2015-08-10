@@ -3531,17 +3531,12 @@ out:
 static int
 ssa_prdb_is_pr_data_changed(struct ssa_db *prdb, struct ssa_db *prdb_prev)
 {
-	uint64_t epoch, tbl_epoch;
-	int ret = 0;
+	int ret;
 
-	if (prdb_prev) {
+	if (prdb_prev)
 		ret = ssa_db_cmp(prdb, prdb_prev);
-	} else {
-		epoch = ssa_db_get_epoch(prdb, DB_DEF_TBL_ID);
-		tbl_epoch = ssa_db_get_epoch(prdb, PRDB_TBL_ID_PR);
-		if (epoch == tbl_epoch)
-			ret = 1;
-	}
+	else
+		ret = 1;
 
 	return ret;
 }
