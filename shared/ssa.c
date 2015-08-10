@@ -3657,7 +3657,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	char dump_dir[1024];
 	struct stat dstat;
 
-	if (!consumer->prdb_current)
+	if (!consumer->prdb_current || consumer->smdb_epoch == DB_EPOCH_INVALID)
 		addr_changed = 1;
 	else if (access_context.ipdb)
 		addr_changed = ssa_is_addr_data_changed(access_context.smdb,
