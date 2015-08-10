@@ -3719,7 +3719,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 			}
 			ssa_log(SSA_LOG_DEFAULT, "SMDB dump %s\n", dump_dir);
 		}
-		goto skip_db_save;
+		goto skip_update;
 	}
 
 	if (!pr_changed && !addr_changed) {
