@@ -4531,6 +4531,8 @@ static int acm_process_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *m
 
 static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 {
+	int i;
+
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	switch(msg->hdr.type) {
 	case SSA_CTRL_MAD:
@@ -4538,6 +4540,8 @@ static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	case SSA_CONN_DONE:
 ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n", ((struct ssa_conn_done_msg *)msg)->data.rsock);
 		/* Request ssa_db ? */
+		for (i = 0; i < PRDB_TBL_ID_MAX; ++i)
+			epochs[i] = DB_EPOCH_INVALID;
 		return 1;
 	case SSA_CONN_GONE:
 ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection gone on rsock %d\n", ((struct ssa_conn_done_msg *)msg)->data.rsock);
