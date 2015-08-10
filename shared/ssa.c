@@ -3529,23 +3529,6 @@ out:
 
 #ifdef ACCESS
 static int
-ssa_smdb_is_pr_data_changed(struct ssa_db *smdb)
-{
-	uint64_t epoch, tbl_epoch;
-	int i, offset;
-
-	epoch = ssa_db_get_epoch(smdb, DB_DEF_TBL_ID);
-	offset = SMDB_TBL_ID_MAX - IPDB_TBL_ID_MAX;
-	for (i = 0; i < IPDB_TBL_ID_MAX; i++) {
-		tbl_epoch = ssa_db_get_epoch(smdb, i + offset);
-		if (tbl_epoch == epoch)
-			return 1;
-	}
-
-	return 0;
-}
-
-static int
 ssa_prdb_is_pr_data_changed(struct ssa_db *prdb, struct ssa_db *prdb_prev)
 {
 	uint64_t epoch, tbl_epoch;
