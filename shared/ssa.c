@@ -3729,7 +3729,11 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		goto skip_update;
 	}
 
-	prdb_copy = ssa_db_copy(prdb);
+	if (pr_changed)
+		prdb_copy = ssa_db_copy(prdb);
+	else if (consumer->prdb_current)
+		prdb_copy = ssa_db_copy(consumer->prdb_current);
+
 	if (!prdb_copy) {
 		ssa_log_warn(SSA_LOG_DEFAULT,
 			     "PRDB copy not created for GID %s for SMDB with "
