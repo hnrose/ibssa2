@@ -3731,9 +3731,13 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		goto skip_update;
 	}
 
-	if (pr_changed)
-		prdb_copy = ssa_db_copy(prdb);
-	else if (consumer->prdb_current)
+	if (prdb) {
+		consumer->smdb_epoch = epoch;
+		ssa_db_destroy(consumer->prdb_current);
+		consumer->prdb_current = prdb;
+	}
+
+	if (consumer->prdb_current)
 		prdb_copy = ssa_db_copy(consumer->prdb_current);
 
 	if (!prdb_copy) {
@@ -3762,12 +3766,6 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	}
 
 skip_db_save:
-	if (prdb) {
-		consumer->smdb_epoch = epoch;
-		ssa_db_destroy(consumer->prdb_current);
-		consumer->prdb_current = prdb;
-	}
-
 	if (++prdb_epoch == DB_EPOCH_INVALID)
 		prdb_epoch++;
 	actual_epoch = ssa_db_set_epoch(consumer->prdb_current,
