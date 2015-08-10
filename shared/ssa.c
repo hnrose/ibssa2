@@ -3631,7 +3631,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	struct ssa_db *prdb = NULL;
 	struct ssa_db *prdb_copy = NULL;
 	int n, ret, pr_changed = 0, addr_changed = 0;
-	uint64_t epoch, prdb_epoch, actual_epoch;
+	uint64_t epoch, prdb_epoch, prdb_epoch_prev, actual_epoch;
 	char dump_dir[1024];
 	struct stat dstat;
 
@@ -3744,6 +3744,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 
 skip_db_save:
 	consumer->smdb_epoch = epoch;
+	prdb_epoch_prev = prdb_epoch;
 	if (++prdb_epoch == DB_EPOCH_INVALID)
 		prdb_epoch++;
 	actual_epoch = ssa_db_set_epoch(consumer->prdb_current,
@@ -3754,16 +3755,15 @@ skip_db_save:
 	if (actual_epoch == DB_EPOCH_INVALID)
 		ssa_log(SSA_LOG_VERBOSE, "PRDB copy epoch set failed\n");
 
-	if (pr_changed) {
-		actual_epoch = ssa_db_set_epoch(consumer->prdb_current,
-						PRDB_TBL_ID_PR, prdb_epoch);
-		if (actual_epoch == DB_EPOCH_INVALID)
-			ssa_log(SSA_LOG_VERBOSE, "PR table epoch set failed\n");
-		actual_epoch = ssa_db_set_epoch(prdb_copy,
-						PRDB_TBL_ID_PR, prdb_epoch);
-		if (actual_epoch == DB_EPOCH_INVALID)
-			ssa_log(SSA_LOG_VERBOSE, "PR table copy epoch set failed\n");
-	}
+	actual_epoch = ssa_db_set_epoch(consumer->prdb_current, PRDB_TBL_ID_PR,
+					pr_changed ? prdb_epoch : prdb_epoch_prev);
+	if (actual_epoch == DB_EPOCH_INVALID)
+		ssa_log(SSA_LOG_VERBOSE, "PR table epoch set failed\n");
+
+	actual_epoch = ssa_db_set_epoch(prdb_copy, PRDB_TBL_ID_PR,
+					pr_changed ? prdb_epoch : prdb_epoch_prev);
+	if (actual_epoch == DB_EPOCH_INVALID)
+		ssa_log(SSA_LOG_VERBOSE, "PR table copy epoch set failed\n");
 
 	if (addr_changed)
 		ssa_ipdb_attach(prdb_copy, access_context.smdb);
