@@ -1416,6 +1416,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_FIELD_DEFS index %d %p len %d rsock %d\n", svc-
 				data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
 				svc->conn_dataup.ssa_db->pp_tables = calloc(1, data_tbl_cnt * sizeof(*svc->conn_dataup.ssa_db->pp_tables));
 ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA ssa_db allocated pp_tables %p num tables %d rsock %d\n", svc->conn_dataup.ssa_db->pp_tables, data_tbl_cnt, svc->conn_dataup.rsock);
+				svc->conn_dataup.ssa_db->data_tbl_cnt = data_tbl_cnt;
 				svc->conn_dataup.rindex = 0;
 			} else {
 				if (svc->conn_dataup.rindex >=
@@ -1462,7 +1463,6 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_DATA index %d epoch 0x%" PRIx64 " %p len %d rso
 						     SSA_MSG_DB_QUERY_DATA_DATASET,
 						     events);
 		} else {
-			svc->conn_dataup.ssa_db->data_tbl_cnt = ssa_db_calculate_data_tbl_num(svc->conn_dataup.ssa_db);
 			epoch = ssa_db_get_epoch(svc->conn_dataup.ssa_db,
 						 DB_DEF_TBL_ID);
 ssa_log(SSA_LOG_DEFAULT, "ssa_db %p epoch 0x%" PRIx64 " complete with num tables %d rsock %d\n", svc->conn_dataup.ssa_db, epoch, svc->conn_dataup.ssa_db->data_tbl_cnt, svc->conn_dataup.rsock);
