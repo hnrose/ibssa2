@@ -3662,7 +3662,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 			ssa_prdb_is_pr_data_changed(prdb, consumer->prdb_current);
 		if (pr_changed < 0) {
 			ssa_log_err(SSA_LOG_DEFAULT,
-				    "invalid PRDB structure for GID %s (new "
+				    "Invalid PRDB structure for GID %s (new "
 				    "prdb %p or previously calculated one %p)\n",
 				    log_data, prdb, consumer->prdb_current);
 			goto skip_update;
