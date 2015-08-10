@@ -3563,14 +3563,14 @@ ssa_is_addr_data_changed(struct ssa_db *smdb_new, struct ssa_db *ipdb_prev)
 	if (epoch == DB_EPOCH_INITIAL)
 		first_update = 1;
 
-	if (ipdb_prev) {
-		ipdb_epoch = ssa_db_get_epoch(ipdb_prev, DB_DEF_TBL_ID);
-		if (first_update && ipdb_epoch != DB_EPOCH_INVALID)
-			do_comparison = 1;
-	} else {
+	if (!ipdb_prev) {
 		ssa_log_err(SSA_LOG_DEFAULT, "no ipdb specified\n");
 		return -1;
 	}
+
+	ipdb_epoch = ssa_db_get_epoch(ipdb_prev, DB_DEF_TBL_ID);
+	if (first_update && ipdb_epoch != DB_EPOCH_INVALID)
+		do_comparison = 1;
 
 	if (do_comparison) {
 		/* first update after SM failover / handover */
@@ -3642,7 +3642,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 
 	if (!consumer->prdb_current || consumer->smdb_epoch == DB_EPOCH_INVALID)
 		addr_changed = 1;
-	else if (access_context.ipdb)
+	else
 		addr_changed = ssa_is_addr_data_changed(access_context.smdb,
 							access_context.ipdb);
 
