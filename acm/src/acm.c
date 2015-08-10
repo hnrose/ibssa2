@@ -4098,8 +4098,9 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	struct ssa_port *port;
 	struct acm_ep *acm_ep;
 	uint64_t *lid2guid, epoch;
+	char buf[128] = { 0 };
 	uint16_t pkey;
-	int i, d, ret = 1;
+	int  i, d, ret = 1, n = 0;
 	short update_pr = 0, update_ip = 0;
 
 	if (!p_ssa_db)
@@ -4172,14 +4173,15 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	}
 
 	if (update_ip) {
-		if (acm_parse_access_v1_address(p_ssa_db, acm_ep))
+		if (acm_parse_access_v1_address(p_ssa_db, acm_ep)) {
 			goto err;
-		else {
-			ssa_log(SSA_LOG_VERBOSE,
-				"cache update complete with IPDB epochs:");
+		} else {
 			for (i = PRDB_TBL_ID_IPv4; i < PRDB_TBL_ID_MAX; ++i)
-				ssa_log(SSA_LOG_VERBOSE," 0x%" PRIx64, epochs[i]);
-			ssa_log(SSA_LOG_VERBOSE, "\n");
+				n += snprintf(buf + n, sizeof(buf) - n,
+					      " 0x%" PRIx64, epochs[i]);
+			ssa_log(SSA_LOG_VERBOSE,
+				"cache update complete with IPDB epochs:%s\n",
+				buf);
 		}
 	} else {
 		ssa_log(SSA_LOG_VERBOSE, "Skipped updating IP caches\n");
