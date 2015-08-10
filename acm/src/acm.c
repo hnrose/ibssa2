@@ -219,6 +219,10 @@ static useconds_t acm_query_timeout = ACM_DEFAULT_QUERY_TIMEOUT;
 static int acm_query_retries = ACM_DEFAULT_QUERY_RETRIES;
 static int neigh_mode = NEIGH_MODE_NONE;
 static int support_ips_in_addr_cfg = 0;
+static uint64_t epochs[PRDB_TBL_ID_MAX] = { DB_EPOCH_INVALID,
+					    DB_EPOCH_INVALID,
+					    DB_EPOCH_INVALID,
+					    DB_EPOCH_INVALID };
 
 extern int log_flush;
 extern int accum_log_file;
@@ -4093,9 +4097,10 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	struct ssa_device *ssa_dev1 = NULL;
 	struct ssa_port *port;
 	struct acm_ep *acm_ep;
-	uint64_t *lid2guid, prdb_epoch, epoch;
+	uint64_t *lid2guid, epoch;
 	uint16_t pkey;
-	int d, ret = 1;
+	int i, d, ret = 1;
+	short update_pr = 0, update_ip = 0;
 
 	if (!p_ssa_db)
 		return ret;
@@ -4121,10 +4126,10 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 	if (ret)
 		goto err;
 
-	prdb_epoch = ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID);
+	epoch = ssa_db_get_epoch(p_ssa_db, DB_DEF_TBL_ID);
 	ssa_log(SSA_LOG_VERBOSE,
 		"updating cache with new PRDB epoch 0x%" PRIx64 "\n",
-		prdb_epoch);
+		epoch);
 
 	acm_ep = acm_find_ep(port, pkey);
 	if (!acm_ep) {
@@ -4132,35 +4137,53 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 		goto err;
 	}
 
-	epoch = ssa_db_get_epoch(p_ssa_db, PRDB_TBL_ID_PR);
-	if (epoch != prdb_epoch) {
-		ssa_log(SSA_LOG_VERBOSE, "skip updating path record cache\n");
-		goto skip_pr;
+	for (i = 0; i < PRDB_TBL_ID_MAX; ++i) {
+		epoch = ssa_db_get_epoch(p_ssa_db, i);
+		if (epoch != epochs[i]) {
+			epochs[i] = epoch;
+
+			if (i == PRDB_TBL_ID_PR)
+				update_pr = 1;
+			else
+				update_ip = 1;
+		}
 	}
 
-	lid2guid = calloc(IB_LID_MCAST_START, sizeof(*lid2guid));
-	if (!lid2guid) {
-		ssa_log(SSA_LOG_DEFAULT, "ERROR - no memory for path record parsing\n");
-		goto err;
-	}
+	if (update_pr) {
+		lid2guid = calloc(IB_LID_MCAST_START, sizeof(*lid2guid));
+		if (!lid2guid) {
+			ssa_log(SSA_LOG_DEFAULT,
+				"ERROR - no memory for path record parsing\n");
+			goto err;
+		}
 
-	acm_parse_access_v1_lid2guid(p_ssa_db, lid2guid);
-	ret = acm_parse_access_v1_paths(p_ssa_db, lid2guid, acm_ep);
-	acm_parse_access_v1_paths_update(lid2guid, lid2guid_cached, acm_ep);
-	if (lid2guid_cached)
-		free(lid2guid_cached);
-	lid2guid_cached = lid2guid;
+		acm_parse_access_v1_lid2guid(p_ssa_db, lid2guid);
+		ret = acm_parse_access_v1_paths(p_ssa_db, lid2guid, acm_ep);
+		acm_parse_access_v1_paths_update(lid2guid, lid2guid_cached, acm_ep);
+		if (lid2guid_cached)
+			free(lid2guid_cached);
+		lid2guid_cached = lid2guid;
 
-	ssa_log(SSA_LOG_VERBOSE,
-		"cache update complete with PRDB epoch 0x%" PRIx64 "\n",
-		prdb_epoch);
-skip_pr:
-	if (acm_parse_access_v1_address(p_ssa_db, acm_ep))
-		goto err;
-	else
 		ssa_log(SSA_LOG_VERBOSE,
-			"cache update complete with IPDB epoch 0x%" PRIx64 "\n",
-			ssa_db_get_epoch(p_ssa_db, PRDB_TBL_ID_IPv4));
+				"cache update complete with PRDB epoch 0x%" PRIx64 "\n",
+				epochs[PRDB_TBL_ID_PR]);
+	} else {
+		ssa_log(SSA_LOG_VERBOSE, "Skipped updating path record cache\n");
+	}
+
+	if (update_ip) {
+		if (acm_parse_access_v1_address(p_ssa_db, acm_ep))
+			goto err;
+		else {
+			ssa_log(SSA_LOG_VERBOSE,
+				"cache update complete with IPDB epochs:");
+			for (i = PRDB_TBL_ID_IPv4; i < PRDB_TBL_ID_MAX; ++i)
+				ssa_log(SSA_LOG_VERBOSE," 0x%" PRIx64, epochs[i]);
+			ssa_log(SSA_LOG_VERBOSE, "\n");
+		}
+	} else {
+		ssa_log(SSA_LOG_VERBOSE, "Skipped updating IP caches\n");
+	}
 
 err:
 	/* TODO: decide whether the destroy call is needed */
