@@ -3657,7 +3657,9 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	char dump_dir[1024];
 	struct stat dstat;
 
-	if (access_context.ipdb)
+	if (!consumer->prdb_current)
+		addr_changed = 1;
+	else if (access_context.ipdb)
 		addr_changed = ssa_is_addr_data_changed(access_context.smdb,
 							access_context.ipdb);
 
