@@ -224,13 +224,17 @@ static int ssa_db_field_def_cmp(struct db_field_def *field_def1,
  */
 uint64_t ssa_db_get_epoch(const struct ssa_db *p_ssa_db, uint8_t tbl_id)
 {
+	uint8_t tbl_cnt;
+
 	if (!p_ssa_db)
 		return DB_EPOCH_INVALID;
 
 	if (tbl_id == DB_DEF_TBL_ID)
 		return ntohll(p_ssa_db->db_def.epoch);
 
-	if (tbl_id < p_ssa_db->data_tbl_cnt)
+	tbl_cnt = p_ssa_db->data_tbl_cnt ? p_ssa_db->data_tbl_cnt:
+		  ssa_db_calculate_data_tbl_num(p_ssa_db);
+	if (tbl_id < tbl_cnt)
 		return ntohll(p_ssa_db->p_db_tables[tbl_id].epoch);
 	else
 		return DB_EPOCH_INVALID;
