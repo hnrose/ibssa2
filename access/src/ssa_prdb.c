@@ -106,8 +106,7 @@ static void prdb_attach_ipdb()
 	for (i = offset; i < PRDB_FIELDS; i++) {
 		field_tbl[i] = ip_field_tbl[i - offset];
 		field_tbl[i].id.table -= IPDB_TBL_ID_MAX;
-		field_tbl[i].id.table += PRDB_DATA_TBLS +
-					 PRDB_TBL_OFFSET;
+		field_tbl[i].id.table += PRDB_DATA_TBLS + PRDB_TBL_OFFSET;
 	}
 }
 
