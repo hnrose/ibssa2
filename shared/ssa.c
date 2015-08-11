@@ -3734,7 +3734,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		if (lstat(dump_dir, &dstat)) {
 			if (mkdir(dump_dir, 0755)) {
 				ssa_log_err(SSA_LOG_CTRL,
-					    "prdb dump to %s for GID %s: "
+					    "PRDB dump to %s for GID %s: "
 					    "%d (%s)\n", dump_dir, log_data,
 					    errno, strerror(errno));
 			} else {
