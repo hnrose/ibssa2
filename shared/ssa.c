@@ -1269,7 +1269,7 @@ void ssa_db_update_change_counters(uint64_t epoch)
 uint64_t ssa_epoch_inc(uint64_t epoch)
 {
 	if (++epoch == DB_EPOCH_INVALID)
-		++epoch;
+		epoch += 2; /* avoid DP_EPOCH_INITIAL value */
 
 	return epoch;
 }
