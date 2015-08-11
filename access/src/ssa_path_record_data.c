@@ -154,7 +154,7 @@ static int build_port_index(struct ssa_pr_smdb_index *p_index,
 		}
 	}
 
-	SSA_PR_LOG_INFO("Switch ports lookup table size: %"PRIu64" bytes",
+	SSA_PR_LOG_INFO("Switch ports lookup table size: %" PRIu64 " bytes",
 			switch_count * sizeof(uint64_t) * MAX_LOOKUP_PORT);
 
 	return 0;
@@ -201,7 +201,7 @@ static int build_lft_block_lookup(struct ssa_pr_smdb_index *p_index,
 		block_lookup[ntohs(p_lft_block_tbl[i].block_num)] = i;
 	}
 
-	SSA_PR_LOG_INFO("LFT lookup size: %"PRIu64" bytes", lookup_size);
+	SSA_PR_LOG_INFO("LFT lookup size: %" PRIu64 " bytes", lookup_size);
 	return 0;
 }
 static int build_link_index(struct ssa_pr_smdb_index *p_index,
