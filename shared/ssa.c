@@ -3555,13 +3555,13 @@ ssa_is_addr_data_changed(struct ssa_db *smdb_new, struct ssa_db *ipdb_prev)
 		return 0;
 	}
 
-	if (epoch == DB_EPOCH_INITIAL)
-		first_update = 1;
-
 	if (!ipdb_prev) {
 		ssa_log_err(SSA_LOG_DEFAULT, "no ipdb specified\n");
 		return 0;
 	}
+
+	if (epoch == DB_EPOCH_INITIAL)
+		first_update = 1;
 
 	ipdb_epoch = ssa_db_get_epoch(ipdb_prev, DB_DEF_TBL_ID);
 	if (first_update && ipdb_epoch != DB_EPOCH_INVALID)
