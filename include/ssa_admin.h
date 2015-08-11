@@ -92,7 +92,7 @@ static const enum ssa_counter_type ssa_admin_counters_type[] = {
 	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = ssa_counter_timestamp,
 	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = ssa_counter_timestamp,
 	[COUNTER_ID_TIME_LAST_ERR] = ssa_counter_timestamp,
-	[COUNTER_ID_DB_EPOCH] =ssa_counter_numeric
+	[COUNTER_ID_DB_EPOCH] = ssa_counter_numeric
 };
 
 
