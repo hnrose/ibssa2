@@ -3739,6 +3739,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 					    errno, strerror(errno));
 			} else {
 				ssa_db_save(dump_dir, prdb, prdb_dump);
+				ssa_log(SSA_LOG_DEFAULT,
+					"PRDB dump %s\n", dump_dir);
 			}
 		}
 	}
