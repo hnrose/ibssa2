@@ -1266,6 +1266,14 @@ void ssa_db_update_change_counters(uint64_t epoch)
 	ssa_set_runtime_counter(COUNTER_ID_DB_EPOCH, epoch);
 }
 
+uint64_t ssa_epoch_inc(uint64_t epoch)
+{
+	if (++epoch == DB_EPOCH_INVALID)
+		++epoch;
+
+	return epoch;
+}
+
 static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 					int flags, union ibv_gid *gid,
 					uint64_t epoch)
@@ -3747,8 +3755,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 
 	consumer->smdb_epoch = epoch;
 	prdb_epoch_prev = prdb_epoch;
-	if (++prdb_epoch == DB_EPOCH_INVALID)
-		prdb_epoch++;
+	prdb_epoch = ssa_epoch_inc(prdb_epoch);
 	actual_epoch = ssa_db_set_epoch(consumer->prdb_current,
 					DB_DEF_TBL_ID, prdb_epoch);
 	if (actual_epoch == DB_EPOCH_INVALID)

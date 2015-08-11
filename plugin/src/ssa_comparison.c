@@ -1309,9 +1309,7 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 	p_smdb = p_ssa_db_diff->p_smdb;
 	tbl_cnt = p_smdb->data_tbl_cnt;
 	epoch_old = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
-	epoch_new = epoch_old + 1;
-	if (epoch_new == DB_EPOCH_INVALID)
-		epoch_new++;
+	epoch_new = ssa_epoch_inc(epoch_old);
 	for (i = 0; i < tbl_cnt; i++) {
 		if (smdb_deltas && p_smdb->p_db_tables[i].set_size == 0)
 			continue;
