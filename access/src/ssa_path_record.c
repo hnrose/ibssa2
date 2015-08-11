@@ -96,7 +96,7 @@ static int insert_pr_to_prdb(const ssa_path_parms_t *p_path_prm, void *prm)
 	set_size = ntohll(p_dataset->set_size);
 	set_count = ntohll(p_dataset->set_count);
 
-	if(set_count >= p_prm->max_count) {
+	if (set_count >= p_prm->max_count) {
 		SSA_PR_LOG_INFO("PRDB is full");
 		return 1;
 	}
@@ -140,12 +140,12 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 	SSA_ASSERT(p_context);
 
 	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
-		SSA_PR_LOG_ERROR("Index rebuild failed.");
+		SSA_PR_LOG_ERROR("Index rebuild failed");
 		return SSA_PR_ERROR;
 	}
 
 	if (!is_port_exist(p_ssa_db_smdb, port_guid)) {
-		SSA_PR_LOG_ERROR("Port does not exist.");
+		SSA_PR_LOG_ERROR("Port does not exist");
 		return SSA_PR_PORT_ABSENT;
 	}
 
@@ -219,11 +219,11 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 
 					if (NULL != dump_clbk) {
 						rt = dump_clbk(&path_prm, clbk_prm);
-						if(rt < 0) {
+						if (rt < 0) {
 							SSA_PR_LOG_ERROR("Dump callback is failed. Ret. value %d",
 									rt);
 							return SSA_PR_ERROR;
-						} else if(rt > 0) {
+						} else if (rt > 0) {
 							SSA_PR_LOG_INFO("Dump callback stopped processing."
 									" Ret. value %d",
 									rt);
@@ -233,7 +233,7 @@ ssa_pr_status_t ssa_pr_half_world(struct ssa_db *p_ssa_db_smdb, void *p_ctnx,
 
 				} else if (SSA_PR_ERROR == path_res) {
 					SSA_PR_LOG_ERROR("Path calculation failed: (%u) -> (%u) "
-							 "\"Half World\" calculation stopped.",
+							 "\"Half World\" calculation stopped",
 							 source_lid, dest_lid);
 					return SSA_PR_ERROR;
 				}
@@ -262,7 +262,7 @@ uint64_t ssa_pr_compute_pr_max_number(struct ssa_db *p_ssa_db_smdb,
 
 	for (i = 0; i < guid_to_lid_count; i++) {
 		const struct smdb_guid2lid *p_rec = p_guid2lid_tbl + i;
-		if(p_rec->guid == port_guid)
+		if (p_rec->guid == port_guid)
 			source_lmc = p_rec->lmc;
 		destination_count += (0x01 << p_rec->lmc);
 	}
@@ -284,12 +284,12 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	*pp_prdb = NULL;
 
 	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
-		SSA_PR_LOG_ERROR("Index rebuild failed.");
+		SSA_PR_LOG_ERROR("Index rebuild failed");
 		return SSA_PR_ERROR;
 	}
 
 	if (!is_port_exist(p_ssa_db_smdb, port_guid)) {
-		SSA_PR_LOG_ERROR("Port does not exist.");
+		SSA_PR_LOG_ERROR("Port does not exist");
 		return SSA_PR_PORT_ABSENT;
 	}
 
@@ -300,7 +300,8 @@ ssa_pr_status_t ssa_pr_compute_half_world(struct ssa_db *p_ssa_db_smdb,
 	*pp_prdb = ssa_prdb_create(DB_EPOCH_INVALID /* epoch */, records_num);
 	if (!*pp_prdb) {
 		SSA_PR_LOG_ERROR("Path record database creation failed."
-				 " Number of records: %"PRIu64, records_num[PRDB_TBL_ID_PR]);
+				 " Number of records: %" PRIu64,
+				 records_num[PRDB_TBL_ID_PR]);
 		return SSA_PR_PRDB_ERROR;
 	}
 
@@ -337,7 +338,7 @@ ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
 	SSA_ASSERT(p_context);
 
 	if (ssa_pr_rebuild_indexes(p_context->p_index, p_ssa_db_smdb)) {
-		SSA_PR_LOG_ERROR("Index rebuild failed.");
+		SSA_PR_LOG_ERROR("Index rebuild failed");
 		return SSA_PR_ERROR;
 	}
 
@@ -355,7 +356,7 @@ ssa_pr_status_t ssa_pr_whole_world(struct ssa_db *p_ssa_db_smdb,
 					dump_clbk, clbk_prm);
 		if (SSA_PR_ERROR == res) {
 			SSA_PR_LOG_ERROR("\"Half world\" calculation failed for GUID: 0x%" PRIx64
-					 " . \"Whole world\" calculation stopped.",
+					 " . \"Whole world\" calculation stopped",
 					 ntohll(p_guid2lid_tbl[i].guid));
 			return res;
 		}
@@ -447,12 +448,12 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 		if (out_port_num  < 0) {
 			SSA_PR_LOG_ERROR("Failed to find outgoing port for LID: %u"
 					 " on switch LID: %u. "
-					 "Path record calculation stopped.",
+					 "Path record calculation stopped",
 					 ntohs(p_dest_rec->lid),
 					 ntohs(p_source_rec->lid));
 			return SSA_PR_ERROR;
 		} else if (LFT_NO_PATH == out_port_num) {
-			SSA_PR_LOG_DEBUG("There is no path from LID: %u to LID: %u.", 
+			SSA_PR_LOG_DEBUG("There is no path from LID: %u to LID: %u", 
 					 ntohs(p_source_rec->lid),
 					 ntohs(p_dest_rec->lid));
 			return SSA_PR_NO_PATH;
@@ -513,7 +514,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 						      port->port_lid,
 						      p_dest_rec->lid);
 		if (LFT_NO_PATH == out_port_num) {
-			SSA_PR_LOG_DEBUG("There is no path from LID: %u to LID: %u.",
+			SSA_PR_LOG_DEBUG("There is no path from LID: %u to LID: %u",
 					 ntohs(p_source_rec->lid),
 					 ntohs(p_dest_rec->lid));
 			return SSA_PR_NO_PATH;
@@ -538,7 +539,7 @@ ssa_pr_status_t ssa_pr_path_params(const struct ssa_db *p_ssa_db_smdb,
 			SSA_PR_LOG_ERROR(
 				"Path from GUID 0x%016" PRIx64 " (port %d) "
 				"to lid %u GUID 0x%016" PRIx64 " (port %d) "
-				"needs more than %d hops, max %d hops allowed.",
+				"needs more than %d hops, max %d hops allowed",
 				ntohll(p_source_rec->guid),
 				source_port->port_num, ntohs(p_dest_rec->lid),
 				ntohll(p_dest_rec->guid), dest_port->port_num,
