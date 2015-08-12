@@ -1529,8 +1529,7 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		goto out;
 
 	if (ipdb) {
-		epoch = ssa_db_get_epoch(ipdb, DB_DEF_TBL_ID);
-		epoch++;
+		epoch = ssa_epoch_inc(ssa_db_get_epoch(ipdb, DB_DEF_TBL_ID));
 		ssa_db_destroy(ipdb);
 	}
 
