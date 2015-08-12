@@ -938,14 +938,6 @@ static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 {
 	int ret;
 
-	if (!conn->sbuf || !conn->ssize || conn->ssize - conn->soffset) {
-		ssa_log_err(SSA_LOG_CTRL,
-			    "Invalid rsend parameter(s): sbuf %p ssize %d len %d on rsock %d\n",
-			    conn->sbuf, conn->ssize,
-			    conn->ssize - conn->soffset, conn->rsock);
-		return POLLIN;
-	}
-
 	ret = rsend(conn->rsock, conn->sbuf + conn->soffset,
 		    conn->ssize - conn->soffset, MSG_DONTWAIT);
 	if (ret >= 0) {
