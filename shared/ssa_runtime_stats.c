@@ -41,11 +41,11 @@
 #include <ssa_admin.h>
 
 struct ssa_runtime_statistics {
-	atomic_t counters[SSA_RUNTIME_COUNTERS_NUM];
+	atomic_t stats[SSA_RUNTIME_STATS_NUM];
 	struct timeval start_time;
 };
 
-static struct ssa_runtime_statistics ssa_runtime_stat;
+static struct ssa_runtime_statistics ssa_runtime_stats;
 
 inline static long ssa_runtime_shift(const struct timeval tm)
 {
@@ -59,47 +59,47 @@ void ssa_init_runtime_statistics()
 {
 	int i;
 
-	for (i = 0; i < SSA_RUNTIME_COUNTERS_NUM; ++i)
-	       atomic_init(&ssa_runtime_stat.counters[i]);
-	for (i = 0; i < COUNTER_ID_LAST; ++i) {
-		if (ssa_admin_counters_type[i] == ssa_counter_timestamp)
-			ssa_set_runtime_counter(i, -1);
+	for (i = 0; i < SSA_RUNTIME_STATS_NUM; ++i)
+	       atomic_init(&ssa_runtime_stats.stats[i]);
+	for (i = 0; i < STATS_ID_LAST; ++i) {
+		if (ssa_admin_stats_type[i] == ssa_stats_timestamp)
+			ssa_set_runtime_stats(i, -1);
 	}
 
-	gettimeofday(&ssa_runtime_stat.start_time, NULL);
-	ssa_set_runtime_counter_time(COUNTER_ID_NODE_START_TIME);
+	gettimeofday(&ssa_runtime_stats.start_time, NULL);
+	ssa_set_runtime_stats_time(STATS_ID_NODE_START_TIME);
 }
 
-void ssa_set_runtime_counter(int id, long val)
+void ssa_set_runtime_stats(int id, long val)
 {
-	atomic_set(&ssa_runtime_stat.counters[id], val);
+	atomic_set(&ssa_runtime_stats.stats[id], val);
 }
 
-long  ssa_get_runtime_counter(int id)
+long  ssa_get_runtime_stats(int id)
 {
-	return atomic_get(&ssa_runtime_stat.counters[id]);
+	return atomic_get(&ssa_runtime_stats.stats[id]);
 }
 
-long  ssa_inc_runtime_counter(int id)
+long  ssa_inc_runtime_stats(int id)
 {
-	return atomic_inc(&ssa_runtime_stat.counters[id]);
+	return atomic_inc(&ssa_runtime_stats.stats[id]);
 }
 
-void ssa_set_runtime_counter_time(int id)
+void ssa_set_runtime_stats_time(int id)
 {
-	ssa_set_runtime_counter(id, ssa_runtime_shift(ssa_runtime_stat.start_time));
+	ssa_set_runtime_stats(id, ssa_runtime_shift(ssa_runtime_stats.start_time));
 }
 
-int ssa_get_runtime_counter_time(int id, struct timeval *time_stamp)
+int ssa_get_runtime_stats_time(int id, struct timeval *time_stamp)
 {
 	long milliseconds;
 
-	milliseconds = ssa_get_runtime_counter(id);
+	milliseconds = ssa_get_runtime_stats(id);
 	if (milliseconds < 0)
 		return -1;
 
-	time_stamp->tv_sec = ssa_runtime_stat.start_time.tv_sec + milliseconds / 1000;;
-	time_stamp->tv_usec = ssa_runtime_stat.start_time.tv_usec + (milliseconds % 1000) * 1000;
+	time_stamp->tv_sec = ssa_runtime_stats.start_time.tv_sec + milliseconds / 1000;;
+	time_stamp->tv_usec = ssa_runtime_stats.start_time.tv_usec + (milliseconds % 1000) * 1000;
 	return 0;
 
 }

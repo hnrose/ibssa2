@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2013 Mellanox Technologies LTD. All rights reserved.
+# Copyright (c) 2013-2015 Mellanox Technologies LTD. All rights reserved.
 #
 # This software is available to you under the terms of the
 # OpenIB.org BSD license included below:
@@ -44,5 +44,5 @@ AM_CFLAGS  = -I. -I../include $(DBG) -Wall -Werror -D_GNU_SOURCE
 
 
 bin_PROGRAMS = loadsave
-loadsave_SOURCES = ./ssa_db.c ./ssa_db_helper.c ./loadsave.c ./ssa_log.c ./ssa_signal_handler.c ./ssa_runtime_counters.c ./common.c
+loadsave_SOURCES = ./ssa_db.c ./ssa_db_helper.c ./loadsave.c ./ssa_log.c ./ssa_signal_handler.c ./ssa_runtime_stats.c ./common.c
 loadsave_LDFLAGS = -lpthread

@@ -174,7 +174,7 @@ static const char *admin_msg_method_name[] = {
 
 static const char *admin_msg_operation_name[] = {
 	[SSA_ADMIN_CMD_NONE] = "NONE",
-	[SSA_ADMIN_CMD_COUNTER] = "COUNTER",
+	[SSA_ADMIN_CMD_STATS] = "STATS",
 	[SSA_ADMIN_CMD_PING] = "PING",
 	[SSA_ADMIN_CMD_NODE_INFO] = "NODEINFO"
 };
@@ -212,9 +212,9 @@ void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *ms
 	switch (ntohs(msg->hdr.opcode)) {
 	case SSA_ADMIN_CMD_PING:
 		return;
-	case SSA_ADMIN_CMD_COUNTER:
+	case SSA_ADMIN_CMD_STATS:
 		{
-		const struct ssa_admin_counter *payload = &msg->data.counter;
+		const struct ssa_admin_stats *payload = &msg->data.stats;
 
 		snprintf(buf + strlen(buf), size - strlen(buf), " N: %d", ntohs(payload->n));
 		}

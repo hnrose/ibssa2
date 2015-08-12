@@ -624,7 +624,7 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "method %s attr %s\n",
 		ssa_method_str(umad->packet.mad_hdr.method),
 		ssa_attribute_str(umad->packet.mad_hdr.attr_id));
-	ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_SSA_MAD_RCV);
+	ssa_set_runtime_stats_time(STATS_ID_TIME_LAST_SSA_MAD_RCV);
 	/* TODO: do we need to check umad->packet.mad_hdr.status too? */
 	if (umad->umad.status) {
 		ssa_log(SSA_LOG_DEFAULT, "send failed - status 0x%x (%s)\n",
@@ -937,6 +937,14 @@ static short ssa_riowrite_continue(struct ssa_conn *conn, short events)
 static short ssa_rsend_continue(struct ssa_conn *conn, short events)
 {
 	int ret;
+
+	if (!conn->sbuf || !conn->ssize || conn->ssize - conn->soffset) {
+		ssa_log_err(SSA_LOG_CTRL,
+			    "Invalid rsend parameter(s): sbuf %p ssize %d len %d on rsock %d\n",
+			    conn->sbuf, conn->ssize,
+			    conn->ssize - conn->soffset, conn->rsock);
+		return POLLIN;
+	}
 
 	ret = rsend(conn->rsock, conn->sbuf + conn->soffset,
 		    conn->ssize - conn->soffset, MSG_DONTWAIT);
@@ -1252,18 +1260,18 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 	return count;
 }
 
-void ssa_db_update_change_counters(uint64_t epoch)
+void ssa_db_update_change_stats(uint64_t epoch)
 {
 	static short first = 1;
 
 	if (first) {
-		ssa_set_runtime_counter_time(COUNTER_ID_DB_FIRST_UPDATE_TIME);
+		ssa_set_runtime_stats_time(STATS_ID_DB_FIRST_UPDATE_TIME);
 		first = 0;
 	}
 
-	ssa_set_runtime_counter_time(COUNTER_ID_DB_LAST_UPDATE_TIME);
-	ssa_inc_runtime_counter(COUNTER_ID_DB_UPDATES_NUM);
-	ssa_set_runtime_counter(COUNTER_ID_DB_EPOCH, epoch);
+	ssa_set_runtime_stats_time(STATS_ID_DB_LAST_UPDATE_TIME);
+	ssa_inc_runtime_stats(STATS_ID_DB_UPDATES_NUM);
+	ssa_set_runtime_stats(STATS_ID_DB_EPOCH, epoch);
 }
 
 uint64_t ssa_epoch_inc(uint64_t epoch)
@@ -1308,7 +1316,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	}
 	if (svc->process_msg)
 		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg);
-	ssa_db_update_change_counters(epoch);
+	ssa_db_update_change_stats(epoch);
 }
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)
@@ -1945,7 +1953,7 @@ static void *ssa_upstream_handler(void *context)
 						timeout = 1;
 						fds[UPSTREAM_DATA_FD_SLOT].events = POLLOUT;
 					} else {
-						ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_UPSTR_CONN);
+						ssa_set_runtime_stats_time(STATS_ID_TIME_LAST_UPSTR_CONN);
 						if (port == prdb_port)
 							fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_query(svc, SSA_MSG_DB_PUBLISH_EPOCH_BUF, fds[UPSTREAM_DATA_FD_SLOT].events);
 						else {
@@ -2867,7 +2875,7 @@ static void ssa_check_listen_events(struct ssa_svc *svc, struct pollfd **fds,
 				  conn_dbtype);
 		fd = ssa_downstream_svc_server(svc, conn_data);
 		if (fd >= 0) {
-			ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_DOWNSTR_CONN);
+			ssa_set_runtime_stats_time(STATS_ID_TIME_LAST_DOWNSTR_CONN);
 			if (!svc->fd_to_conn[fd]) {
 				svc->fd_to_conn[fd] = conn_data;
 				pfd = (struct  pollfd *)fds;
@@ -3526,7 +3534,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 			}
 			pfd->revents = 0;
 		}
-		ssa_set_runtime_counter(COUNTER_ID_NUM_CHILDREN, count);
+		ssa_set_runtime_stats(STATS_ID_NUM_CHILDREN, count);
 	}
 
 out:
@@ -3909,7 +3917,7 @@ out:
 #endif
 	pthread_mutex_lock(&access_context.th_pool_mtx);
 	num_tasks = atomic_dec(&access_context.num_tasks);
-	ssa_set_runtime_counter(COUNTER_ID_NUM_ACCESS_TASKS, num_tasks);
+	ssa_set_runtime_stats(STATS_ID_NUM_ACCESS_TASKS, num_tasks);
 	pthread_cond_signal(&access_context.th_pool_cond);
 	pthread_mutex_unlock(&access_context.th_pool_mtx);
 	free(task);
@@ -4886,7 +4894,7 @@ static int ssa_upstream_svc_client(struct ssa_svc *svc)
 
 	svc->conn_dataup.reconnect_count = 0;
 	ssa_upstream_conn(svc, &svc->conn_dataup, 0);
-	ssa_set_runtime_counter_time(COUNTER_ID_TIME_LAST_UPSTR_CONN);
+	ssa_set_runtime_stats_time(STATS_ID_TIME_LAST_UPSTR_CONN);
 
 	return 0;
 }
@@ -6525,12 +6533,12 @@ static void ssa_destroy_connection_info(gpointer data)
 	free(data);
 }
 
-static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_msg *admin_request)
+static struct ssa_admin_msg *ssa_admin_handle_stats_message(struct ssa_admin_msg *admin_request)
 {
 	int i, n;
 	struct timeval epoch;
 	struct ssa_admin_msg *response;
-	struct ssa_admin_counter *counter_msg;
+	struct ssa_admin_stats *stats_msg;
 
 	response = (struct ssa_admin_msg *) malloc(sizeof(*response));
 	if (!response) {
@@ -6543,19 +6551,19 @@ static struct ssa_admin_msg *ssa_admin_handle_counter_message(struct ssa_admin_m
 	response->hdr.method = SSA_ADMIN_METHOD_RESP;
 	response->hdr.len = htons(sizeof(*response));
 
-	counter_msg = (struct ssa_admin_counter *) &response->data.counter;
+	stats_msg = (struct ssa_admin_stats *) &response->data.stats;
 
-	n = min(COUNTER_ID_LAST, ntohs(admin_request->data.counter.n));
+	n = min(STATS_ID_LAST, ntohs(admin_request->data.stats.n));
 
 	for (i = 0; i < n; ++i) {
-		counter_msg->vals[i] = htonll((uint64_t) ssa_get_runtime_counter(i));
+		stats_msg->vals[i] = htonll((uint64_t) ssa_get_runtime_stats(i));
 	}
 
-	ssa_get_runtime_counter_time(COUNTER_ID_NODE_START_TIME, &epoch);
+	ssa_get_runtime_stats_time(STATS_ID_NODE_START_TIME, &epoch);
 
-	counter_msg->n = htons(COUNTER_ID_LAST);
-	counter_msg->epoch_tv_sec = htonll((uint64_t) epoch.tv_sec);
-	counter_msg->epoch_tv_usec = htonll((uint64_t) epoch.tv_usec);
+	stats_msg->n = htons(STATS_ID_LAST);
+	stats_msg->epoch_tv_sec = htonll((uint64_t) epoch.tv_sec);
+	stats_msg->epoch_tv_usec = htonll((uint64_t) epoch.tv_usec);
 
 	return response;
 };
@@ -6565,7 +6573,7 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 {
 	int i, n, len;
 	struct ssa_admin_msg *response;
-	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.counter;
+	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.stats;
 	struct ssa_admin_connection_info *connections;
 	GHashTableIter iter;
 	gpointer key, value;
@@ -6584,13 +6592,13 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	response->hdr.method = SSA_ADMIN_METHOD_RESP;
 	response->hdr.len = htons(len);
 
-	nodeinfo_msg = (struct ssa_admin_node_info *) &response->data.counter;
+	nodeinfo_msg = (struct ssa_admin_node_info *) &response->data.stats;
 
 	nodeinfo_msg->type = context->ssa->node_type;
 	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION,
 		SSA_ADMIN_VERSION_LEN - 1);
 
-	db_epoch = (uint64_t) ssa_get_runtime_counter(COUNTER_ID_DB_EPOCH);
+	db_epoch = (uint64_t) ssa_get_runtime_stats(STATS_ID_DB_EPOCH);
 	nodeinfo_msg->db_epoch = htonll(db_epoch);
 
 	nodeinfo_msg->connections_num = htons(n);
@@ -6613,8 +6621,8 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 	switch (ntohs(admin_request->hdr.opcode)) {
 	case SSA_ADMIN_CMD_PING:
 		break;
-	case SSA_ADMIN_CMD_COUNTER:
-		return ssa_admin_handle_counter_message(admin_request);
+	case SSA_ADMIN_CMD_STATS:
+		return ssa_admin_handle_stats_message(admin_request);
 		break;
 	case SSA_ADMIN_CMD_NODE_INFO:
 		return ssa_admin_handle_node_info(admin_request, context);

@@ -10,7 +10,7 @@ svc_ibssa_SOURCES = src/distrib.c src/ssa.c src/ssa_db.c \
 		    src/ssa_path_record.c  src/ssa_path_record_data.c \
 		    src/ssa_path_record_helper.c src/ssa_prdb.c \
 		    src/ssa_signal_handler.c src/ssa_ipdb.c \
-		    src/ssa_runtime_counters.c \
+		    src/ssa_runtime_stats.c \
 		    src/common.c
 svc_ibssa_CFLAGS = $(AM_CFLAGS) -DACCESS
 svc_ibssa_LDADD = -lrdmacm -lpthread -L$(libdir) $(GLIB_LIBS)

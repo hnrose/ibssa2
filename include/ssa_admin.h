@@ -49,59 +49,59 @@ enum {
 
 enum {
 	SSA_ADMIN_CMD_NONE,
-	SSA_ADMIN_CMD_COUNTER,
+	SSA_ADMIN_CMD_STATS,
 	SSA_ADMIN_CMD_PING,
 	SSA_ADMIN_CMD_NODE_INFO,
 	SSA_ADMIN_CMD_MAX
 };
 
-enum ssa_admin_counter_id {
-	COUNTER_ID_NODE_START_TIME = 0,
-	COUNTER_ID_DB_UPDATES_NUM,
-	COUNTER_ID_DB_LAST_UPDATE_TIME,
-	COUNTER_ID_DB_FIRST_UPDATE_TIME,
-	COUNTER_ID_NUM_CHILDREN,
-	COUNTER_ID_NUM_ACCESS_TASKS,
-	COUNTER_ID_NUM_ERR,
-	COUNTER_ID_LAST_ERR,
-	COUNTER_ID_TIME_LAST_UPSTR_CONN,
-	COUNTER_ID_TIME_LAST_DOWNSTR_CONN,
-	COUNTER_ID_TIME_LAST_SSA_MAD_RCV,
-	COUNTER_ID_TIME_LAST_ERR,
-	COUNTER_ID_DB_EPOCH,
-	COUNTER_ID_LAST
+enum ssa_admin_stats_id {
+	STATS_ID_NODE_START_TIME = 0,
+	STATS_ID_DB_UPDATES_NUM,
+	STATS_ID_DB_LAST_UPDATE_TIME,
+	STATS_ID_DB_FIRST_UPDATE_TIME,
+	STATS_ID_NUM_CHILDREN,
+	STATS_ID_NUM_ACCESS_TASKS,
+	STATS_ID_NUM_ERR,
+	STATS_ID_LAST_ERR,
+	STATS_ID_TIME_LAST_UPSTR_CONN,
+	STATS_ID_TIME_LAST_DOWNSTR_CONN,
+	STATS_ID_TIME_LAST_SSA_MAD_RCV,
+	STATS_ID_TIME_LAST_ERR,
+	STATS_ID_DB_EPOCH,
+	STATS_ID_LAST
 };
 
-enum ssa_counter_type {
-	ssa_counter_obsolete = 0,
-	ssa_counter_numeric,
-	ssa_counter_signed_numeric,
-	ssa_counter_timestamp
+enum ssa_stats_type {
+	ssa_stats_obsolete = 0,
+	ssa_stats_numeric,
+	ssa_stats_signed_numeric,
+	ssa_stats_timestamp
 };
 
-static const enum ssa_counter_type ssa_admin_counters_type[] = {
-	[COUNTER_ID_NODE_START_TIME] = ssa_counter_timestamp,
-	[COUNTER_ID_DB_UPDATES_NUM] = ssa_counter_numeric,
-	[COUNTER_ID_DB_LAST_UPDATE_TIME] = ssa_counter_timestamp,
-	[COUNTER_ID_DB_FIRST_UPDATE_TIME] = ssa_counter_timestamp,
-	[COUNTER_ID_NUM_CHILDREN] = ssa_counter_numeric,
-	[COUNTER_ID_NUM_ACCESS_TASKS] = ssa_counter_numeric,
-	[COUNTER_ID_NUM_ERR] = ssa_counter_numeric,
-	[COUNTER_ID_LAST_ERR] = ssa_counter_signed_numeric,
-	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = ssa_counter_timestamp,
-	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = ssa_counter_timestamp,
-	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = ssa_counter_timestamp,
-	[COUNTER_ID_TIME_LAST_ERR] = ssa_counter_timestamp,
-	[COUNTER_ID_DB_EPOCH] = ssa_counter_numeric
+static const enum ssa_stats_type ssa_admin_stats_type[] = {
+	[STATS_ID_NODE_START_TIME] = ssa_stats_timestamp,
+	[STATS_ID_DB_UPDATES_NUM] = ssa_stats_numeric,
+	[STATS_ID_DB_LAST_UPDATE_TIME] = ssa_stats_timestamp,
+	[STATS_ID_DB_FIRST_UPDATE_TIME] = ssa_stats_timestamp,
+	[STATS_ID_NUM_CHILDREN] = ssa_stats_numeric,
+	[STATS_ID_NUM_ACCESS_TASKS] = ssa_stats_numeric,
+	[STATS_ID_NUM_ERR] = ssa_stats_numeric,
+	[STATS_ID_LAST_ERR] = ssa_stats_signed_numeric,
+	[STATS_ID_TIME_LAST_UPSTR_CONN] = ssa_stats_timestamp,
+	[STATS_ID_TIME_LAST_DOWNSTR_CONN] = ssa_stats_timestamp,
+	[STATS_ID_TIME_LAST_SSA_MAD_RCV] = ssa_stats_timestamp,
+	[STATS_ID_TIME_LAST_ERR] = ssa_stats_timestamp,
+	[STATS_ID_DB_EPOCH] = ssa_stats_numeric
 };
 
 
-struct ssa_admin_counter {
+struct ssa_admin_stats {
 	be16_t		n;
 	uint8_t		reserved[6];
 	be64_t		epoch_tv_sec;
 	be64_t		epoch_tv_usec;
-	be64_t		vals[COUNTER_ID_LAST];
+	be64_t		vals[STATS_ID_LAST];
 };
 
 struct ssa_admin_connection_info {
@@ -153,7 +153,7 @@ struct ssa_admin_msg_hdr {
 struct ssa_admin_msg {
 	struct ssa_admin_msg_hdr	hdr;
 	union {
-		struct ssa_admin_counter	counter;
+		struct ssa_admin_stats	stats;
 		struct ssa_admin_node_info	node_info;
 	} data;
 };

@@ -57,7 +57,7 @@ struct cmd_exec_info {
 struct cmd_struct_impl;
 struct admin_count_command {
 	short print_all;
-	short include_list[COUNTER_ID_LAST];
+	short include_list[STATS_ID_LAST];
 };
 
 enum nodeinfo_mode {
@@ -123,15 +123,15 @@ static void ping_command_output(struct admin_command *cmd,
 				struct cmd_exec_info *exec_info,
 				union ibv_gid remote_gid,
 				const struct ssa_admin_msg *msg);
-static int counter_init(struct admin_command *cmd);
-static int counter_handle_param(struct admin_command *cmd, const char *param);
-static void counter_print_help(FILE *stream);
-static int counter_command_create_msg(struct admin_command *cmd,
-				      struct ssa_admin_msg *msg);
-static void counter_command_output(struct admin_command *cmd,
-				   struct cmd_exec_info *exec_info,
-				   union ibv_gid remote_gid,
-				   const struct ssa_admin_msg *msg);
+static int stats_init(struct admin_command *cmd);
+static int stats_handle_param(struct admin_command *cmd, const char *param);
+static void stats_print_help(FILE *stream);
+static int stats_command_create_msg(struct admin_command *cmd,
+				    struct ssa_admin_msg *msg);
+static void stats_command_output(struct admin_command *cmd,
+				 struct cmd_exec_info *exec_info,
+				 union ibv_gid remote_gid,
+				 const struct ssa_admin_msg *msg);
 static int nodeinfo_init(struct admin_command *cmd);
 static void node_info_command_output(struct admin_command *cmd,
 				     struct cmd_exec_info *exec_info,
@@ -142,14 +142,14 @@ static int nodeinfo_handle_option(struct admin_command *admin_cmd,
 static void nodeinfo_print_help(FILE *stream);
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
-	[SSA_ADMIN_CMD_COUNTER] = {
-		counter_init,
-		NULL, counter_handle_param,
+	[SSA_ADMIN_CMD_STATS] = {
+		stats_init,
+		NULL, stats_handle_param,
 		default_destroy,
-		counter_command_create_msg,
-		counter_command_output,
+		stats_command_create_msg,
+		stats_command_output,
 		{},
-		{ counter_print_help, default_print_usage,
+		{ stats_print_help, default_print_usage,
 		  "Retrieve runtime statistics" },
 	},
 	[SSA_ADMIN_CMD_PING]	= {
@@ -763,7 +763,7 @@ static int default_create_msg(struct admin_command *cmd,
 }
 
 
-struct ssa_admin_counter_descr {
+struct ssa_admin_stats_descr {
 	const char *name;
 	const char *description;
 };
@@ -783,37 +783,37 @@ static void ping_command_output(struct admin_command *cmd,
 	       sizeof(*msg), addr_buf, 1e-3 * (exec_info->etime - exec_info->stime));
 }
 
-static const char *ssa_counter_type_names[] = {
-	[ssa_counter_obsolete] = "Obsolete",
-	[ssa_counter_numeric] = "Numeric",
-	[ssa_counter_timestamp] = "Timestamp"
+static const char *ssa_stats_type_names[] = {
+	[ssa_stats_obsolete] = "Obsolete",
+	[ssa_stats_numeric] = "Numeric",
+	[ssa_stats_timestamp] = "Timestamp"
 };
 
-static struct ssa_admin_counter_descr counters_descr[] = {
-	[COUNTER_ID_NODE_START_TIME] = {"NODE_START_TIME", "Starting time of the node" },
-	[COUNTER_ID_DB_UPDATES_NUM] = {"DB_UPDATES_NUM", "Number of databases updates passed the node" },
-	[COUNTER_ID_DB_LAST_UPDATE_TIME] = {"LAST_UPDATE_TIME", "Time of last database update" },
-	[COUNTER_ID_DB_FIRST_UPDATE_TIME] = {"FIRST_UPDATE_TIME", "Time of first database update" },
-	[COUNTER_ID_NUM_CHILDREN] = {"NUM_CHILDREN", "Number of connected downstream nodes" },
-	[COUNTER_ID_NUM_ACCESS_TASKS] = {"NUM_ACCESS_TASKS", "Number of unprocessed Access tasks" },
-	[COUNTER_ID_NUM_ERR] = {"NUM_ERR", "Number of errors" },
-	[COUNTER_ID_LAST_ERR] = {"LAST_ERR", "Last error ID" },
-	[COUNTER_ID_TIME_LAST_UPSTR_CONN] = {"TIME_LAST_UPSTR_CONN", "Time of last upstream connect" },
-	[COUNTER_ID_TIME_LAST_DOWNSTR_CONN] = {"TIME_LAST_DOWNSTR_CONN", "Time of last downstream connect" },
-	[COUNTER_ID_TIME_LAST_SSA_MAD_RCV] = {"TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
-	[COUNTER_ID_TIME_LAST_ERR] = {"TIME_LAST_ERR", "Time of last error" },
-	[COUNTER_ID_DB_EPOCH] = {"DB_EPOCH", "DB epoch" },
+static struct ssa_admin_stats_descr stats_descr[] = {
+	[STATS_ID_NODE_START_TIME] = {"NODE_START_TIME", "Starting time of the node" },
+	[STATS_ID_DB_UPDATES_NUM] = {"DB_UPDATES_NUM", "Number of databases updates passed the node" },
+	[STATS_ID_DB_LAST_UPDATE_TIME] = {"LAST_UPDATE_TIME", "Time of last database update" },
+	[STATS_ID_DB_FIRST_UPDATE_TIME] = {"FIRST_UPDATE_TIME", "Time of first database update" },
+	[STATS_ID_NUM_CHILDREN] = {"NUM_CHILDREN", "Number of connected downstream nodes" },
+	[STATS_ID_NUM_ACCESS_TASKS] = {"NUM_ACCESS_TASKS", "Number of unprocessed Access tasks" },
+	[STATS_ID_NUM_ERR] = {"NUM_ERR", "Number of errors" },
+	[STATS_ID_LAST_ERR] = {"LAST_ERR", "Last error ID" },
+	[STATS_ID_TIME_LAST_UPSTR_CONN] = {"TIME_LAST_UPSTR_CONN", "Time of last upstream connect" },
+	[STATS_ID_TIME_LAST_DOWNSTR_CONN] = {"TIME_LAST_DOWNSTR_CONN", "Time of last downstream connect" },
+	[STATS_ID_TIME_LAST_SSA_MAD_RCV] = {"TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
+	[STATS_ID_TIME_LAST_ERR] = {"TIME_LAST_ERR", "Time of last error" },
+	[STATS_ID_DB_EPOCH] = {"DB_EPOCH", "DB epoch" },
 };
 
 
-static int counter_init(struct admin_command *cmd)
+static int stats_init(struct admin_command *cmd)
 {
 	int j;
 	struct admin_count_command *count_cmd;
 
 	count_cmd = (struct admin_count_command *) &cmd->data.count_cmd;
 
-	for (j = 0; j < COUNTER_ID_LAST; ++j)
+	for (j = 0; j < STATS_ID_LAST; ++j)
 		count_cmd->include_list[j] = 1;
 
 	count_cmd->print_all = 1;
@@ -821,7 +821,7 @@ static int counter_init(struct admin_command *cmd)
 	return 0;
 }
 
-static int counter_handle_param(struct admin_command *cmd, const char *param)
+static int stats_handle_param(struct admin_command *cmd, const char *param)
 {
 	int j;
 	struct admin_count_command *count_cmd;
@@ -833,60 +833,60 @@ static int counter_handle_param(struct admin_command *cmd, const char *param)
 		count_cmd->print_all = 0;
 	}
 
-	for (j = 0; j < COUNTER_ID_LAST; ++j) {
-		if (!strcmp(param, counters_descr[j].name)) {
+	for (j = 0; j < STATS_ID_LAST; ++j) {
+		if (!strcmp(param, stats_descr[j].name)) {
 			count_cmd->include_list[j] = 1;
 			break;
 		}
 	}
-	if (j == COUNTER_ID_LAST) {
-		fprintf(stderr, "ERROR - Name %s isn't found in the counters list\n", param);
+	if (j == STATS_ID_LAST) {
+		fprintf(stderr, "ERROR - Name %s isn't found in the stats list\n", param);
 		return -1;
 	}
 
 	return 0;
 }
 
-static void counter_print_help(FILE *stream)
+static void stats_print_help(FILE *stream)
 {
 	unsigned int i;
 
 	fprintf(stream, "stats is a command for gathering runtime information from a SSA node\n");
 	fprintf(stream, "Supported statistics:\n");
 
-	for (i = 0; i < ARRAY_SIZE(counters_descr); ++i) {
-		if (ssa_admin_counters_type[i] != ssa_counter_obsolete)
+	for (i = 0; i < ARRAY_SIZE(stats_descr); ++i) {
+		if (ssa_admin_stats_type[i] != ssa_stats_obsolete)
 			fprintf(stream, "%-25s %-10s %s\n",
-				counters_descr[i].name,
-				ssa_counter_type_names[ssa_admin_counters_type[i]],
-				counters_descr[i].description);
+				stats_descr[i].name,
+				ssa_stats_type_names[ssa_admin_stats_type[i]],
+				stats_descr[i].description);
 	}
 
 	fprintf(stream, "\n\n");
 }
 
-int counter_command_create_msg(struct admin_command *cmd,
-			       struct ssa_admin_msg *msg)
+int stats_command_create_msg(struct admin_command *cmd,
+			     struct ssa_admin_msg *msg)
 {
-	struct ssa_admin_counter *counter_msg = &msg->data.counter;
+	struct ssa_admin_stats *stats_msg = &msg->data.stats;
 	uint16_t n;
 
 	(void)(cmd);
 
-	counter_msg->n = htons(COUNTER_ID_LAST);
-	n = ntohs(msg->hdr.len) + sizeof(*counter_msg);
+	stats_msg->n = htons(STATS_ID_LAST);
+	n = ntohs(msg->hdr.len) + sizeof(*stats_msg);
 	msg->hdr.len = htons(n);
 
 	return 0;
 }
 
-static void counter_command_output(struct admin_command *cmd,
-				   struct cmd_exec_info *exec_info,
-				   union ibv_gid remote_gid,
-				   const struct ssa_admin_msg *msg)
+static void stats_command_output(struct admin_command *cmd,
+				 struct cmd_exec_info *exec_info,
+				 union ibv_gid remote_gid,
+				 const struct ssa_admin_msg *msg)
 {
 	int i, n;
-	struct ssa_admin_counter *counter_msg = (struct ssa_admin_counter *) &msg->data.counter;
+	struct ssa_admin_stats *stats_msg = (struct ssa_admin_stats *) &msg->data.stats;
 	struct admin_count_command *count_cmd = (struct admin_count_command *) &cmd->data.count_cmd;
 	struct timeval epoch, timestamp;
 	time_t timestamp_time;
@@ -895,39 +895,39 @@ static void counter_command_output(struct admin_command *cmd,
 
 	(void)(exec_info);
 
-	n = min(COUNTER_ID_LAST, ntohs(counter_msg->n));
+	n = min(STATS_ID_LAST, ntohs(stats_msg->n));
 
-	epoch.tv_sec = ntohll(counter_msg->epoch_tv_sec);
-	epoch.tv_usec = ntohll(counter_msg->epoch_tv_usec);
+	epoch.tv_sec = ntohll(stats_msg->epoch_tv_sec);
+	epoch.tv_usec = ntohll(stats_msg->epoch_tv_usec);
 
 	for (i = 0; i < n; ++i) {
 		if (!count_cmd->include_list[i])
 			continue;
 
-		val = ntohll(counter_msg->vals[i]);
+		val = ntohll(stats_msg->vals[i]);
 
-		if (val < 0 && ssa_admin_counters_type[i] != ssa_counter_signed_numeric)
+		if (val < 0 && ssa_admin_stats_type[i] != ssa_stats_signed_numeric)
 			continue;
 
-		if (cmd->recursive && ssa_admin_counters_type[i] != ssa_counter_obsolete) {
+		if (cmd->recursive && ssa_admin_stats_type[i] != ssa_stats_obsolete) {
 			ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
 					remote_gid.raw, sizeof remote_gid.raw);
 			printf("%s: ", addr_buf);
 		}
 
-		switch (ssa_admin_counters_type[i]) {
-			case ssa_counter_obsolete:
+		switch (ssa_admin_stats_type[i]) {
+			case ssa_stats_obsolete:
 				continue;
 				break;
-			case ssa_counter_numeric:
-			case ssa_counter_signed_numeric:
-				printf("%s %ld\n", counters_descr[i].name, val);
+			case ssa_stats_numeric:
+			case ssa_stats_signed_numeric:
+				printf("%s %ld\n", stats_descr[i].name, val);
 				break;
-			case ssa_counter_timestamp:
+			case ssa_stats_timestamp:
 				timestamp.tv_sec = epoch.tv_sec + val / 1000;
 				timestamp.tv_usec = epoch.tv_usec + (val % 1000) * 1000;
 				timestamp_time =  timestamp.tv_sec;
-				printf("%s ", counters_descr[i].name);
+				printf("%s ", stats_descr[i].name);
 				ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
 				printf("\n");
 				break;

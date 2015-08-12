@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2004-2010 Mellanox Technologies LTD. All rights reserved.
+# Copyright (c) 2004-2015 Mellanox Technologies LTD. All rights reserved.
 #
 # This software is available to you under the terms of the
 # OpenIB.org BSD license included below:
@@ -68,7 +68,7 @@ pr_pair_SOURCES = ./pr_pair.c \
 		  ./ssa_path_record_helper.c ./ssa_db.c ./ssa_prdb.c \
 		  ./ssa_smdb.c ./ssa_db_helper.c ./ssa_log.c \
 		  ./ssa_signal_handler.c ./ssa_ipdb.c \
-		  ./ssa_runtime_counters.c \
+		  ./ssa_runtime_stats.c \
 		  ./common.c
 pr_pair_CPPFLAGS =  $(INCLUDE_DIRS) -I$(includedir)  $(DEPS_CFLAGS)  -g -D_GNU_SOURCE
 pr_pair_LDFLAGS = -lpthread

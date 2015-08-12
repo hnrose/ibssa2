@@ -56,7 +56,7 @@ static int timeout = 1000;
 static short recursive = ADMIN_RECURSION_NONE;
 
 struct cmd_struct admin_cmds[] = {
-	[SSA_ADMIN_CMD_COUNTER]= { "stats",     SSA_ADMIN_CMD_COUNTER,     CMD_TYPE_MONITOR },
+	[SSA_ADMIN_CMD_STATS]= { "stats",     SSA_ADMIN_CMD_STATS,     CMD_TYPE_MONITOR },
 	[SSA_ADMIN_CMD_PING] = { "ping",        SSA_ADMIN_CMD_PING,        CMD_TYPE_DEBUG   },
 	[SSA_ADMIN_CMD_NONE] = { "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
 	[SSA_ADMIN_CMD_NODE_INFO] = { "nodeinfo",        SSA_ADMIN_CMD_NODE_INFO, CMD_TYPE_MONITOR },

@@ -50,7 +50,7 @@
 #include <acm_shared.h>
 #endif
 
-#define SSA_RUNTIME_COUNTERS_NUM 1024
+#define SSA_RUNTIME_STATS_NUM 1024
 
 #ifdef __cplusplus
 extern "C" {
@@ -348,12 +348,12 @@ void ssa_twalk(const struct node_t *root,
 #endif
 
 void ssa_init_runtime_statistics();
-void ssa_set_runtime_counter(int id, long val);
-long  ssa_get_runtime_counter(int id);
-long  ssa_inc_runtime_counter(int id);
-void ssa_set_runtime_counter_time(int id);
-int ssa_get_runtime_counter_time(int id, struct timeval *time_stamp);
-void ssa_db_update_change_counters(uint64_t epoch);
+void ssa_set_runtime_stats(int id, long val);
+long  ssa_get_runtime_stats(int id);
+long  ssa_inc_runtime_stats(int id);
+void ssa_set_runtime_stats_time(int id);
+int ssa_get_runtime_stats_time(int id, struct timeval *time_stamp);
+void ssa_db_update_change_stats(uint64_t epoch);
 
 uint64_t ssa_epoch_inc(uint64_t epoch);
 
