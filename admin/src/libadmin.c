@@ -150,7 +150,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		counter_command_output,
 		{},
 		{ counter_print_help, default_print_usage,
-		  "Retrieve specific counter" },
+		  "Retrieve runtime statistics" },
 	},
 	[SSA_ADMIN_CMD_PING]	= {
 		NULL,
@@ -851,8 +851,8 @@ static void counter_print_help(FILE *stream)
 {
 	unsigned int i;
 
-	fprintf(stream, "counter is a command for gathering runtime information from a SSA node\n");
-	fprintf(stream, "Supported counters:\n");
+	fprintf(stream, "stats is a command for gathering runtime information from a SSA node\n");
+	fprintf(stream, "Supported statistics:\n");
 
 	for (i = 0; i < ARRAY_SIZE(counters_descr); ++i) {
 		if (ssa_admin_counters_type[i] != ssa_counter_obsolete)
