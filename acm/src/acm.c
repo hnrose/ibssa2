@@ -235,8 +235,9 @@ extern int reconnect_timeout;
 extern int reconnect_max_count;
 extern int rejoin_timeout;
 
-extern struct host_addr *parse_addr(const char *addr_file, uint64_t *ipv4,
-				    uint64_t *ipv6, uint64_t *name);
+extern struct host_addr *parse_addr(const char *addr_file,
+				    uint64_t *ipv4, uint64_t *ipv6,
+				    uint64_t *name, uint64_t *invalids);
 
 static void
 acm_format_name(int level, char *name, size_t name_size,
@@ -3474,18 +3475,18 @@ out:
 static void acm_parse_hosts_file(struct acm_ep *ep)
 {
 	struct host_addr *host_addrs, *host_addr;
-	uint64_t ipv4, ipv6, name;
+	uint64_t ipv4, ipv6, name, invalids;
 	int i;
 	size_t addr_size;
 	size_t size_lookup[] = { [ACM_ADDRESS_IP] = 4,
 				 [ACM_ADDRESS_IP6] = sizeof(struct in6_addr),
 				 [ACM_ADDRESS_NAME] = HOST_MAX_ADDRESS };
 
-	host_addrs = parse_addr(addr_data_file, &ipv4, &ipv6, &name);
+	host_addrs = parse_addr(addr_data_file, &ipv4, &ipv6, &name, &invalids);
 	if (!host_addrs)
 		return;
 
-	for (i = 0; i < ipv4 + ipv6 + name; i++) {
+	for (i = 0; i < ipv4 + ipv6 + name - invalids; i++) {
 		host_addr = host_addrs + i;
 		if (ep->pkey != host_addr->pkey)
 			continue;

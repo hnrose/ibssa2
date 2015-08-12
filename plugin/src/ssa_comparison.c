@@ -42,8 +42,9 @@ extern int smdb_deltas;
 extern int addr_preload;
 extern char addr_data_file[128];
 extern struct ssa_db *ipdb;
-extern struct host_addr *parse_addr(const char *addr_file, uint64_t *ipv4,
-				    uint64_t *ipv6, uint64_t *name);
+extern struct host_addr *parse_addr(const char *addr_file,
+				    uint64_t *ipv4, uint64_t *ipv6,
+				    uint64_t *name, uint64_t *invalids);
 
 /** =========================================================================
  */
@@ -1504,7 +1505,7 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 	static struct timespec mtime_last;
 	static uint64_t recs[IPDB_TBL_ID_MAX];
 	struct stat fstat;
-	uint64_t epoch = 0x1;
+	uint64_t epoch = 0x1, invalids = 0;
 	int ret;
 
 	ret = stat(addr_data_file, &fstat);
@@ -1524,7 +1525,8 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 	host_addrs = parse_addr(addr_data_file,
 				&recs[IPDB_TBL_ID_IPv4],
 				&recs[IPDB_TBL_ID_IPv6],
-				&recs[IPDB_TBL_ID_NAME]);
+				&recs[IPDB_TBL_ID_NAME],
+				&invalids);
 	if (!host_addrs)
 		goto out;
 
@@ -1539,8 +1541,9 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		goto out;
 	}
 
-	ipdb_add_addrs(ipdb, host_addrs, tbl_changed, recs[IPDB_TBL_ID_IPv4] +
-		       recs[IPDB_TBL_ID_IPv6] + recs[IPDB_TBL_ID_NAME]);
+	ipdb_add_addrs(ipdb, host_addrs, tbl_changed,
+		       recs[IPDB_TBL_ID_IPv4] + recs[IPDB_TBL_ID_IPv6] +
+		       recs[IPDB_TBL_ID_NAME] - invalids);
 
 	memcpy(&mtime_last, &fstat.st_mtime, sizeof(mtime_last));
 

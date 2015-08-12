@@ -200,8 +200,9 @@ count_addr_records(FILE *fd, uint64_t *ipv4, uint64_t *ipv6, uint64_t *name)
 	return 0;
 }
 
-struct host_addr *parse_addr(const char *addr_file, uint64_t *ipv4,
-			     uint64_t *ipv6, uint64_t *name)
+struct host_addr *parse_addr(const char *addr_file,
+			     uint64_t *ipv4, uint64_t *ipv6,
+			     uint64_t *name, uint64_t *invalids)
 {
 	FILE *fd = NULL;
 	struct host_addr *host_addrs = NULL;
@@ -220,9 +221,6 @@ struct host_addr *parse_addr(const char *addr_file, uint64_t *ipv4,
 			    "unable to count address records\n");
 		goto out;
 	}
-
-	ssa_log(SSA_LOG_VERBOSE,
-		"IPv4 %lu IPv6 %lu NAME %lu\n", *ipv4, *ipv6, *name);
 
 	if (*ipv4 + *ipv6 + *name == 0)
 		goto out;
@@ -260,6 +258,12 @@ struct host_addr *parse_addr(const char *addr_file, uint64_t *ipv4,
 			ssa_log_warn(SSA_LOG_DEFAULT, "exceeded number of "
 				     "address records allocated\n");
 	}
+
+	*invalids = (*ipv4 + *ipv6 + *name) - i;
+
+	ssa_log(SSA_LOG_VERBOSE,
+		"IPv4 %lu IPv6 %lu NAME %lu invalid records %lu\n",
+		*ipv4, *ipv6, *name, *invalids);
 
 out:
 	if (fd)
