@@ -269,13 +269,13 @@ uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id)
 	if (tbl_id == DB_DEF_TBL_ID) {
 		epoch = ntohll(p_ssa_db->db_def.epoch);
 		if (++epoch == DB_EPOCH_INVALID)
-			++epoch;
+			epoch += 2; /* avoid DP_EPOCH_INITIAL value */
 		p_ssa_db->db_def.epoch = htonll(epoch);
 		return epoch;
 	} else if (tbl_id < p_ssa_db->data_tbl_cnt) {
 		epoch = ntohll(p_ssa_db->p_db_tables[tbl_id].epoch);
 		if (++epoch == DB_EPOCH_INVALID)
-			++epoch;
+			epoch += 2; /* avoid DP_EPOCH_INITIAL value */
 		p_ssa_db->p_db_tables[tbl_id].epoch = htonll(epoch);
 		return epoch;
 	} else {
