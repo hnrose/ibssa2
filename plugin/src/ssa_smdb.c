@@ -141,7 +141,7 @@ static void smdb_attach_ipdb()
 		def_tbl[i] = ip_def_tbl[i - offset];
 		if (def_tbl[i].type == DBT_TYPE_DATA) {
 			def_tbl[i].id.table += SMDB_TBL_OFFSET;
-		} if (def_tbl[i].type == DBT_TYPE_DEF) {
+		} else if (def_tbl[i].type == DBT_TYPE_DEF) {
 			def_tbl[i].id.table -= IPDB_TBL_ID_MAX;
 			def_tbl[i].id.table += SMDB_DATA_TBLS + SMDB_TBL_OFFSET;
 			def_tbl[i].ref_table_id =
