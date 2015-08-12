@@ -153,7 +153,7 @@ struct ssa_admin_msg_hdr {
 struct ssa_admin_msg {
 	struct ssa_admin_msg_hdr	hdr;
 	union {
-		struct ssa_admin_stats	stats;
+		struct ssa_admin_stats		stats;
 		struct ssa_admin_node_info	node_info;
 	} data;
 };
