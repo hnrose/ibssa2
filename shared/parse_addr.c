@@ -186,10 +186,8 @@ count_addr_records(FILE *fd, uint64_t *ipv4, uint64_t *ipv6, uint64_t *name)
 		if (sscanf(s + idx, "%46s%46s", addr, gid) != 2)
 			continue;
 
-		if (inet_pton(AF_INET6, gid, &ib_addr) <= 0) {
-			ssa_log_err(SSA_LOG_DEFAULT, "%s is not IB GID\n", gid);
+		if (inet_pton(AF_INET6, gid, &ib_addr) <= 0)
 			continue;
-		}
 
 		if (inet_pton(AF_INET, addr, &ip_addr) > 0)
 			(*ipv4)++;
