@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.63)
-AC_INIT([ibssa], [0.0.8], linux-rdma@vger.kernel.org)
+AC_INIT([ibssa], [0.0.9], linux-rdma@vger.kernel.org)
 AC_CONFIG_SRCDIR([src/distrib.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
