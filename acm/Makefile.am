@@ -23,7 +23,7 @@ man_MANS = \
 	man/ibacm.7
 
 EXTRA_DIST = src/acm_util.h src/acm_mad.h src/libacm.h ibacm.init.in \
-	     include/osd.h include/dlist.h \
+	     include/osd.h include/dlist.h include/ssa_admin.h \
 	     include/ssa_log.h include/common.h include/acm_shared.h \
 	     include/ssa_ctrl.h include/acm_neigh.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_mad.h include/infiniband/ssa_db.h \

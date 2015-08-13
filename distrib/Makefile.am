@@ -28,7 +28,7 @@ EXTRA_DIST = include/osd.h include/dlist.h \
 	     include/infiniband/ssa_db.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_path_record.h include/infiniband/ssa_smdb.h \
 	     include/infiniband/ssa_prdb.h ibssa_logrotate \
-	     include/infiniband/ssa_ipdb.h \
+	     include/infiniband/ssa_ipdb.h include/ssa_admin.h \
 	     ibssa.spec.in $(man_MANS) ibssa_opts.cfg autogen.sh \
 	     ssa_release_notes.txt
 

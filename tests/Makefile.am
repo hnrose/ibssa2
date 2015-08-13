@@ -32,7 +32,7 @@
 
 SUBDIRS = loadsave pr_pair utils
 EXTRA_DIST = include/ssa_log.h include/common.h include/osd.h \
-	     include/dlist.h include/ssa_ctrl.h \
+	     include/dlist.h include/ssa_ctrl.h include/ssa_admin.h \
 	     include/ssa_path_record_data.h include/ssa_path_record_helper.h \
 	     include/infiniband/ssa_db.h include/infiniband/ssa.h \
 	     include/infiniband/ssa_mad.h include/infiniband/ssa_db_helper.h \
