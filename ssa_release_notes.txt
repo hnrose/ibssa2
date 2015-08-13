@@ -109,7 +109,7 @@ ucmatose, riostream, and udaddy.
 SSA contains the following 3 packages:
 - OpenSM SSA 0.0.9 plugin (libopensmssa)
 - ibssa 0.0.9 executable (for distribution and access nodes)
-- ibacm 1.0.7.2 executable (for consumer/compute nodes)
+- ibacm 1.0.8.2 executable (for consumer/compute nodes)
 - scripts and configuration files
 
 
