@@ -29,7 +29,7 @@
 
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([ssa_tests],[0.0.8])
+AC_INIT([ssa_tests],[0.0.9])
 AC_CONFIG_SRCDIR([])
 AC_CONFIG_MACRO_DIR(config)
 
