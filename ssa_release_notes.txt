@@ -55,6 +55,8 @@ Fedora Core (Rawhide, FC19 or later)
 OpenSuSE 13.2 uses 3.16 going for 3.17
 SLES 12.0 is 3.12 based
 Ubuntu 14.04 is 3.13 based
+Ubuntu 14.10 is 3.16 based
+Ubuntu 15.04 is 3.19 based
 
 Note that both RHEL 7.1 and RHEL 7.0 use 3.10 so these do not support SSA
 
