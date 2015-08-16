@@ -132,8 +132,7 @@ static int get_addr_record(const char *buf, const char *err_buf,
 		tmp = strtol(buf1, &endptr, 0);
 		if ((endptr == buf1) || (errno == EINVAL) ||
 		    (errno == ERANGE && (tmp == LONG_MIN ||
-		     tmp == LONG_MAX)) || (tmp > 0xC0) ||
-		    (tmp & 0x3F)) {
+		     tmp == LONG_MAX)) || (tmp & ~(REMOTE_FLAGS_MASK))) {
 			ssa_log_err(SSA_LOG_DEFAULT,
 				    "invalid flags were specified (0x"
 				    "%x) gid %s %s\n", tmp, gid, err_buf);

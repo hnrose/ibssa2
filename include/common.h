@@ -69,6 +69,10 @@ extern "C" {
 #define DEFAULT_PKEY         0xFFFF
 #define DEFAULT_REMOTE_FLAGS 0x80
 
+#ifndef REMOTE_FLAGS_MASK
+#define REMOTE_FLAGS_MASK (0x80 | 0x40)
+#endif
+
 void ssa_daemonize(void);
 int ssa_open_lock_file(char *lock_file, char *msg, int n);
 void ssa_close_lock_file();
