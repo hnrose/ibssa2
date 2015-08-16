@@ -4141,7 +4141,7 @@ static int acm_parse_ssa_db(struct ssa_db *p_ssa_db, struct ssa_svc *svc)
 
 	for (i = 0; i < PRDB_TBL_ID_MAX; ++i) {
 		epoch = ssa_db_get_epoch(p_ssa_db, i);
-		if (epoch != epochs[i]) {
+		if (epoch == DB_EPOCH_INITIAL || epoch != epochs[i]) {
 			epochs[i] = epoch;
 
 			if (i == PRDB_TBL_ID_PR)
