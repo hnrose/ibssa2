@@ -189,6 +189,7 @@ struct ssa_access_member {
 	union ibv_gid gid;		/* consumer GID */
 	struct ssa_db *prdb_current;
 	uint64_t smdb_epoch;
+	uint64_t prtbl_epoch;
 	int rsock;
 	uint16_t lid;
 };
@@ -3640,7 +3641,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	struct ssa_db *prdb = NULL;
 	struct ssa_db *prdb_copy = NULL;
 	int n, ret, pr_changed = 0, addr_changed = 0;
-	uint64_t epoch, prdb_epoch, prdb_epoch_prev, actual_epoch;
+	uint64_t epoch, prdb_epoch, actual_epoch;
 	char dump_dir[1024];
 	struct stat dstat;
 
@@ -3734,8 +3735,10 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	}
 
 	consumer->smdb_epoch = epoch;
-	prdb_epoch_prev = prdb_epoch;
 	prdb_epoch = ssa_epoch_inc(prdb_epoch);
+	if (pr_changed)
+		consumer->prtbl_epoch = ssa_epoch_inc(consumer->prtbl_epoch);
+
 	actual_epoch = ssa_db_set_epoch(consumer->prdb_current,
 					DB_DEF_TBL_ID, prdb_epoch);
 	if (actual_epoch == DB_EPOCH_INVALID)
@@ -3745,12 +3748,12 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 		ssa_log(SSA_LOG_VERBOSE, "PRDB copy epoch set failed\n");
 
 	actual_epoch = ssa_db_set_epoch(consumer->prdb_current, PRDB_TBL_ID_PR,
-					pr_changed ? prdb_epoch : prdb_epoch_prev);
+					consumer->prtbl_epoch);
 	if (actual_epoch == DB_EPOCH_INVALID)
 		ssa_log(SSA_LOG_VERBOSE, "PR table epoch set failed\n");
 
 	actual_epoch = ssa_db_set_epoch(prdb_copy, PRDB_TBL_ID_PR,
-					pr_changed ? prdb_epoch : prdb_epoch_prev);
+					consumer->prtbl_epoch);
 	if (actual_epoch == DB_EPOCH_INVALID)
 		ssa_log(SSA_LOG_VERBOSE, "PR table copy epoch set failed\n");
 
@@ -4039,6 +4042,7 @@ static struct ssa_access_member *ssa_add_access_consumer(struct ssa_svc *svc,
 		}
 		memcpy(&consumer->gid, remote_gid, 16);
 		consumer->smdb_epoch = DB_EPOCH_INVALID;
+		consumer->prtbl_epoch = DB_EPOCH_INVALID;
 		if (!tsearch(&consumer->gid, &svc->access_map, ssa_compare_gid)) {
 			free(consumer);
 			ssa_sprint_addr(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
