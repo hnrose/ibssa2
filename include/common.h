@@ -357,7 +357,7 @@ long  ssa_get_runtime_stats(int id);
 long  ssa_inc_runtime_stats(int id);
 void ssa_set_runtime_stats_time(int id);
 int ssa_get_runtime_stats_time(int id, struct timeval *time_stamp);
-void ssa_db_update_change_stats(uint64_t epoch);
+void ssa_db_update_change_stats(struct ssa_db *ssadb);
 
 uint64_t ssa_epoch_inc(uint64_t epoch);
 

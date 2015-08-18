@@ -69,6 +69,9 @@ enum ssa_admin_stats_id {
 	STATS_ID_TIME_LAST_SSA_MAD_RCV,
 	STATS_ID_TIME_LAST_ERR,
 	STATS_ID_DB_EPOCH,
+	STATS_ID_IPV4_TBL_EPOCH,
+	STATS_ID_IPV6_TBL_EPOCH,
+	STATS_ID_NAME_TBL_EPOCH,
 	STATS_ID_LAST
 };
 
@@ -92,7 +95,10 @@ static const enum ssa_stats_type ssa_admin_stats_type[] = {
 	[STATS_ID_TIME_LAST_DOWNSTR_CONN] = ssa_stats_timestamp,
 	[STATS_ID_TIME_LAST_SSA_MAD_RCV] = ssa_stats_timestamp,
 	[STATS_ID_TIME_LAST_ERR] = ssa_stats_timestamp,
-	[STATS_ID_DB_EPOCH] = ssa_stats_numeric
+	[STATS_ID_DB_EPOCH] = ssa_stats_numeric,
+	[STATS_ID_IPV4_TBL_EPOCH] = ssa_stats_numeric,
+	[STATS_ID_IPV6_TBL_EPOCH] = ssa_stats_numeric,
+	[STATS_ID_NAME_TBL_EPOCH] = ssa_stats_numeric
 };
 
 

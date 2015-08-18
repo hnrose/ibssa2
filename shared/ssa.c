@@ -53,12 +53,12 @@
 #include <infiniband/ssa.h>
 #include <infiniband/ib.h>
 #include <infiniband/ssa_db.h>
+#include <infiniband/ssa_ipdb.h>
 #if defined(SIM_SUPPORT_FAKE_ACM) || defined(ACCESS)
 #include <infiniband/ssa_smdb.h>
 #endif
 #ifdef ACCESS
 #include <infiniband/ssa_prdb.h>
-#include <infiniband/ssa_ipdb.h>
 #endif
 #include <infiniband/ssa_path_record.h>
 #include <infiniband/ssa_db_helper.h>
@@ -1254,9 +1254,11 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 	return count;
 }
 
-void ssa_db_update_change_stats(uint64_t epoch)
+void ssa_db_update_change_stats(struct ssa_db *db)
 {
+	uint64_t epoch;
 	static short first = 1;
+	int tbl_id;
 
 	if (first) {
 		ssa_set_runtime_stats_time(STATS_ID_DB_FIRST_UPDATE_TIME);
@@ -1265,7 +1267,21 @@ void ssa_db_update_change_stats(uint64_t epoch)
 
 	ssa_set_runtime_stats_time(STATS_ID_DB_LAST_UPDATE_TIME);
 	ssa_inc_runtime_stats(STATS_ID_DB_UPDATES_NUM);
+
+	epoch = ssa_db_get_epoch(db, DB_DEF_TBL_ID);
 	ssa_set_runtime_stats(STATS_ID_DB_EPOCH, epoch);
+
+	tbl_id = get_table_id(IPDB_IPV4_TBL_NAME, &db->db_table_def, db->p_def_tbl);
+	epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
+	ssa_set_runtime_stats(STATS_ID_IPV4_TBL_EPOCH, epoch);
+
+	tbl_id = get_table_id(IPDB_IPV6_TBL_NAME, &db->db_table_def, db->p_def_tbl);
+	epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
+	ssa_set_runtime_stats(STATS_ID_IPV6_TBL_EPOCH, epoch);
+
+	tbl_id = get_table_id(IPDB_NAME_TBL_NAME, &db->db_table_def, db->p_def_tbl);
+	epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
+	ssa_set_runtime_stats(STATS_ID_NAME_TBL_EPOCH, epoch);
 }
 
 uint64_t ssa_epoch_inc(uint64_t epoch)
@@ -1310,7 +1326,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 	}
 	if (svc->process_msg)
 		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg);
-	ssa_db_update_change_stats(epoch);
+	ssa_db_update_change_stats(db);
 }
 
 static short ssa_upstream_update_conn(struct ssa_svc *svc, short events)

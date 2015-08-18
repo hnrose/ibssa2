@@ -803,6 +803,9 @@ static struct ssa_admin_stats_descr stats_descr[] = {
 	[STATS_ID_TIME_LAST_SSA_MAD_RCV] = {"TIME_LAST_SSA_MAD_RCV", "Time of last MAD received" },
 	[STATS_ID_TIME_LAST_ERR] = {"TIME_LAST_ERR", "Time of last error" },
 	[STATS_ID_DB_EPOCH] = {"DB_EPOCH", "DB epoch" },
+	[STATS_ID_IPV4_TBL_EPOCH] = {"IPV4_EPOCH", "IPv4 epoch" },
+	[STATS_ID_IPV6_TBL_EPOCH] = {"IPV6_EPOCH", "IPv6 epoch" },
+	[STATS_ID_NAME_TBL_EPOCH] = {"NAME_EPOCH", "Name epoch" },
 };
 
 

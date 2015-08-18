@@ -1473,7 +1473,7 @@ static void ssa_extract_db_update(struct ssa_db *db, int db_changed)
 	if (ssa.node_type & SSA_NODE_ACCESS)
 		ssa_extract_send_db_update(db, sock_accessextract[0], flags);
 
-	ssa_db_update_change_stats(ssa_db_get_epoch(db, DB_DEF_TBL_ID));
+	ssa_db_update_change_stats(db);
 }
 #endif
 
