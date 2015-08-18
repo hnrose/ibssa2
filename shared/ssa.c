@@ -132,6 +132,7 @@ struct ssa_access_context {
 	pthread_mutex_t		th_pool_mtx;
 	int			num_workers;
 	atomic_t		num_tasks;
+	short			addr_changed;
 };
 
 struct ssa_access_task {
@@ -3646,8 +3647,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 	if (!consumer->prdb_current || consumer->smdb_epoch == DB_EPOCH_INVALID)
 		addr_changed = 1;
 	else
-		addr_changed = ssa_is_addr_data_changed(access_context.smdb,
-							access_context.ipdb);
+		addr_changed = access_context.addr_changed;
 
 	epoch = ssa_db_get_epoch(access_context.smdb, DB_DEF_TBL_ID);
 	prdb_epoch = ssa_db_get_epoch(consumer->prdb_current, DB_DEF_TBL_ID);
@@ -4311,6 +4311,8 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				/* Should epoch be added to access context ? */
 				access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
+				access_context.addr_changed = ssa_is_addr_data_changed(access_context.smdb,
+										       access_context.ipdb);
 				/* Reinit context should be based on DB update flags indicating full update */
 				ssa_pr_reinit_context(access_context.context,
 						      access_context.smdb);
@@ -5614,6 +5616,7 @@ static int ssa_access_thread_pool_init()
 		ret = -1;
 		goto err3;
 	}
+	access_context.addr_changed = 0;
 	return 0;
 
 err3:
