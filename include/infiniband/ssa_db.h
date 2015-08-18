@@ -431,6 +431,8 @@ uint64_t ssa_db_calculate_data_tbl_num(const struct ssa_db *p_ssa_db);
 uint64_t ssa_db_get_epoch(const struct ssa_db *p_ssa_db, uint8_t tbl_id);
 uint64_t ssa_db_set_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id, uint64_t epoch);
 uint64_t ssa_db_increment_epoch(struct ssa_db *p_ssa_db, uint8_t tbl_id);
+int get_table_id(const char *name, struct db_dataset *dataset,
+		 struct db_table_def *tbl_def);
 
 /**
  * ssa_db_attach():
