@@ -36,6 +36,10 @@
 
 #include <infiniband/ssa_db.h>
 
+#define IPDB_IPV4_TBL_NAME "IPv4"
+#define IPDB_IPV6_TBL_NAME "IPv6"
+#define IPDB_NAME_TBL_NAME "NAME"
+
 #ifdef __cplusplus
 #  define BEGIN_C_DECLS extern "C" {
 #  define END_C_DECLS   }

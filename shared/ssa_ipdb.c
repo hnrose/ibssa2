@@ -38,23 +38,23 @@
 #include <asm/byteorder.h>
 
 const char *addr_data_tbl_name[] =
-		{ [IPDB_TBL_ID_IPv4] = "IPv4",
-		  [IPDB_TBL_ID_IPv6] = "IPv6",
-		  [IPDB_TBL_ID_NAME] = "NAME" };
+		{ [IPDB_TBL_ID_IPv4] = IPDB_IPV4_TBL_NAME,
+		  [IPDB_TBL_ID_IPv6] = IPDB_IPV6_TBL_NAME,
+		  [IPDB_TBL_ID_NAME] = IPDB_NAME_TBL_NAME };
 
 const struct db_table_def ip_def_tbl[] = {
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, IPDB_TBL_ID_IPv4, 0 },
-		"IPv4", __constant_htonl(sizeof(struct ipdb_ipv4)), 0 },
+		IPDB_IPV4_TBL_NAME, __constant_htonl(sizeof(struct ipdb_ipv4)), 0 },
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, 0 },
-		"IPv4 fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_IPv4) },
+		IPDB_IPV4_TBL_NAME" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_IPv4) },
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, IPDB_TBL_ID_IPv6, 0 },
-		"IPv6", __constant_htonl(sizeof(struct ipdb_ipv6)), 0 },
+		IPDB_IPV6_TBL_NAME, __constant_htonl(sizeof(struct ipdb_ipv6)), 0 },
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, 0 },
-		"IPv6 fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_IPv6) },
+		IPDB_IPV6_TBL_NAME" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_IPv6) },
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, IPDB_TBL_ID_NAME, 0 },
-		"NAME", __constant_htonl(sizeof(struct ipdb_name)), 0 },
+		IPDB_NAME_TBL_NAME, __constant_htonl(sizeof(struct ipdb_name)), 0 },
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, 0 },
-		"NAME fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_NAME) },
+		IPDB_NAME_TBL_NAME" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_NAME) },
 	{ DB_VERSION_INVALID }
 };
 
