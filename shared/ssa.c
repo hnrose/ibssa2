@@ -4348,7 +4348,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 					ssa_log(SSA_LOG_DEFAULT,
 						"IP data update from extract: epoch 0x%" PRIx64
 						" IPv4 epoch 0x%" PRIx64 " IPv6 epoch 0x%" PRIx64
-						" name epoch 0x%" PRIx64 "\n",
+						" NAME epoch 0x%" PRIx64 "\n",
 						msg.data.db_upd.epoch, ipv4_epoch, ipv6_epoch, name_epoch);
 				}
 
@@ -4439,7 +4439,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 						ssa_log(SSA_LOG_DEFAULT,
 							"IP data update from upstream: epoch 0x%" PRIx64
 							" IPv4 epoch 0x%" PRIx64 " IPv6 epoch 0x%" PRIx64
-							" name epoch 0x%" PRIx64 "\n",
+							" NAME epoch 0x%" PRIx64 "\n",
 							msg.data.db_upd.epoch, ipv4_epoch, ipv6_epoch, name_epoch);
 					}
 					/* Reinit context should be based on DB update flags indicating full update */
