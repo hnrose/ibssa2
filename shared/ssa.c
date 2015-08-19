@@ -4411,6 +4411,8 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 					/* Should epoch be added to access context ? */
 					access_context.smdb = msg.data.db_upd.db;
 #ifdef ACCESS
+					access_context.addr_changed = ssa_is_addr_data_changed(access_context.smdb,
+											       access_context.ipdb);
 					/* Reinit context should be based on DB update flags indicating full update */
 					ssa_pr_reinit_context(access_context.context,
 							      access_context.smdb);
