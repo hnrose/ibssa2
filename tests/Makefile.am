@@ -38,7 +38,7 @@ EXTRA_DIST = include/ssa_log.h include/common.h include/osd.h \
 	     include/infiniband/ssa_mad.h include/infiniband/ssa_db_helper.h \
 	     include/infiniband/ssa_smdb.h include/infiniband/ssa_prdb.h \
 	     include/infiniband/ssa_path_record.h include/infiniband/ssa_smdb_api.h \
-	     include/infiniband/osm_headers.h \
+	     include/infiniband/ssa_ipdb.h include/infiniband/osm_headers.h \
 	     ssa_tests.spec.in autogen.sh
 
 dist-hook: ssa_tests.spec
