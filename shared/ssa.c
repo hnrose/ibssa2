@@ -4341,6 +4341,17 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 #ifdef ACCESS
 				access_context.addr_changed = ssa_is_addr_data_changed(access_context.smdb,
 										       access_context.ipdb);
+				if (access_context.addr_changed) {
+					uint64_t ipv4_epoch, ipv6_epoch, name_epoch;
+
+					ssa_db_get_addr_epoch(access_context.smdb, &ipv4_epoch, &ipv6_epoch, &name_epoch);
+					ssa_log(SSA_LOG_DEFAULT,
+						"IP data update from extract: epoch 0x%" PRIx64
+						" IPv4 epoch 0x%" PRIx64 " IPv6 epoch 0x%" PRIx64
+						" name epoch 0x%" PRIx64 "\n",
+						msg.data.db_upd.epoch, ipv4_epoch, ipv6_epoch, name_epoch);
+				}
+
 				/* Reinit context should be based on DB update flags indicating full update */
 				ssa_pr_reinit_context(access_context.context,
 						      access_context.smdb);
@@ -4421,6 +4432,16 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 #ifdef ACCESS
 					access_context.addr_changed = ssa_is_addr_data_changed(access_context.smdb,
 											       access_context.ipdb);
+					if (access_context.addr_changed) {
+						uint64_t ipv4_epoch, ipv6_epoch, name_epoch;
+
+						ssa_db_get_addr_epoch(access_context.smdb, &ipv4_epoch, &ipv6_epoch, &name_epoch);
+						ssa_log(SSA_LOG_DEFAULT,
+							"IP data update from upstream: epoch 0x%" PRIx64
+							" IPv4 epoch 0x%" PRIx64 " IPv6 epoch 0x%" PRIx64
+							" name epoch 0x%" PRIx64 "\n",
+							msg.data.db_upd.epoch, ipv4_epoch, ipv6_epoch, name_epoch);
+					}
 					/* Reinit context should be based on DB update flags indicating full update */
 					ssa_pr_reinit_context(access_context.context,
 							      access_context.smdb);
