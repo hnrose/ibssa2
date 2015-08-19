@@ -2280,8 +2280,9 @@ acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 	struct acm_ep *ep;
 	struct acm_dest *dest, *gid_dest;
 	struct acm_ep_addr_data *saddr, *daddr;
+	struct ssa_svc *svc;
 	uint8_t status;
-	int ret;
+	int ret, i;
 
 	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	status = acm_svr_verify_resolve(msg, &saddr, &daddr);
@@ -2318,6 +2319,18 @@ acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 	}
 
 	pthread_mutex_lock(&dest->lock);
+
+	if (acm_mode == ACM_MODE_SSA && acm_issue_query_done) {
+		for (i = 0; i < ssa_get_svc_cnt(ep->port); i++) {
+			svc = ssa_get_svc(ep->port, i);
+			ret = ssa_upstream_query_db(svc);
+			if (ret)
+				ssa_log(SSA_LOG_CTRL,
+					"unsuccessful last DB query (status: %d)\n",
+					ret);
+		}
+	}
+
 test:
 	switch (dest->state) {
 	case ACM_READY:
