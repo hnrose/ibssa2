@@ -1,4 +1,4 @@
-AC_INIT([ssa], [0.0.8])
+AC_INIT([ssa], [0.0.9])
 AC_CONFIG_AUX_DIR([.])
 AM_INIT_AUTOMAKE([foreign])
 AC_PROG_CC
