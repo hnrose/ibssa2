@@ -1254,11 +1254,25 @@ static int ssa_upstream_send_db_update_prepare(struct ssa_svc *svc)
 	return count;
 }
 
+void ssa_db_get_addr_epoch(struct ssa_db *db, uint64_t *ipv4_epoch,
+			   uint64_t *ipv6_epoch, uint64_t *name_epoch)
+{
+	int tbl_id;
+
+	tbl_id = get_table_id(IPDB_IPV4_TBL_NAME, &db->db_table_def, db->p_def_tbl);
+	*ipv4_epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
+
+	tbl_id = get_table_id(IPDB_IPV6_TBL_NAME, &db->db_table_def, db->p_def_tbl);
+	*ipv6_epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
+
+	tbl_id = get_table_id(IPDB_NAME_TBL_NAME, &db->db_table_def, db->p_def_tbl);
+	*name_epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
+}
+
 void ssa_db_update_change_stats(struct ssa_db *db)
 {
-	uint64_t epoch;
+	uint64_t epoch, ipv4_epoch, ipv6_epoch, name_epoch;
 	static short first = 1;
-	int tbl_id;
 
 	if (first) {
 		ssa_set_runtime_stats_time(STATS_ID_DB_FIRST_UPDATE_TIME);
@@ -1271,17 +1285,11 @@ void ssa_db_update_change_stats(struct ssa_db *db)
 	epoch = ssa_db_get_epoch(db, DB_DEF_TBL_ID);
 	ssa_set_runtime_stats(STATS_ID_DB_EPOCH, epoch);
 
-	tbl_id = get_table_id(IPDB_IPV4_TBL_NAME, &db->db_table_def, db->p_def_tbl);
-	epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
-	ssa_set_runtime_stats(STATS_ID_IPV4_TBL_EPOCH, epoch);
+	ssa_db_get_addr_epoch(db, &ipv4_epoch, &ipv6_epoch, &name_epoch);
 
-	tbl_id = get_table_id(IPDB_IPV6_TBL_NAME, &db->db_table_def, db->p_def_tbl);
-	epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
-	ssa_set_runtime_stats(STATS_ID_IPV6_TBL_EPOCH, epoch);
-
-	tbl_id = get_table_id(IPDB_NAME_TBL_NAME, &db->db_table_def, db->p_def_tbl);
-	epoch = tbl_id >= 0 ? ssa_db_get_epoch(db, tbl_id) : DB_EPOCH_INVALID;
-	ssa_set_runtime_stats(STATS_ID_NAME_TBL_EPOCH, epoch);
+	ssa_set_runtime_stats(STATS_ID_IPV4_TBL_EPOCH, ipv4_epoch);
+	ssa_set_runtime_stats(STATS_ID_IPV6_TBL_EPOCH, ipv6_epoch);
+	ssa_set_runtime_stats(STATS_ID_NAME_TBL_EPOCH, name_epoch);
 }
 
 uint64_t ssa_epoch_inc(uint64_t epoch)
