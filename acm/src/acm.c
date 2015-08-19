@@ -3364,31 +3364,35 @@ static int acm_insert_addr_dest(struct acm_ep *ep, uint32_t qpn, uint8_t flags,
 		goto out;
 	}
 
-	memset(name, 0, sizeof(name));
-	memcpy(name, gid, 16);
-	gid_dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
-	if (gid_dest) {
-		dest->path = gid_dest->path;
-		dest->state = ACM_READY;
-		acm_put_dest(gid_dest);
-	} else {
-		memcpy(&dest->path.dgid, gid, 16);
-		if (acm_mode == ACM_MODE_ACM) {
-			//ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
-			//		((struct acm_port *)ep->port)->port_num,
-			//		0, &dest->path.sgid);
-			dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
-		} else {	/* ACM_MODE_SSA */
-			//ibv_query_gid(((struct ssa_port *)ep->port)->dev->verbs,
-			//		((struct ssa_port *)ep->port)->port_num,
-			//		0, &dest->path.sgid);
-			dest->path.slid = htons(((struct ssa_port *)ep->port)->lid);
+	if (acm_mode == ACM_MODE_ACM) {
+		memset(name, 0, sizeof(name));
+		memcpy(name, gid, 16);
+		gid_dest = acm_get_dest(ep, ACM_ADDRESS_GID, name);
+		if (gid_dest) {
+			dest->path = gid_dest->path;
+			dest->state = ACM_READY;
+			acm_put_dest(gid_dest);
+			goto remqpn;
 		}
-		dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
-		dest->path.pkey = htons(ep->pkey);
-		dest->state = ACM_ADDR_RESOLVED;
 	}
 
+	memcpy(&dest->path.dgid, gid, 16);
+	if (acm_mode == ACM_MODE_ACM) {
+		//ibv_query_gid(((struct acm_port *)ep->port)->dev->verbs,
+		//		((struct acm_port *)ep->port)->port_num,
+		//		0, &dest->path.sgid);
+		dest->path.slid = htons(((struct acm_port *)ep->port)->lid);
+	} else {	/* ACM_MODE_SSA */
+		//ibv_query_gid(((struct ssa_port *)ep->port)->dev->verbs,
+		//		((struct ssa_port *)ep->port)->port_num,
+		//		0, &dest->path.sgid);
+		dest->path.slid = htons(((struct ssa_port *)ep->port)->lid);
+	}
+	dest->path.reversible_numpath = IBV_PATH_RECORD_REVERSIBLE;
+	dest->path.pkey = htons(ep->pkey);
+	dest->state = ACM_ADDR_RESOLVED;
+
+remqpn:
 	dest->remote_qpn = qpn;
 	dest->remote_flags = flags;
 	dest->addr_timeout = time_stamp_min() + (unsigned) addr_timeout;
