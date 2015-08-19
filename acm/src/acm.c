@@ -2274,15 +2274,32 @@ static int acm_dest_timeout(struct acm_dest *dest)
 	return 0;
 }
 
+static void
+acm_upstream_query_db(struct acm_ep *ep)
+{
+	struct ssa_svc *svc;
+	int i, ret;
+
+	if (acm_mode == ACM_MODE_SSA && acm_issue_query_done) {
+		for (i = 0; i < ssa_get_svc_cnt(ep->port); i++) {
+			svc = ssa_get_svc(ep->port, i);
+			ret = ssa_upstream_query_db(svc);
+			if (ret)
+				ssa_log(SSA_LOG_CTRL,
+					"unsuccessful last DB query (status: %d)\n",
+					ret);
+		}
+	}
+}
+
 static int
 acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 {
 	struct acm_ep *ep;
 	struct acm_dest *dest, *gid_dest;
 	struct acm_ep_addr_data *saddr, *daddr;
-	struct ssa_svc *svc;
 	uint8_t status;
-	int ret, i;
+	int ret;
 
 	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	status = acm_svr_verify_resolve(msg, &saddr, &daddr);
@@ -2318,19 +2335,9 @@ acm_svr_resolve_dest(struct acm_client *client, struct acm_msg *msg)
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
 	}
 
+	acm_upstream_query_db(ep);
+
 	pthread_mutex_lock(&dest->lock);
-
-	if (acm_mode == ACM_MODE_SSA && acm_issue_query_done) {
-		for (i = 0; i < ssa_get_svc_cnt(ep->port); i++) {
-			svc = ssa_get_svc(ep->port, i);
-			ret = ssa_upstream_query_db(svc);
-			if (ret)
-				ssa_log(SSA_LOG_CTRL,
-					"unsuccessful last DB query (status: %d)\n",
-					ret);
-		}
-	}
-
 test:
 	switch (dest->state) {
 	case ACM_READY:
@@ -2412,10 +2419,9 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 	struct acm_ep *ep;
 	struct acm_dest *dest;
 	struct ibv_path_record *path;
-	struct ssa_svc *svc;
 	uint8_t *addr;
 	uint8_t status;
-	int ret, i;
+	int ret;
 
 	ssa_log(SSA_LOG_VERBOSE, "client %d\n", client->index);
 	if (msg->hdr.length < (ACM_MSG_HDR_LENGTH + ACM_MSG_EP_LENGTH)) {
@@ -2453,16 +2459,7 @@ acm_svr_resolve_path(struct acm_client *client, struct acm_msg *msg)
 		return acm_client_resolve_resp(client, msg, NULL, ACM_STATUS_ENOMEM);
 	}
 
-	if (acm_mode == ACM_MODE_SSA && acm_issue_query_done) {
-		for (i = 0; i < ssa_get_svc_cnt(ep->port); i++) {
-			svc = ssa_get_svc(ep->port, i);
-			ret = ssa_upstream_query_db(svc);
-			if (ret)
-				ssa_log(SSA_LOG_CTRL,
-					"unsuccessful last DB query (status: %d)\n",
-					ret);
-		}
-	}
+	acm_upstream_query_db(ep);
 
 	pthread_mutex_lock(&dest->lock);
 test:
