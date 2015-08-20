@@ -3754,7 +3754,9 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 		if (!strcasecmp(dev_name, dev) && (*port_num == (uint8_t) port) &&
 			(ep->pkey == pkey)) {
 
-			if ((ret = acm_ep_insert_addr(ep, (uint8_t *)&ip_addr, addr_len, type, ep->ifindex)) != 0) {
+			if ((ret = acm_ep_insert_addr(ep,
+						      (type == ACM_ADDRESS_NAME) ? (uint8_t *)&addr : (uint8_t *)&ip_addr,
+						      addr_len, type, ep->ifindex)) != 0) {
 				ssa_log(SSA_LOG_VERBOSE,
 					"maximum number of names assigned to EP\n");
 				break;
