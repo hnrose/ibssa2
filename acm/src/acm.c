@@ -3442,17 +3442,18 @@ remqpn:
 			memcpy(&ipv4_addr, addr, 4);
 			if (ipv4_addr == local_ipv4_addr)
 				goto out;
+			inet_ntop(AF_INET, &ipv4_addr, buf, sizeof(buf));
 			ssa_log(SSA_LOG_VERBOSE,
-				"IPv4 neighbor 0x%x to be added to ifindex %u\n",
-				htonl(ipv4_addr), ep->ifindex);
+				"IPv4 neighbor %s to be added to ifindex %u\n",
+				buf, ep->ifindex);
 			qpn = htonl(qpn | flags << 24);
 			memcpy(&lladdr[0], &qpn, 4);
 			memcpy(&lladdr[4], gid, 16);
 			if (ipv4_neighbor_add(neigh_socket, ep->ifindex,
 					      ipv4_addr, lladdr, sizeof(lladdr)))
 				ssa_log(SSA_LOG_DEFAULT,
-					"ipv4_neighbor_add IP 0x%x send failed\n",
-					ntohl(ipv4_addr));
+					"ipv4_neighbor_add IP %s send failed\n",
+					buf);
 		}
 	} else if (neigh_mode & NEIGH_MODE_IPV6 && neigh & NEIGH_MODE_IPV6) {
 		if (qpn && qpn != 1) {
