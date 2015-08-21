@@ -89,7 +89,7 @@ static const char admin_more_info_string[] =
 
 static void show_version()
 {
-	printf("SSA Admin version "IB_SSA_VERSION"\n");
+	printf("SSA Admin version " IB_SSA_VERSION "\n");
 }
 
 static void show_usage()
@@ -280,12 +280,13 @@ static int parse_opts(int argc, char **argv, int *status)
 				ret = 1;
 				goto out;
 			}
-			if (errno == ERANGE && (tmp == LONG_MAX || tmp == LONG_MIN) ) {
+			if (errno == ERANGE &&
+			    (tmp == LONG_MAX || tmp == LONG_MIN)) {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
 				ret = 1;
 				goto out;
 			}
-			if (tmp <0 || tmp >= IB_LID_MCAST_START) {
+			if (tmp < 0 || tmp >= IB_LID_MCAST_START) {
 				fprintf(stderr, "ERROR - invalid lid %ld in option -l\n", tmp);
 				ret = 1;
 				goto out;
@@ -312,7 +313,8 @@ static int parse_opts(int argc, char **argv, int *status)
 				ret = 1;
 				goto out;
 			}
-			if (errno == ERANGE && (tmp == LONG_MAX || tmp == LONG_MIN) ) {
+			if (errno == ERANGE &&
+			    (tmp == LONG_MAX || tmp == LONG_MIN)) {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
 				ret = 1;
 				goto out;
@@ -331,7 +333,8 @@ static int parse_opts(int argc, char **argv, int *status)
 				ret = 1;
 				goto out;
 			}
-			if (errno == ERANGE && (tmp = LONG_MAX || tmp == LONG_MIN) ) {
+			if (errno == ERANGE &&
+			    (tmp = LONG_MAX || tmp == LONG_MIN)) {
 				fprintf(stderr, "ERROR - out of range in option -%c\n", option);
 				ret = 1;
 				goto out;
