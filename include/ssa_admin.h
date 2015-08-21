@@ -122,7 +122,7 @@ struct ssa_admin_connection_info {
 	uint8_t		remote_gid[16];
 };
 
-struct ssa_admin_node_info {
+struct ssa_admin_nodeinfo {
 	uint8_t		type;
 	uint8_t		version[SSA_ADMIN_VERSION_LEN];
 	uint8_t		reserved[5];
@@ -160,7 +160,7 @@ struct ssa_admin_msg {
 	struct ssa_admin_msg_hdr	hdr;
 	union {
 		struct ssa_admin_stats		stats;
-		struct ssa_admin_node_info	node_info;
+		struct ssa_admin_nodeinfo	nodeinfo;
 	} data;
 };
 

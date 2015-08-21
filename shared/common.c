@@ -221,7 +221,7 @@ void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *ms
 		break;
 	case SSA_ADMIN_CMD_NODEINFO:
 		{
-		const struct ssa_admin_node_info *payload = &msg->data.node_info;
+		const struct ssa_admin_nodeinfo *payload = &msg->data.nodeinfo;
 		int i, conn_num = ntohs(payload->connections_num);
 		char addr_buf[128];
 		struct ssa_admin_connection_info *connections =

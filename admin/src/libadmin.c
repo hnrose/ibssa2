@@ -1006,9 +1006,9 @@ static void nodeinfo_command_output(struct admin_command *cmd,
 {
 	int n, db_type;
 	char node_addr_buf[128];
-	struct ssa_admin_node_info *node_info_msg = (struct ssa_admin_node_info *) &msg->data.node_info;
+	struct ssa_admin_nodeinfo *nodeinfo_msg = (struct ssa_admin_nodeinfo *) &msg->data.nodeinfo;
 	struct ssa_admin_connection_info *connections =
-		(struct ssa_admin_connection_info *) node_info_msg->connections;
+		(struct ssa_admin_connection_info *) nodeinfo_msg->connections;
 
 	(void)(exec_info);
 
@@ -1026,9 +1026,9 @@ static void nodeinfo_command_output(struct admin_command *cmd,
 		node_addr_buf[0] = '\0';
 	}
 
-	if (node_info_msg->type == SSA_NODE_CONSUMER)
+	if (nodeinfo_msg->type == SSA_NODE_CONSUMER)
 		db_type = SSA_CONN_PRDB_TYPE;
-	else if (node_info_msg->type &
+	else if (nodeinfo_msg->type &
 		 (SSA_NODE_CORE | SSA_NODE_ACCESS | SSA_NODE_DISTRIBUTION))
 		db_type = SSA_CONN_SMDB_TYPE;
 	else
@@ -1036,18 +1036,18 @@ static void nodeinfo_command_output(struct admin_command *cmd,
 
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_SINGLELINE)
 		printf("%s%s %s (0x%" PRIx64") %s\n", node_addr_buf,
-		       ssa_node_type_str(node_info_msg->type),
+		       ssa_node_type_str(nodeinfo_msg->type),
 		       ssa_database_type_names[db_type],
-		       ntohll(node_info_msg->db_epoch), node_info_msg->version);
+		       ntohll(nodeinfo_msg->db_epoch), nodeinfo_msg->version);
 
-	n = ntohs(node_info_msg->connections_num);
+	n = ntohs(nodeinfo_msg->connections_num);
 
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_UP_CONN)
 		nodeinfo_connections_output(connections, n, node_addr_buf,
-					     SSA_CONN_TYPE_UPSTREAM);
+					    SSA_CONN_TYPE_UPSTREAM);
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_DOWN_CONN)
 		nodeinfo_connections_output(connections, n, node_addr_buf,
-					     SSA_CONN_TYPE_DOWNSTREAM);
+					    SSA_CONN_TYPE_DOWNSTREAM);
 }
 
 static int nodeinfo_handle_option(struct admin_command *admin_cmd,
@@ -1278,13 +1278,13 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 {
 	int i, slot, node_conns_num, rsock;
 	char addr_buf[128];
-	struct ssa_admin_node_info *node_info = (struct ssa_admin_node_info *) &rmsg->data.node_info;
+	struct ssa_admin_nodeinfo *nodeinfo = (struct ssa_admin_nodeinfo *) &rmsg->data.nodeinfo;
 	struct ssa_admin_connection_info *node_conns =
-		(struct ssa_admin_connection_info *) node_info->connections;
+		(struct ssa_admin_connection_info *) nodeinfo->connections;
 	void *tmp;
 	int type;
 
-	node_conns_num = ntohs(node_info->connections_num);
+	node_conns_num = ntohs(nodeinfo->connections_num);
 	if (node_conns_num < 0) {
 		fprintf(stderr, "ERROR - Negative number of SSA node's connections\n");
 		return -1;

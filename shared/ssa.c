@@ -6614,12 +6614,12 @@ static struct ssa_admin_msg *ssa_admin_handle_stats_message(struct ssa_admin_msg
 	return response;
 };
 
-static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *admin_request,
-							struct ssa_admin_handler_context *context)
+static struct ssa_admin_msg *ssa_admin_handle_nodeinfo(struct ssa_admin_msg *admin_request,
+						       struct ssa_admin_handler_context *context)
 {
 	int i, n, len;
 	struct ssa_admin_msg *response;
-	struct ssa_admin_node_info *nodeinfo_msg = (struct ssa_admin_node_info *) &admin_request->data.stats;
+	struct ssa_admin_nodeinfo *nodeinfo_msg = (struct ssa_admin_nodeinfo *) &admin_request->data.stats;
 	struct ssa_admin_connection_info *connections;
 	GHashTableIter iter;
 	gpointer key, value;
@@ -6638,7 +6638,7 @@ static struct ssa_admin_msg *ssa_admin_handle_node_info(struct ssa_admin_msg *ad
 	response->hdr.method = SSA_ADMIN_METHOD_RESP;
 	response->hdr.len = htons(len);
 
-	nodeinfo_msg = (struct ssa_admin_node_info *) &response->data.stats;
+	nodeinfo_msg = (struct ssa_admin_nodeinfo *) &response->data.stats;
 
 	nodeinfo_msg->type = context->ssa->node_type;
 	strncpy((char *) nodeinfo_msg->version, IB_SSA_VERSION,
@@ -6671,7 +6671,7 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 		return ssa_admin_handle_stats_message(admin_request);
 		break;
 	case SSA_ADMIN_CMD_NODEINFO:
-		return ssa_admin_handle_node_info(admin_request, context);
+		return ssa_admin_handle_nodeinfo(admin_request, context);
 		break;
 	default:
 		error = 1;
