@@ -176,7 +176,7 @@ static const char *admin_msg_operation_name[] = {
 	[SSA_ADMIN_CMD_NONE] = "NONE",
 	[SSA_ADMIN_CMD_STATS] = "STATS",
 	[SSA_ADMIN_CMD_PING] = "PING",
-	[SSA_ADMIN_CMD_NODE_INFO] = "NODEINFO"
+	[SSA_ADMIN_CMD_NODEINFO] = "NODEINFO"
 };
 
 void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg)
@@ -219,7 +219,7 @@ void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *ms
 		snprintf(buf + strlen(buf), size - strlen(buf), " N: %d", ntohs(payload->n));
 		}
 		break;
-	case SSA_ADMIN_CMD_NODE_INFO:
+	case SSA_ADMIN_CMD_NODEINFO:
 		{
 		const struct ssa_admin_node_info *payload = &msg->data.node_info;
 		int i, conn_num = ntohs(payload->connections_num);

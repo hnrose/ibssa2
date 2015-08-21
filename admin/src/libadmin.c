@@ -162,7 +162,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		{ NULL, default_print_usage,
 		  "Test ping between local node and SSA service on a specified target node" }
 	},
-	[SSA_ADMIN_CMD_NODE_INFO] = {
+	[SSA_ADMIN_CMD_NODEINFO] = {
 		nodeinfo_init,
 		nodeinfo_handle_option, NULL,
 		default_destroy,
@@ -1388,8 +1388,8 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 
 	memset(connections, 0, n * sizeof(*connections));
 
-	nodeinfo_impl = &admin_cmd_command_impls[SSA_ADMIN_CMD_NODE_INFO];
-	nodeinfo_cmd = default_init(SSA_ADMIN_CMD_NODE_INFO, 0, NULL);
+	nodeinfo_impl = &admin_cmd_command_impls[SSA_ADMIN_CMD_NODEINFO];
+	nodeinfo_cmd = default_init(SSA_ADMIN_CMD_NODEINFO, 0, NULL);
 	if (!nodeinfo_cmd) {
 		fprintf(stderr, "ERROR - failed to create nodeinfo command\n");
 		free(connections);
@@ -1400,7 +1400,7 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 	memset(&nodeinfo_msg, 0, sizeof(nodeinfo_msg));
 	nodeinfo_msg.hdr.version= SSA_ADMIN_PROTOCOL_VERSION;
 	nodeinfo_msg.hdr.method	= SSA_ADMIN_METHOD_GET;
-	nodeinfo_msg.hdr.opcode	= htons(SSA_ADMIN_CMD_NODE_INFO);
+	nodeinfo_msg.hdr.opcode	= htons(SSA_ADMIN_CMD_NODEINFO);
 	nodeinfo_msg.hdr.len	= htons(sizeof(nodeinfo_msg.hdr));
 
 	ret = nodeinfo_impl->create_request(nodeinfo_cmd, &nodeinfo_msg);
@@ -1540,14 +1540,14 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 				SSA_ADMIN_REPORT_MSG(connections[i].rmsg);
 				ret = 0;
 				connections[i].exec_info.etime = get_timestamp();
-				if (ntohs(connections[i].rmsg->hdr.opcode) == SSA_ADMIN_CMD_NODE_INFO &&
+				if (ntohs(connections[i].rmsg->hdr.opcode) == SSA_ADMIN_CMD_NODEINFO &&
 				    connections[i].state == ADM_CONN_NODEINFO) {
 					ret = admin_connect_new_nodes(&fds, &connections, mode, &n, connections[i].rmsg);
 					if (ret) {
 						fprintf(stderr, "WARNING - failed to connect downstream nodes\n");
 						continue;
 					}
-					if (cmd != SSA_ADMIN_CMD_NODE_INFO) {
+					if (cmd != SSA_ADMIN_CMD_NODEINFO) {
 						admin_update_connection_state(&connections[i], ADM_CONN_COMMAND, &msg);
 						fds[i].events = POLLOUT;
 						continue;

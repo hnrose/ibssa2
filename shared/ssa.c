@@ -6670,7 +6670,7 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 	case SSA_ADMIN_CMD_STATS:
 		return ssa_admin_handle_stats_message(admin_request);
 		break;
-	case SSA_ADMIN_CMD_NODE_INFO:
+	case SSA_ADMIN_CMD_NODEINFO:
 		return ssa_admin_handle_node_info(admin_request, context);
 		break;
 	default:
