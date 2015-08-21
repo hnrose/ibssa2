@@ -133,10 +133,10 @@ static void stats_command_output(struct admin_command *cmd,
 				 union ibv_gid remote_gid,
 				 const struct ssa_admin_msg *msg);
 static int nodeinfo_init(struct admin_command *cmd);
-static void node_info_command_output(struct admin_command *cmd,
-				     struct cmd_exec_info *exec_info,
-				     union ibv_gid remote_gid,
-				     const struct ssa_admin_msg *msg);
+static void nodeinfo_command_output(struct admin_command *cmd,
+				    struct cmd_exec_info *exec_info,
+				    union ibv_gid remote_gid,
+				    const struct ssa_admin_msg *msg);
 static int nodeinfo_handle_option(struct admin_command *admin_cmd,
 				  char option, const char *optarg);
 static void nodeinfo_print_help(FILE *stream);
@@ -167,9 +167,9 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		nodeinfo_handle_option, NULL,
 		default_destroy,
 		default_create_msg,
-		node_info_command_output,
+		nodeinfo_command_output,
 		{
-			{ { "format",required_argument, 0, 'f' }, "[full|short|conn|up|down]" },
+			{ { "format", required_argument, 0, 'f' }, "[full|short|conn|up|down]" },
 			{ { 0, 0, 0, 0 } }	/* Required at the end of the array */
 		},
 		{ NULL, nodeinfo_print_help,
@@ -637,7 +637,7 @@ static int get_cmd_opts(struct cmd_opts *cmd_opts, struct option *long_opts,
 	sprintf(short_opts + n, "%s", short_opts_to_skip);
 
 	j = 0;
-	while(long_opts_to_skip[j].name)
+	while (long_opts_to_skip[j].name)
 		long_opts[i++] = long_opts_to_skip[j++];
 
 	/* copy last terminating record: { 0, 0, 0, 0} */
@@ -715,8 +715,7 @@ static struct admin_command *default_init(int cmd_id, int argc, char **argv)
 	get_cmd_opts(opts, long_opts, short_opts);
 
 	do {
-		option = getopt_long(argc, argv, short_opts,
-				     long_opts, NULL);
+		option = getopt_long(argc, argv, short_opts, long_opts, NULL);
 
 		if (impl->handle_option) {
 			ret = impl->handle_option(admin_cmd, option, optarg);
@@ -780,7 +779,8 @@ static void ping_command_output(struct admin_command *cmd,
 	ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
 			remote_gid.raw, sizeof remote_gid.raw);
 	printf("%lu bytes from \033[1m%s\033[0m : time=%g ms\n",
-	       sizeof(*msg), addr_buf, 1e-3 * (exec_info->etime - exec_info->stime));
+	       sizeof(*msg), addr_buf,
+	       1e-3 * (exec_info->etime - exec_info->stime));
 }
 
 static const char *ssa_stats_type_names[] = {
@@ -958,7 +958,7 @@ static const char *ssa_database_type_names[] = {
 	[SSA_CONN_PRDB_TYPE] = "PRDB",
 };
 
-static void node_info_connections_output(const struct ssa_admin_connection_info *connections,
+static void nodeinfo_connections_output(const struct ssa_admin_connection_info *connections,
 					const int n, const char *node_addr_buf,
 					const int type)
 {
@@ -999,10 +999,10 @@ static void node_info_connections_output(const struct ssa_admin_connection_info 
 	}
 }
 
-static void node_info_command_output(struct admin_command *cmd,
-				     struct cmd_exec_info *exec_info,
-				     union ibv_gid remote_gid,
-				     const struct ssa_admin_msg *msg)
+static void nodeinfo_command_output(struct admin_command *cmd,
+				    struct cmd_exec_info *exec_info,
+				    union ibv_gid remote_gid,
+				    const struct ssa_admin_msg *msg)
 {
 	int n, db_type;
 	char node_addr_buf[128];
@@ -1019,7 +1019,8 @@ static void node_info_command_output(struct admin_command *cmd,
 				remote_gid.raw, sizeof remote_gid.raw);
 		addr_len = strlen(node_addr_buf);
 		snprintf(node_addr_buf + strlen(node_addr_buf),
-			 sizeof(node_addr_buf) - addr_len, "%*c: ", GID_ADDRESS_WIDTH - addr_len, ' ');
+			 sizeof(node_addr_buf) - addr_len, "%*c: ",
+			 GID_ADDRESS_WIDTH - addr_len, ' ');
 
 	} else {
 		node_addr_buf[0] = '\0';
@@ -1042,12 +1043,11 @@ static void node_info_command_output(struct admin_command *cmd,
 	n = ntohs(node_info_msg->connections_num);
 
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_UP_CONN)
-		node_info_connections_output(connections, n, node_addr_buf,
+		nodeinfo_connections_output(connections, n, node_addr_buf,
 					     SSA_CONN_TYPE_UPSTREAM);
 	if (cmd->data.nodeinfo_cmd.mode & NODEINFO_DOWN_CONN)
-		node_info_connections_output(connections, n, node_addr_buf,
+		nodeinfo_connections_output(connections, n, node_addr_buf,
 					     SSA_CONN_TYPE_DOWNSTREAM);
-
 }
 
 static int nodeinfo_handle_option(struct admin_command *admin_cmd,
@@ -1135,7 +1135,8 @@ struct admin_connection {
 	struct cmd_exec_info exec_info;
 };
 
-static int admin_recv_buff(int rsock, char *buf, unsigned int *rcount, unsigned int rlen)
+static int admin_recv_buff(int rsock, char *buf, unsigned int *rcount,
+			   unsigned int rlen)
 {
 	int n;
 
@@ -1213,7 +1214,8 @@ static int admin_send_msg(struct pollfd *pfd, struct admin_connection *conn)
 	int n;
 
 	while (conn->sleft) {
-		n  = rsend(pfd->fd, (char *) conn->smsg + sent, conn->sleft, MSG_DONTWAIT);
+		n  = rsend(pfd->fd, (char *) conn->smsg + sent,
+			   conn->sleft, MSG_DONTWAIT);
 		if (n < 0)
 			break;
 		conn->sleft -= n;
@@ -1286,7 +1288,7 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 	if (node_conns_num < 0) {
 		fprintf(stderr, "ERROR - Negative number of SSA node's connections\n");
 		return -1;
-	} else if (node_conns_num  == 0) {
+	} else if (node_conns_num == 0) {
 		return 0;
 	}
 
@@ -1321,9 +1323,11 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 			ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
 					node_conns[i].remote_gid,
 					sizeof node_conns[i].remote_gid);
-			rsock = admin_connect_init(addr_buf, ADMIN_ADDR_TYPE_GID, &global_opts);
+			rsock = admin_connect_init(addr_buf, ADMIN_ADDR_TYPE_GID,
+						   &global_opts);
 			if (rsock < 0 && (errno != EINPROGRESS)) {
-				fprintf(stderr, "ERROR - Unable connect to %s\n", addr_buf);
+				fprintf(stderr, "ERROR - Unable connect to %s\n",
+					addr_buf);
 				continue;
 			}
 
@@ -1331,7 +1335,8 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 			(*fds)[slot].events = POLLOUT;
 			(*fds)[slot].revents = 0;
 
-			admin_update_connection_state(*admin_conns + slot, ADM_CONN_CONNECTING, NULL);
+			admin_update_connection_state(*admin_conns + slot,
+						      ADM_CONN_CONNECTING, NULL);
 			(*admin_conns)[slot].remote_lid = ntohs(node_conns[i].remote_lid);
 			memcpy((*admin_conns)[slot].remote_gid.raw,
 			       &node_conns[i].remote_gid,
@@ -1576,7 +1581,9 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 						continue;
 					}
 
-					admin_update_connection_state(&connections[i], ADM_CONN_NODEINFO, &nodeinfo_msg);
+					admin_update_connection_state(&connections[i],
+								      ADM_CONN_NODEINFO,
+								      &nodeinfo_msg);
 				}
 
 				ret = admin_send_msg(&fds[i], &connections[i]);
