@@ -1054,6 +1054,7 @@ static int nodeinfo_handle_option(struct admin_command *admin_cmd,
 				  char option, const char *optarg)
 {
 	unsigned int i;
+	int ret;
 
 	if (option != 'f')
 		return 0;
@@ -1064,13 +1065,13 @@ static int nodeinfo_handle_option(struct admin_command *admin_cmd,
 
 	if (i < ARRAY_SIZE(nodeinfo_format_options)) {
 		admin_cmd->data.nodeinfo_cmd.mode = nodeinfo_format_options[i].mode;
-		return 0;
+		ret = 0;
 	} else {
 		fprintf(stderr, "ERROR - wrong value in format option\n");
-		return 1;
+		ret = 1;
 	}
 
-	return 0;
+	return ret;
 }
 
 static void nodeinfo_print_help(FILE *stream)
