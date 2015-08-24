@@ -1781,8 +1781,10 @@ static void *acm_retry_handler(void *context)
 				ssa_dev1 = ssa_dev(&ssa, d);
 				for (p = 1; p <= ssa_dev1->port_cnt; p++) {
 					ssa_port = ssa_dev_port(ssa_dev1, p);
-					acm_retry_process_wait_queue(
-					    &ssa_port->ep_list, &next_expire);
+					if (ssa_port->link_layer == IBV_LINK_LAYER_INFINIBAND)
+						acm_retry_process_wait_queue(
+						    &ssa_port->ep_list,
+						    &next_expire);
 				}
 			}
 		}
@@ -1997,6 +1999,8 @@ acm_get_ep(struct acm_ep_addr_data *data)
 			ssa_dev1 = ssa_dev(&ssa, d);
 			for (p = 1; p <= ssa_dev1->port_cnt; p++) {
 				port = ssa_dev_port(ssa_dev1, p);
+				if (((struct ssa_port *)port)->link_layer != IBV_LINK_LAYER_INFINIBAND)
+					continue;
 				pthread_mutex_lock(&((struct ssa_port *)(port))->lock);
 				ep = acm_get_port_ep(port, data);
 				pthread_mutex_unlock(&((struct ssa_port *)(port))->lock);
