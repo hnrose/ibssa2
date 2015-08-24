@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2011-2015 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -80,7 +80,7 @@ struct ssa_db_diff {
 struct ssa_db_diff *ssa_db_diff_init(uint64_t epoch, uint64_t data_rec_cnt[SMDB_TBL_ID_MAX]);
 void ssa_db_diff_destroy(struct ssa_db_diff * p_ssa_db_diff);
 struct ssa_db_diff *ssa_db_compare(struct ssa_database * ssa_db,
-				   uint64_t epoch_prev, int first);
+				   uint64_t prev_epochs[], int first);
 
 END_C_DECLS
 #endif				/* _SSA_COMPARISON_H_ */

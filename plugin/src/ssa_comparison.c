@@ -1294,13 +1294,15 @@ static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old,
  */
 static void
 ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
-			 boolean_t *tbl_changed)
+			boolean_t *tbl_changed,
+			uint64_t prev_epochs[])
 {
 	struct ssa_db *p_smdb;
 	char *tbl_name = NULL;
 	uint64_t epoch_old, epoch_new, epoch;
 	uint64_t i, k, tbl_cnt;
 	boolean_t update_global_epoch = FALSE;
+	uint8_t tbl_id;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1312,26 +1314,42 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 	epoch_old = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
 	epoch_new = ssa_epoch_inc(epoch_old);
 	for (i = 0; i < tbl_cnt; i++) {
-		if (smdb_deltas && p_smdb->p_db_tables[i].set_size == 0)
-			continue;
-
-		if (!smdb_deltas && tbl_changed[i] == FALSE)
-			continue;
-
-		epoch = ssa_db_set_epoch(p_smdb, i, epoch_new);
-		if (epoch != DB_EPOCH_INVALID)
-			update_global_epoch = TRUE;
+		if (tbl_changed[i] == FALSE) {
+			epoch = ssa_db_set_epoch(p_smdb, i , prev_epochs[i]);
+			if (epoch == DB_EPOCH_INVALID) {
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "SMDB %s table %d epoch set failed\n",
+					    p_smdb->p_def_tbl[i].name,
+					    p_smdb->p_def_tbl[i].id.table);
+				continue;
+			}
+		} else {
+			epoch = ssa_db_set_epoch(p_smdb, i, epoch_new);
+			if (epoch != DB_EPOCH_INVALID) {
+				update_global_epoch = TRUE;
+			} else {
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "SMDB %s table %d epoch set failed\n",
+					    p_smdb->p_def_tbl[i].name,
+					    p_smdb->p_def_tbl[i].id.table);
+				continue;
+			}
+		}
 
 		for (k = 0; k < p_smdb->db_table_def.set_count; k++) {
 			if (p_smdb->p_def_tbl[k].id.table == i) {
 				tbl_name = p_smdb->p_def_tbl[k].name;
+				tbl_id = p_smdb->p_def_tbl[k].id.table;
 				break;
 			}
 		}
-
-		ssa_log(SSA_LOG_VERBOSE,
-			"%s table epoch was updated to: 0x%" PRIx64 "\n",
-			tbl_name, epoch_new);
+		if (k < p_smdb->db_table_def.set_count)
+			ssa_log(SSA_LOG_VERBOSE, "%s table epoch is 0x%"
+				PRIx64 "\n",tbl_name,
+				ssa_db_get_epoch(p_smdb, tbl_id));
+		else
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "failed to find a table's name while updating epochs\n");
 	}
 
 	if (update_global_epoch) {
@@ -1566,7 +1584,8 @@ out:
 /** =========================================================================
  */
 struct ssa_db_diff *
-ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev, int first)
+ssa_db_compare(struct ssa_database * ssa_db,
+		uint64_t prev_epochs[], int first)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 	boolean_t tbl_changed[SMDB_TBL_ID_MAX] = { FALSE };
@@ -1603,7 +1622,8 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev, int first)
 		cl_qmap_count(&ssa_db->p_lft_db->ep_db_lft_block_tbl) +
 		cl_qmap_count(&ssa_db->p_lft_db->ep_dump_lft_block_tbl);
 
-	p_ssa_db_diff = ssa_db_diff_init(epoch_prev, data_rec_cnt);
+	p_ssa_db_diff = ssa_db_diff_init(prev_epochs[SMDB_TBL_ID_MAX],
+					data_rec_cnt);
 	if (!p_ssa_db_diff) {
 		ssa_log_err(SSA_LOG_DEFAULT,
 			    "unable to initialize diff structure\n");
@@ -1624,7 +1644,7 @@ ssa_db_compare(struct ssa_database * ssa_db, uint64_t epoch_prev, int first)
                 goto Exit;
         }
 
-	ssa_db_diff_update_epoch(p_ssa_db_diff, tbl_changed);
+	ssa_db_diff_update_epoch(p_ssa_db_diff, tbl_changed, prev_epochs);
 #ifdef SSA_PLUGIN_VERBOSE_LOGGING
 	ssa_db_diff_dump(p_ssa_db_diff);
 #endif

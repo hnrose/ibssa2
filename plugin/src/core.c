@@ -1543,7 +1543,10 @@ static int ssa_extract_process_smdb(struct ssa_db **pp_smdb)
 static void core_extract_db(osm_opensm_t *p_osm)
 {
 	struct ssa_db_diff *ssa_db_diff_old = NULL;
-	uint64_t epoch_prev = DB_EPOCH_INVALID;
+	uint64_t prev_epochs[SMDB_TBL_ID_MAX + 1];
+	int i;
+
+	prev_epochs[SMDB_TBL_ID_MAX] = DB_EPOCH_INVALID;
 
 	CL_PLOCK_ACQUIRE(&p_osm->lock);
 	ssa_db->p_dump_db = ssa_db_extract(p_osm);
@@ -1559,12 +1562,16 @@ static void core_extract_db(osm_opensm_t *p_osm)
 
 	pthread_mutex_lock(&ssa_db_diff_lock);
 	/* Clear previous version */
-	if (ssa_db_diff)
-		epoch_prev = ssa_db_get_epoch(ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
+	if (ssa_db_diff) {
+		for (i = 0; i < ssa_db_diff->p_smdb->data_tbl_cnt; i++)
+			prev_epochs[i] = ssa_db_get_epoch(ssa_db_diff->p_smdb, i);
+		prev_epochs[SMDB_TBL_ID_MAX] = ssa_db_get_epoch(ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
+
+	}
 
 	ssa_db_diff_old = ssa_db_diff;
 
-	ssa_db_diff = ssa_db_compare(ssa_db, epoch_prev, first_extraction);
+	ssa_db_diff = ssa_db_compare(ssa_db, prev_epochs, first_extraction);
 	if (ssa_db_diff) {
 		if (ssa_db_diff->dirty)
 		    ssa_db_diff_destroy(ssa_db_diff_old);
