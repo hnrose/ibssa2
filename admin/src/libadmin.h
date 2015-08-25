@@ -33,6 +33,8 @@
 #include <stdio.h>
 #include <getopt.h>
 
+#define IB_LID_MCAST_START 0xC000
+
 enum {
 	ADMIN_ADDR_TYPE_GID,
 	ADMIN_ADDR_TYPE_LID

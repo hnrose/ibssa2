@@ -6658,6 +6658,30 @@ static struct ssa_admin_msg *ssa_admin_handle_nodeinfo(struct ssa_admin_msg *adm
 	return response;
 }
 
+static int ssa_admin_handle_disconnect(struct ssa_admin_msg *admin_request,
+				       struct ssa_admin_handler_context *context)
+{
+	GHashTableIter iter;
+	gpointer key, value;
+	struct ssa_admin_connection_info * connection;
+
+	g_hash_table_iter_init(&iter, context->connections_hash);
+	while (g_hash_table_iter_next(&iter, &key, &value)) {
+		connection = (struct ssa_admin_connection_info *)value;
+
+		if ((admin_request->data.disconnect.type == SSA_ADDR_LID &&
+		     connection->remote_lid == admin_request->data.disconnect.id.lid) ||
+		    (admin_request->data.disconnect.type == SSA_ADDR_GID &&
+		     !memcmp(connection->remote_gid, admin_request->data.disconnect.id.gid,
+					sizeof(connection->remote_gid)))) {
+			rshutdown(GPOINTER_TO_INT(key), SHUT_RDWR);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admin_request,
 						      struct ssa_admin_handler_context *context)
 {
@@ -6672,6 +6696,9 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 		break;
 	case SSA_ADMIN_CMD_NODEINFO:
 		return ssa_admin_handle_nodeinfo(admin_request, context);
+		break;
+	case SSA_ADMIN_CMD_DISCONNECT:
+		error = ssa_admin_handle_disconnect(admin_request, context);
 		break;
 	default:
 		error = 1;

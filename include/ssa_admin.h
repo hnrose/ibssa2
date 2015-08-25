@@ -52,6 +52,7 @@ enum {
 	SSA_ADMIN_CMD_STATS,
 	SSA_ADMIN_CMD_PING,
 	SSA_ADMIN_CMD_NODEINFO,
+	SSA_ADMIN_CMD_DISCONNECT,
 	SSA_ADMIN_CMD_MAX
 };
 
@@ -131,6 +132,13 @@ struct ssa_admin_nodeinfo {
 	uint8_t		connections[0];
 };
 
+struct ssa_admin_disconnect {
+	uint8_t		type;
+	union {
+		be16_t		lid;
+		uint8_t		gid[16];
+	} id;
+};
 /*
  * ssa_admin_msg_hdr:
  * @version   - version of this structure
@@ -161,6 +169,7 @@ struct ssa_admin_msg {
 	union {
 		struct ssa_admin_stats		stats;
 		struct ssa_admin_nodeinfo	nodeinfo;
+		struct ssa_admin_disconnect	disconnect;
 	} data;
 };
 

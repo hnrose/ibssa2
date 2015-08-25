@@ -177,6 +177,7 @@ static const char *admin_msg_operation_name[] = {
 	[SSA_ADMIN_CMD_STATS] = "STATS",
 	[SSA_ADMIN_CMD_PING] = "PING",
 	[SSA_ADMIN_CMD_NODEINFO] = "NODEINFO"
+	[SSA_ADMIN_CMD_DISCONNECT] = "DISCONNECT"
 };
 
 void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *msg)

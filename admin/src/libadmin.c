@@ -33,6 +33,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <sys/time.h>
 #include <netinet/tcp.h>
 #include <rdma/rsocket.h>
@@ -60,6 +61,14 @@ struct admin_count_command {
 	short include_list[STATS_ID_LAST];
 };
 
+struct admin_disconnect_command {
+	int type;
+	union {
+		uint16_t lid;
+		union ibv_gid gid;
+	} id;
+};
+
 enum nodeinfo_mode {
 	NODEINFO_FULL = 0xFF,
 	NODEINFO_SINGLELINE = 0x1,
@@ -81,6 +90,11 @@ static const struct nodeinfo_format_option nodeinfo_format_options[] = {
 	{ "down", "print downstream connections", NODEINFO_DOWN_CONN }
 };
 
+static const struct nodeinfo_format_option disconnect_format_options[] = {
+	{ "lid", "disconnect connection by lid", SSA_ADDR_LID },
+	{ "gid", "disconnect connection by gid", SSA_ADDR_GID },
+};
+
 struct admin_nodeinfo_command {
 	uint16_t mode;
 };
@@ -91,6 +105,7 @@ struct admin_command {
 	union {
 		struct admin_count_command count_cmd;
 		struct admin_nodeinfo_command nodeinfo_cmd;
+		struct admin_disconnect_command disconnect_cmd;
 	} data;
 	short recursive;
 };
@@ -141,6 +156,17 @@ static int nodeinfo_handle_option(struct admin_command *admin_cmd,
 				  char option, const char *optarg);
 static void nodeinfo_print_help(FILE *stream);
 
+static int disconnect_init(struct admin_command *cmd);
+static int disconnect_handle_option(struct admin_command *admin_cmd,
+				    char option, const char *optarg);
+static int disconnect_handle_param(struct admin_command *cmd, const char *param);
+static int disconnect_command_create_msg(struct admin_command *cmd,
+					 struct ssa_admin_msg *msg);
+static void disconnect_command_output(struct admin_command *cmd,
+				      struct cmd_exec_info *exec_info,
+				      union ibv_gid remote_gid,
+				      const struct ssa_admin_msg *msg);
+
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	[SSA_ADMIN_CMD_STATS] = {
 		stats_init,
@@ -174,6 +200,19 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		},
 		{ NULL, nodeinfo_print_help,
 		  "Retrieve basic node info" }
+	},
+	[SSA_ADMIN_CMD_DISCONNECT] = {
+		disconnect_init,
+		disconnect_handle_option, disconnect_handle_param,
+		default_destroy,
+		disconnect_command_create_msg,
+		disconnect_command_output,
+		{
+			{ { "addr_type",required_argument, 0, 'x' }, "[lid|gid]" },
+			{ { 0, 0, 0, 0 } }	/* Required at the end of the array */
+		},
+		{ NULL, default_print_usage,
+		  "Break connection" }
 	}
 };
 
@@ -1086,6 +1125,113 @@ static void nodeinfo_print_help(FILE *stream)
 			nodeinfo_format_options[i].description);
 
 	fprintf(stream, "\n\n");
+}
+
+static int disconnect_init(struct admin_command *cmd)
+{
+	struct admin_disconnect_command *disconnect_cmd;
+
+	disconnect_cmd = (struct admin_disconnect_command *) &cmd->data.disconnect_cmd;
+	memset(disconnect_cmd, '\0', sizeof(*disconnect_cmd));
+	disconnect_cmd->type = SSA_ADDR_LID;
+
+	return 0;
+}
+
+static int disconnect_handle_option(struct admin_command *admin_cmd,
+				  char option, const char *optarg)
+{
+	unsigned int i;
+
+	if (option != 'x')
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(disconnect_format_options); ++i)
+		if (!strcmp(disconnect_format_options[i].value, optarg))
+			break;
+
+	if (i < ARRAY_SIZE(disconnect_format_options)) {
+		admin_cmd->data.disconnect_cmd.type = disconnect_format_options[i].mode;
+		return 0;
+	} else {
+		fprintf(stderr, "ERROR - wrong value in format option\n");
+		return 1;
+	}
+}
+
+static int disconnect_handle_param(struct admin_command *cmd, const char *param)
+{
+	struct admin_disconnect_command *disconnect_cmd;
+	long int tmp;
+	char *endptr;
+
+	disconnect_cmd = (struct admin_disconnect_command *) &cmd->data.disconnect_cmd;
+	if (disconnect_cmd->type == SSA_ADDR_GID) {
+		if (1 != inet_pton(AF_INET6, param, &disconnect_cmd->id.gid)) {
+			fprintf(stderr, "ERROR - param %s is not IB GID\n", param);
+			return 1;
+		}
+	} else if (disconnect_cmd->type == SSA_ADDR_LID) {
+		tmp = strtol(param, &endptr, 10);
+		if (endptr == param) {
+			fprintf(stderr, "ERROR - no digits were found in param -%s\n", param);
+			return 1;
+		}
+		if (errno == ERANGE && (tmp == LONG_MAX || tmp == LONG_MIN)) {
+			fprintf(stderr, "ERROR - out of range in param -%s\n", param);
+			return 1;
+		}
+		if (tmp < 0 || tmp >= IB_LID_MCAST_START) {
+			fprintf(stderr, "ERROR - invalid lid %ld in param %s\n", tmp, param);
+			return 1;
+		}
+
+		disconnect_cmd->id.lid = tmp;
+	} else {
+		fprintf(stderr, "ERROR - Unsupported type of connection %d\n", disconnect_cmd->type);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int disconnect_command_create_msg(struct admin_command *cmd,
+					 struct ssa_admin_msg *msg)
+{
+	struct ssa_admin_disconnect *disconnect_msg = &msg->data.disconnect;
+	struct admin_disconnect_command *disconnect_cmd;
+	uint16_t n;
+
+	disconnect_cmd = (struct admin_disconnect_command *) &cmd->data.disconnect_cmd;
+	disconnect_msg->type = disconnect_cmd->type;
+	if (disconnect_msg->type == SSA_ADDR_LID)
+		disconnect_msg->id.lid = htons(disconnect_cmd->id.lid);
+	else
+		memcpy(disconnect_msg->id.gid, disconnect_cmd->id.gid.raw, sizeof(disconnect_msg->id.gid));
+	n = ntohs(msg->hdr.len) + sizeof(*disconnect_msg);
+	msg->hdr.len = htons(n);
+
+	return 0;
+}
+
+static void disconnect_command_output(struct admin_command *cmd,
+				      struct cmd_exec_info *exec_info,
+				      union ibv_gid remote_gid,
+				      const struct ssa_admin_msg *msg)
+{
+	struct admin_disconnect_command *disconnect_cmd;
+	char addr_buf[128];
+
+	disconnect_cmd = (struct admin_disconnect_command *) &cmd->data.disconnect_cmd;
+	if (disconnect_cmd->type == SSA_ADDR_GID)
+		ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+				disconnect_cmd->id.gid.raw, sizeof disconnect_cmd->id.gid.raw);
+	else
+		ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_LID,
+				(void *)&disconnect_cmd->id.lid, sizeof disconnect_cmd->id.lid);
+
+	printf("Node %s was disconnected\n", addr_buf);
+
 }
 
 struct cmd_opts *admin_get_cmd_opts(int cmd)
