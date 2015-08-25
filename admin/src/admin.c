@@ -58,7 +58,9 @@ struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_PING] = { "ping",        SSA_ADMIN_CMD_PING,        CMD_TYPE_DEBUG   },
 	[SSA_ADMIN_CMD_NONE] = { "help",        SSA_ADMIN_CMD_NONE,        CMD_TYPE_NONE    },
 	[SSA_ADMIN_CMD_NODEINFO] = { "nodeinfo",        SSA_ADMIN_CMD_NODEINFO, CMD_TYPE_MONITOR },
+#ifdef ADMIN_DEBUG_COMMANDS
 	[SSA_ADMIN_CMD_DISCONNECT] = { "disconnect", SSA_ADMIN_CMD_DISCONNECT, CMD_TYPE_DEBUG },
+#endif
 };
 
 static const char *const short_option = "rl:g:d:P:p:a:t:vh?";

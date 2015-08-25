@@ -31,6 +31,7 @@
  *
  */
 
+#include <config.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <limits.h>
@@ -90,10 +91,12 @@ static const struct nodeinfo_format_option nodeinfo_format_options[] = {
 	{ "down", "print downstream connections", NODEINFO_DOWN_CONN }
 };
 
+#ifdef ADMIN_DEBUG_COMMANDS
 static const struct nodeinfo_format_option disconnect_format_options[] = {
 	{ "lid", "disconnect connection by lid", SSA_ADDR_LID },
 	{ "gid", "disconnect connection by gid", SSA_ADDR_GID },
 };
+#endif
 
 struct admin_nodeinfo_command {
 	uint16_t mode;
@@ -156,6 +159,7 @@ static int nodeinfo_handle_option(struct admin_command *admin_cmd,
 				  char option, const char *optarg);
 static void nodeinfo_print_help(FILE *stream);
 
+#ifdef ADMIN_DEBUG_COMMANDS
 static int disconnect_init(struct admin_command *cmd);
 static int disconnect_handle_option(struct admin_command *admin_cmd,
 				    char option, const char *optarg);
@@ -166,6 +170,7 @@ static void disconnect_command_output(struct admin_command *cmd,
 				      struct cmd_exec_info *exec_info,
 				      union ibv_gid remote_gid,
 				      const struct ssa_admin_msg *msg);
+#endif
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
 	[SSA_ADMIN_CMD_STATS] = {
@@ -201,6 +206,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		{ NULL, nodeinfo_print_help,
 		  "Retrieve basic node info" }
 	},
+#ifdef ADMIN_DEBUG_COMMANDS
 	[SSA_ADMIN_CMD_DISCONNECT] = {
 		disconnect_init,
 		disconnect_handle_option, disconnect_handle_param,
@@ -214,6 +220,7 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		{ NULL, default_print_usage,
 		  "Break connection" }
 	}
+#endif
 };
 
 static atomic_t tid;
@@ -1127,6 +1134,7 @@ static void nodeinfo_print_help(FILE *stream)
 	fprintf(stream, "\n\n");
 }
 
+#ifdef ADMIN_DEBUG_COMMANDS
 static int disconnect_init(struct admin_command *cmd)
 {
 	struct admin_disconnect_command *disconnect_cmd;
@@ -1233,6 +1241,7 @@ static void disconnect_command_output(struct admin_command *cmd,
 	printf("Node %s was disconnected\n", addr_buf);
 
 }
+#endif
 
 struct cmd_opts *admin_get_cmd_opts(int cmd)
 {

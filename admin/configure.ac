@@ -24,6 +24,18 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_CHECK_SIZEOF(long)
 
+AC_ARG_ENABLE(debug-commands,
+	AS_HELP_STRING([--enable-debug-commands],
+		       [enable using debug commands in ssadmin [default=disable]]),
+	with_debug_commands="true", with_debug_commands="false")
+
+if test "x$with_debug_commands" == xtrue; then
+	AC_DEFINE([ADMIN_DEBUG_COMMANDS], [], ["using debug commands in ssadmin"])
+	AC_MSG_NOTICE([debug commands in ssadmin are enabled])
+else
+	AC_MSG_NOTICE([debug commands in ssadmin are disabled by default])
+fi
+
 dnl check pkg-config
 AC_PATH_PROG([PKG_CONFIG], [pkg-config], [no])
 AS_IF([test "x$PKG_CONFIG" = "xno"],[
