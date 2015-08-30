@@ -1301,7 +1301,6 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 	uint64_t epoch_old, epoch_new, epoch;
 	uint64_t i, k, tbl_cnt;
 	boolean_t update_global_epoch = FALSE;
-	uint8_t tbl_id;
 
 	ssa_log(SSA_LOG_VERBOSE, "[\n");
 
@@ -1316,7 +1315,6 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 		for (k = 0; k < p_smdb->db_table_def.set_count; k++) {
 			if (p_smdb->p_def_tbl[k].id.table == i) {
 				tbl_name = p_smdb->p_def_tbl[k].name;
-				tbl_id = p_smdb->p_def_tbl[k].id.table;
 				break;
 			}
 		}
@@ -1333,7 +1331,7 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 			if (epoch == DB_EPOCH_INVALID) {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "SMDB %s table %d epoch set failed\n",
-					    tbl_name, tbl_id);
+					    tbl_name, i);
 				continue;
 			}
 		} else {
@@ -1343,13 +1341,13 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 			} else {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "SMDB %s table %d epoch set failed\n",
-					    tbl_name, tbl_id);
+					    tbl_name, i);
 				continue;
 			}
 		}
 
 		ssa_log(SSA_LOG_VERBOSE, "%s table epoch is 0x%" PRIx64 "\n",
-			tbl_name, ssa_db_get_epoch(p_smdb, tbl_id));
+			tbl_name, ssa_db_get_epoch(p_smdb, i));
 	}
 
 	if (update_global_epoch) {
