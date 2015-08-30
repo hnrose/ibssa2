@@ -3619,11 +3619,16 @@ ssa_is_addr_data_changed(struct ssa_db *smdb_new, struct ssa_db *ipdb_prev)
 		/* first update */
 		res = 1;
 	} else {
-		uint64_t tbl_epoch, offset = SMDB_TBL_ID_MAX - IPDB_TBL_ID_MAX;
-		for (i = 0; i < IPDB_TBL_ID_MAX; i++) {
-			tbl_epoch = ssa_db_get_epoch(smdb_new, offset + i);
-			if (tbl_epoch != DB_EPOCH_INVALID &&
-			    tbl_epoch == epoch) {
+		uint64_t old_addr_epochs[3];
+		uint64_t new_addr_epochs[3];
+
+		ssa_db_get_addr_epoch(ipdb_prev, &old_addr_epochs[0],
+				      &old_addr_epochs[1], &old_addr_epochs[2]);
+		ssa_db_get_addr_epoch(smdb_new, &new_addr_epochs[0],
+				      &new_addr_epochs[1], &new_addr_epochs[2]);
+
+		for (i = 0; i < 3; ++i) {
+			if (old_addr_epochs[i] != new_addr_epochs[i]) {
 				res = 1;
 				break;
 			}
