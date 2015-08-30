@@ -1313,13 +1313,27 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 	epoch_old = ssa_db_get_epoch(p_smdb, DB_DEF_TBL_ID);
 	epoch_new = ssa_epoch_inc(epoch_old);
 	for (i = 0; i < tbl_cnt; i++) {
+		for (k = 0; k < p_smdb->db_table_def.set_count; k++) {
+			if (p_smdb->p_def_tbl[k].id.table == i) {
+				tbl_name = p_smdb->p_def_tbl[k].name;
+				tbl_id = p_smdb->p_def_tbl[k].id.table;
+				break;
+			}
+		}
+
+		if (k >= p_smdb->db_table_def.set_count) {
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "failed to find a table's name "
+				    "while updating epochs\n");
+			continue;
+		}
+
 		if (tbl_changed[i] == FALSE) {
 			epoch = ssa_db_set_epoch(p_smdb, i, prev_epochs[i]);
 			if (epoch == DB_EPOCH_INVALID) {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "SMDB %s table %d epoch set failed\n",
-					    p_smdb->p_def_tbl[i].name,
-					    p_smdb->p_def_tbl[i].id.table);
+					    tbl_name, tbl_id);
 				continue;
 			}
 		} else {
@@ -1329,26 +1343,13 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 			} else {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "SMDB %s table %d epoch set failed\n",
-					    p_smdb->p_def_tbl[i].name,
-					    p_smdb->p_def_tbl[i].id.table);
+					    tbl_name, tbl_id);
 				continue;
 			}
 		}
 
-		for (k = 0; k < p_smdb->db_table_def.set_count; k++) {
-			if (p_smdb->p_def_tbl[k].id.table == i) {
-				tbl_name = p_smdb->p_def_tbl[k].name;
-				tbl_id = p_smdb->p_def_tbl[k].id.table;
-				break;
-			}
-		}
-		if (k < p_smdb->db_table_def.set_count)
-			ssa_log(SSA_LOG_VERBOSE, "%s table epoch is 0x%"
-				PRIx64 "\n",tbl_name,
-				ssa_db_get_epoch(p_smdb, tbl_id));
-		else
-			ssa_log_err(SSA_LOG_DEFAULT,
-				    "failed to find a table's name while updating epochs\n");
+		ssa_log(SSA_LOG_VERBOSE, "%s table epoch is 0x%" PRIx64 "\n",
+			tbl_name, ssa_db_get_epoch(p_smdb, tbl_id));
 	}
 
 	if (update_global_epoch) {
