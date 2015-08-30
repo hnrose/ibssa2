@@ -1326,25 +1326,17 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 			continue;
 		}
 
-		if (tbl_changed[i] == FALSE) {
-			epoch = ssa_db_set_epoch(p_smdb, i, prev_epochs[i]);
-			if (epoch == DB_EPOCH_INVALID) {
-				ssa_log_err(SSA_LOG_DEFAULT,
-					    "SMDB %s table %d epoch set failed\n",
-					    tbl_name, i);
-				continue;
-			}
-		} else {
-			epoch = ssa_db_set_epoch(p_smdb, i, epoch_new);
-			if (epoch != DB_EPOCH_INVALID) {
-				update_global_epoch = TRUE;
-			} else {
-				ssa_log_err(SSA_LOG_DEFAULT,
-					    "SMDB %s table %d epoch set failed\n",
-					    tbl_name, i);
-				continue;
-			}
+		epoch = ssa_db_set_epoch(p_smdb, i, tbl_changed[i] == TRUE ?
+					 epoch_new : prev_epochs[i]);
+		if (epoch == DB_EPOCH_INVALID) {
+			ssa_log_err(SSA_LOG_DEFAULT,
+				    "SMDB %s table %d epoch set failed\n",
+				    tbl_name, i);
+			continue;
 		}
+
+		if (tbl_changed[i] == TRUE)
+			update_global_epoch = TRUE;
 
 		ssa_log(SSA_LOG_VERBOSE, "%s table epoch is 0x%" PRIx64 "\n",
 			tbl_name, ssa_db_get_epoch(p_smdb, i));
