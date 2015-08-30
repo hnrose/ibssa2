@@ -4143,9 +4143,6 @@ static void ssa_access_update_ipdb(struct ssa_db *ipdb, struct ssa_db *smdb)
 {
 	uint64_t epoch;
 
-	if (!ssa_is_addr_data_changed(smdb, ipdb))
-		return;
-
 	ssa_ipdb_detach(ipdb);
 	ssa_ipdb_attach(ipdb, smdb);
 
@@ -4371,8 +4368,9 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				}
 				ssa_access_wait_for_tasks_completion();
 
-				ssa_access_update_ipdb(access_context.ipdb,
-						       access_context.smdb);
+				if (access_context.addr_changed)
+					ssa_access_update_ipdb(access_context.ipdb,
+							       access_context.smdb);
 #endif
 				break;
 			default:
@@ -4459,8 +4457,9 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 							  svc_arr[i]);
 					ssa_access_wait_for_tasks_completion();
 
-					ssa_access_update_ipdb(access_context.ipdb,
-							       access_context.smdb);
+					if (access_context.addr_changed)
+						ssa_access_update_ipdb(access_context.ipdb,
+								       access_context.smdb);
 #endif
 					break;
 				default:
