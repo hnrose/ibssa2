@@ -1328,7 +1328,8 @@ static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 
 		epoch = ssa_db_set_epoch(p_smdb, i, tbl_changed[i] == TRUE ?
 					 epoch_new : prev_epochs[i]);
-		if (epoch == DB_EPOCH_INVALID) {
+		if (epoch == DB_EPOCH_INVALID &&
+		    prev_epochs[i] != DB_EPOCH_INVALID) {
 			ssa_log_err(SSA_LOG_DEFAULT,
 				    "SMDB %s table %d epoch set failed\n",
 				    tbl_name, i);

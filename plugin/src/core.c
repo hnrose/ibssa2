@@ -1546,8 +1546,6 @@ static void core_extract_db(osm_opensm_t *p_osm)
 	uint64_t prev_epochs[SMDB_TBL_ID_MAX + 1];
 	int i;
 
-	prev_epochs[SMDB_TBL_ID_MAX] = DB_EPOCH_INVALID;
-
 	CL_PLOCK_ACQUIRE(&p_osm->lock);
 	ssa_db->p_dump_db = ssa_db_extract(p_osm);
 	ssa_db_lft_handle();
@@ -1568,6 +1566,10 @@ static void core_extract_db(osm_opensm_t *p_osm)
 				ssa_db_get_epoch(ssa_db_diff->p_smdb, i);
 		prev_epochs[SMDB_TBL_ID_MAX] =
 			ssa_db_get_epoch(ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
+	} else {
+		for (i = 0; i < SMDB_TBL_ID_MAX; i++)
+			prev_epochs[i] = DB_EPOCH_INVALID;
+		prev_epochs[SMDB_TBL_ID_MAX] = DB_EPOCH_INVALID;
 	}
 
 	ssa_db_diff_old = ssa_db_diff;
