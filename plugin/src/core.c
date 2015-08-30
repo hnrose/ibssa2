@@ -1564,9 +1564,10 @@ static void core_extract_db(osm_opensm_t *p_osm)
 	/* Clear previous version */
 	if (ssa_db_diff) {
 		for (i = 0; i < ssa_db_diff->p_smdb->data_tbl_cnt; i++)
-			prev_epochs[i] = ssa_db_get_epoch(ssa_db_diff->p_smdb, i);
-		prev_epochs[SMDB_TBL_ID_MAX] = ssa_db_get_epoch(ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
-
+			prev_epochs[i] =
+				ssa_db_get_epoch(ssa_db_diff->p_smdb, i);
+		prev_epochs[SMDB_TBL_ID_MAX] =
+			ssa_db_get_epoch(ssa_db_diff->p_smdb, DB_DEF_TBL_ID);
 	}
 
 	ssa_db_diff_old = ssa_db_diff;

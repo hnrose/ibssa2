@@ -1292,10 +1292,9 @@ static uint64_t ssa_db_diff_new_qmap_recs(cl_qmap_t * p_map_old,
 
 /** =========================================================================
  */
-static void
-ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
-			boolean_t *tbl_changed,
-			uint64_t prev_epochs[])
+static void ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
+				     boolean_t *tbl_changed,
+				     uint64_t prev_epochs[])
 {
 	struct ssa_db *p_smdb;
 	char *tbl_name = NULL;
@@ -1315,7 +1314,7 @@ ssa_db_diff_update_epoch(struct ssa_db_diff *p_ssa_db_diff,
 	epoch_new = ssa_epoch_inc(epoch_old);
 	for (i = 0; i < tbl_cnt; i++) {
 		if (tbl_changed[i] == FALSE) {
-			epoch = ssa_db_set_epoch(p_smdb, i , prev_epochs[i]);
+			epoch = ssa_db_set_epoch(p_smdb, i, prev_epochs[i]);
 			if (epoch == DB_EPOCH_INVALID) {
 				ssa_log_err(SSA_LOG_DEFAULT,
 					    "SMDB %s table %d epoch set failed\n",
@@ -1584,8 +1583,7 @@ out:
 /** =========================================================================
  */
 struct ssa_db_diff *
-ssa_db_compare(struct ssa_database * ssa_db,
-		uint64_t prev_epochs[], int first)
+ssa_db_compare(struct ssa_database * ssa_db, uint64_t prev_epochs[], int first)
 {
 	struct ssa_db_diff *p_ssa_db_diff = NULL;
 	boolean_t tbl_changed[SMDB_TBL_ID_MAX] = { FALSE };
