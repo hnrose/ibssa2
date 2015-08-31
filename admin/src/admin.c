@@ -411,7 +411,7 @@ int main(int argc, char **argv)
 
 	for (i = 0; i < cmd_num; i++) {
 		cmd = admin_cmds + i;
-		if (!strncmp(argv[optind], cmd->cmd, strlen(cmd->cmd)))
+		if (!strcmp(argv[optind], cmd->cmd))
 			break;
 	}
 
@@ -421,7 +421,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	if (!strncmp(cmd->cmd, "help", 4)) {
+	if (!strcmp(cmd->cmd, "help")) {
 		if (argc - optind <= 1) {
 			fprintf(stderr, "No command was specified\n");
 			exit(-1);
@@ -429,8 +429,7 @@ int main(int argc, char **argv)
 
 		for (i = 0; i < cmd_num; i++) {
 			cmd = admin_cmds + i;
-			if (!strncmp(argv[optind + 1], cmd->cmd,
-				     strlen(cmd->cmd)))
+			if (!strcmp(argv[optind + 1], cmd->cmd))
 				break;
 		}
 
