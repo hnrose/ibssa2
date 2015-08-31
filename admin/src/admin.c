@@ -91,6 +91,9 @@ static const char admin_more_info_string[] =
 static void show_version()
 {
 	printf("ssadmin version " IB_SSA_VERSION "\n");
+#ifdef ADMIN_DEBUG_COMMANDS
+	printf("Features enabled: DEBUG_COMMANDS\n");
+#endif
 }
 
 static void show_usage()
