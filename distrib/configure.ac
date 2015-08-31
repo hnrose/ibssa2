@@ -56,6 +56,8 @@ AC_CHECK_LIB(ibumad, umad_send, [],
 PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.2])
 AC_CHECK_LIB(gthread-2.0, g_thread_init, [],
     AC_MSG_ERROR([g_thread_init() not found.  libgthread-2.0 is required.]))
+AC_CHECK_LIB(pthread, pthread_create, [],
+    AC_MSG_ERROR([pthread_create() not found.  pthread is required.]))
 fi
 
 dnl Checks for header files.
