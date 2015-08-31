@@ -42,9 +42,8 @@ extern int smdb_deltas;
 extern int addr_preload;
 extern char addr_data_file[128];
 extern struct ssa_db *ipdb;
-extern struct host_addr *parse_addr(const char *addr_file,
-				    uint64_t *ipv4, uint64_t *ipv6,
-				    uint64_t *name, uint64_t *invalids);
+extern struct host_addr *parse_addr(const char *addr_file, uint64_t size_hint,
+				    uint64_t *ipv4, uint64_t *ipv6, uint64_t *name);
 
 /** =========================================================================
  */
@@ -1511,10 +1510,11 @@ static void
 update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 {
 	struct host_addr *host_addrs = NULL;
+	struct ssa_db *smdb = NULL;
 	static struct timespec mtime_last;
 	static uint64_t recs[IPDB_TBL_ID_MAX];
 	struct stat fstat;
-	uint64_t epoch = 0x1, invalids = 0;
+	uint64_t epoch = 0x1, hosts;
 	int ret;
 
 	ret = stat(addr_data_file, &fstat);
@@ -1531,11 +1531,12 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		goto out;
 	}
 
-	host_addrs = parse_addr(addr_data_file,
+	smdb = p_ssa_db_diff->p_smdb;
+	hosts = ntohll(smdb->p_db_tables[SMDB_TBL_ID_GUID2LID].set_count);
+	host_addrs = parse_addr(addr_data_file, hosts,
 				&recs[IPDB_TBL_ID_IPv4],
 				&recs[IPDB_TBL_ID_IPv6],
-				&recs[IPDB_TBL_ID_NAME],
-				&invalids);
+				&recs[IPDB_TBL_ID_NAME]);
 	if (!host_addrs)
 		goto out;
 
@@ -1550,9 +1551,8 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		goto out;
 	}
 
-	ipdb_add_addrs(ipdb, host_addrs, tbl_changed,
-		       recs[IPDB_TBL_ID_IPv4] + recs[IPDB_TBL_ID_IPv6] +
-		       recs[IPDB_TBL_ID_NAME] - invalids);
+	ipdb_add_addrs(ipdb, host_addrs, tbl_changed, recs[IPDB_TBL_ID_IPv4] +
+		       recs[IPDB_TBL_ID_IPv6] + recs[IPDB_TBL_ID_NAME]);
 
 	memcpy(&mtime_last, &fstat.st_mtime, sizeof(mtime_last));
 
@@ -1564,7 +1564,7 @@ attach_ipdb:
 	if (!p_ssa_db_diff->dirty)
 		goto out;
 
-	ssa_ipdb_attach(p_ssa_db_diff->p_smdb, ipdb);
+	ssa_ipdb_attach(smdb, ipdb);
 
 out:
 	if (host_addrs)

@@ -49,6 +49,9 @@
 	#define ADDRESS_NAME SSA_ADDR_NAME
 #endif
 
+#define ADDRESS_BLOCK_SIZE	128
+#define LINE_LEN		160
+
 static uint16_t get_pkey(const char *buf)
 {
 	char pkey_str[8];
@@ -161,53 +164,16 @@ err:
 	return -1;
 }
 
-static int
-count_addr_records(FILE *fd, uint64_t *ipv4, uint64_t *ipv6, uint64_t *name)
-{
-	char gid[INET6_ADDRSTRLEN + 1], addr[INET6_ADDRSTRLEN + 1], s[160];
-	struct in6_addr ip_addr, ib_addr;
-	int idx;
-
-	if (!fd || !ipv4 || !ipv6 || !name)
-		return -1;
-
-	*ipv4 = *ipv6 = *name = 0;
-
-	while (fgets(s, sizeof s, fd)) {
-		idx = 0;
-
-		while (isspace(s[idx]))
-			idx++;
-
-		if (s[idx] == '#' || s[idx] == '[')
-			continue;
-
-		if (sscanf(s + idx, "%46s%46s", addr, gid) != 2)
-			continue;
-
-		if (inet_pton(AF_INET6, gid, &ib_addr) <= 0)
-			continue;
-
-		if (inet_pton(AF_INET, addr, &ip_addr) > 0)
-			(*ipv4)++;
-		else if (inet_pton(AF_INET6, addr, &ip_addr) > 0)
-			(*ipv6)++;
-		else
-			(*name)++;
-	}
-
-	return 0;
-}
-
-struct host_addr *parse_addr(const char *addr_file,
-			     uint64_t *ipv4, uint64_t *ipv6,
-			     uint64_t *name, uint64_t *invalids)
+struct host_addr *parse_addr(const char *addr_file, uint64_t size_hint,
+			     uint64_t *ipv4, uint64_t *ipv6, uint64_t *name)
 {
 	FILE *fd = NULL;
-	struct host_addr *host_addrs = NULL;
+	struct host_addr *tmp, *host_addrs = NULL;
 	struct host_addr host_addr;
-	char s[160], err_buf[64];
+	struct stat fstat;
+	char s[LINE_LEN], err_buf[64];
 	int idx, i = 0, line = 0;
+	size_t records;
 	uint16_t pkey = DEFAULT_PKEY;
 
 	if (!(fd = fopen(addr_file, "r"))) {
@@ -215,22 +181,22 @@ struct host_addr *parse_addr(const char *addr_file,
 		goto out;
         }
 
-	if (count_addr_records(fd, ipv4, ipv6, name)) {
+	if (stat(addr_file, &fstat) < 0) {
 		ssa_log_err(SSA_LOG_DEFAULT,
-			    "unable to count address records\n");
+			    "unable to get addr file (%s) stats\n",
+			    addr_file);
 		goto out;
 	}
 
-	if (*ipv4 + *ipv6 + *name == 0)
-		goto out;
-
-	host_addrs = malloc((*ipv4 + *ipv6 + *name) * sizeof(*host_addrs));
+	size_hint = max(size_hint, fstat.st_size / LINE_LEN + 1);
+	records = (size_hint / ADDRESS_BLOCK_SIZE + 1) * ADDRESS_BLOCK_SIZE;
+	host_addrs = malloc(sizeof(*host_addrs) * records);
 	if (!host_addrs) {
 		ssa_log_err(SSA_LOG_DEFAULT, "unable to allocate memory\n");
 		goto out;
 	}
 
-	rewind(fd);
+	*ipv4 = *ipv6 = *name = 0;
 	while (fgets(s, sizeof s, fd)) {
 		line++;
 		idx = 0;
@@ -251,18 +217,31 @@ struct host_addr *parse_addr(const char *addr_file,
 		if (get_addr_record(s + idx, err_buf, pkey, &host_addr))
 			continue;
 
-		if (i < *ipv4 + *ipv6 + *name)
-			host_addrs[i++] = host_addr;
+		if (i >= size_hint && !(i % ADDRESS_BLOCK_SIZE)) {
+			tmp = realloc(host_addrs, sizeof(*host_addrs) *
+				      (i + ADDRESS_BLOCK_SIZE));
+			if (!tmp) {
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "unable to allocate memory\n");
+				free(host_addrs);
+				host_addrs = NULL;
+				goto out;
+			}
+			host_addrs = tmp;
+		}
+
+		host_addrs[i++] = host_addr;
+
+		if (host_addr.addr_type == ADDRESS_IP)
+			(*ipv4)++;
+		else if (host_addr.addr_type == ADDRESS_IP6)
+			(*ipv6)++;
 		else
-			ssa_log_warn(SSA_LOG_DEFAULT, "exceeded number of "
-				     "address records allocated\n");
+			(*name)++;
 	}
 
-	*invalids = (*ipv4 + *ipv6 + *name) - i;
-
-	ssa_log(SSA_LOG_VERBOSE,
-		"IPv4 %lu IPv6 %lu NAME %lu invalid records %lu\n",
-		*ipv4, *ipv6, *name, *invalids);
+	ssa_log(SSA_LOG_VERBOSE, "IPv4 %lu IPv6 %lu NAME %lu\n",
+		*ipv4, *ipv6, *name);
 
 out:
 	if (fd)
