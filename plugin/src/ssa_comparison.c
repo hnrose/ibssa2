@@ -1525,13 +1525,14 @@ update_addr_tables(struct ssa_db_diff *p_ssa_db_diff, boolean_t tbl_changed[])
 		return;
 	}
 
+	smdb = p_ssa_db_diff->p_smdb;
+
 	if (!memcmp(&fstat.st_mtime, &mtime_last, sizeof(mtime_last))) {
 		if (ipdb)
 			goto attach_ipdb;
 		goto out;
 	}
 
-	smdb = p_ssa_db_diff->p_smdb;
 	hosts = ntohll(smdb->p_db_tables[SMDB_TBL_ID_GUID2LID].set_count);
 	host_addrs = parse_addr(addr_data_file, hosts,
 				&recs[IPDB_TBL_ID_IPv4],
