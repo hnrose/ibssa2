@@ -407,6 +407,7 @@ int main(int argc, char **argv)
 	int i, ret, addr_type, status = 0;
 	int cmd_num = ARRAY_SIZE(admin_cmds);
 	int rsock;
+	char dest_addr_str[60];
 
 	ret = parse_opts(argc, argv, &status);
 	if (ret)
@@ -452,11 +453,13 @@ int main(int argc, char **argv)
 	if (dest_lid) {
 		dest_addr = &dest_lid;
 		addr_type = ADMIN_ADDR_TYPE_LID;
+		snprintf(dest_addr_str, sizeof(dest_addr_str), "LID %u", dest_lid);
 	} else {
 		if (!dest_gid)
 			dest_gid = "::1"; /* local host GID */
 		dest_addr = dest_gid;
 		addr_type = ADMIN_ADDR_TYPE_GID;
+		snprintf(dest_addr_str, sizeof(dest_addr_str), "GID %s", dest_gid);
 	}
 
 	if (admin_init(short_option, long_option) < 0) {
@@ -472,7 +475,7 @@ int main(int argc, char **argv)
 
 	rsock = admin_connect(dest_addr, addr_type, &opts);
 	if (rsock < 0) {
-		fprintf(stderr, "ERROR - unable to connect\n");
+		fprintf(stderr, "ERROR - unable to connect to %s\n", dest_addr_str);
 		exit(-1);
 	}
 
