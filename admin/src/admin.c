@@ -45,6 +45,7 @@
 #include <ssa_admin.h>
 
 enum {
+	ADMIN_PARSE_ARGS_NO_COMMAND = 1,
 	ADMIN_PARSE_ARGS_OK = 0,
 	ADMIN_PARSE_ARGS_ERROR = -1
 };
@@ -254,9 +255,8 @@ static int parse_opts(int argc, char **argv, int *status)
 	long int tmp;
 
 	if (argc <= 1) {
-		show_usage();
-		*status = ADMIN_PARSE_ARGS_ERROR;
-		ret = 1;
+		*status = ADMIN_PARSE_ARGS_NO_COMMAND;
+		ret = 0;
 		goto out;
 	}
 
@@ -392,10 +392,8 @@ static int parse_opts(int argc, char **argv, int *status)
 	}
 
 	if (optind == argc) {
-		fprintf(stderr, "No command specified\n");
-		show_usage();
-		*status = ADMIN_PARSE_ARGS_ERROR;
-		ret = 1;
+		*status = ADMIN_PARSE_ARGS_NO_COMMAND;
+		ret = 0;
 		goto out;
 	}
 out:
@@ -409,50 +407,65 @@ int main(int argc, char **argv)
 	void *dest_addr;
 	struct cmd_struct *cmd;
 	struct admin_opts opts;
-	int i, ret, addr_type, status = 0;
+	int i, ret = 0, addr_type, status = 0;
 	int cmd_num = ARRAY_SIZE(admin_cmds);
 	int rsock;
 	char dest_addr_str[60];
+	char **myargv = NULL;
 
 	ret = parse_opts(argc, argv, &status);
 	if (ret)
 		exit(status);
 
-	for (i = 0; i < cmd_num; i++) {
-		cmd = admin_cmds + i;
-		if (!strcmp(argv[optind], cmd->cmd))
-			break;
-	}
-
-	if (i == cmd_num) {
-		fprintf(stderr, "Non-existing command specified\n");
-		show_usage();
-		exit(-1);
-	}
-
-	if (!strcmp(cmd->cmd, "help")) {
-		if (argc - optind <= 1) {
-			fprintf(stderr, "No command was specified\n");
-			exit(-1);
-		}
-
+	if (status != ADMIN_PARSE_ARGS_NO_COMMAND) {
 		for (i = 0; i < cmd_num; i++) {
 			cmd = admin_cmds + i;
-			if (!strcmp(argv[optind + 1], cmd->cmd))
+			if (!strcmp(argv[optind], cmd->cmd))
 				break;
 		}
 
 		if (i == cmd_num) {
 			fprintf(stderr, "Non-existing command specified\n");
 			show_usage();
-			exit(-1);
+			ret = -1;
+			goto out;
 		}
 
-		if (cmd)
-			show_cmd_usage(cmd->cmd, admin_cmd_help(cmd->id),
-				       admin_get_cmd_opts(cmd->id));
+		if (!strcmp(cmd->cmd, "help")) {
+			if (argc - optind <= 1) {
+				fprintf(stderr, "No command was specified\n");
+				ret = -1;
+				goto out;
+			}
 
-		exit(0);
+			for (i = 0; i < cmd_num; i++) {
+				cmd = admin_cmds + i;
+				if (!strcmp(argv[optind + 1], cmd->cmd))
+					break;
+			}
+
+			if (i == cmd_num) {
+				fprintf(stderr, "Non-existing command specified\n");
+				show_usage();
+				ret = -1;
+				goto out;
+			}
+
+			if (cmd)
+				show_cmd_usage(cmd->cmd, admin_cmd_help(cmd->id),
+					       admin_get_cmd_opts(cmd->id));
+
+			goto out;
+		}
+	} else {
+		cmd = &admin_cmds[SSA_ADMIN_CMD_NODEINFO];
+		myargv = (char **) malloc(argc + 1);
+		if (!myargv) {
+			fprintf(stderr, "ERROR - memory allocation failed\n");
+			ret = -1;
+		}
+		memmove(myargv, argv, argc * sizeof(myargv[0]));
+		argv[argc++] = (char *)cmd->cmd;
 	}
 
 	if (dest_lid) {
@@ -469,7 +482,8 @@ int main(int argc, char **argv)
 
 	if (admin_init(short_option, long_option) < 0) {
 		fprintf(stderr, "ERROR - unable to init admin client\n");
-		exit(-1);
+		ret = -1;
+		goto out;
 	}
 
 	opts.dev = ca_name;
@@ -481,19 +495,23 @@ int main(int argc, char **argv)
 	rsock = admin_connect(dest_addr, addr_type, &opts);
 	if (rsock < 0) {
 		fprintf(stderr, "ERROR - unable to connect to %s\n", dest_addr_str);
-		exit(-1);
+		ret = -1;
+		goto out;
 	}
 
 	optind = 1;
 	ret = admin_exec_recursive(rsock, cmd->id, recursive, argc, argv);
 	if (ret) {
 		fprintf(stderr, "Failed executing '%s' command (%s)\n",
-		       cmd->cmd, admin_cmd_help(cmd->id)->desc);
-		exit(-1);
+			cmd->cmd, admin_cmd_help(cmd->id)->desc);
+		ret = -1;
+		goto out;
 	}
 
 	admin_disconnect(rsock);
 	admin_cleanup();
-
-	return 0;
+out:
+	if (myargv)
+		free(myargv);
+	return ret;
 }
