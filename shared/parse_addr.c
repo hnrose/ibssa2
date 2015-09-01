@@ -170,7 +170,7 @@ struct host_addr *parse_addr(const char *addr_file, uint64_t size_hint,
 	FILE *fd = NULL;
 	struct host_addr *tmp, *host_addrs = NULL;
 	struct host_addr host_addr;
-	struct stat fstat;
+	struct stat fstats;
 	char s[LINE_LEN], err_buf[64];
 	int idx, i = 0, line = 0;
 	size_t records;
@@ -181,14 +181,14 @@ struct host_addr *parse_addr(const char *addr_file, uint64_t size_hint,
 		goto out;
         }
 
-	if (stat(addr_file, &fstat) < 0) {
+	if (fstat(fd->_fileno, &fstats) < 0) {
 		ssa_log_err(SSA_LOG_DEFAULT,
 			    "unable to get addr file (%s) stats\n",
 			    addr_file);
 		goto out;
 	}
 
-	size_hint = max(size_hint, fstat.st_size / LINE_LEN + 1);
+	size_hint = max(size_hint, fstats.st_size / LINE_LEN + 1);
 	records = (size_hint / ADDRESS_BLOCK_SIZE + 1) * ADDRESS_BLOCK_SIZE;
 	host_addrs = malloc(sizeof(*host_addrs) * records);
 	if (!host_addrs) {
