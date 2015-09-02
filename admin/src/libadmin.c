@@ -1230,6 +1230,8 @@ static void disconnect_command_output(struct admin_command *cmd,
 	struct admin_disconnect_command *disconnect_cmd;
 	char addr_buf[128];
 
+	(void)(exec_info);
+
 	disconnect_cmd = (struct admin_disconnect_command *) &cmd->data.disconnect_cmd;
 	if (disconnect_cmd->type == SSA_ADDR_GID)
 		ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
