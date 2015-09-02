@@ -770,26 +770,36 @@ struct ssa_svc *ssa_get_svc(struct ssa_port *port, int index)
 	return port->svc[index];
 }
 
+static int ssa_upstream_query_db_inner(int sock)
+{
+	int ret;
+	struct ssa_db_query_msg msg;
+
+	msg.hdr.type = SSA_DB_QUERY;
+	msg.hdr.len = sizeof(msg);
+	msg.status = 0;
+	ret = write(sock, (char *) &msg, sizeof(msg));
+	if (ret != sizeof(msg))
+		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+			    ret, sizeof(msg));
+	return ret != sizeof(msg);
+}
+
 int ssa_upstream_query_db(struct ssa_svc *svc)
 {
 	int ret;
 	struct ssa_db_query_msg msg;
 
 	ssa_log_func(SSA_LOG_CTRL);
-	msg.hdr.type = SSA_DB_QUERY;
-	msg.hdr.len = sizeof(msg);
-	msg.status = 0;
-	ret = write(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
-	if (ret != sizeof(msg))
-		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
-			    ret, sizeof(msg));
-	else {
+	ret = ssa_upstream_query_db_inner(svc->sock_upmain[0]);
+	if (!ret) {
 		ret = read(svc->sock_upmain[0], (char *) &msg, sizeof(msg));
 		if (ret != sizeof(msg))
 			ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes read\n",
 				    ret, sizeof(msg));
+		return msg.status;
 	}
-	return msg.status;
+	return 0;
 }
 #endif
 
