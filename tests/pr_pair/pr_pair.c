@@ -169,8 +169,6 @@ static char log_file[PATH_MAX] = "/var/log/pr_pair.log";
 
 static void print_usage(FILE *file,const char *name)
 {
-	int i = 0;
-
 	fprintf(file,"Usage: %s [-h] [-o output file | -O output folder] [-n number | -f file name | -a] [-l | -g] [-L file name] [-v number] input folder\n", name);
 	fprintf(file,"\t-h\t\t-Print this help\n");
 	fprintf(file,"\t-o\t\t-Output file location. If ommited, stdout is used\n");
@@ -222,12 +220,14 @@ static void print_memory_usage(const char* prefix)
 	FILE* pf = fopen(buf, "r");
 	if (pf) {
 		unsigned size; //       total program size
+	/*
 		unsigned resident;//   resident set size
 		unsigned share;//      shared pages
 		unsigned text;//       text (code)
 		unsigned lib;//        library
 		unsigned data;//       data/stack
 		unsigned dt;//         dirty pages (unused in Linux 2.6)
+	*/
 		if (fscanf(pf, "%u" /* %u %u %u %u %u"*/, &size/*, &resident, &share, &text, &lib, &data*/) != 1)
 			fprintf(stderr, "ERROR - unable to read memory size\n");
 		else
@@ -634,7 +634,6 @@ Exit:
 int main(int argc,char *argv[])
 {
 	int opt = 0;
-	int index = 0;
 	struct input_prm prm;
 	char dump_path[PATH_MAX] = {};
 	char input_path[PATH_MAX] = {};
