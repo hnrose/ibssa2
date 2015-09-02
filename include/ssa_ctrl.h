@@ -61,7 +61,7 @@ enum ssa_ctrl_msg_type {
 };
 
 struct ssa_ctrl_msg {
-	int			len;
+	unsigned int		len;
 	enum ssa_ctrl_msg_type	type;
 	uint8_t			data[0];
 };
