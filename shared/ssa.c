@@ -87,7 +87,8 @@ extern int ibv_read_sysfs_file(const char *dir, const char *file,
 #define UPSTREAM_DATA_FD_SLOT		4
 #define UPSTREAM_RECONNECT_TIMER_SLOT	5
 #define UPSTREAM_JOIN_TIMER_SLOT	6
-#define UPSTREAM_FD_SLOTS		7
+#define UPSTREAM_ADMIN_SLOT		7
+#define UPSTREAM_FD_SLOTS		8
 
 #define ADMIN_FIRST_SERVICE_FD_SLOT 3
 #define ADMIN_FDS_PER_SERVICE  2
@@ -1915,6 +1916,10 @@ static void *ssa_upstream_handler(void *context)
 	fds[UPSTREAM_JOIN_TIMER_SLOT].events = POLLIN;
 	fds[UPSTREAM_JOIN_TIMER_SLOT].revents = 0;
 
+	fds[UPSTREAM_ADMIN_SLOT].fd = svc->sock_adminup[0];
+	fds[UPSTREAM_ADMIN_SLOT].events = POLLIN;
+	fds[UPSTREAM_ADMIN_SLOT].revents = 0;
+
 	for (;;) {
 		ret = rpoll(&fds[0], UPSTREAM_FD_SLOTS, timeout);
 		if (ret < 0) {
@@ -2242,6 +2247,26 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			}
 
 			fds[UPSTREAM_JOIN_TIMER_SLOT].revents = 0;
+		}
+
+		if (fds[UPSTREAM_ADMIN_SLOT].revents & POLLIN) {
+			fds[UPSTREAM_ADMIN_SLOT].revents = 0;
+			ret = read(fds[UPSTREAM_ADMIN_SLOT].fd, (char *) &msg,
+				   sizeof msg.hdr);
+			if (ret != sizeof msg.hdr)
+				ssa_log_err(SSA_LOG_CTRL,
+					    "%d out of %d header bytes read from admin\n",
+					    ret, sizeof msg.hdr);
+			if (msg.hdr.len > sizeof msg.hdr) {
+				ret = read(fds[UPSTREAM_ADMIN_SLOT].revents,
+					   (char *) &msg.hdr.data,
+					   msg.hdr.len - sizeof msg.hdr);
+				if (ret != msg.hdr.len - sizeof msg.hdr)
+					ssa_log_err(SSA_LOG_CTRL,
+						    "%d out of %d additional bytes read from admin\n",
+						    ret,
+						    msg.hdr.len - sizeof msg.hdr);
+			}
 		}
 
 		/* Only 1 upstream data connection currently */
