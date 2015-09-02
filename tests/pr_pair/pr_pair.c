@@ -260,11 +260,7 @@ struct input_prm
 static void print_input_prm(const struct input_prm *prm)
 {
 	printf("Log path: %s\n",prm->log_path);
-	if(prm->log_verbosity >= 0) {
-		printf("Log verbosity: %d\n", prm->log_verbosity);
-	} else {
-		printf("Log verbosity: --- The parameter is wrong ---");
-	}
+	printf("Log verbosity: %d\n", prm->log_verbosity);
 	if(strlen(prm->prdb_path))
 		printf("PRDB path : %s\n",prm->prdb_path);
 	else
