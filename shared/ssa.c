@@ -3664,8 +3664,7 @@ static void ssa_access_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 			    ret, sizeof(msg));
 }
 
-static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
-					 struct ssa_access_member *consumer)
+static struct ssa_db *ssa_calculate_prdb(struct ssa_access_member *consumer)
 {
 	struct ssa_db *prdb = NULL;
 	struct ssa_db *prdb_copy = NULL;
@@ -3915,7 +3914,7 @@ static void g_al_callback(gpointer task, gpointer user_data)
 	ssa_log(SSA_LOG_DEFAULT,
 		"calculating PRDB for GID %s LID %u client\n",
 		log_data, consumer->lid);
-	prdb = ssa_calculate_prdb(svc, consumer);
+	prdb = ssa_calculate_prdb(consumer);
 	ssa_log(SSA_LOG_DEFAULT,
 		"GID %s LID %u rsock %d PRDB %p calculation complete\n",
 		log_data, consumer->lid, consumer->rsock, prdb);
@@ -4545,7 +4544,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 						ssa_log(SSA_LOG_DEFAULT,
 							"calculating PRDB for GID %s LID %u client\n",
 							log_data, consumer->lid);
-						prdb = ssa_calculate_prdb(svc_arr[i], consumer);
+						prdb = ssa_calculate_prdb(consumer);
 						if (!prdb && consumer->prdb_current) {
 							prdb = ssa_db_copy(consumer->prdb_current);
 							ssa_ipdb_attach(prdb, access_context.ipdb);
