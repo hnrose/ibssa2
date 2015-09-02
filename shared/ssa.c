@@ -6440,6 +6440,8 @@ void ssa_cleanup(struct ssa_class *ssa)
 {
 	umad_done();
 
+	(void)(ssa);
+
 #if (RCLOSE_THREAD_POOL_WORKERS_NUM > 0)
 	if (thpool_rclose != NULL) {
 		int rclose_unprocessed;
