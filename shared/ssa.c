@@ -1864,6 +1864,33 @@ static void ssa_upstream_stop_reconnection(struct ssa_svc *svc, struct pollfd *f
 	svc->conn_dataup.reconnect_count = 0;
 }
 
+static void ssa_upstream_handle_db_query(struct ssa_svc *svc, int sock, struct pollfd *fds)
+{
+	if (svc->conn_dataup.rsock >= 0) {
+		if (svc->conn_dataup.epoch != ntohll(svc->conn_dataup.prdb_epoch)) {
+			if (svc->conn_dataup.ssa_db)
+				db_previous = svc->conn_dataup.ssa_db;
+			svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
+ssa_log(SSA_LOG_DEFAULT, "PRDB ssa_db new %p old %p\n", svc->conn_dataup.ssa_db, db_previous);
+			if (!svc->conn_dataup.ssa_db)
+				ssa_log_err(SSA_LOG_DEFAULT,
+					    "could not allocate ssa_db struct for new PRDB\n");
+			/* Should response (and epoch update) be after DB is pulled successfully ??? */
+			ssa_upstream_query_db_resp(sock, SSA_DB_QUERY_EPOCH_CHANGED);
+			svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
+ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due to updated epoch 0x%" PRIx64 "\n", svc->conn_dataup.rsock, svc->conn_dataup.phase, svc->conn_dataup.epoch);
+			/* Check connection state ??? */
+			fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
+		} else {
+			/* No epoch change */
+			ssa_upstream_query_db_resp(sock, -SSA_DB_QUERY_EPOCH_NOT_CHANGED);
+		}
+	} else {
+		/* No upstream connection */
+		ssa_upstream_query_db_resp(sock, -SSA_DB_QUERY_NO_UPSTREAM_CONN);
+	}
+}
+
 static void *ssa_upstream_handler(void *context)
 {
 	struct ssa_svc *svc = context, *conn_svc;
@@ -2077,30 +2104,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 
 			switch (msg.hdr.type) {
 			case SSA_DB_QUERY:
-				if (svc->conn_dataup.rsock >= 0) {
-					if (svc->conn_dataup.epoch !=
-					    ntohll(svc->conn_dataup.prdb_epoch)) {
-						if (svc->conn_dataup.ssa_db)
-							db_previous = svc->conn_dataup.ssa_db;
-						svc->conn_dataup.ssa_db = calloc(1, sizeof(*svc->conn_dataup.ssa_db));
-ssa_log(SSA_LOG_DEFAULT, "PRDB ssa_db new %p old %p\n", svc->conn_dataup.ssa_db, db_previous);
-						if (!svc->conn_dataup.ssa_db)
-							ssa_log_err(SSA_LOG_DEFAULT,
-								    "could not allocate ssa_db struct for new PRDB\n");
-						/* Should response (and epoch update) be after DB is pulled successfully ??? */
-						ssa_upstream_query_db_resp(svc->sock_upmain[1], SSA_DB_QUERY_EPOCH_CHANGED);
-						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
-ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due to updated epoch 0x%" PRIx64 "\n", svc->conn_dataup.rsock, svc->conn_dataup.phase, svc->conn_dataup.epoch);
-						/* Check connection state ??? */
-						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
-					} else {
-						/* No epoch change */
-						ssa_upstream_query_db_resp(svc->sock_upmain[1], -SSA_DB_QUERY_EPOCH_NOT_CHANGED);
-					}
-				} else {
-					/* No upstream connection */
-					ssa_upstream_query_db_resp(svc->sock_upmain[1], -SSA_DB_QUERY_NO_UPSTREAM_CONN);
-				}
+				ssa_upstream_handle_db_query(svc, svc->sock_upmain[1], fds);
 				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
