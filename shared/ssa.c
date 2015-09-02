@@ -209,7 +209,7 @@ static void ssa_close_ssa_conn(struct ssa_conn *conn);
 static int ssa_downstream_svc_server(struct ssa_svc *svc, struct ssa_conn *conn);
 static int ssa_upstream_initiate_conn(struct ssa_svc *svc, short dport);
 static int ssa_upstream_svc_client(struct ssa_svc *svc);
-static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status);
+static void ssa_upstream_query_db_resp(int sock, int status);
 static void ssa_upstream_reconnect(struct ssa_svc *svc, struct pollfd *fds);
 static int ssa_downstream_smdb_xfer_in_progress(struct ssa_svc *svc,
 						struct pollfd *fds, int nfds);
@@ -793,7 +793,7 @@ int ssa_upstream_query_db(struct ssa_svc *svc)
 }
 #endif
 
-static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status)
+static void ssa_upstream_query_db_resp(int sock, int status)
 {
 	int ret;
 	struct ssa_db_query_msg msg;
@@ -802,7 +802,7 @@ static void ssa_upstream_query_db_resp(struct ssa_svc *svc, int status)
 	msg.hdr.type = SSA_DB_QUERY;
 	msg.hdr.len = sizeof(msg);
 	msg.status = status;
-	ret = write(svc->sock_upmain[1], (char *) &msg, sizeof(msg));
+	ret = write(sock, (char *) &msg, sizeof(msg));
 	if (ret != sizeof(msg))
 		ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
 			    ret, sizeof(msg));
@@ -2088,18 +2088,18 @@ ssa_log(SSA_LOG_DEFAULT, "PRDB ssa_db new %p old %p\n", svc->conn_dataup.ssa_db,
 							ssa_log_err(SSA_LOG_DEFAULT,
 								    "could not allocate ssa_db struct for new PRDB\n");
 						/* Should response (and epoch update) be after DB is pulled successfully ??? */
-						ssa_upstream_query_db_resp(svc, SSA_DB_QUERY_EPOCH_CHANGED);
+						ssa_upstream_query_db_resp(svc->sock_upmain[1], SSA_DB_QUERY_EPOCH_CHANGED);
 						svc->conn_dataup.epoch = ntohll(svc->conn_dataup.prdb_epoch);
 ssa_log(SSA_LOG_DEFAULT, "updating upstream connection rsock %d in phase %d due to updated epoch 0x%" PRIx64 "\n", svc->conn_dataup.rsock, svc->conn_dataup.phase, svc->conn_dataup.epoch);
 						/* Check connection state ??? */
 						fds[UPSTREAM_DATA_FD_SLOT].events = ssa_upstream_update_conn(svc, fds[UPSTREAM_DATA_FD_SLOT].events);
 					} else {
 						/* No epoch change */
-						ssa_upstream_query_db_resp(svc, -SSA_DB_QUERY_EPOCH_NOT_CHANGED);
+						ssa_upstream_query_db_resp(svc->sock_upmain[1], -SSA_DB_QUERY_EPOCH_NOT_CHANGED);
 					}
 				} else {
 					/* No upstream connection */
-					ssa_upstream_query_db_resp(svc, -SSA_DB_QUERY_NO_UPSTREAM_CONN);
+					ssa_upstream_query_db_resp(svc->sock_upmain[1], -SSA_DB_QUERY_NO_UPSTREAM_CONN);
 				}
 				break;
 			default:
