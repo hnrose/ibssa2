@@ -6740,6 +6740,29 @@ static int ssa_admin_handle_disconnect(struct ssa_admin_msg *admin_request,
 	return 1;
 }
 
+#ifdef ACM
+static int ssa_admin_handle_dbquery(struct ssa_admin_msg *admin_request,
+				    struct ssa_admin_handler_context *context)
+{
+	GHashTableIter iter;
+	gpointer key, value;
+	struct ssa_svc *svc;
+	int ret, i = 0;
+
+	g_hash_table_iter_init(&iter, context->svcs_hash);
+	while (g_hash_table_iter_next(&iter, &key, &value)) {
+		if (i % 2) {
+			svc = (struct ssa_svc *) value;
+			ret = ssa_upstream_query_db_inner(svc->sock_adminup[1]);
+			if (ret)
+				return 1;
+		}
+		i++;
+	}
+
+	return 0;
+}
+#endif
 static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admin_request,
 						      struct ssa_admin_handler_context *context)
 {
@@ -6758,6 +6781,11 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 	case SSA_ADMIN_CMD_DISCONNECT:
 		error = ssa_admin_handle_disconnect(admin_request, context);
 		break;
+#ifdef ACM
+	case SSA_ADMIN_CMD_DBQUERY:
+		error = ssa_admin_handle_dbquery(admin_request, context);
+		break;
+#endif
 	default:
 		error = 1;
 	};

@@ -66,6 +66,7 @@ struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_NODEINFO] = { "nodeinfo",        SSA_ADMIN_CMD_NODEINFO, CMD_TYPE_MONITOR },
 #ifdef ADMIN_DEBUG_COMMANDS
 	[SSA_ADMIN_CMD_DISCONNECT] = { "disconnect", SSA_ADMIN_CMD_DISCONNECT, CMD_TYPE_DEBUG },
+	[SSA_ADMIN_CMD_DBQUERY] = { "dbquery", SSA_ADMIN_CMD_DBQUERY, CMD_TYPE_DEBUG },
 #endif
 };
 

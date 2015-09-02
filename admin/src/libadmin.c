@@ -170,6 +170,10 @@ static void disconnect_command_output(struct admin_command *cmd,
 				      struct cmd_exec_info *exec_info,
 				      union ibv_gid remote_gid,
 				      const struct ssa_admin_msg *msg);
+static void dbquery_command_output(struct admin_command *cmd,
+				   struct cmd_exec_info *exec_info,
+				   union ibv_gid remote_gid,
+				   const struct ssa_admin_msg *msg);
 #endif
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
@@ -219,6 +223,16 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		},
 		{ NULL, default_print_usage,
 		  "Break connection" }
+	},
+	[SSA_ADMIN_CMD_DBQUERY] = {
+		NULL,
+		NULL, NULL,
+		default_destroy,
+		default_create_msg,
+		dbquery_command_output,
+		{},
+		{ NULL, default_print_usage,
+		  "Force ACM node to pull data from Access node" }
 	}
 #endif
 };
@@ -1242,6 +1256,14 @@ static void disconnect_command_output(struct admin_command *cmd,
 
 	printf("Node %s was disconnected\n", addr_buf);
 
+}
+
+static void dbquery_command_output(struct admin_command *cmd,
+				   struct cmd_exec_info *exec_info,
+				   union ibv_gid remote_gid,
+				   const struct ssa_admin_msg *msg)
+{
+	printf("DB Query request was sent\n");
 }
 #endif
 
