@@ -2281,6 +2281,18 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 						    ret,
 						    msg.hdr.len - sizeof msg.hdr);
 			}
+
+			switch (msg.hdr.type) {
+			case SSA_DB_QUERY:
+				ssa_upstream_handle_db_query(svc, fds[UPSTREAM_ADMIN_SLOT].fd, fds);
+				break;
+			default:
+				ssa_log_warn(SSA_LOG_CTRL,
+					     "ignoring unexpected msg type %d "
+					     "from admin\n",
+					     msg.hdr.type);
+				break;
+			}
 		}
 
 		/* Only 1 upstream data connection currently */
@@ -7310,6 +7322,10 @@ static void *ssa_admin_handler(void *context)
 						ssa_log_warn(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
 								"connection from GID %s LID %u not found\n",
 								log_data, msg.data.conn_data.remote_lid);
+					break;
+				case SSA_DB_QUERY:
+					ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL,
+						"SSA_DB_QUERY received in admin thread from socket %u\n", fds[i].fd);
 					break;
 				default:
 					ssa_log_warn(SSA_LOG_CTRL,
