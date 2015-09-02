@@ -43,7 +43,7 @@ DBG += -DDEBUG
 DBG += -g
 endif
 
-AM_CPPFLAGS = $(INCLUDE_DIRS) $(DBG) -Wall -Werror -g
+AM_CPPFLAGS = $(INCLUDE_DIRS) $(DBG) -Wall -g
 
 COV =
 if COVERAGE

@@ -40,7 +40,7 @@ DBG += -g
 endif
 
 
-AM_CFLAGS  = -I. -I../include $(DBG) -Wall -Werror -D_GNU_SOURCE
+AM_CFLAGS  = -I. -I../include $(DBG) -Wall -D_GNU_SOURCE
 
 
 bin_PROGRAMS = loadsave
