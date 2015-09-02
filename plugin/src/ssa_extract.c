@@ -426,6 +426,8 @@ static void dump_port_qos(osm_port_t *p_port)
 				pkey_idx);
 		}
 	}
+#else
+	(void)(p_port);
 #endif
 }
 
