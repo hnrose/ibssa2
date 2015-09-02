@@ -3701,9 +3701,9 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 			goto skip_update;
 		} else if (!pr_changed && consumer->prdb_current) {
 			ssa_log(SSA_LOG_CTRL,
-				"PRDB calculated for GID %s is equal to "
-				"previous PRDB with epoch 0x%" PRIx64 "\n",
-				log_data, prdb_epoch);
+				"Path Records calculated for GID %s are equal "
+				"to the previous Path Records with epoch 0x%"
+				PRIx64 "\n", log_data, prdb_epoch);
 		}
 	} else if (ret == SSA_PR_PORT_ABSENT) {
 		if (consumer->smdb_epoch == DB_EPOCH_INVALID)
@@ -3717,8 +3717,8 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_svc *svc,
 				     log_data, epoch, consumer->smdb_epoch);
 	} else {
 		ssa_log(SSA_LOG_DEFAULT,
-			"PRDB calculation for GID %s failed for SMDB with "
-			"epoch 0x%" PRIx64 "\n", log_data, epoch);
+			"Path Record calculation for GID %s failed for SMDB "
+			"with epoch 0x%" PRIx64 "\n", log_data, epoch);
 
 		if (err_smdb_dump) {
 			n = snprintf(dump_dir, sizeof(dump_dir),
