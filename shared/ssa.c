@@ -4014,6 +4014,8 @@ static void *ssa_access_prdb_handler(void *context)
 {
 	struct ssa_db_update db_upd;
 
+	(void)(context);
+
 	SET_THREAD_NAME(*access_prdb_handler, "ACCESS_PRDB");
 
 	ssa_log_func(SSA_LOG_CTRL);
