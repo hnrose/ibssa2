@@ -2286,6 +2286,18 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from downstream with outstanding c
 			case SSA_DB_QUERY:
 				ssa_upstream_handle_db_query(svc, fds[UPSTREAM_ADMIN_SLOT].fd, fds);
 				break;
+			case SSA_ADMIN_REJOIN:
+				if (svc->conn_dataup.rsock >= 0)
+					ssa_close_ssa_conn(&svc->conn_dataup);
+				fds[UPSTREAM_DATA_FD_SLOT].fd = -1;
+				fds[UPSTREAM_DATA_FD_SLOT].events = 0;
+				fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
+				svc->state = SSA_STATE_IDLE;
+				ssa_upstream_stop_reconnection(svc, fds);
+				ssa_log(SSA_LOG_DEFAULT,
+					"start rejoin indicating bad parent in response to admin request\n");
+				ssa_svc_join(svc, 1);
+				break;
 			default:
 				ssa_log_warn(SSA_LOG_CTRL,
 					     "ignoring unexpected msg type %d "
@@ -6763,6 +6775,38 @@ static int ssa_admin_handle_dbquery(struct ssa_admin_msg *admin_request,
 	return 0;
 }
 #endif
+
+static int ssa_admin_handle_rejoin(struct ssa_admin_msg *admin_request,
+				   struct ssa_admin_handler_context *context)
+{
+	GHashTableIter iter;
+	gpointer key, value;
+	struct ssa_svc *svc;
+	int ret, i = 0;
+	struct ssa_ctrl_msg_buf msg;
+
+	if (context->ssa->node_type & SSA_NODE_CORE)
+		return 1;
+
+	msg.hdr.len = sizeof msg.hdr;
+	msg.hdr.type = SSA_ADMIN_REJOIN;
+
+	g_hash_table_iter_init(&iter, context->svcs_hash);
+	while (g_hash_table_iter_next(&iter, &key, &value)) {
+		if (i % 2) {
+			svc = (struct ssa_svc *) value;
+			ret = write(svc->sock_adminup[1], (char *) &msg, sizeof msg.hdr);
+			if (ret != sizeof msg.hdr) {
+				ssa_log_err(SSA_LOG_CTRL, "%d out of %d bytes written\n",
+					    ret, sizeof msg.hdr);
+				return 1;
+			}
+		}
+		i++;
+	}
+
+	return 0;
+}
 static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admin_request,
 						      struct ssa_admin_handler_context *context)
 {
@@ -6786,6 +6830,9 @@ static struct ssa_admin_msg *ssa_admin_handle_message(struct ssa_admin_msg *admi
 		error = ssa_admin_handle_dbquery(admin_request, context);
 		break;
 #endif
+	case SSA_ADMIN_CMD_REJOIN:
+		error = ssa_admin_handle_rejoin(admin_request, context);
+		break;
 	default:
 		error = 1;
 	};

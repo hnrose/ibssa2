@@ -57,7 +57,8 @@ enum ssa_ctrl_msg_type {
 	SSA_DB_UPDATE,		/* struct ssa_db_update_msg */
 	SSA_DB_QUERY,		/* struct ssa_db_query_msg */
 	SSA_DB_UPDATE_PREPARE,	/* struct ssa_db_update_msg */
-	SSA_DB_UPDATE_READY	/* struct ssa_db_update_msg */
+	SSA_DB_UPDATE_READY,	/* struct ssa_db_update_msg */
+	SSA_ADMIN_REJOIN
 };
 
 struct ssa_ctrl_msg {

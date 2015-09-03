@@ -174,6 +174,10 @@ static void dbquery_command_output(struct admin_command *cmd,
 				   struct cmd_exec_info *exec_info,
 				   union ibv_gid remote_gid,
 				   const struct ssa_admin_msg *msg);
+static void rejoin_command_output(struct admin_command *cmd,
+				  struct cmd_exec_info *exec_info,
+				  union ibv_gid remote_gid,
+				  const struct ssa_admin_msg *msg);
 #endif
 
 static struct cmd_struct_impl admin_cmd_command_impls[] = {
@@ -233,6 +237,16 @@ static struct cmd_struct_impl admin_cmd_command_impls[] = {
 		{},
 		{ NULL, default_print_usage,
 		  "Force ACM node to pull data from Access node" }
+	},
+	[SSA_ADMIN_CMD_REJOIN] = {
+		NULL,
+		NULL, NULL,
+		default_destroy,
+		default_create_msg,
+		rejoin_command_output,
+		{},
+		{ NULL, default_print_usage,
+		  "Force SSA node to rejoin to distribution tree" }
 	}
 #endif
 };
@@ -1264,6 +1278,18 @@ static void dbquery_command_output(struct admin_command *cmd,
 				   const struct ssa_admin_msg *msg)
 {
 	printf("DB Query request was sent\n");
+}
+
+static void rejoin_command_output(struct admin_command *cmd,
+				  struct cmd_exec_info *exec_info,
+				  union ibv_gid remote_gid,
+				  const struct ssa_admin_msg *msg)
+{
+	char addr_buf[128];
+
+	ssa_format_addr(addr_buf, sizeof addr_buf, SSA_ADDR_GID,
+			remote_gid.raw, sizeof remote_gid.raw);
+	printf("Node %s is rejoining\n", addr_buf);
 }
 #endif
 
