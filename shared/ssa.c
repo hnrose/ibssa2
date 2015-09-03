@@ -6737,7 +6737,7 @@ static int ssa_admin_handle_disconnect(struct ssa_admin_msg *admin_request,
 
 	g_hash_table_iter_init(&iter, context->connections_hash);
 	while (g_hash_table_iter_next(&iter, &key, &value)) {
-		connection = (struct ssa_admin_connection_info *)value;
+		connection = (struct ssa_admin_connection_info *) value;
 
 		if ((admin_request->data.disconnect.type == SSA_ADDR_LID &&
 		     connection->remote_lid == admin_request->data.disconnect.id.lid) ||
