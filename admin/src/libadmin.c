@@ -1552,8 +1552,15 @@ static int admin_connect_new_nodes(struct pollfd **fds,
 	return 0;
 }
 
+static inline int should_send_command(int filter, const struct ssa_admin_msg *rmsg)
+{
+	struct ssa_admin_nodeinfo *nodeinfo = (struct ssa_admin_nodeinfo *) &rmsg->data.nodeinfo;
+
+	return nodeinfo->type & filter;
+}
+
 int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
-			 int argc, char **argv)
+			 int filter, int argc, char **argv)
 {
 	struct cmd_struct_impl *nodeinfo_impl;
 	struct admin_command *nodeinfo_cmd;
@@ -1751,6 +1758,10 @@ int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
 					ret = admin_connect_new_nodes(&fds, &connections, mode, &n, connections[i].rmsg);
 					if (ret) {
 						fprintf(stderr, "WARNING - failed to connect downstream nodes\n");
+						continue;
+					}
+					if (!should_send_command(filter, connections[i].rmsg)) {
+						admin_close_connection(&fds[i], &connections[i]);
 						continue;
 					}
 					if (cmd != SSA_ADMIN_CMD_NODEINFO) {

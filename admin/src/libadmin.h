@@ -88,6 +88,7 @@ void admin_disconnect(int rsock);
 
 struct cmd_opts *admin_get_cmd_opts(int cmd);
 const struct cmd_help *admin_cmd_help(int cmd);
-int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode, int argc, char **argv);
+int admin_exec_recursive(int rsock, int cmd, enum admin_recursion_mode mode,
+			 int filter ,int argc, char **argv);
 
 #endif /* _LIB_ADMIN_H */

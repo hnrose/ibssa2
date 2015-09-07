@@ -10,6 +10,7 @@ ssadmin \- test and configuration utility for SSA services
         [[-a | --admin_port] <server port>]
         [[-t | --timeout] <timeout>]
         [-r | --recursive=[d|u]]
+        [--filter=<core|acm|distrib|access>]
         <command> [<args>]
 .fi
 .SH "DESCRIPTION"
@@ -53,6 +54,9 @@ Timeout for command processing in milliseconds (default: 1000).
 .TP
 \-r, \-\-recursive=[d|u]
 Send a command recursively. By default the command is sent down to all connected node. Long option allows to specify the direction. "d" - send the command down, "u" - send the command to upstream connections.
+.TP
+\-\-filter=<core|acm|distrib|access>
+Send a command only to specific type of nodes. "core" - send the command only to core node, "distrib" - send the command only to distribution nodes, "access" - send the command only to access nodes, "acm" - send the command only for ACM nodes. The option should be used in recursive mode.
 .TP
 \-v, \-\-version
 Prints ssadmin version and exit.

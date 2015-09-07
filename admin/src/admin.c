@@ -43,11 +43,25 @@
 #include "libadmin.h"
 #include <osd.h>
 #include <ssa_admin.h>
+#include <infiniband/ssa_mad.h>
 
 enum {
 	ADMIN_PARSE_ARGS_NO_COMMAND = 1,
 	ADMIN_PARSE_ARGS_OK = 0,
 	ADMIN_PARSE_ARGS_ERROR = -1
+};
+
+struct admin_filter_opt
+{
+	short val;
+	const char *name;
+};
+
+struct admin_filter_opt admin_filter_opts[] = {
+	{SSA_NODE_CORE, "core"},
+	{SSA_NODE_DISTRIBUTION, "distrib"},
+	{SSA_NODE_ACCESS, "access"},
+	{SSA_NODE_CONSUMER, "acm"}
 };
 
 static int src_port = -1;
@@ -58,6 +72,8 @@ static uint16_t dest_lid;
 static uint16_t pkey;
 static int timeout = 1000;
 static short recursive = ADMIN_RECURSION_NONE;
+static int filter = 0xf;
+
 
 struct cmd_struct admin_cmds[] = {
 	[SSA_ADMIN_CMD_STATS]= { "stats",     SSA_ADMIN_CMD_STATS,     CMD_TYPE_MONITOR },
@@ -82,6 +98,7 @@ static struct option long_option[] = {
 	{"version",      no_argument,       0, 'v'},
 	{"help",         no_argument,       0, 'h'},
 	{"recursive",    optional_argument, 0, 'r'},
+	{"filter",	 required_argument, 0, 0},
 	{"timeout",      required_argument, 0, 't'},
 	{0, 0, 0, 0}	/* Required at the end of the array */
 };
@@ -90,7 +107,8 @@ static const char admin_usage_string[] =
 	"ssadmin  [-v | --version] [-h | --help] [[-l | --lid] <dlid>] [[-g | --gid] <dgid>]\n"
 	"\t\t[[-d | --device] <device name>] [[-P | --Port] <CA port>] \n"
 	"\t\t[[-p | --pkey] <partition key>] [[-a | --admin_port] <admin server port>]\n"
-	"\t\t[[-t | --timeout] <operation timeout>] [-r | --recursive=[d|u]]";
+	"\t\t[[-t | --timeout] <operation timeout>] [-r | --recursive=[d|u]]\n"
+	"\t\t[--filter=<core|acm|distrib|access>]";
 
 static const char admin_more_info_string[] =
 	"'ssadmin help <command>' shows specific subcommand "
@@ -251,7 +269,7 @@ static int get_short_opts(char *buf, int len)
 static int parse_opts(int argc, char **argv, int *status)
 {
 	struct option *long_option_arr = NULL;
-	int option, opt_num, n, i = 0, ret = 0;
+	int option, opt_num, option_index = 0, n, i = 0, ret = 0;
 	char buf[256] = { 0 };
 	char *endptr;
 	long int tmp;
@@ -282,8 +300,24 @@ static int parse_opts(int argc, char **argv, int *status)
 
 	do {
 		option = getopt_long(argc, argv, buf,
-				     long_option_arr, NULL);
+				     long_option_arr, &option_index);
 		switch (option) {
+		case 0:
+			if (!strcmp("filter", long_option_arr[option_index].name)) {
+				for (i = 0; i < ARRAY_SIZE(admin_filter_opts); ++i) {
+					if (!strcmp(admin_filter_opts[i].name, optarg)) {
+						filter = admin_filter_opts[i].val;
+						break;
+					}
+				}
+				if (i == ARRAY_SIZE(admin_filter_opts)) {
+					fprintf(stderr, "ERROR - wrong value in option - %s\n",
+						long_option_arr[option_index].name);
+					ret = 1;
+					goto out;
+				}
+			}
+			break;
 		case 'l':
 			tmp = strtol(optarg, &endptr, 10);
 			if (endptr == optarg) {
@@ -502,7 +536,7 @@ int main(int argc, char **argv)
 	}
 
 	optind = 1;
-	ret = admin_exec_recursive(rsock, cmd->id, recursive, argc, argv);
+	ret = admin_exec_recursive(rsock, cmd->id, recursive, filter, argc, argv);
 	if (ret) {
 		fprintf(stderr, "Failed executing '%s' command (%s)\n",
 			cmd->cmd, admin_cmd_help(cmd->id)->desc);
