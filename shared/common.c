@@ -207,7 +207,6 @@ void ssa_format_admin_msg(char *buf, size_t size, const struct ssa_admin_msg *ms
 	if (len <= sizeof(msg->hdr))
 		return;
 
-
 	snprintf(buf + strlen(buf), size - strlen(buf), "Payload: ");
 
 	switch (ntohs(msg->hdr.opcode)) {
