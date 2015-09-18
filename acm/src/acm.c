@@ -2289,8 +2289,7 @@ acm_upstream_query_db(struct acm_ep *ep)
 			ret = ssa_upstream_query_db(svc);
 			if (ret)
 				ssa_log(SSA_LOG_CTRL,
-					"unsuccessful last DB query (status: %d)\n",
-					ret);
+					"last DB query status: %d\n", ret);
 		}
 	}
 }
