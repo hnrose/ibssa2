@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2009-2010 Intel Corporation.  All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies LTD. All rights reserved.
+ * Copyright (c) 2013-2015 Mellanox Technologies LTD. All rights reserved.
  *
  * This software is available to you under the OpenIB.org BSD license
  * below:
@@ -39,12 +39,13 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 
 #include <osd.h>
 #include <infiniband/verbs.h>
@@ -81,6 +82,12 @@ int dev_cnt;
 extern char **parse(char *args, int *count);
 
 #define VPRINT(format, ...) do { if (verbose) printf(format, ## __VA_ARGS__ ); } while (0)
+
+#define MAX_IPOIB_IFS 16
+struct ipoib_intf {
+	uint32_t ifindex;
+	char ifname[IFNAMSIZ];
+};
 
 static void show_usage(char *program)
 {
@@ -551,13 +558,13 @@ static int gen_addr_names(FILE *f)
 }
 
 static int
-get_pkey(struct ifreq *ifreq, uint16_t *pkey)
+get_pkey(char *if_name, uint16_t *pkey)
 {
 	char buf[128], *end;
 	FILE *f;
 	int ret;
 
-	snprintf(buf, sizeof buf, "//sys//class//net//%s//pkey", ifreq->ifr_name);
+	snprintf(buf, sizeof buf, "//sys//class//net//%s//pkey", if_name);
 	f = fopen(buf, "r");
 	if (!f) {
 		printf("failed to open %s\n", buf);
@@ -577,13 +584,13 @@ get_pkey(struct ifreq *ifreq, uint16_t *pkey)
 }
 
 static int
-get_sgid(struct ifreq *ifr, union ibv_gid *sgid)
+get_sgid(char *if_name, union ibv_gid *sgid)
 {
 	char buf[128], *end;
 	FILE *f;
 	int i, p, ret;
 
-	snprintf(buf, sizeof buf, "//sys//class//net//%s//address", ifr->ifr_name);
+	snprintf(buf, sizeof buf, "//sys//class//net//%s//address", if_name);
 	f = fopen(buf, "r");
 	if (!f) {
 		printf("failed to open %s\n", buf);
@@ -606,21 +613,20 @@ get_sgid(struct ifreq *ifr, union ibv_gid *sgid)
 }
 
 static int
-get_devaddr(int s, struct ifreq *ifr,
-	int *dev_index, uint8_t *port, uint16_t *pkey)
+get_devaddr(char *if_name, int *dev_index, uint8_t *port, uint16_t *pkey)
 {
 	struct ibv_device_attr dev_attr;
 	struct ibv_port_attr port_attr;
 	union ibv_gid sgid, gid;
 	int ret, i;
 
-	ret = get_sgid(ifr, &sgid);
+	ret = get_sgid(if_name, &sgid);
 	if (ret) {
 		printf("unable to get sgid\n");
 		return ret;
 	}
 
-	ret = get_pkey(ifr, pkey);
+	ret = get_pkey(if_name, pkey);
 	if (ret) {
 		printf("unable to get pkey\n");
 		return ret;
@@ -649,73 +655,271 @@ get_devaddr(int s, struct ifreq *ifr,
 	return -1;
 }
 
-static int gen_addr_ip(FILE *f)
+int find_first_empty_intf(struct ipoib_intf ipoib_intfs[])
 {
-	struct ifconf *ifc;
-	struct ifreq *ifr;
-	char ip[INET6_ADDRSTRLEN];
-	int s, ret, dev_index, i, len;
+	int i;
+
+	for (i = 0; i < MAX_IPOIB_IFS; i++) {
+		if (ipoib_intfs[i].ifindex == -1)
+			return i;
+	}
+	return -1;
+}
+
+int ipoib_intf_index(struct ipoib_intf ipoib_intfs[], uint32_t ifindex)
+{
+	int i;
+
+	for (i = 0; i < MAX_IPOIB_IFS; i++) {
+		if (ipoib_intfs[i].ifindex == -1)
+			return -1;
+		if (ipoib_intfs[i].ifindex == ifindex)
+			return i;
+	}
+	return -1;
+}
+
+void get_ipoib_links(struct nlmsghdr *hdr, struct ipoib_intf ipoib_intfs[])
+{
+	struct ifinfomsg *intf;
+	struct rtattr *attr;
+	int attr_len, i;
+
+	intf = NLMSG_DATA(hdr);
+	attr_len = IFLA_PAYLOAD(hdr);
+	for (attr = IFLA_RTA(intf); RTA_OK(attr, attr_len);
+	     attr = RTA_NEXT(attr, attr_len)) {
+		if (attr->rta_type == IFLA_IFNAME &&
+		    intf->ifi_type == ARPHRD_INFINIBAND) {
+			i = find_first_empty_intf(ipoib_intfs);
+			if (i != -1) {
+				ipoib_intfs[i].ifindex = intf->ifi_index;
+				strncpy(ipoib_intfs[i].ifname, RTA_DATA(attr),
+					sizeof(ipoib_intfs[i].ifname)); 
+			} else
+				printf("ipoib_intfs table is full\n");
+		}
+	}
+}
+
+void get_ipaddrs(struct nlmsghdr *hdr, struct ipoib_intf ipoib_intfs[], FILE *f)
+{
+	struct ifaddrmsg *addr;
+	struct rtattr *attr;
+	int attr_len, index, dev_index, ret;
 	uint16_t pkey;
+	char ipaddr[INET6_ADDRSTRLEN];
 	uint8_t port;
 
-	s = socket(AF_INET6, SOCK_DGRAM, 0);
+	addr = NLMSG_DATA(hdr);
+	attr_len = IFA_PAYLOAD(hdr);
+	for (attr = IFA_RTA(addr); RTA_OK(attr, attr_len);
+	     attr = RTA_NEXT(attr, attr_len)) {
+		if (attr->rta_type == IFA_ADDRESS) {
+			index = ipoib_intf_index(ipoib_intfs, addr->ifa_index);
+			if (index != -1) {
+				if (addr->ifa_family == AF_INET6)
+					inet_ntop(AF_INET6, RTA_DATA(attr),
+						  ipaddr, sizeof(ipaddr));
+				else
+					inet_ntop(AF_INET, RTA_DATA(attr),
+						  ipaddr, sizeof(ipaddr));
+				ret = get_devaddr(ipoib_intfs[index].ifname,
+						  &dev_index, &port, &pkey);
+				if (ret)
+					continue;
+
+				if (verbose)
+					printf("%s %s %d 0x%x\n", ipaddr,
+					       verbs[dev_index]->device->name,
+					       port, pkey);
+				fprintf(f, "%s %s %d 0x%x\n",
+					ipaddr, verbs[dev_index]->device->name,
+					port, pkey);
+			}
+		}
+	}
+}
+
+static int gen_addr_ip(FILE *f)
+{
+	static uint32_t sequence = 0;
+	int s, ret = -1, i, len, end = 0;
+	struct nlmsghdr *nh;
+	struct nlmsgerr *err;
+	struct sockaddr_nl sa;
+	struct msghdr msg;
+	struct iovec iov;
+	struct {
+		struct nlmsghdr hdr;
+		struct rtgenmsg gen;
+	} request;
+	struct {
+		struct nlmsghdr hdr;
+		struct ifaddrmsg addr;
+	} addr_request;
+	struct {
+		struct nlmsghdr hdr;
+		char buf[4096];
+	} *response;
+	struct ipoib_intf ipoib_intfs[MAX_IPOIB_IFS];
+
+	s = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (!s)
 		return -1;
 
-	len = sizeof(*ifc) + sizeof(*ifr) * 64;
-	ifc = malloc(len);
-	if (!ifc) {
-		ret = -1;
-		goto out1;
+	response = malloc(sizeof(*response));
+	if (!response)
+		goto out;
+
+	for (i = 0; i < MAX_IPOIB_IFS; i++) {
+		ipoib_intfs[i].ifindex = -1;
+		memset(ipoib_intfs[i].ifname, 0, sizeof(ipoib_intfs[i].ifname)) ;
 	}
 
-	memset(ifc, 0, len);
-	ifc->ifc_len = len;
-	ifc->ifc_req = (struct ifreq *) (ifc + 1);
-
-	ret = ioctl(s, SIOCGIFCONF, ifc);
+	memset(&sa, 0, sizeof(sa));
+	sa.nl_family = AF_NETLINK;
+	ret = bind(s, (struct sockaddr *) &sa, sizeof(sa));
 	if (ret < 0) {
-		printf("ioctl ifconf error %d\n", ret);
-		goto out2;
+		printf("failed to bind netlink socket: %s\n", strerror(errno));
+		goto out;
 	}
 
-	ifr = ifc->ifc_req;
-	for (i = 0; i < ifc->ifc_len / sizeof(struct ifreq); i++) {
-		switch (ifr[i].ifr_addr.sa_family) {
-		case AF_INET:
-			inet_ntop(ifr[i].ifr_addr.sa_family,
-				&((struct sockaddr_in *) &ifr[i].ifr_addr)->sin_addr, ip, sizeof ip);
-			break;
-		case AF_INET6:
-			inet_ntop(ifr[i].ifr_addr.sa_family,
-				&((struct sockaddr_in6 *) &ifr[i].ifr_addr)->sin6_addr, ip, sizeof ip);
-			break;
-		default:
-			continue;
-		}
+	/* First, get all IPoIB interfaces (links) */
+	memset(&msg, 0, sizeof(msg));
+	memset(&request, 0, sizeof(request));
 
-		ret = ioctl(s, SIOCGIFHWADDR, &ifr[i]);
-		if (ret) {
-			printf("failed to get hw address %d\n", ret);
-			continue;
-		}
+	request.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(request.gen));
+	request.hdr.nlmsg_type = RTM_GETLINK;
+	request.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	request.hdr.nlmsg_seq = ++sequence;
+	request.hdr.nlmsg_pid = getpid();
+	request.gen.rtgen_family = AF_PACKET;
 
-		if (ifr[i].ifr_hwaddr.sa_family != ARPHRD_INFINIBAND)
-			continue;
+	iov.iov_base = &request;
+	iov.iov_len = request.hdr.nlmsg_len;
 
-		ret = get_devaddr(s, &ifr[i], &dev_index, &port, &pkey);
-		if (ret)
-			continue;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_name = &sa;
+	msg.msg_namelen = sizeof(sa);
 
-		if (verbose)
-			printf("%s %s %d 0x%x\n", ip, verbs[dev_index]->device->name, port, pkey);
-		fprintf(f, "%s %s %d 0x%x\n", ip, verbs[dev_index]->device->name, port, pkey);
+	ret = sendmsg(s, (struct msghdr *) &msg, 0);
+	if (ret < 0) {
+		printf("sendmsg RTM_GETLINK failed: %s\n", strerror(errno));
+		goto out;
 	}
+
+	while (!end) {
+		iov.iov_base = response;
+		iov.iov_len = sizeof(*response);
+
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_name = &sa;
+		msg.msg_namelen = sizeof(sa);
+
+		len = recvmsg(s, &msg, 0);
+		if (len < 0) {
+			printf("recvmsg RTM_GETLINK failed: %s\n",
+			       strerror(errno));
+			ret = len;
+			goto out;
+		}
+
+		for (nh = &response->hdr; NLMSG_OK(nh, len);
+		     nh = NLMSG_NEXT(nh, len)) {
+			/* End of multipart message */
+			if (nh->nlmsg_type == NLMSG_DONE) {
+				end = 1;
+				break;
+			}
+
+			if (nh->nlmsg_type == NLMSG_ERROR) {
+				err = NLMSG_DATA(nh);
+				printf("NLMSG_ERROR %d while handling RTM_GETLINK response\n",
+				        err->error);
+				end = 1;
+				break;
+			}
+
+			if (nh->nlmsg_type == RTM_NEWLINK) {
+				get_ipoib_links(nh, ipoib_intfs);
+			} else {
+				printf("unexpected message type %d length %d\n",
+				       nh->nlmsg_type, nh->nlmsg_len);
+			}
+		}
+	}
+
+	/* Now, get IPv4 and IPv6 addresses for the IPoIB interfaces (links) */
+	for (i = 0; i < 2; i++) {
+
+		memset(&msg, 0, sizeof(msg));
+		memset(&addr_request, 0, sizeof(addr_request));
+
+		addr_request.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(addr_request.addr));
+		addr_request.hdr.nlmsg_type = RTM_GETADDR;
+		addr_request.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+		addr_request.hdr.nlmsg_seq = ++sequence;
+		addr_request.hdr.nlmsg_pid = getpid();
+		addr_request.addr.ifa_family = (i == 0) ? AF_INET : AF_INET6;
+		iov.iov_base = &addr_request;
+		iov.iov_len = addr_request.hdr.nlmsg_len;
+
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_name = &sa;
+		msg.msg_namelen = sizeof(sa);
+
+		ret = sendmsg(s, (struct msghdr *) &msg, 0);
+		if (ret < 0) {
+			printf("sendmsg RTM_GETADDR failed: %s\n", strerror(errno));
+			goto out;
+		}
+
+		end = 0;
+		while (!end) {
+			iov.iov_base = response;
+			iov.iov_len = sizeof(*response);
+
+			msg.msg_iov = &iov;
+			msg.msg_iovlen = 1;
+			msg.msg_name = &sa;
+			msg.msg_namelen = sizeof(sa);
+
+			len = recvmsg(s, &msg, 0);
+
+			for (nh = &response->hdr; NLMSG_OK(nh, len);
+			     nh = NLMSG_NEXT(nh, len)) {
+				/* End of multipart message */
+				if (nh->nlmsg_type == NLMSG_DONE) {
+					end = 1;
+					break;
+				}
+
+				if (nh->nlmsg_type == NLMSG_ERROR) {
+					err = NLMSG_DATA(nh);
+					printf("NLMSG_ERROR %d while handling RTM_GETADDR response\n",
+					       err->error);
+					end = 1;
+					break;
+				}
+
+				if (nh->nlmsg_type == RTM_NEWADDR) {
+					get_ipaddrs(nh, ipoib_intfs, f);
+				} else {
+					printf("unexpected message type %d length %d\n",
+					       nh->nlmsg_type, nh->nlmsg_len);
+				}
+			}
+		}
+	}
+
 	ret = 0;
 
-out2:
-	free(ifc);
-out1:
+out:
+	free(response);
 	close(s);
 	return ret;
 }
