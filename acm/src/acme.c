@@ -655,7 +655,7 @@ get_devaddr(char *if_name, int *dev_index, uint8_t *port, uint16_t *pkey)
 	return -1;
 }
 
-int find_first_empty_intf(struct ipoib_intf ipoib_intfs[])
+int find_first_avail_ipoib_index(struct ipoib_intf ipoib_intfs[])
 {
 	int i;
 
@@ -691,7 +691,7 @@ void get_ipoib_links(struct nlmsghdr *hdr, struct ipoib_intf ipoib_intfs[])
 	     attr = RTA_NEXT(attr, attr_len)) {
 		if (attr->rta_type == IFLA_IFNAME &&
 		    intf->ifi_type == ARPHRD_INFINIBAND) {
-			i = find_first_empty_intf(ipoib_intfs);
+			i = find_first_avail_ipoib_index(ipoib_intfs);
 			if (i != -1) {
 				ipoib_intfs[i].ifindex = intf->ifi_index;
 				strncpy(ipoib_intfs[i].ifname, RTA_DATA(attr),
