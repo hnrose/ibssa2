@@ -34,7 +34,7 @@
 #include <infiniband/acm.h>
 #include <dlist.h>
 
-#define MAX_EP_ADDR 4
+#define MAX_EP_ADDR 8
 #define MAX_EP_MC   2
 
 /* Map to ACM_EP_INFO_* */
