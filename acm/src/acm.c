@@ -3757,7 +3757,7 @@ static int acm_assign_ep_names(struct acm_ep *ep)
 			(ep->pkey == pkey)) {
 
 			if ((ret = acm_ep_insert_addr(ep,
-						      (type == ACM_ADDRESS_NAME) ? (uint8_t *)&addr : (uint8_t *)&ip_addr,
+						      (type == ACM_ADDRESS_NAME) ? (uint8_t *) &addr : (uint8_t *) &ip_addr,
 						      addr_len, type, ep->ifindex)) != 0) {
 				ssa_log(SSA_LOG_VERBOSE,
 					"maximum number of names assigned to EP\n");
