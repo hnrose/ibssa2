@@ -852,7 +852,8 @@ static int acm_addr_index(struct acm_ep *ep, uint8_t *addr, uint8_t addr_type)
 	int i;
 
 	for (i = 0; i < MAX_EP_ADDR; i++) {
-		if (ep->addr_type[i] != addr_type)
+		if (ep->addr_type[i] == ACM_ADDRESS_INVALID ||
+		    ep->addr_type[i] != addr_type)
 			continue;
 
 		if ((addr_type == ACM_ADDRESS_NAME &&
