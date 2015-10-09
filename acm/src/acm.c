@@ -2012,7 +2012,7 @@ acm_get_ep(struct acm_ep_addr_data *data)
 
 	acm_format_name(SSA_LOG_DEFAULT, log_data, sizeof log_data,
 			data->type, data->info.addr, sizeof data->info.addr);
-	ssa_log(SSA_LOG_VERBOSE, "notice - could not find %s\n", log_data);
+	ssa_log(SSA_LOG_DEFAULT, "notice - could not find %s\n", log_data);
 	return NULL;
 }
 
