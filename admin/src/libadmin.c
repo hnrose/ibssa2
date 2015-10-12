@@ -1003,6 +1003,10 @@ static void stats_command_output(struct admin_command *cmd,
 			case ssa_stats_timestamp:
 				timestamp.tv_sec = epoch.tv_sec + val / 1000;
 				timestamp.tv_usec = epoch.tv_usec + (val % 1000) * 1000;
+				if (timestamp.tv_usec > 1e6) {
+					timestamp.tv_usec -= 1e6;
+					timestamp.tv_sec++;
+				}
 				timestamp_time =  timestamp.tv_sec;
 				printf("%s ", stats_descr[i].name);
 				ssa_write_date(stdout, timestamp_time, timestamp.tv_usec);
