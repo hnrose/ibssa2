@@ -608,7 +608,8 @@ static void ssa_upstream_dev_event(struct ssa_svc *svc,
 	}
 }
 
-void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+		      struct pollfd *pfd)
 {
 	struct ssa_umad *umad;
 	struct ssa_mad_packet *mad;
@@ -676,6 +677,11 @@ void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
 			if (svc->conn_dataup.rsock >= 0) {
 				ssa_upstream_conn(svc, &svc->conn_dataup, 1);
 				ssa_close_ssa_conn(&svc->conn_dataup);
+if (pfd) {
+				pfd->fd = -1;
+				pfd->events = 0;
+				pfd->revents = 0;
+} else ssa_log(SSA_LOG_DEFAULT, "pfd NULL!!!\n");
 				svc->state = SSA_STATE_HAVE_PARENT;
 			}
 			memcpy(&svc->primary, &info_rec->path_data,
@@ -1344,7 +1350,7 @@ static void ssa_upstream_send_db_update(struct ssa_svc *svc, struct ssa_db *db,
 				    ret, sizeof(msg));
 	}
 	if (svc->process_msg)
-		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg);
+		svc->process_msg(svc, (struct ssa_ctrl_msg_buf *) &msg, NULL);
 	ssa_db_update_change_stats(db);
 }
 
@@ -1982,12 +1988,14 @@ static void *ssa_upstream_handler(void *context)
 						    ret,
 						    msg.hdr.len - sizeof msg.hdr);
 			}
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg &&
+			    svc->process_msg(svc, &msg, &fds[UPSTREAM_DATA_FD_SLOT]))
 				goto check_fd1;
 
 			switch (msg.hdr.type) {
 			case SSA_CTRL_MAD:
-				ssa_upstream_mad(svc, &msg);
+				ssa_upstream_mad(svc, &msg,
+						 &fds[UPSTREAM_DATA_FD_SLOT]);
 				break;
 			case SSA_CTRL_DEV_EVENT:
 				ssa_upstream_dev_event(svc, &msg,
@@ -2061,7 +2069,7 @@ check_fd1:
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 
@@ -2108,7 +2116,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 
@@ -2144,7 +2152,7 @@ ssa_log(SSA_LOG_DEFAULT, "SSA_DB_UPDATE_READY from access with outstanding count
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 
@@ -2376,7 +2384,7 @@ else ssa_log(SSA_LOG_DEFAULT, "reusing rbuf %p rsize %d roffset %d rhdr %p\n", s
 
 			fds[UPSTREAM_DATA_FD_SLOT].revents = 0;
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 		}
@@ -3252,7 +3260,7 @@ static void *ssa_downstream_handler(void *context)
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 
@@ -3294,7 +3302,7 @@ static void *ssa_downstream_handler(void *context)
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 
@@ -3421,7 +3429,7 @@ static void *ssa_downstream_handler(void *context)
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 
@@ -3482,7 +3490,7 @@ if (update_pending) ssa_log(SSA_LOG_DEFAULT, "unexpected update pending!\n");
 						    msg.hdr.len - sizeof msg.hdr);
 			}
 #if 0
-			if (svc->process_msg && svc->process_msg(svc, &msg))
+			if (svc->process_msg && svc->process_msg(svc, &msg, NULL))
 				continue;
 #endif
 			switch (msg.hdr.type) {
@@ -4470,7 +4478,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				}
 #if 0
 				if (svc_arr[i]->process_msg &&
-				    svc_arr[i]->process_msg(svc_arr[i], &msg))
+				    svc_arr[i]->process_msg(svc_arr[i], &msg, NULL))
 					continue;
 #endif
 
@@ -4558,7 +4566,7 @@ if (update_waiting) ssa_log(SSA_LOG_DEFAULT, "unexpected update waiting!\n");
 				}
 #if 0
 				if (svc_arr[i]->process_msg &&
-				    svc_arr[i]->process_msg(svc_arr[i], &msg))
+				    svc_arr[i]->process_msg(svc_arr[i], &msg, NULL))
 					continue;
 #endif
 
@@ -5471,7 +5479,8 @@ void ssa_ctrl_stop(struct ssa_class *ssa)
 struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			      size_t svc_size,
 			      int (*process_msg)(struct ssa_svc *svc,
-					         struct ssa_ctrl_msg_buf *msg),
+					         struct ssa_ctrl_msg_buf *msg,
+						 struct pollfd *pfd),
 			      int (*init_svc)(struct ssa_svc *svc),
 			      void (*destroy_svc)(struct ssa_svc *svc))
 {

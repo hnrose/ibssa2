@@ -1278,7 +1278,8 @@ static int core_process_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *
 	return 0;
 }
 
-static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static int core_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+			    struct pollfd *pfd)
 {
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	switch(msg->hdr.type) {

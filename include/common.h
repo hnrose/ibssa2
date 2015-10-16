@@ -237,7 +237,8 @@ struct ssa_svc {
 	char			name[SSA_NAME_SIZE];
 	uint64_t		database_id;
 	int			(*process_msg)(struct ssa_svc *svc,
-					       struct ssa_ctrl_msg_buf *msg);
+					       struct ssa_ctrl_msg_buf *msg,
+					       struct pollfd *pfd);
 	int			sock_upctrl[2];
 	int			sock_downctrl[2];
 	int			sock_upmain[2];
@@ -298,11 +299,13 @@ struct host_addr {
 int ssa_open_devices(struct ssa_class *ssa);
 void ssa_close_devices(struct ssa_class *ssa);
 
-void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg);
+void ssa_upstream_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+		      struct pollfd *pfd);
 struct ssa_svc *ssa_start_svc(struct ssa_port *port, uint64_t database_id,
 			      size_t svc_size,
 			      int (*process_msg)(struct ssa_svc *svc,
-					         struct ssa_ctrl_msg_buf *msg),
+					         struct ssa_ctrl_msg_buf *msg,
+						 struct pollfd *pfd),
 			      int (*init_svc)(struct ssa_svc *svc),
 			      void (*destroy_svc)(struct ssa_svc *svc));
 int ssa_start_access(struct ssa_class *ssa);

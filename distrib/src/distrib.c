@@ -80,10 +80,11 @@ static struct ssa_class ssa;
 pthread_t ctrl_thread;
 
 
-static void distrib_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static void distrib_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+				       struct pollfd *pfd)
 {
 	/* First, handle set of parent in SSA */
-	ssa_upstream_mad(svc, msg);
+	ssa_upstream_mad(svc, msg, pfd);
 
 	/* Now, initiate rsocket client connection to parent */
 	if (svc->state == SSA_STATE_HAVE_PARENT)
@@ -91,7 +92,8 @@ static void distrib_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_
 }
 
 static int distrib_process_ssa_mad(struct ssa_svc *svc,
-				   struct ssa_ctrl_msg_buf *msg)
+				   struct ssa_ctrl_msg_buf *msg,
+				   struct pollfd *pfd)
 {
 	struct ssa_umad *umad;
 
@@ -110,7 +112,7 @@ static int distrib_process_ssa_mad(struct ssa_svc *svc,
 	switch (umad->packet.mad_hdr.method) {
 	case UMAD_METHOD_SET:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
-			distrib_process_parent_set(svc, msg);
+			distrib_process_parent_set(svc, msg, pfd);
 			return 1;
 		}
 		break;
@@ -121,12 +123,13 @@ static int distrib_process_ssa_mad(struct ssa_svc *svc,
 	return 0;
 }
 
-static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static int distrib_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+			       struct pollfd *pfd)
 {
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	switch(msg->hdr.type) {
 	case SSA_CTRL_MAD:
-		return distrib_process_ssa_mad(svc, msg);
+		return distrib_process_ssa_mad(svc, msg, pfd);
 	case SSA_DB_UPDATE:
 		ssa_log(SSA_LOG_DEFAULT, "SSA DB update ssa_db %p epoch 0x%" PRIx64 "\n", ((struct ssa_db_update_msg *)msg)->db_upd.db, ((struct ssa_db_update_msg *)msg)->db_upd.epoch);
 		if (smdb_dump)

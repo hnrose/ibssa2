@@ -4491,17 +4491,19 @@ static int acm_open_devices(void)
 	return 0;
 }
 
-static void acm_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static void acm_process_parent_set(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+				   struct pollfd *pfd)
 {
 	/* First, handle set of parent in SSA */
-	ssa_upstream_mad(svc, msg);
+	ssa_upstream_mad(svc, msg, pfd);
 
 	/* Now, initiate rsocket client connection to parent */
 	if (svc->state == SSA_STATE_HAVE_PARENT)
 		ssa_ctrl_conn(svc->port->dev->ssa, svc);
 }
 
-static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+			       struct pollfd *pfd)
 {
 	struct ssa_umad *umad;
 
@@ -4520,7 +4522,7 @@ static int acm_process_ssa_mad(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg
 	switch (umad->packet.mad_hdr.method) {
 	case UMAD_METHOD_SET:
 		if (ntohs(umad->packet.mad_hdr.attr_id) == SSA_ATTR_INFO_REC) {
-			acm_process_parent_set(svc, msg);
+			acm_process_parent_set(svc, msg, pfd);
 			return 1;
 		}
 		break;
@@ -4550,14 +4552,15 @@ static int acm_process_dev_event(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *m
 	return 0;
 }
 
-static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg)
+static int acm_process_msg(struct ssa_svc *svc, struct ssa_ctrl_msg_buf *msg,
+			   struct pollfd *pfd)
 {
 	int i;
 
 	ssa_log(SSA_LOG_VERBOSE | SSA_LOG_CTRL, "%s\n", svc->name);
 	switch(msg->hdr.type) {
 	case SSA_CTRL_MAD:
-		return acm_process_ssa_mad(svc, msg);
+		return acm_process_ssa_mad(svc, msg, pfd);
 	case SSA_CONN_DONE:
 ssa_log(SSA_LOG_DEFAULT, "client (upstream) connection completed on rsock %d\n", ((struct ssa_conn_done_msg *)msg)->data.rsock);
 		/* Request ssa_db ? */
