@@ -126,8 +126,8 @@ void ssa_ipdb_attach(struct ssa_db *ssa_db, struct ssa_db *ipdb)
 		if (ret < 0)
 			ssa_log_err(SSA_LOG_DEFAULT,
 				    "unable to attach %s table from %s %p "
-				    "epoch 0x" PRIx64 " to %s %p epoch "
-				    "0x" PRIx64 "\n", addr_data_tbl_name[i],
+				    "epoch 0x%" PRIx64 " to %s %p epoch "
+				    "0x%" PRIx64 "\n", addr_data_tbl_name[i],
 				    ipdb->db_def.name, ipdb,
 				    ssa_db_get_epoch(ipdb, DB_DEF_TBL_ID),
 				    ssa_db->db_def.name, ssa_db,
