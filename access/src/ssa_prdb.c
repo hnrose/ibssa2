@@ -80,8 +80,8 @@ static void prdb_attach_ipdb()
 		if (def_tbl[i].type == DBT_TYPE_DATA) {
 			def_tbl[i].id.table += PRDB_TBL_OFFSET;
 		} else if (def_tbl[i].type == DBT_TYPE_DEF) {
-			def_tbl[i].id.table -= IPDB_TBL_ID_MAX;
-			def_tbl[i].id.table += PRDB_DATA_TBLS + PRDB_TBL_OFFSET;
+			def_tbl[i].id.table +=
+				PRDB_DATA_TBLS + PRDB_TBL_OFFSET - IPDB_TBL_ID_MAX;
 			def_tbl[i].ref_table_id =
 				htonl(ntohl(def_tbl[i].ref_table_id) +
 					    PRDB_TBL_OFFSET);
@@ -97,16 +97,15 @@ static void prdb_attach_ipdb()
 	offset = PRDB_TBL_OFFSET;
 	for (i = offset; i < PRDB_DATA_TBLS; i++) {
 		field_dataset_tbl[i] = ip_field_dataset_tbl[i - offset];
-		field_dataset_tbl[i].id.table -= IPDB_TBL_ID_MAX;
 		field_dataset_tbl[i].id.table +=
-			PRDB_DATA_TBLS + PRDB_TBL_OFFSET;
+			PRDB_DATA_TBLS + PRDB_TBL_OFFSET - IPDB_TBL_ID_MAX;
 	}
 
 	offset = PRDB_FIELDS - IPDB_FIELDS;
 	for (i = offset; i < PRDB_FIELDS; i++) {
 		field_tbl[i] = ip_field_tbl[i - offset];
-		field_tbl[i].id.table -= IPDB_TBL_ID_MAX;
-		field_tbl[i].id.table += PRDB_DATA_TBLS + PRDB_TBL_OFFSET;
+		field_tbl[i].id.table +=
+			PRDB_DATA_TBLS + PRDB_TBL_OFFSET - IPDB_TBL_ID_MAX;
 	}
 }
 
