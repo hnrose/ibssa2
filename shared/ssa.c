@@ -3821,6 +3821,7 @@ static struct ssa_db *ssa_calculate_prdb(struct ssa_access_member *consumer)
 	if (prdb) {
 		ssa_db_destroy(consumer->prdb_current);
 		consumer->prdb_current = prdb;
+		prdb = NULL;
 	}
 
 	if (consumer->prdb_current)
