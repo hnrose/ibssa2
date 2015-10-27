@@ -47,6 +47,8 @@
 
 BEGIN_C_DECLS
 
+#define PRDB_PR_TBL_NAME "PR"
+
 enum prdb_tbl_id {
 	PRDB_TBL_ID_PR = 0,
 	PRDB_TBL_ID_IPv4,
@@ -80,6 +82,25 @@ struct prdb_pr {
 #define PRDB_DATA_TBLS		PRDB_TBL_ID_MAX
 #define PRDB_FIELDS		PRDB_FIELD_ID_PR_MAX + IPDB_FIELDS
 #define PRDB_TBL_OFFSET		1
+
+#define DBT_TABLE_DEF_PR(id) DBT_TABLE_DEF(id, PRDB_PR_TBL_NAME, sizeof(struct prdb_pr))
+
+#define DBF_TABLE_DEF_PR(id, offset) DBF_TABLE_DEF(id, offset, PRDB_PR_TBL_NAME)
+
+#define DB_FIELD_DEF_PR_DGUID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET64, tbl_id, PRDB_FIELD_ID_PR_DGUID, "guid", 64, 0)
+#define DB_FIELD_DEF_PR_DLID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, PRDB_FIELD_ID_PR_DLID, "guid", 16, 64)
+#define DB_FIELD_DEF_PR_PK(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, PRDB_FIELD_ID_PR_PK, "pkey", 16, 80)
+#define DB_FIELD_DEF_PR_MTU(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, PRDB_FIELD_ID_PR_MTU, "mtu", 8, 96)
+#define DB_FIELD_DEF_PR_RATE(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, PRDB_FIELD_ID_PR_RATE, "rate", 8, 104)
+#define DB_FIELD_DEF_PR_SL(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, PRDB_FIELD_ID_PR_SL, "sl", 8, 112)
+#define DB_FIELD_DEF_PR_REVERSIBLE(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, PRDB_FIELD_ID_PR_REVERSIBLE, "reversible", 8, 120)
 
 extern struct ssa_db  *ssa_prdb_create(uint64_t epoch, uint64_t num_recs[PRDB_TBL_ID_MAX]);
 

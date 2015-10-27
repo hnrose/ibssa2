@@ -41,31 +41,29 @@ extern struct db_dataset	ip_field_dataset_tbl[];
 extern struct db_field_def	ip_field_tbl[];
 
 static struct db_table_def def_tbl[] = {
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, PRDB_TBL_ID_PR, 0 },
-		"PR", __constant_htonl(sizeof(struct prdb_pr)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, 0 },
-		"PR fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(PRDB_TBL_ID_PR) },
+	DBT_TABLE_DEF_PR(PRDB_TBL_ID_PR),
+	DBF_TABLE_DEF_PR(PRDB_TBL_ID_PR, PRDB_TBL_ID_MAX),
 	[PRDB_TBLS] = { DB_VERSION_INVALID }
 };
 
 static struct db_dataset dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, PRDB_TBL_ID_PR, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	DB_DATASET(PRDB_TBL_ID_PR),
 	[PRDB_DATA_TBLS] = { DB_VERSION_INVALID }
 };
 
 static struct db_dataset field_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	DB_DATASET(PRDB_TBL_ID_PR + PRDB_TBL_ID_MAX),
 	[PRDB_DATA_TBLS] = { DB_VERSION_INVALID }
 };
 
 static struct db_field_def field_tbl[] = {
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET64, 0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, PRDB_FIELD_ID_PR_DGUID      }, "guid",       __constant_htonl(64),                  0    },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, PRDB_FIELD_ID_PR_DLID       }, "dlid",       __constant_htonl(16), __constant_htonl(64)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, PRDB_FIELD_ID_PR_PK         }, "pkey",       __constant_htonl(16), __constant_htonl(80)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, PRDB_FIELD_ID_PR_MTU        }, "mtu",        __constant_htonl(8),  __constant_htonl(96)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, PRDB_FIELD_ID_PR_RATE       }, "rate",       __constant_htonl(8),  __constant_htonl(104) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, PRDB_FIELD_ID_PR_SL         }, "sl",         __constant_htonl(8),  __constant_htonl(112) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR, PRDB_FIELD_ID_PR_REVERSIBLE }, "reversible", __constant_htonl(8),  __constant_htonl(120) },
+	DB_FIELD_DEF_PR_DGUID(PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR),
+	DB_FIELD_DEF_PR_DLID(PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR),
+	DB_FIELD_DEF_PR_PK(PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR),
+	DB_FIELD_DEF_PR_MTU(PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR),
+	DB_FIELD_DEF_PR_RATE(PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR),
+	DB_FIELD_DEF_PR_SL(PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR),
+	DB_FIELD_DEF_PR_REVERSIBLE(PRDB_TBL_ID_MAX + PRDB_TBL_ID_PR),
 	[PRDB_FIELDS] = { DB_VERSION_INVALID }
 };
 
