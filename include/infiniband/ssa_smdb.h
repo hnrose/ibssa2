@@ -192,20 +192,6 @@ struct smdb_lft_block {
 
 #define SSA_TABLE_BLOCK_SIZE			1024
 
-/* each data table has field table, pkey table has no field table */
-#define SMDB_TBLS		(SMDB_TBL_ID_MAX * 2 - 1)
-#define SMDB_DATA_TBLS		SMDB_TBL_ID_MAX
-#define SMDB_FIELDS		(SMDB_FIELD_ID_SUBNET_OPTS_MAX + \
-				 SMDB_FIELD_ID_GUID2LID_MAX + \
-				 SMDB_FIELD_ID_NODE_MAX + \
-				 SMDB_FIELD_ID_LINK_MAX + \
-				 SMDB_FIELD_ID_PORT_MAX + \
-				 SMDB_FIELD_ID_LFT_TOP_MAX + \
-				 SMDB_FIELD_ID_LFT_BLOCK_MAX + \
-				 IPDB_FIELDS)
-#define SMDB_TBL_OFFSET		8
-
-
 #define DBT_TABLE_DEF_SUBNET_OPTS(id) DBT_TABLE_DEF(id, "SUBNET_OPTS", sizeof(struct smdb_subnet_opts))
 #define DBT_TABLE_DEF_GUID2LID(id) DBT_TABLE_DEF(id, "GUID_to_LID", sizeof(struct smdb_guid2lid))
 #define DBT_TABLE_DEF_NODE(id) DBT_TABLE_DEF(id, "NODE", sizeof(struct smdb_node))

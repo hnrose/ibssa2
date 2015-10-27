@@ -115,10 +115,6 @@ struct ipdb_name {
 	uint8_t		addr[64];
 };
 
-#define IPDB_FIELDS	(IPDB_FIELD_ID_IPv4_MAX + \
-			 IPDB_FIELD_ID_IPv6_MAX + \
-			 IPDB_FIELD_ID_NAME_MAX)
-
 #define DBT_TABLE_DEF_IPV4(id) DBT_TABLE_DEF(id, IPDB_IPV4_TBL_NAME, sizeof(struct ipdb_ipv4))
 #define DBT_TABLE_DEF_IPV6(id) DBT_TABLE_DEF(id, IPDB_IPV6_TBL_NAME, sizeof(struct ipdb_ipv6))
 #define DBT_TABLE_DEF_NAME(id) DBT_TABLE_DEF(id, IPDB_NAME_TBL_NAME, sizeof(struct ipdb_name))

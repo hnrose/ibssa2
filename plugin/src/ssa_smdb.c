@@ -34,11 +34,6 @@
 #include <infiniband/ssa_smdb_api.h>
 #include <asm/byteorder.h>
 
-extern struct db_table_def	ip_def_tbl[];
-extern struct db_dataset	ip_dataset_tbl[];
-extern struct db_dataset	ip_field_dataset_tbl[];
-extern struct db_field_def	ip_field_tbl[];
-
 static struct db_table_def def_tbl[] = {
 	DBT_TABLE_DEF_SUBNET_OPTS(SMDB_TBL_ID_SUBNET_OPTS),
 	DBF_TABLE_DEF_SUBNET_OPTS(SMDB_TBL_ID_SUBNET_OPTS, SMDB_TBL_ID_MAX),
@@ -55,7 +50,13 @@ static struct db_table_def def_tbl[] = {
 	DBF_TABLE_DEF_LFT_TOP(SMDB_TBL_ID_LFT_TOP, SMDB_TBL_ID_MAX),
 	DBT_TABLE_DEF_LFT_BLOCK(SMDB_TBL_ID_LFT_BLOCK),
 	DBF_TABLE_DEF_LFT_BLOCK(SMDB_TBL_ID_LFT_BLOCK, SMDB_TBL_ID_MAX),
-	[SMDB_TBLS] = { DB_VERSION_INVALID }
+	DBT_TABLE_DEF_IPV4(SMDB_TBL_ID_IPv4),
+	DBF_TABLE_DEF_IPV4(SMDB_TBL_ID_IPv4, SMDB_TBL_ID_MAX),
+	DBT_TABLE_DEF_IPV6(SMDB_TBL_ID_IPv6),
+	DBF_TABLE_DEF_IPV6(SMDB_TBL_ID_IPv6, SMDB_TBL_ID_MAX),
+	DBT_TABLE_DEF_NAME(SMDB_TBL_ID_NAME),
+	DBF_TABLE_DEF_NAME(SMDB_TBL_ID_NAME, SMDB_TBL_ID_MAX),
+	{ DB_VERSION_INVALID }
 };
 
 static struct db_dataset dataset_tbl[] = {
@@ -67,7 +68,10 @@ static struct db_dataset dataset_tbl[] = {
 	DB_DATASET(SMDB_TBL_ID_PKEY),
 	DB_DATASET(SMDB_TBL_ID_LFT_TOP),
 	DB_DATASET(SMDB_TBL_ID_LFT_BLOCK),
-	[SMDB_DATA_TBLS] = { DB_VERSION_INVALID }
+	DB_DATASET(SMDB_TBL_ID_IPv4),
+	DB_DATASET(SMDB_TBL_ID_IPv6),
+	DB_DATASET(SMDB_TBL_ID_NAME),
+	{ DB_VERSION_INVALID }
 };
 
 static struct db_dataset field_dataset_tbl[] = {
@@ -79,7 +83,10 @@ static struct db_dataset field_dataset_tbl[] = {
 	DB_DATASET(SMDB_TBL_ID_MAX + SMDB_TBL_ID_PKEY),
 	DB_DATASET(SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_TOP),
 	DB_DATASET(SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_BLOCK),
-	[SMDB_DATA_TBLS] = { DB_VERSION_INVALID }
+	DB_DATASET(SMDB_TBL_ID_IPv4 + SMDB_TBL_ID_MAX),
+	DB_DATASET(SMDB_TBL_ID_IPv6 + SMDB_TBL_ID_MAX),
+	DB_DATASET(SMDB_TBL_ID_NAME + SMDB_TBL_ID_MAX),
+	{ DB_VERSION_INVALID }
 };
 
 static struct db_field_def field_tbl[] = {
@@ -113,56 +120,34 @@ static struct db_field_def field_tbl[] = {
 	DB_FIELD_DEF_LFT_BLOCK_LID(SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_BLOCK),
 	DB_FIELD_DEF_LFT_BLOCK_BLOCK_NUM(SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_BLOCK),
 	DB_FIELD_DEF_LFT_BLOCK_BLOCK(SMDB_TBL_ID_MAX + SMDB_TBL_ID_LFT_BLOCK),
-	[SMDB_FIELDS] = { DB_VERSION_INVALID }
+	DB_FIELD_DEF_IPV4_QPN(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_PKEY(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_FLAGS(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_RESERVED(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_GID(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_ADDR(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV6_QPN(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_PKEY(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_FLAGS(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_RESERVED(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_GID(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_ADDR(SMDB_TBL_ID_MAX + SMDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_NAME_QPN(SMDB_TBL_ID_MAX + SMDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_PKEY(SMDB_TBL_ID_MAX + SMDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_FLAGS(SMDB_TBL_ID_MAX + SMDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_RESERVED(SMDB_TBL_ID_MAX + SMDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_GID(SMDB_TBL_ID_MAX + SMDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_ADDR(SMDB_TBL_ID_MAX + SMDB_TBL_ID_NAME),
+	{ DB_VERSION_INVALID }
 };
-
-static void smdb_attach_ipdb()
-{
-	int i = 0;
-	uint8_t offset;
-
-	offset = SMDB_TBL_OFFSET * 2 - 1; /* no field table for pkey record */
-	for (i = offset; i < SMDB_TBLS; i++) {
-		def_tbl[i] = ip_def_tbl[i - offset];
-		if (def_tbl[i].type == DBT_TYPE_DATA) {
-			def_tbl[i].id.table += SMDB_TBL_OFFSET;
-		} else if (def_tbl[i].type == DBT_TYPE_DEF) {
-			def_tbl[i].id.table +=
-				SMDB_DATA_TBLS + SMDB_TBL_OFFSET - IPDB_TBL_ID_MAX;
-			def_tbl[i].ref_table_id =
-				htonl(ntohl(def_tbl[i].ref_table_id) +
-					    SMDB_TBL_OFFSET);
-		}
-	}
-
-	offset = SMDB_TBL_OFFSET;
-	for (i = offset; i < SMDB_DATA_TBLS; i++) {
-		dataset_tbl[i] = ip_dataset_tbl[i - offset];
-		dataset_tbl[i].id.table += offset;
-	}
-
-	offset = SMDB_TBL_OFFSET;
-	for (i = offset; i < SMDB_DATA_TBLS; i++) {
-		field_dataset_tbl[i] = ip_field_dataset_tbl[i - offset];
-		field_dataset_tbl[i].id.table +=
-			SMDB_DATA_TBLS + SMDB_TBL_OFFSET - IPDB_TBL_ID_MAX;
-	}
-
-	offset = SMDB_FIELDS - IPDB_FIELDS;
-	for (i = offset; i < SMDB_FIELDS; i++) {
-		field_tbl[i] = ip_field_tbl[i - offset];
-		field_tbl[i].id.table +=
-			SMDB_DATA_TBLS + SMDB_TBL_OFFSET - IPDB_TBL_ID_MAX;
-	}
-}
 
 /** =========================================================================
  */
-struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SMDB_DATA_TBLS])
+struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SMDB_TBL_ID_MAX])
 {
 	struct ssa_db *p_ssa_db;
-	uint64_t num_field_recs_arr[SMDB_DATA_TBLS];
-	size_t recs_size_arr[SMDB_DATA_TBLS];
+	uint64_t num_field_recs_arr[SMDB_TBL_ID_MAX];
+	size_t recs_size_arr[SMDB_TBL_ID_MAX];
 
 	recs_size_arr[SMDB_TBL_ID_SUBNET_OPTS]	= sizeof(struct smdb_subnet_opts);
 	recs_size_arr[SMDB_TBL_ID_GUID2LID]	= sizeof(struct smdb_guid2lid);
@@ -190,8 +175,6 @@ struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SMDB_DATA_
 
 	p_ssa_db = ssa_db_alloc(data_rec_cnt, recs_size_arr,
 				num_field_recs_arr, SMDB_TBL_ID_MAX);
-
-	smdb_attach_ipdb();
 
 	ssa_db_init(p_ssa_db, "SMDB", 12 /* just some db_id */, epoch, def_tbl,
 		    dataset_tbl, field_dataset_tbl, field_tbl);
