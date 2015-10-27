@@ -119,6 +119,53 @@ struct ipdb_name {
 			 IPDB_FIELD_ID_IPv6_MAX + \
 			 IPDB_FIELD_ID_NAME_MAX)
 
+#define DBT_TABLE_DEF_IPV4(id) DBT_TABLE_DEF(id, IPDB_IPV4_TBL_NAME, sizeof(struct ipdb_ipv4))
+#define DBT_TABLE_DEF_IPV6(id) DBT_TABLE_DEF(id, IPDB_IPV6_TBL_NAME, sizeof(struct ipdb_ipv6))
+#define DBT_TABLE_DEF_NAME(id) DBT_TABLE_DEF(id, IPDB_NAME_TBL_NAME, sizeof(struct ipdb_name))
+
+#define DBF_TABLE_DEF_IPV4(id, offset) DBF_TABLE_DEF(id, offset, IPDB_IPV4_TBL_NAME)
+#define DBF_TABLE_DEF_IPV6(id, offset) DBF_TABLE_DEF(id, offset, IPDB_IPV6_TBL_NAME)
+#define DBF_TABLE_DEF_NAME(id, offset) DBF_TABLE_DEF(id, offset, IPDB_NAME_TBL_NAME)
+
+#define DB_FIELD_DEF_IPV4_QPN(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET32, tbl_id, IPDB_FIELD_ID_IPv4_QPN, "qpn", 32, 0)
+#define DB_FIELD_DEF_IPV4_PKEY(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, IPDB_FIELD_ID_IPv4_PKEY, "pkey", 16, 32)
+#define DB_FIELD_DEF_IPV4_FLAGS(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv4_FLAGS, "flags", 8, 48)
+#define DB_FIELD_DEF_IPV4_RESERVED(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv4_RESERVED, "reserved", 8, 56)
+#define DB_FIELD_DEF_IPV4_GID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv4_GID, "gid", 8 * 16, 64)
+#define DB_FIELD_DEF_IPV4_ADDR(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv4_ADDR, "ipv4_address", 8 * 4, 192)
+
+#define DB_FIELD_DEF_IPV6_QPN(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET32, tbl_id, IPDB_FIELD_ID_IPv6_QPN, "qpn", 32, 0)
+#define DB_FIELD_DEF_IPV6_PKEY(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, IPDB_FIELD_ID_IPv6_PKEY, "pkey", 16, 32)
+#define DB_FIELD_DEF_IPV6_FLAGS(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv6_FLAGS, "flags", 8, 48)
+#define DB_FIELD_DEF_IPV6_RESERVED(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv6_RESERVED, "reserved", 8, 56)
+#define DB_FIELD_DEF_IPV6_GID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv6_GID, "gid", 8 * 16, 64)
+#define DB_FIELD_DEF_IPV6_ADDR(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_IPv6_ADDR, "ipv6_address", 8 * 16, 192)
+
+#define DB_FIELD_DEF_NAME_QPN(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET32, tbl_id, IPDB_FIELD_ID_NAME_QPN, "qpn", 32, 0)
+#define DB_FIELD_DEF_NAME_PKEY(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, IPDB_FIELD_ID_NAME_PKEY, "pkey", 16, 32)
+#define DB_FIELD_DEF_NAME_FLAGS(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_NAME_FLAGS, "flags", 8, 48)
+#define DB_FIELD_DEF_NAME_RESERVED(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_NAME_RESERVED, "reserved", 8, 56)
+#define DB_FIELD_DEF_NAME_GID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_NAME_GID, "gid", 8 * 16, 64)
+#define DB_FIELD_DEF_NAME_ADDR(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, IPDB_FIELD_ID_NAME_ADDR, "name_address", 8 * 64, 192)
+
 struct ssa_db *ssa_ipdb_create(uint64_t epoch, uint64_t num_recs[IPDB_TBL_ID_MAX]);
 void ssa_ipdb_attach(struct ssa_db *ssa_db, struct ssa_db *ipdb);
 void ssa_ipdb_detach(struct ssa_db *ssa_db);

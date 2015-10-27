@@ -411,6 +411,20 @@ struct ssa_db {
 	uint64_t		data_tbl_cnt;
 };
 
+#define DBT_TABLE_DEF(id, name, rsize) \
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, \
+	  { 0, id, 0 }, name, __constant_htonl(rsize), 0 }
+
+#define DBF_TABLE_DEF(id, offset, name) \
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, id + offset, 0 }, \
+	  name" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(id) }
+
+#define DB_DATASET(id) \
+	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, id, 0 }, DB_EPOCH_INVALID, 0, 0, 0 }
+
+#define DB_FIELD_DEF(type, id, fid, name, size, offset) \
+	{ DBF_DEF_VERSION, 0, type, 0, { 0, id, fid }, name, __constant_htonl(size), __constant_htonl(offset) }
+
 struct ssa_db *ssa_db_alloc(uint64_t * p_num_recs_arr,
 			    size_t * p_recs_size_arr,
 			    uint64_t * p_num_field_recs_arr,

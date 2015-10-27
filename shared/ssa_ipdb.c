@@ -43,54 +43,48 @@ const char *addr_data_tbl_name[] =
 		  [IPDB_TBL_ID_NAME] = IPDB_NAME_TBL_NAME };
 
 const struct db_table_def ip_def_tbl[] = {
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, IPDB_TBL_ID_IPv4, 0 },
-		IPDB_IPV4_TBL_NAME, __constant_htonl(sizeof(struct ipdb_ipv4)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, 0 },
-		IPDB_IPV4_TBL_NAME" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_IPv4) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, IPDB_TBL_ID_IPv6, 0 },
-		IPDB_IPV6_TBL_NAME, __constant_htonl(sizeof(struct ipdb_ipv6)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, 0 },
-		IPDB_IPV6_TBL_NAME" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_IPv6) },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, { 0, IPDB_TBL_ID_NAME, 0 },
-		IPDB_NAME_TBL_NAME, __constant_htonl(sizeof(struct ipdb_name)), 0 },
-	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, 0 },
-		IPDB_NAME_TBL_NAME" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(IPDB_TBL_ID_NAME) },
+	DBT_TABLE_DEF_IPV4(IPDB_TBL_ID_IPv4),
+	DBF_TABLE_DEF_IPV4(IPDB_TBL_ID_IPv4, IPDB_TBL_ID_MAX),
+	DBT_TABLE_DEF_IPV6(IPDB_TBL_ID_IPv6),
+	DBF_TABLE_DEF_IPV6(IPDB_TBL_ID_IPv6, IPDB_TBL_ID_MAX),
+	DBT_TABLE_DEF_NAME(IPDB_TBL_ID_NAME),
+	DBF_TABLE_DEF_NAME(IPDB_TBL_ID_NAME, IPDB_TBL_ID_MAX),
 	{ DB_VERSION_INVALID }
 };
 
 const struct db_dataset ip_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_IPv4, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_IPv6, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_NAME, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	DB_DATASET(IPDB_TBL_ID_IPv4),
+	DB_DATASET(IPDB_TBL_ID_IPv6),
+	DB_DATASET(IPDB_TBL_ID_NAME),
 	{ DB_VERSION_INVALID }
 };
 
 const struct db_dataset ip_field_dataset_tbl[] = {
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
-	{ DB_DS_VERSION, sizeof(struct db_dataset), 0, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, 0 }, DB_EPOCH_INVALID, 0, 0, 0 },
+	DB_DATASET(IPDB_TBL_ID_IPv4 + IPDB_TBL_ID_MAX),
+	DB_DATASET(IPDB_TBL_ID_IPv6 + IPDB_TBL_ID_MAX),
+	DB_DATASET(IPDB_TBL_ID_NAME + IPDB_TBL_ID_MAX),
 	{ DB_VERSION_INVALID }
 };
 
 const struct db_field_def ip_field_tbl[] = {
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET32, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, IPDB_FIELD_ID_IPv4_QPN      }, "qpn",          __constant_htonl(32),                      0    },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, IPDB_FIELD_ID_IPv4_PKEY     }, "pkey",         __constant_htonl(16),     __constant_htonl(32)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, IPDB_FIELD_ID_IPv4_FLAGS    }, "flags",        __constant_htonl(8),      __constant_htonl(48)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, IPDB_FIELD_ID_IPv4_RESERVED }, "reserved",     __constant_htonl(8),      __constant_htonl(56)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, IPDB_FIELD_ID_IPv4_GID      }, "gid",          __constant_htonl(8 * 16), __constant_htonl(64)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4, IPDB_FIELD_ID_IPv4_ADDR     }, "ipv4_address", __constant_htonl(8 * 4),  __constant_htonl(192) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET32, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, IPDB_FIELD_ID_IPv6_QPN      }, "qpn",          __constant_htonl(32),                      0    },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, IPDB_FIELD_ID_IPv6_PKEY     }, "pkey",         __constant_htonl(16),     __constant_htonl(32)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, IPDB_FIELD_ID_IPv6_FLAGS    }, "flags",        __constant_htonl(8),      __constant_htonl(48)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, IPDB_FIELD_ID_IPv6_RESERVED }, "reserved",     __constant_htonl(8),      __constant_htonl(56)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, IPDB_FIELD_ID_IPv6_GID      }, "gid",          __constant_htonl(8 * 16), __constant_htonl(64)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6, IPDB_FIELD_ID_IPv6_ADDR     }, "ipv6_address", __constant_htonl(8 * 16), __constant_htonl(192) },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET32, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, IPDB_FIELD_ID_NAME_QPN      }, "qpn",          __constant_htonl(32),                      0    },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_NET16, 0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, IPDB_FIELD_ID_NAME_PKEY     }, "pkey",         __constant_htonl(16),     __constant_htonl(32)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, IPDB_FIELD_ID_NAME_FLAGS    }, "flags",        __constant_htonl(8),      __constant_htonl(48)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, IPDB_FIELD_ID_NAME_RESERVED }, "reserved",     __constant_htonl(8),      __constant_htonl(56)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, IPDB_FIELD_ID_NAME_GID      }, "gid",          __constant_htonl(8 * 16), __constant_htonl(64)  },
-	{ DBF_DEF_VERSION, 0, DBF_TYPE_U8,    0, { 0, IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME, IPDB_FIELD_ID_NAME_ADDR     }, "name_address", __constant_htonl(8 * 64), __constant_htonl(192) },
+	DB_FIELD_DEF_IPV4_QPN(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_PKEY(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_FLAGS(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_RESERVED(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_GID(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV4_ADDR(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv4),
+	DB_FIELD_DEF_IPV6_QPN(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_PKEY(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_FLAGS(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_RESERVED(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_GID(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_IPV6_ADDR(IPDB_TBL_ID_MAX + IPDB_TBL_ID_IPv6),
+	DB_FIELD_DEF_NAME_QPN(IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_PKEY(IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_FLAGS(IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_RESERVED(IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_GID(IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME),
+	DB_FIELD_DEF_NAME_ADDR(IPDB_TBL_ID_MAX + IPDB_TBL_ID_NAME),
 	{ DB_VERSION_INVALID }
 };
 
