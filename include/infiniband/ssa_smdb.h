@@ -205,6 +205,90 @@ struct smdb_lft_block {
 				 IPDB_FIELDS)
 #define SMDB_TBL_OFFSET		8
 
+
+#define DBT_TABLE_DEF_SUBNET_OPTS(id) DBT_TABLE_DEF(id, "SUBNET_OPTS", sizeof(struct smdb_subnet_opts))
+#define DBT_TABLE_DEF_GUID2LID(id) DBT_TABLE_DEF(id, "GUID_to_LID", sizeof(struct smdb_guid2lid))
+#define DBT_TABLE_DEF_NODE(id) DBT_TABLE_DEF(id, "NODE", sizeof(struct smdb_node))
+#define DBT_TABLE_DEF_LINK(id) DBT_TABLE_DEF(id, "LINK", sizeof(struct smdb_link))
+#define DBT_TABLE_DEF_PORT(id) DBT_TABLE_DEF(id, "PORT", sizeof(struct smdb_port))
+#define DBT_TABLE_DEF_LFT_TOP(id) DBT_TABLE_DEF(id, "LFT_TOP", sizeof(struct smdb_lft_top))
+#define DBT_TABLE_DEF_LFT_BLOCK(id) DBT_TABLE_DEF(id, "LFT_BLOCK", sizeof(struct smdb_lft_block))
+
+#define DBF_TABLE_DEF_SUBNET_OPTS(id, offset) DBF_TABLE_DEF(id, offset, "SUBNET_OPTS")
+#define DBF_TABLE_DEF_GUID2LID(id, offset) DBF_TABLE_DEF(id, offset, "GUID_to_LID")
+#define DBF_TABLE_DEF_NODE(id, offset) DBF_TABLE_DEF(id, offset, "NODE")
+#define DBF_TABLE_DEF_LINK(id, offset) DBF_TABLE_DEF(id, offset, "LINK")
+#define DBF_TABLE_DEF_PORT(id, offset) DBF_TABLE_DEF(id, offset, "PORT")
+#define DBF_TABLE_DEF_LFT_TOP(id, offset) DBF_TABLE_DEF(id, offset, "LFT_TOP")
+#define DBF_TABLE_DEF_LFT_BLOCK(id, offset) DBF_TABLE_DEF(id, offset, "LFT_BLOCK")
+
+#define DB_FIELD_DEF_SUBNET_OPTS_CHANGE_MASK(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET64, tbl_id, SMDB_FIELD_ID_SUBNET_OPTS_CHANGE_MASK, "change_mask", 64, 0)
+#define DB_FIELD_DEF_SUBNET_OPTS_SUBNET_PREFIX(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET64, tbl_id, SMDB_FIELD_ID_SUBNET_OPTS_SUBNET_PREFIX, "subnet_prefix", 64, 64)
+#define DB_FIELD_DEF_SUBNET_OPTS_SM_STATE(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_SUBNET_OPTS_SM_STATE, "sm_state", 8, 128)
+#define DB_FIELD_DEF_SUBNET_OPTS_LMC(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_SUBNET_OPTS_SM_STATE, "lmc", 8, 136)
+#define DB_FIELD_DEF_SUBNET_OPTS_SUBNET_TIMEOUT(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_SUBNET_OPTS_SUBNET_TIMEOUT, "subnet_timeout", 8, 144)
+#define DB_FIELD_DEF_SUBNET_OPTS_ALLOW_BOTH_PKEYS(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_SUBNET_OPTS_ALLOW_BOTH_PKEYS, "allow_both_pkeys", 8, 152)
+
+#define DB_FIELD_DEF_GUID2LID_GUID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET64, tbl_id, SMDB_FIELD_ID_GUID2LID_GUID, "guid", 64, 0)
+#define DB_FIELD_DEF_GUID2LID_LID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_GUID2LID_LID, "lid", 16, 64)
+#define DB_FIELD_DEF_GUID2LID_LMC(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_GUID2LID_LMC, "lmc", 8, 80)
+#define DB_FIELD_DEF_GUID2LID_IS_SWITCH(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_GUID2LID_IS_SWITCH, "is_switch", 8, 88)
+
+#define DB_FIELD_DEF_NODE_NODE_GUID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET64, tbl_id, SMDB_FIELD_ID_NODE_NODE_GUID, "node_guid", 64, 0)
+#define DB_FIELD_DEF_NODE_IS_ENHANCED_SP0(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_NODE_IS_ENHANCED_SP0, "is_enhanced_sp0", 8, 64)
+#define DB_FIELD_DEF_NODE_NODE_TYPE(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_NODE_NODE_TYPE, "node_type", 8, 72)
+#define DB_FIELD_DEF_NODE_DESCRIPTION(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_NODE_DESCRIPTION, "description", (8 * IB_NODE_DESCRIPTION_SIZE), 80)
+
+#define DB_FIELD_DEF_LINK_FROM_LID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_LINK_FROM_LID, "from_lid", 16, 0)
+#define DB_FIELD_DEF_LINK_TO_LID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_LINK_TO_LID, "to_lid", 16, 16)
+#define DB_FIELD_DEF_LINK_FROM_PORT_NUM(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_LINK_FROM_PORT_NUM, "from_port_num", 8, 32)
+#define DB_FIELD_DEF_LINK_TO_PORT_NUM(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_LINK_TO_PORT_NUM, "to_port_num", 8, 40)
+
+#define DB_FIELD_DEF_PORT_PKEY_TBL_OFFSET(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET64, tbl_id, SMDB_FIELD_ID_PORT_PKEY_TBL_OFFSET, "pkey_tbl_offset", 64, 0)
+#define DB_FIELD_DEF_PORT_PKEY_TBL_SIZE(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_PORT_PKEY_TBL_SIZE, "pkey_tbl_size", 16, 64)
+#define DB_FIELD_DEF_PORT_PORT_LID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_PORT_PORT_LID, "port_lid", 16, 80)
+#define DB_FIELD_DEF_PORT_PORT_NUM(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_PORT_PORT_NUM, "port_num", 8, 96)
+#define DB_FIELD_DEF_PORT_MTU_CAP(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_PORT_MTU_CAP, "mtu_cap", 8, 104)
+#define DB_FIELD_DEF_PORT_RATE(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_PORT_RATE, "rate", 8, 112)
+#define DB_FIELD_DEF_PORT_VL_ENFORCE(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_PORT_VL_ENFORCE, "vl_enforce", 8, 120)
+
+#define DB_FIELD_DEF_LFT_TOP_LID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_LFT_TOP_LID, "lid", 16, 0)
+#define DB_FIELD_DEF_LFT_TOP_LFT_TOP(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_LFT_TOP_LFT_TOP, "lft_top", 16, 16)
+
+#define DB_FIELD_DEF_LFT_BLOCK_LID(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_LFT_BLOCK_LID, "lid", 16, 0)
+#define DB_FIELD_DEF_LFT_BLOCK_BLOCK_NUM(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_NET16, tbl_id, SMDB_FIELD_ID_LFT_BLOCK_BLOCK_NUM, "block_num", 16, 16)
+#define DB_FIELD_DEF_LFT_BLOCK_BLOCK(tbl_id) \
+	DB_FIELD_DEF(DBF_TYPE_U8, tbl_id, SMDB_FIELD_ID_LFT_BLOCK_BLOCK, "block", (8 * UMAD_LEN_SMP_DATA), 32)
+
 struct ssa_db *ssa_db_smdb_init(uint64_t epoch, uint64_t data_rec_cnt[SMDB_TBL_ID_MAX]);
 
 void ssa_db_smdb_destroy(struct ssa_db * p_smdb);

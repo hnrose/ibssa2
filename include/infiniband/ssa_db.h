@@ -415,6 +415,10 @@ struct ssa_db {
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, \
 	  { 0, id, 0 }, name, __constant_htonl(rsize), 0 }
 
+#define DBT_TABLE_DEF_VARIABLE_SIZE(id, ref_id, name, rsize) \
+	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DATA, 0, \
+	  { 0, id, 0 }, name, __constant_htonl(rsize), __constant_htonl(ref_id) }
+
 #define DBF_TABLE_DEF(id, offset, name) \
 	{ DBT_DEF_VERSION, sizeof(struct db_table_def), DBT_TYPE_DEF, 0, { 0, id + offset, 0 }, \
 	  name" fields", __constant_htonl(sizeof(struct db_field_def)), __constant_htonl(id) }
