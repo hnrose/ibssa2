@@ -78,11 +78,6 @@ struct prdb_pr {
 	uint8_t		is_reversible;
 };
 
-#define PRDB_TBLS		PRDB_TBL_ID_MAX * 2 /* each data table has field table */
-#define PRDB_DATA_TBLS		PRDB_TBL_ID_MAX
-#define PRDB_FIELDS		PRDB_FIELD_ID_PR_MAX + IPDB_FIELDS
-#define PRDB_TBL_OFFSET		1
-
 #define DBT_TABLE_DEF_PR(id) DBT_TABLE_DEF(id, PRDB_PR_TBL_NAME, sizeof(struct prdb_pr))
 
 #define DBF_TABLE_DEF_PR(id, offset) DBF_TABLE_DEF(id, offset, PRDB_PR_TBL_NAME)
