@@ -125,7 +125,7 @@ struct acm_perf_msg {
 
 struct acm_msg {
 	struct acm_hdr                  hdr;
-	union{
+	union {
 		uint8_t                 data[ACM_MSG_DATA_LENGTH];
 		struct acm_ep_addr_data resolve_data[0];
 		uint64_t                perf_data[0];
