@@ -2413,13 +2413,13 @@ static void *core_construct(osm_opensm_t *opensm)
 		ssa_log(SSA_LOG_DEFAULT, "ERROR starting access thread\n");
 		goto err5;
 	}
-#endif
 
 	ret = ssa_start_admin(&ssa);
 	if (ret) {
 		ssa_log(SSA_LOG_DEFAULT, "ERROR starting admin thread\n");
 		goto err6;
 	}
+#endif
 
 	ret = pthread_create(&extract_thread, NULL, core_extract_handler,
 			     (void *) &extract_data);
@@ -2449,9 +2449,9 @@ err8:
 	pthread_join(extract_thread, NULL);
 #endif
 err7:
+#ifndef SIM_SUPPORT
 	ssa_stop_admin();
 err6:
-#ifndef SIM_SUPPORT
 	ssa_stop_access(&ssa);
 err5:
 	free(extract_data.svcs);
